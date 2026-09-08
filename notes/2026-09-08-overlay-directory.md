@@ -101,11 +101,33 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 - Verificación (Xvfb vivo único: **`:99`** 640x480x24 con GLX; el :7 del test murió): 3 captures
   `s1/s2/s3.ppm` con 3k–26k colores y mean/σ > 0 ⇒ **contenido real** (titular/attract), frames
   cambiantes ⇒ video OK. Frames en `/tmp/opencode/shot/`, muestra en `/app/work/frames/attract_01.ppm`.
-- La previa del frame para el humano se hace con `tools/analysis/ppmascii.py` (97x45 luminancia)
-  porque **el modelo no puede ver imágenes** (Read no devuelve imagen útil).
-- Resto del flujo tele-op: lanzar emulador (glide) en :99 → `xshot :99 out.ppm` → `ppmascii.py`
-  → pegar ASCII en chat; input vía hhinput/HH_SCHED; directorio capturado en paralelo por el
-  write-bp. Nota: `pkill -f` NO usar (mata la propia shell); usar `pkill -x r64dump` o el pid.
+- Nivel de confianza revisado el 08-09 01:50: la captura **X a nivel de root** de glide es **NO
+  fiable**: glide64mk2 crea ventana (320x240) pero **NO presenta nunca** a X (venía de los
+  `UpdateScreen` "Origin:"); los "frames" vistos antes eran contenido residual del root.
+  La vía visual fiable = **decodificar el framebuffer 16bpp desde los dumps RDRAM**
+  (`tools/analysis/fbdecode.py`): región 0x000500 parece el frame/backdrop del attract
+  (16bpp 320x240; 9068 colores; estático en dumps t1..t9 ⇒ preg. prerendered); @0x080000
+  32bpp 640x480 otro asset estático (53k col). Se salvan como PNG por sesión en
+  `work/screenshots/sessionNN/` (el usuario los ve desde su lado; adjuntos de imagen NO
+  aparecen en su chat).
+- La previa del frame para el humano se hace con `tools/analysis/ppmascii.py` (88x~40 luminancia)
+  porque **el modelo no puede ver imágenes**.
+- Flujo tele-op: lanzar emulador (glide) en :99 → telemando input; directorio capturado por el
+  write-bp; frames decodificados de RDRAM por sesión. Nota: `pkill -f` NO usar (mata la propia
+  shell); usar `pkill -x r64dump` o el pid.
+
+## 7c. FIX FPE (SIGFPE 136 a ~6s) — SDL_AUDIODRIVER=dummy (commit 78b8d1f)
+
+- Síntoma: tras recrear el Xvfb, el emulador moría con exit=136 (~6s) con glide64mk2; rice también.
+  Causa real: **el plugin audio-sdl falla** ("Failed to initialize SDL audio subsystem") y ese fallo
+  acaba en división por cero en el path de audio.
+- Fix: `SDL_AUDIODRIVER=dummy` → `Initializing SDL audio subsystem...` OK y **emulador estable**
+  (verificado: con audio→136; sin audio→0; dummy+audio→0, 60s+). Receta en `work/play.sh`.
+- Confirmado operativo sesión `sess02` (pid 11593, 1200s): write-bp 3329 stops; `dir.bin` con 4
+  entradas: id 0x0018 base 0x801FA948; 0x0073→0x8020B5C8; 0x0075→0x8020B938; 0x007C→0x80225468.
+  NOTA: ids/bases difieren del attract previo (0xDE/0x91) → el set depende del recorrido; revisar.
+- Persistencia de seguridad: `/app/.backup/hh-wip-<ts>.tgz` (mupen-src parcheado + .so + tools +
+  notes; sin ROM ni dumps).
 
 ## 7. Pendiente para #3 (mapa overlay→RAM completo)
 
