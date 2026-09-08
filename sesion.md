@@ -189,7 +189,24 @@ Resumen en §5 + detalle en notas §4. Punto clave compilado a mano: `init_devic
 
 ## 8. Mapa overlay→RAM (corregido 2026-09-08 02:20)
 
-**Sesión sess02 (1200s, attract+menu, 31 entradas):**
+### 8.0 Evolución temporal del directorio (sess04, t=5..120s — TRANSICIÓN ATTRACT→JUEGO)
+
+| t | entradas | set |
+|---|----------|-----|
+| 5s | 1 | 0xFFFE@0x803837E0 (boot reserve) |
+| 10s | 4 | **attract**: 0x0018, 0x0073, 0x00DE, 0x0091 @ 0x801FA948/0x8020B5C8/0x8020B938/0x802117F8 |
+| 20-30s | 0 | directorio **reiniciado** (corte de intro con START) |
+| 45s | 5 | **partida**: 0x0018, 0x0073, 0x0075, 0x007C, 0x012D @ 0x801FA948…0x80235078 |
+| 60-90s | 6 | + 0x0074@0x80265FF8 |
+| 120s | 0 | directorio reiniciado (¿cambio de fase?) |
+
+**Lectura**: el set de partida es distinto del attract (0x75/0x7C/0x12D/0x74 vs 0xDE/0x91).
+0x0018 y 0x0073 son comunes. El directorio se re-inicializa por completo al saltar la intro
+(t=20-30s) y los overlays del juego se registran después. `sess04.dir.bin` acumuló 26
+registraciones (muchas transitorias: el dir.bin captura cada escritura, los snapshots de dump
+muestran el conjunto en cada instante).
+
+### 8.1 Sesión sess02 (1200s, attract+menu, 31 entradas)
 
 | # | id | base | gap prev |
 |---|-----|------|----------|
@@ -225,7 +242,7 @@ Resumen en §5 + detalle en notas §4. Punto clave compilado a mano: `init_devic
 |29 | 0x00D2 | 0x802D6D08 | +0x10F0 |
 |30 | 0x00C5 | 0x802D76B8 | +0x9B0 |
 
-**Sesión sess03 (menu cortado START, 23 entradas):**
+### 8.2 Sesión sess03 (menu cortado START, 23 entradas)
 
 | # | id | base | gap prev |
 |---|-----|------|----------|
