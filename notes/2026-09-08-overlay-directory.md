@@ -2,6 +2,11 @@
 
 Date: 2026-09-08. ROM: `work/roms/us_dec.z64` (z64, plana; código RAM = offset_rom + 0x80000000).
 
+**ESTADO RÁPIDO (13:45)** — pipeline Windows/BizHawk funcional (script v5, capturas PNG+`.txt`
+emparejadas por wall-clock; dominio "System Bus"). Confirmados con capturas+usuario: **COMBATE
+por turnos** = `010F`+`01AA…01B8`+`0125/0127` y **MENÚ pausa** = `0113…0121` (§10.7). Pendiente:
+pasar la partida larga al contenedor y etiquetar sets sueltos. Índice operativo: `/app/sesion.md`.
+
 ## 0. Byte-order rule (RESUELTO)
 
 Los dumps RDRAM de `r64dump` empiezan **word-swapped**: el fragmento de 4 bytes `48 A9 1F 80`
@@ -153,3 +158,276 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 3. Alternativa estática: la tabla slot 0x8DCA8 + el "init trans" 0x80018420 (copia de plantilla
    ROM 0x8004413C → 0x8008EBD4) y 0x800185B0 (bucle de 7 cards llamando 0x8001A804) siguen en
    análisis marginal.
+
+---
+
+## 8. 12:50 — GAMEPLAY ALCANZADO + secuencia entre títulos + validación cruzada del parse
+
+### 8.1 La secuencia que llega a gameplay (harness Linux, tíming por frames)
+
+| frame | input | efecto |
+|---|---|---|
+| f004 | Start | Konami logo |
+| f005 | Start | KCEO logo |
+| f008 | Start | ExpPack #1 |
+| f010 | Start | ExpPack #2 |
+| f046 | Start | saltar escena intro + Press Start |
+| f050 | A | New Game |
+| f055 | A | Game Start |
+| +60s | — | avance de la intro |
+| f115 | Start | **skip intro → gameplay ~t=158** |
+
+- Los diálogos controller/rumble **NO siempre aparecen** (el juego recuerda el setup de runs
+  previos, save/EEPROM): en sess34/36/38 no salen; en sess32/33 sí. Si salen → A f060/f065/f070.
+- Sesiones que lo confirmaron: sess38 (EMU0=1788864571), sess41, sess42 (EMU0=1788867028).
+- El usuario confirmó visualmente: "Hemos llegado al gameplay, al juego".
+- **ADVERTENCIA de ground-truth**: la columna `mean` de stats.txt está DESFASADA de la imagen real
+  (el usuario anotó "gameplay" con mean=0 y "negro" con mean=212). Las anotaciones en
+  `work/screenshots/session38/stats_ANOTADO.txt` son la verdad.
+
+### 8.2 Input analógico (stick) — `hhinput.c` parcheado (sin commit aún)
+
+- `/tmp/hh_keys.bin` ahora **4 bytes BE**: `[0]=mask hi`, `[1]=mask lo`, `[2]=Y_AXIS firme`,
+  `[3]=X_AXIS firme`. `read_keys()` rellena los tres; `GetKeys()` los aplica a `Keys->X_AXIS/Y_AXIS`.
+- Stick N64: **arriba = Y=-127 (0x81)**, **derecha = X=+127 (0x7f)**, abajo = Y=+100.
+- D-pad (mask 0x0800) OK para menús, pero **el movimiento del PJ requiere el stick** (D-pad no
+  mueve; probado sess41). La cámara sigue al PJ → caminar "recto" con stick es inestable.
+- **A = saltar**, **B = acción/abrir** (B+Up + A acercándose funcionan).
+
+### 8.3 Parse VALIDADO (bloquea el byte-order)
+
+Se validó hoy por **doble vía independiente** que convergen al mismo set:
+- `game.log` de BizHawk (`memory.read_u8`, lectura CPU big-endian nativa) → `id=bytes[0..1]`,
+  `base=bytes[4..7]` (la variante "BE" del Lua).
+- `sess42.dir.bin` (word-swapped desde el core) → tras bswap32 da **exactamente los mismos ids/bases**
+  pareja a pareja que el log de BizHawk en el mismo instante de gameplay.
+
+```
+raw=00180000801FA948  →  id=0x0018  base=0x801FA948   (parse BE / CPU)
+raw=007300008020B5C8  →  id=0x0073  base=0x8020B5C8
+```
+- En dumps `.tN` (word-swapped) el mismo par aparece como `0x48A91F80 ...` → hay que bswap32.
+- **Regla práctica**: les el dir como CPU BE (`bytes[0..1]` id, `bytes[4..7]` base) siempre; en
+  dumps byte-swapped, bswap32 primero. La variante "swap" del Lua es la vista RDRAM física;
+  **mantener ambas en el log**.
+
+### 8.4 Línea de tiempo del arranque (sess38, anotada por usuario)
+
+| t (s) | escena |
+|---|---|
+| 2-5 | negro → logo Konami → (salto KCEO por timing del emulador) |
+| 8-11 | escenas Controller Pak #1/#2 (solo en runs con setup previo) |
+| 12-41 | negro (espera Press Start) |
+| 42-44 | animación del menú → negro → título Hybrid Heaven |
+| 45-52 | **MENÚ**: "New Game / Continue / Battle Mode / Sound / Resolution" → "Game Start / Difficulty / Exit" |
+| 53 | se pulsa New Game (desaparecen los textos) |
+| 54-88 | transición negra → empieza la intro (sutil → clara) |
+| 89-108 | intro (escenas TV / protagonista; t~108 se pulsa A) |
+| 110-112 | fundido negro→blanco |
+| 113-147 | post-intro (escenas "ruido de TV"; 8-16 colores) |
+| 148-157 | **empieza a verse el gameplay** → transición |
+| 158+ | gameplay en marcha (2k-12k col, mean 22-32) |
+
+### 8.5 Set del directorio en GAMEPLAY — 31 entradas no-nulas (sess42.dir.bin)
+
+Estable mientras el PJ se mueve/cruza escenarios (el dir NO crece al desplazarse):
+
+| s | id | base | | s | id | base |
+|---|---|---|---|---|---|---|
+| 0 | 0xFFFE | 0x803757E0 | | 16 | 0x01AE | 0x802A0D58 |
+| 1 | 0x00BF | 0x802746A8 | | 17 | 0x00F4 | 0x802A0DA8 |
+| 2 | 0x0076 | 0x80274788 | | 18 | 0x00F8 | 0x802A78F8 |
+| 3 | 0x01EE | 0x80279E68 | | 19 | 0x00C2 | 0x802B2248 |
+| 4 | 0x01EF | 0x8027A268 | | 20 | 0x00C6 | 0x802B2318 |
+| 5 | 0x0131 | 0x8027A4D8 | | 21 | 0x01E5 | 0x802B2718 |
+| 6 | 0x00C3 | 0x8027C1E8 | | 22 | 0x01F1 | 0x802B3948 |
+| 7 | 0x00C4 | 0x8027F308 | | 23 | 0x00A1 | 0x802B3978 |
+| 8 | 0x010E | 0x80286608 | | 24 | 0x00B0 | 0x802CDC18 |
+| 9 | 0x0073 | 0x80287AC8 | | 25 | 0x00A0 | 0x802D72C8 |
+| 10 | 0x00E0 | 0x80287E38 | | 26 | 0x00A9 | 0x802D7F18 |
+| 11 | 0x00C0 | 0x8028A5E8 | | 27 | 0x00AC | 0x802D8EF8 |
+| 12 | 0x007C | 0x8028BCF8 | | 28 | 0x00AA | 0x802D9EE8 |
+| 13 | 0x0074 | 0x8029B908 | | 29 | 0x00CD | 0x802DA958 |
+| 14 | 0x00CC | 0x8029DC68 | | 30 | 0x00C5 | 0x00000000 (reserva) |
+| 15 | 0x0126 | 0x802A0548 | | | | |
+
+- Idéntico al set final de sess38 (31 ids, bases 0x8023-0x802d). **Andar/cruzar áreas NO registra
+  overlays nuevos** → el mapa de ids no crece al deambular; solo cambia por fase/menú/combate.
+
+### 8.6 Huella del mapa
+
+- Las bases NO vienen de la ROM: el asignador (0x80018420 init_trans, tabla 0x8009EBD4, 24B/slot;
+  plantilla ROM 0x8004413C) vuelca 12 halfwords y reasigna bases en runtime (base_prev + size).
+  Vía estática insuficiente para el mapa completo ⇒ **captura dinámica**.
+- La vía Windows/BizHawk cubre juego entero (combates incluidos) con el usuario jugando.
+
+## 9. VÍA WINDOWS/BizHawk (el usuario juega; agente correlaciona)
+
+Contexto: no se puede jugar bien a ciegas (cámara inestable, sin enemigos al inicio). Acuerdo:
+**el usuario juega en BizHawk en Windows con un script Lua que vuelca: directorio 0x8008DFC0
+(0x100 entradas) + pulsaciones + screenshots F12 vinculadas.**
+
+### 9.1 `work/bizhawk_hh_tracker.lua` (en evolución)
+
+- Output: `.../work/gameplay screenshots/` → `game.log`, `buttons.log`, `scr_<frame>.png`.
+- **F12**: screenshot (percent-encoded) + volcado completo de las 0x100 entradas + botones en
+  ventana ~2s → correlación pantalla↔overlay↔input.
+- **F11**: borra game.log/buttons.log/scr_*.png y reinicia.
+- Arranque resiliente: si el core es NullHawk (sin ROM) o el dominio de memoria no existe,
+  imprime el core activo y NO revienta (skips escaneo; sigue con botones/F12/F11).
+- Fixes aplicados hoy: nombres de botones BizHawk correctos (`C-Up`, no `C_Up`) → buttons.log YA
+  registra pulsaciones; screenshot con percent-encode para rutas con espacios.
+
+### 9.2 Primer log BizHawk validado (12:10) — la vía funciona
+
+`buttons.log`: PRESS/RELEASE con frame+tiempo para Start/A/Z. `game.log` captura
+attract→(Start)→menú→(skip)→**gameplay con los mismos ids/bases del harness Linux**:
+- arranque: s0..s5 = 0x0018@801FA948, 0x0073@8020B5C8, 0x0075@8020B938, 0x007C@80225468,
+  0x012D@80235078, 0x0074@80265FF8 (= set "partida" de sess02/sess04).
+- tras Start/A/skip: transiciones frame a frame (0x008F@80227FF8, 0x007E@80233C78, 0x0076@8023D808...)
+  que terminan en el set de gameplay de 31 entradas §8.5.
+- Conclusión: **directorio + botones se vuelcan sin error en BizHawk actual.**
+
+### 9.3 Pendientes vía BizHawk
+
+- Screenshots F12: en prueba por el usuario; si falla, revisar `ok=` en game.log y percent-encode
+  (o probar ruta sin espacios). Alternativas: `client.screenshot` con ruta %-encoded ya aplicado.
+- Que el usuario juegue combates/puertas/menús pulsando F12 y envíe la carpeta `gameplay screenshots/`
+  completa para correlacionar.
+- Si el core N64 de su BizHawk no expone memoria: probar `mainmemory.read_u8` o reportar versión exacta.
+
+## 10. CORRELACIÓN DEL GAMEPLAY REAL (BizHawk 12:39) + ANOTACIONES DEL USUARIO
+
+El usuario jugó de verdad y envió los logs completos (`game.log` 455 eventos, `buttons.log`,
+~100 capturas nativas `Hybrid Heaven (USA).2026-09-08 14.HH.MM.SS.png`). Análisis automático.
+**ARCHIVADO en `work/gameplay screenshots/session1/`** (160 PNG + game.log + buttons.log);
+los logs nuevos que genere el script v4 caen en la raíz de esa carpeta.
+
+### 10.1 Qué se detectó (sin visión)
+
+- 129 ids brutos → al limpiar basura del frame 24 (RAM sin inicializar, bases no-0x80) y del
+  boot (f<230): **89 ids válidos**; de ellos **58 NUEVOS** (no estaban en el set 31 de §8.5).
+- Aparecen en ráfagas de ~1s/seguidas => son fases/menús/acciones, no el deambular.
+
+### 10.2 Anotaciones del usuario (reglas de etiquetado)
+
+- **A consecutivas/rapidísimas (20-30 press/s) = pasar DIÁLOGOS con NPCs.** → los ids que
+  aparecen en ese rango de t son overlays de diálogo/NPC.
+- **R = saca la PISTOLA, A = disparar.** Acción para DERRIBAR ROBOTS. **La pistola NO despliega
+  NINGÚN HUD** → los ids que aparezcan durante A+R NO son HUD de pistola.
+- El **combate contra MUTANTES es por turnos (lucha libre) y SÍ tiene HUD/menú para elegir
+  golpes** → ese es el set "combate" real a buscar.
+- La pantalla se la describe el usuario (agente sin visión); ver 10.3.
+
+### 10.3 Ráfagas → overlays nuevos → etiqueta provisoria
+
+| t(s) aprox | ids nuevos | botones en ese rango | etiqueta |
+|---|---|---|---|
+| 19–23 | 008F, 007E, 00B2 | Start repetido | menú→ transición a gameplay |
+| 123–130 | 0113…011C (9) | Start 127s, A 122/129s | **MENÚ PAUSA (ITEM/TECH LIST/STATUS/OPTIONS)** |
+| 336–358 | 0092, 00A2, 00AD, 00A7, 0231 (+00C1) | 30+ A seguidas | **DIÁLOGO NPC** |
+| **476** | **010F + 01AA…01B4 (11)** | A + R | **COMBATE POR TURNOS (pelea/lucha libre)** |
+| 554–615 | 01AB, 01B5, 00A6, 00E5, 00FE | 25+ A, Z, Start | acción/diálogo |
+| 663–747 | 012B, 012C, 0112, 01B6, 00DB | — | por etiquetar |
+| 776 / 870 | 0093, 0094 | — | por etiquetar |
+
+- La ráfaga del t~476s NO es HUD de pistola; es el **COMBATE POR TURNOS** (usuario confirma la
+  captura 15:19:25). Set completo en 10.7.
+- `0x0092`, `0x00A2`, `0x00AD`, `0x00A7`, `0x0231` = candidatos de overlays de **diálogo/texto NPC**.
+- El menú de pausa (0113-0121) se abre con Start; el primer id en cargar es `0x0113` (slot 29).
+
+### 10.4 Script v2 (enviado al usuario) — capturas con datos emparejados
+
+- **F12** = `client.screenshot()` SIN argumentos → captura nativa de BizHawk (misma carpeta y
+  nombre `Hybrid Heaven (USA).YYYY-MM-DD HH.MM.SS.png`) + escribe en la carpeta compartida un
+  `.txt` con el MISMO timestamp: directorio completo + frame + t + wall-clock.
+- Todo `--- frame` y cada botón ahora llevan hora de pared (formato `14:23:55`) → cualquier
+  captura nativa (haya sido F12 del script o el hotkey de BizHawk) se casa por timestamp.
+- F11: resetea logs. Arranque resiliente a NullHawk (domain pick + guardas nil).
+- Análisis pendiente: cargar el siguiente gameplay ya con timestamps y etiquetar el mapa
+  automatizado (shot PNG ↔ dump → etiqueta del usuario).
+- **Actualizaciones**: el combate de mutantes no ha aparecido AÚN; pero el log tiene 2 runs
+  casi idénticos (segments 2 y 3 por `### script arrancado`) + un run largo hasta t≈967s
+  (ver 10.5). El usuario hizo VARIOS combates por turnos → tienen que estar ahí (oro puro).
+
+### 10.5 Análisis por segmentos (2 iteraciones casi iguales + run largo)
+
+Cada `### script arrancado` reinicia t (=frame-t_start). Los runs reproducen lo mismo al
+principio (boot→menú→gameplay→mismos bursts a t≈1.8/7.9/16.9/39/46...) y el **run 3** (`core=N64
+fr0=0` de la línea 1277) llega hasta t≈967s. Candidatos a **cargar escenario de combate/HUD**
+en el run largo (ids nuevos sin ver antes, agrupados si a <2.5s):
+
+| t(s) run largo | ids nuevos | botones en ±5s | |
+|---|---|---|---|
+| **119.0** | **0113…011C (9)** | Start 116, A 119, R 121-124, B 124 | **MENÚ PAUSA** (confirmado) |
+| 229.8 | 00D2, 00D1 | A 250, B 245 | par |
+| 257.6 | 00D6, 0231 | — | par |
+| 307.9 | 00DD | A 302-310 (40 A) | diálogo? |
+| 333.4 | 01AB | A 327-337 | |
+| 337.5-342.8 | 0092, 00A2, 00AD, 00A7 | A 343-349 (30 A) | diálogo NPC |
+| **459-476.5** | **010F + 01AA…01B8 (16)** | ninguno (s2: evento auto) / R+A (s1) | **COMBATE POR TURNOS** (confirmado) |
+| 598-615 | 00A6, 00E5, 00FE | Start/Z + A 605-621 | |
+| 663-671 | 012B, 012C, 0112 | A 655-688 | |
+| 741-747 | 01B6, 00DB | A 736-744 | |
+| 776 / 870 | 0093 / 0094 | A | |
+
+- **El stick SÍ se usó** (lo confirma el usuario) pero buttons.log de esa sesión no tiene ni
+  D-pad/C ni STICK → el registro v3/v4 del stick NO capturó las claves reales (los 40 ms no
+  bastan si el nombre de la clave no es "Stick X"/"Stick Y"). **Script v5** vuelca `joypad.get(1)`
+  completo en cada F12 → ver nombre real de las claves del stick en el próximo .txt.
+- El combate del t~459-476 **NO carga botones**: en la sesión 2 arrancó solo (15:19:23, sin
+  pulsaciones) al entrar en la pelea.
+
+### 10.6 Script v4 — stick analógico + pitfall de dominio
+
+- `update_stick()`: registra en buttons.log `frame t WH STICK x,y` cuando el stick (claves
+  joypad "Stick X"/"Stick Y", detección defensiva por nombre) se mueve >40 en algún eje desde
+  el último valor registrado. Sin esto no se separa menú de combate de diálogo.
+- **Resultado**: el usuario SÍ usó el stick pero no se registró nada → las claves reales del
+  pad N64 en BizHawk no son las esperadas. v5 añade dump del pad en cada F12.
+
+### 10.7 Sets CONFIRMADOS por captura + usuario (sesión 2, script v3)
+
+Directorio completo leído de los `.txt` emparejados (los slots s29+ son los que cargan sobre la
+base de deambular, que tiene 29 entradas s000-s028; los dos sets ocupan RAM creciente a partir
+de 0x802EC298).
+
+**SET COMBATE POR TURNOS (pelea de lucha libre; menú de golpes)** — captura 15.19.25
+(slot 28 cambia de 00C5→010F, mismo base 0x802EC298; luego s29-s44):
+
+| slot | id | base | | slot | id | base |
+|---|---|---|---|---|---|---|
+| s028 | 010F | 0x802EC298 | | s037 | 01B3 | 0x802F03B8 |
+| s029 | 01AA | 0x802EDAA8 | | s038 | 01B4 | 0x802F07C8 |
+| s030 | 01AB | 0x802EDC88 | | s039 | 01B5 | 0x802F0B68 |
+| s031 | 01AC | 0x802EEF58 | | s040 | 01B6 | 0x802F1388 |
+| s032 | 01AD | 0x802EF068 | | s041 | 01B7 | 0x802F19E8 |
+| s033 | 01AF | 0x802EF178 | | s042 | 01B8 | 0x802F39F8 |
+| s034 | 01B0 | 0x802EF588 | | s043 | 0125 | 0x802F5ED8 |
+| s035 | 01B1 | 0x802EFD98 | | s044 | 0127 | 0x802FEDA8 |
+| s036 | 01B2 | 0x802EFFA8 | | | | |
+
+- Se carga **automáticamente** al entrar en la pelea (ninguna pulsación en sesión 2).
+- En sesión 1 el mismo set apareció a t≈459-476 (010F + 01AA…01B4): mismo combate, con menos
+  sub-sets (¡varía con el momento/enemigo! 0125/0127/01B6-01B8 no siempre).
+
+**SET MENÚ DE PAUSA (Start → ITEM / TECH LIST / STATUS / OPTIONS)** — capturas 15.20.46/48:
+
+| slot | id | base | | slot | id | base |
+|---|---|---|---|---|---|---|
+| s029 | 0113 | 0x802EFCD8 | | s037 | 011B | 0x802FF448 |
+| s030 | 0114 | 0x802F2868 | | s038 | 011C | 0x80300F98 |
+| s031 | 0115 | 0x802F45F8 | | s039 | 011D | 0x80302258 |
+| s032 | 0116 | 0x802F5B88 | | s040 | 0121 | 0x803036C8 |
+| s033 | 0117 | 0x802F71E8 | | s041 | 011E | 0x80304668 |
+| s034 | 0118 | 0x802F8B08 | | s042 | 011F | 0x80306E38 |
+| s035 | 0119 | 0x802FA728 | | s043 | 0120 | 0x80308818 |
+| s036 | 011A | 0x802FCCD8 | | | | |
+
+- Se abre con **Start** (en sesión 2: Start 15:20:45 → 0113 carga primero en s29, luego
+  el resto en <1s). En sesión 1 apareció a t≈119-130 (0113-011C) = mismo menú.
+- `0122/0123/0124` aparecen ~1s después en la misma zona (sub-capturas/menús internos, aún por
+  etiquetar).
+
+**Importante para el port**: los dos sets comparten slots s29+ con bases crecientes y se hacen
+sobrescribir del estado de deambular; `0x010F` sustituye a `0x00C5` EN EL MISMO SLOT/BASE.

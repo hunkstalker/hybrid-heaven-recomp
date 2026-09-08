@@ -286,8 +286,10 @@ Detalle de las fases: `docs/README.md`.
 1. ~~Instalar toolchain core~~ ✅ (gcc/g++, cmake, ninja, SDL2 — 2026-09-05).
 2. ~~Clonar repos base~~ ✅ N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp.
 3. ~~Instalar JDK y montar **Ghidra + N64LoaderWV**~~ ✅ (2026-09-05: JDK 21 + Ghidra 12.1.3 +
-   extensión N64LoaderWV; ROM US importada y analizada). Sigue pendiente derivar de Ghidra el
-   **mapa de RAM bases de overlays** (cargador `trans`) y el **microcode de audio**.
+   extensión N64LoaderWV; ROM US importada y analizada). ~~Derivar de Ghidra el mapa de RAM bases
+   de overlays (cargador `trans`)~~ **SUPERADO por un método mejor**: el directorio `trans` se
+   observa EN VIVO en runtime — write-bp sobre `0x8008DFC0` (§5, vía emulador) y volcado por
+   script BizHawk (tarea #3, EN CURSO; ver `sesion.md` §1/§15 + `notes/2026-09-08-overlay-directory.md`).
 4. Construir el **mapa de símbolos inicial**: anclar funciones por archivo fuente (`/game/source/*.c`,
    proyecto RZ011) usando referencias `lui/ori` a sus strings (requiere RAM bases de overlays).
 5. ~~Extraer tabla Nisitenma-Ichigo (US+EU)~~ ✅ 625 archivos; manifests en `notes/`; `tools/rommy.py`.
@@ -295,3 +297,9 @@ Detalle de las fases: `docs/README.md`.
 7. Empezar Fase 2: generar ELF del código principal (0x1000+0x80000000) con N64Recomp y probar
    el build Linux → RT64 (código principal plano favorece el arranque temprano del render).
 7. Empezar pipeline de extracción de textos (doc 03).
+8. **Tarea #3 (EN CURSO) — mapa overlay→RAM de todo el juego por runtime**: pipeline BizHawk
+   funcional (script **v5** en `work/gameplay screenshots/`, volcado de directorio + F12 PNG/txt
+   emparejados por wall-clock). **Confirmados con capturas**: combate por turnos
+   (`010F`+`01AA…01B8`+`0125/0127`) y menú pausa (`0113…0121`) → `notes/…-overlay-directory.md` §10.7.
+   Pendiente: pasar la partida larga al contenedor, etiquetar sets sueltos, arreglar registro del
+   stick. Índice operativo y pendientes: `sesion.md` §1/§12/§15.

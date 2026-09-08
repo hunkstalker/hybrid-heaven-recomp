@@ -98,18 +98,28 @@ void InitiateControllers(CONTROL_INFO ControlInfo)
 int RomOpen(void) { return 1; }
 void RomClosed(void) {}
 
-static unsigned int read_keys(void)
+/* /tmp/hh_keys.bin format: 4 bytes BE: [0]=mask lo, [1]=mask hi, [2]=Y_AXIS, [3]=X_AXIS */
+/* (mask is the N64 little-host-order button bits used above; a 2-byte file is
+ *  treated as mask with zeroed analog, keeping old callers working). */
+static void read_keys(unsigned short *m_out, signed char *y_out, signed char *x_out)
 {
     unsigned short m = 0;
+    signed char y = 0, x = 0;
     FILE *f = fopen("/tmp/hh_keys.bin", "rb");
     if (f) {
-        unsigned char b[2] = {0, 0};
-        if (fread(b, 1, 2, f) != 2) { m = 0; }
-        else { m = (b[0] << 8) | b[1]; }
+        unsigned char b[4] = {0, 0, 0, 0};
+        int n = (int)fread(b, 1, 4, f);
+        if (n < 2) { /* corrupted: reset */ }
+        else {
+            m = (b[0] << 8) | b[1];
+            if (n >= 4) { y = (signed char)b[2]; x = (signed char)b[3]; }
+        }
         fclose(f);
     }
     g_keys_loaded = 1;
-    return m;
+    if (m_out) *m_out = m;
+    if (y_out) *y_out = y;
+    if (x_out) *x_out = x;
 }
 
 void GetKeys(int Control, BUTTONS *Keys)
@@ -118,7 +128,10 @@ void GetKeys(int Control, BUTTONS *Keys)
     Keys->X_AXIS = 0;
     Keys->Y_AXIS = 0;
     if (Control != 0) return;
-    unsigned short m = (unsigned short)read_keys();
+    unsigned short m = 0; signed char ya = 0, xa = 0;
+    read_keys(&m, &ya, &xa);
+    Keys->X_AXIS = xa;
+    Keys->Y_AXIS = ya;
     /* mupen.Value bit mapping from N64 mask bits */
     if (m & 0x0100) Keys->Value |= (1u << 0);  /* D-Pad R  */
     if (m & 0x0200) Keys->Value |= (1u << 1);  /* D-Pad L  */

@@ -25,25 +25,28 @@ Fases del port (referencia):
 
 ---
 
-## 1. Cómo está el entorno AHORA (estado transaccional 2026-09-08 ~02:10)
+## 1. Cómo está el entorno AHORA (estado transaccional 2026-09-08 13:45)
 
-- **Emulador**: la sesión `sess02` (pid 11593, 1200s) **ya terminó** (exit 0, duró 20 min). Ahora
-  NO hay emulador vivo. Relanzar cuando se vaya a trabajar (ver §4).
-- **LO NUEVO desde la última parada**:
-  - `fbdecode.py v2`: arreglado el **bug de stride** (16bpp = 2 B/pixel, no 4) que producía
-    "ruido/artefactos" en los PNG que vio el usuario.
-  - Región **VIVA** encontrada: scan de diferencias t1-vs-t9 → bloques que cambian en RDRAM.
-    Mejor candidata de framebuffer FMV/backdrop: **0x1C0000** (640x480×16bpp: 5781 col, mean=25,
-    AE(t1,t9)=21301 → LIVE; ASCII muestra bandas + puntos dispersos = película/backdrop oscuro).
-  - **rice (video-rice v2.6.0) YA NO CRASHEA** con `SDL_AUDIODRIVER=dummy` (antes moría exit 136;
-    era el mismo FPE de audio, NO del plugin). Su ventana **presenta contenido a X**:
-    crop 320x240→2861 col, AE=10072 entre dos capturas a 3s (≠ glide, negro estático). ASCII de
-    la ventana muestra un **emblema centrado con líneas/reglas** ⇒ frame real. VIAs prometedora.
-  - **write-bp capturó un registro REAL en vivo** al final de sess02 (`sess02.dir.bin`, 01:56):
-    id 0x012D → base 0x80235078, y un slot 0x0074 **congelado a mitad de escritura** (base=0),
-    lo que demuestra la captura mecánica del instante `dir_set_id`/`dir_set_base`.
-- Dumps de RDRAM (8 MB) y logs de la sesión: `work/scratch/sess02.*`.
-- Últimos commits (branch main, git local): ver §11.
+- **VÍA PRINCIPAL: Windows/BizHawk.** El usuario juega con `work/gameplay screenshots/
+  bizhawk_hh_tracker.lua` (**v5**) y el entorno de captura **YA FUNCIONA**: PNG+`.txt`
+  emparejados por wall-clock caen solos en esa carpeta compartida; `game.log`/`buttons.log`
+  regeneran en la raíz. Dominio de memoria: **System Bus**.
+- **Sets CONFIRMADOS con capturas + usuario** (notes §10.7): combate por turnos = `010F` +
+  `01AA…01B8` + `0125/0127` (captura 15:19:25); menú de pausa (ITEM/TECH LIST/STATUS/OPTIONS)
+  = `0113…0121` (captura 15:20:46). Detalle en notes §10.
+- La sesión de prueba (15:10-15:21) está analizada (87 ids nuevos). La **partida larga del
+  usuario aún NO está en el contenedor** (a 13:45 la carpeta sigue en 15:21). El usuario tiene
+  un **save state** y puede remontar y capturar combates al instante.
+- **Script v5**: PNG con `client.screenshot(ruta)` + nombre único `…HH.MM.SS.CCC`; F12 por
+  flanco (1 captura); dump de `joypad.get(1)` en cada captura (para arreglar el registro del
+  **stick**, que hoy NO registra aunque el usuario dice que SÍ lo usa). Anti-thrash de dominios.
+- `session1/` guarda los PNG + logs de la sesión anterior (14:xx).
+- **Cambios sin commit**: `tools/analysis/hhinput.c` (stick 4B en `/tmp/hh_keys.bin`), y este
+  doc/README de la vía BizHawk cuando se confirme todo.
+- Últimos datos clave: `work/scratch/sess42.*` (set gameplay 31 entradas),
+  `work/gameplay screenshots/session1/` (logs+PNG sesión 14:xx),
+  `work/screenshots/session38/stats_ANOTADO.txt` (ground truth).
+- Últimos commits: `41539c7` (sess04 transición attract→juego). Ver §11.
 
 ---
 
@@ -309,22 +312,99 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 
 ---
 
-## 12. Tareas pendientes (priorizado)
+## 12. Tareas pendientes (priorizado, actualizado 15:10)
 
-1. **Confirmar con el usuario** qué se ve en `session02/viva_t9_640x480.png` (¿ciudad de noche?
-   ¿logo con reglas? ¿artefacto?) y en el ASCII del crop de rice — cierra cuál es la vía visual
-   definitiva (rice-xshot vs fbdecode-RDRAM).
-2. **Explotar rice**: relanzar run con rice + dummy audio, capturar xshot del crop en loop
-   (`cap_loop.sh`), verificar que NO es residuo (2 disparos a 3s → AE alto), y mandar PNG reales
-   por sesión al usuario (tele-op).
-3. **Progresar gameplay**: con visibilidad real, el usuario guía (Start interrumpe intro → menú →
-   opciones); el write-bp va registrando cada trans en `dir.bin` en vivo. Recolectar el mapa
-   overlay→RAM del flujo completo.
-4. **Reconciliar ids**: por qué en attract el set es 0xDE/0x91 y en sess02 0x75/0x7C/0x12D (¿depende
-   del orden de carga? ¿misma tabla 0x18B en 0x8DCA8? revisar dumps del directorio en cada t).
-5. **Extra: audio** (opcional/más adelante): el audio dummy silencia; no bloquea la tarea #3.
-6. ¿Seguir con el emulador o pivotar a N64Recomp? Combentries: la instrumentación definitiva será
-   sobre el código recompilado; el emulador sirve para obtener el mapa (tarea #3).
+1. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al contenedor: añade fases nuevas al
+   mapa y permite etiquetar más sets con el usuario. **NO bloquea**: el mecanismo `trans` está
+   confirmado y el mapa por orden temporal+tamaño es derivable de los dumps que ya hay (87 ids +
+   set 31 entradas gameplay + sesión1).
+2. **[AGENTE] Procesar los datos nuevos**: emparejar PNG↔`.txt` por wall-clock, listar ráfagas
+   de overlays por fase, y pedir al usuario las horas de las capturas que son combates/menús.
+3. **[AGENTE] Registrar el stick**: tras el primer F12 con la v5, leer el dump de
+   `joypad.get(1)` del `.txt` → ajustar `update_stick()` con las claves reales del N64.
+4. **[AGENTE] Etiquetar pending sets**: diálogo NPC (`0092/00A2/00AD/00A7/0231`), submenús
+   `0122-0124`, pares `00D2/00D1`, `00D6/0231`, `01AB/00A6/00E5/00FE`, `012B/012C/0112`, `0093/0094`.
+5. **[CÓDIGO] Commit de `tools/analysis/hhinput.c`** (stick 4B) cuando el usuario lo pida.
+6. **[ENTREGA] Mapa overlay→RAM por fase** (combate/menú/gameplay/diálogo) consolidado en notes
+   §10 → entregable de la tarea #3 para el port.
+7. ~~**[LIMPIAR]** Borrar el `bizhawk_hh_tracker.lua` viejo de `work/` (raíz).~~ ✅ **(hecho por el
+   usuario, 2026-09-08 15:0x)**.
+
+**Backlog técnico (no bloquea, no perderlo)**:
+8. **Reconciliar ids** attract (`0xDE/0x91`) vs partida (`0x75/0x7C/0x12D`): ¿orden de carga
+   distinto o tabla 0x18B diferente? (notas §6.2).
+9. **Audio** (opcional, más adelante): con dummy-audio todo es silencioso; no afecta a #3.
+10. **Pivot N64Recomp**: el emulador sirve para obtener el mapa (tarea #3); la instrumentación
+    definitiva irá sobre el código recompilado (repo fuera de alcance de esta carpeta).
+
+**Objetivos del TODO interno/histórico (persistidos para no perderlos; 3 superados)**:
+- ✅ **SUPERADO** "Dump RDRAM en runtime headless (core + RSP-hle real)" y "Detectar overlays por
+  diffs" y "Inyección de input para avanzar menús": reemplazados por el **directorio `trans`
+  0x8008DFC0** + write-bp (§5) + la vía **BizHawk/Windows** (§15). El mapa overlay→RAM de todo el
+  juego es hoy la tarea #3 en curso (orden temporal = ráfagas; tamaño = gap entre bases).
+- ✅ **AVANZADO/SUFICIENTE** "Derivar mapa completo overlay→RAM base por orden temporal + tamaño":
+  con el mecanismo confirmado y los dumps presentes (87 ids + set gameplay 31 + sesión1) el mapa
+  es derivable ya; ampliar cobertura con la partida larga = opcional (§12 #1).
+- ⏳ **PENDIENTE** **Descompresor LZ del `trans` loader**: mapear las variantes LZSS/LZKN64 usando
+  las copias DESCOMPRIMIDAS ya visibles en RAM (0x801BB000, 0x801FA000, ...) como **oráculo**
+  (notes/2026-09-06_emulator-rdram.md + PROYECTO.md §7.1.3).
+- ⏳ **PENDIENTE** **Microcode de audio + tabla `seginfo` en runtime**: el ucode de audio no
+  matchea aspMain (posible KCEO custom); localizar la tabla `seginfo` en RAM en runtime
+  (PROYECTO.md §9 #6, §7.1.2).
+
+---
+
+## 14. ESTADO ACTUAL / LO NUEVO (2026-09-08 12:50) — ¡GAMEPLAY ALCANZADO + VÍA WINDOWS!
+
+Resumen de todo lo hecho hoy (después del handoff anterior). Detalle técnico completo en
+`notes/2026-09-08-overlay-directory.md` §8-9.
+
+### 14.1 Tele-operación: se llegó a GAMEPLAY con el harness Linux
+- Secuencia de teclas que llega a gameplay (frames): Start f004/f005/f008/f010/f046 (logos/ExpPack),
+  A f050 (New Game), A f055 (Game Start), +60s de intro, **Start f115 = skip intro → gameplay ~t=158s**.
+  - Los diálogos controller/rumble NO siempre aparecen (el juego recuerda config previa); si salen, A
+    en f060/f065/f070.
+  - Sesiones OK: sess38 (EMU0=1788864571), sess41, sess42 (EMU0=1788867028). Confirmado por el usuario:
+    "Hemos llegado al gameplay".
+- `stats.txt` tiene la media DESFASADA de la imagen real; el usuario anotó la verdad en
+  `work/screenshots/session38/stats_ANOTADO.txt` (168 líneas). Usar SIEMPRE las anotaciones, NO stats.
+
+### 14.2 Input: stick añadido al plugin `hhinput.c` (SIN commit aún — git diff pendiente)
+- `/tmp/hh_keys.bin` ahora 4 bytes BE: mask(2B) + Y_AXIS + X_AXIS (firmados). Recompilado a
+  `work/hhinput.so`. Stick: arriba=Y-127, derecha=X+127, abajo=Y+100.
+- D-pad OK para menús, pero el PJ se mueve con STICK (no D-pad). A salta, B acción/abrir. La cámara
+  sigue al PJ → caminar recto con stick es inestable (cruzar puertas a ciegas: difícil).
+
+### 14.3 Parse del directorio VALIDADO por doble vía (importante)
+- BizHawk (CPU BE nativa: `id=bytes[0..1]`, `base=bytes[4..7]`) y harness Linux (dumps word-swapped,
+  bswap32 primero) convergen al MISMO set par a par. Ej: `00180000801FA948 → id=0x0018 base=0x801FA948`.
+- Leer como CPU BE siempre; en dumps del harness aplicar bswap32 antes.
+
+### 14.4 Set de gameplay capturado (31 entradas, `scratch/sess42.dir.bin`)
+Set ESTABLE mientras el PJ deambula/cruza escenarios; NO crece con el movimiento. Mapa completo en
+notes §8.5 (0x00BF→0x802746A8, 0x0076→0x80274788, 0x0073→0x80287AC8, ..., 0xFFFE→0x803757E0).
+Los overlays de fase/combate/menú probablemente añaden más; las bases las asigna en runtime un
+asignador (init_trans 0x80018420, tabla 0x8009EBD4, plantilla ROM 0x8004413C) ⇒ vía estática
+insuficiente ⇒ hay que capturar dinámico (Write).
+
+### 14.5 VÍA WINDOWS/BizHawk (ACTUAL — el usuario juega y captura)
+- Decisión: el usuario juega la versión real en BizHawk (Windows) con `work/bizhawk_hh_tracker.lua`
+  que vuelca directorio (0x100 entradas) + pulsaciones + screenshot por F12. Output en la carpeta
+  `work/gameplay screenshots/` (game.log, buttons.log, scr_*.png).
+- README de uso: `work/gameplay screenshots/README_bizhawk.md`. Script: `work/bizhawk_hh_tracker.lua`.
+- **Último estado (12:10): EL LOG FUNCIONA** — buttons.log registra PRESS/RELEASE (Start/A/Z) y
+  game.log volcó attract→menú→gameplay con los mismos ids que el harness Linux. Falta que F12
+  saque las capturas (en prueba por el usuario; ver `ok=` en game.log para diagnóstico).
+- Teclas: F12 = screenshot+volcado; F11 = reset (borra logs y captures). El script es resiliente a
+  NullHawk (avisa y sigue esperando a que se cargue la ROM).
+
+### 14.6 Pendientes inmediatos (ordenados)
+1. [BizHawk] Que F12 genere las capturas (usuario probando). Si falla: comprobar el `ok=` del
+   game.log y la ruta; alternativa `mainmemory.read_u8` si el core no expone el dominio por defecto.
+2. [BizHawk] Usuario juega combates/puertas/menús del juego entero pulsando F12 y manda la carpeta
+   `gameplay screenshots/` → correlacionamos overlay↔botón↔pantalla.
+3. [Linux] Commit de `tools/analysis/hhinput.c` (stick 4B) cuando se confirme.
+4. Entregar al usuario el mapa de 31 entradas (notes §8.5) junto con la tabla de ids por fase.
 
 ---
 
@@ -342,3 +422,44 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 - `/app/work/mupen-src/` — fuente del core parcheado (respaldo en tarball).
 - `/app/work/wsl_package/` — (a medio hacer; el plan acordado es conducir desde el contenedor,
   no usar WSL para el harness).
+
+---
+
+## 15. LO ÚLTIMO (13:45) — PIPELINE BizHawk FUNCIONAL + 2 SETS CONFIRMADOS
+
+Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-09-08-overlay-directory.md` §10.
+
+### 15.1 Dónde estamos
+
+- El flujo Windows/BizHawk es la vía principal para la tarea #3 (mapa overlay→RAM de todo el juego):
+  el usuario juega, el script vuelca el directorio 0x8008DFC0 + botones + capturas, el agente
+  correlaciona. **Todo funciona** desde el script **v5**.
+- Sesión de prueba (15:10-15:21) analizada al completo: **87 ids nuevos** sobre el set de 31 de
+  gameplay; 671 volcados; 60 capturas.
+- `session1/` = archivo de la sesión vieja (PNG 14:xx + game.log/buttons.log).
+
+### 15.2 Lo último conseguido (oro puro + correcciones)
+
+- **Combate por turnos (pelea de lucha libre) = set confirmado.** Captura 15:19:25 (se carga SOLA,
+  sin botones). ids: `010F` (sustituye a `00C5` en el slot 28, mismo base 0x802EC298) + `01AA…01B8`
+  (slots 29-42, bases 0x802EDAA8→0x802F39F8) + `0125` (s43 0x802F5ED8) + `0127` (s44 0x802FEDA8).
+  En la sesión 1 el mismo combate salió con menos ids (varía con el momento/enemigo).
+- **Menú de pausa (Start: ITEM / TECH LIST / STATUS / OPTIONS) = set confirmado.** Captura
+  15:20:46/48. ids: `0113` (s29, el primero en cargar) + `0114…0121` (s30-s43). `0122/0123/0124`
+  llegan ~1s después (submenús, por etiquetar).
+- **Corrección**: lo que antes llamábamos "pistola/robots" (t≈476, ids `010F`+`01AA…01B4`) ERA el
+  combate por turnos. La pistola (R+A) NO tiene HUD (verdad del usuario).
+- **Detectado**: el stick se usó de verdad pero NO se registró (fallo de claves joypad) → v5 vuelca
+  `joypad.get(1)` en cada F12 para descubrir las claves reales. SOLO queda pendiente de confirmar con
+  un F12 de la próxima sesión.
+
+### 15.3 Reglas de etiquetado del usuario (ground truth)
+
+- A rápidas seguidas (20-30/s) = pasar **diálogos con NPCs**.
+- R = saca pistola, A = disparo (derribar robots); **la pistola NO tiene HUD**.
+- Combate contra mutantes = **por turnos** (lucha libre) con **menú para elegir golpes** (sí HUD).
+- El usuario tiene un **save state** y puede remontar la partida desde ahí.
+
+### 15.4 Qué queda (tareas 1-7 en §12)
+Pasar la partida larga al contenedor, procesar y etiquetar con el usuario, arreglar stick con el
+dump de la v5, etiquetar sets sueltos, commit hhinput.c, consolidar el mapa para el port.
