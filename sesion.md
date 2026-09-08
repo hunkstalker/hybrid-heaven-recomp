@@ -312,30 +312,50 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 
 ---
 
-## 12. Tareas pendientes (priorizado, actualizado 15:10)
+## 12. Tareas pendientes (priorizado, actualizado 2026-09-08 — VISIÓN DESACOPLADA)
 
-1. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al contenedor: añade fases nuevas al
-   mapa y permite etiquetar más sets con el usuario. **NO bloquea**: el mecanismo `trans` está
-   confirmado y el mapa por orden temporal+tamaño es derivable de los dumps que ya hay (87 ids +
+> **NUEVA VISIÓN (ver PROYECTO.md §3.1):** la tarea #3 está **desacoplada** de la Fase 2. El port del
+> **núcleo plano** se puede y debe empezar YA (no espera al mapa de overlays). La tarea #3 avanza en
+> paralelo por la vía BizHawk (el usuario juega en el contenedor; es trabajo del usuario, no del
+> agente). Los **bloqueantes** (ucode de audio + LZSS) son independientes del mapa y deben resolver
+> de forma temprana. **Criterio de corte de la tarea #3:** ~6 sets de fase, no exhaustividad total.
+
+### A. Fase 2 / recompilación (PROPULSOR — arrancar YA)
+1. **[CÓDIGO] Arrancar la Fase 2 del NÚCLEO PLANO**: generar ELF de `0x1000+0x80000000` con
+   N64Recomp y probar build Linux → RT64. NO depende de overlays ni del usuario. Audio dummy primero.
+2. **[CÓDIGO] Bloqueante — identificar el microcode de audio** (ucode custom KCEO vs asp). NO bloquea
+   el render (dummy); sondear con Ghidra/runtime durante la Fase 2.
+3. **[CÓDIGO] Bloqueante — mapear las variantes LZSS del `trans`** (`LZSS 5`/`LZSS 7`) usando las
+   copias descomprimidas en RAM (0x801BB000, 0x801FA000, ...) como oráculo.
+4. **[CÓDIGO] Mapa de símbolos del núcleo plano** (anclas `/game/source/*.c`, RZ011). Para overlays
+   sí requiere el mapa de la tarea #3.
+
+### B. Tarea #3 (desacoplada, vía BizHawk — el usuario juega)
+5. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al contenedor: añade fases nuevas al
+   mapa y permite etiquetar más sets con el usuario. **NO bloquea** la Fase 2: el mecanismo `trans`
+   está confirmado y el mapa por orden temporal+tamaño es derivable de los dumps que ya hay (87 ids +
    set 31 entradas gameplay + sesión1).
-2. **[AGENTE] Procesar los datos nuevos**: emparejar PNG↔`.txt` por wall-clock, listar ráfagas
+6. **[AGENTE] Procesar los datos nuevos**: emparejar PNG↔`.txt` por wall-clock, listar ráfagas
    de overlays por fase, y pedir al usuario las horas de las capturas que son combates/menús.
-3. **[AGENTE] Registrar el stick**: tras el primer F12 con la v5, leer el dump de
-   `joypad.get(1)` del `.txt` → ajustar `update_stick()` con las claves reales del N64.
-4. **[AGENTE] Etiquetar pending sets**: diálogo NPC (`0092/00A2/00AD/00A7/0231`), submenús
+7. **[AGENTE] Etiquetar pending sets**: diálogo NPC (`0092/00A2/00AD/00A7/0231`), submenús
    `0122-0124`, pares `00D2/00D1`, `00D6/0231`, `01AB/00A6/00E5/00FE`, `012B/012C/0112`, `0093/0094`.
-5. **[CÓDIGO] Commit de `tools/analysis/hhinput.c`** (stick 4B) cuando el usuario lo pida.
-6. **[ENTREGA] Mapa overlay→RAM por fase** (combate/menú/gameplay/diálogo) consolidado en notes
-   §10 → entregable de la tarea #3 para el port.
-7. ~~**[LIMPIAR]** Borrar el `bizhawk_hh_tracker.lua` viejo de `work/` (raíz).~~ ✅ **(hecho por el
-   usuario, 2026-09-08 15:0x)**.
+8. **[ENTREGA] Mapa overlay→RAM por fase** (combate/menú/gameplay/diálogo) consolidado en notes
+   §10 → entregable de la tarea #3 para el port. Aplicar **criterio de corte** (~6 sets de fase) y
+   no bloquear la Fase 2 con exhaustividad.
+
+### C. Indirectos / menor prioridad
+9. **[AGENTE] Registrar el stick** (baja prioridad, 1 min): tras un F12 con la v5, leer el dump de
+   `joypad.get(1)` del `.txt` → ajustar `update_stick()` con las claves reales del N64. Solo cuando
+   se necesite para separar menú de combate en los sets.
+10. ~~**[LIMPIAR]** Borrar el `bizhawk_hh_tracker.lua` viejo de `work/` (raíz).~~ ✅ **(hecho por el
+    usuario, 2026-09-08 15:0x)**.
 
 **Backlog técnico (no bloquea, no perderlo)**:
-8. **Reconciliar ids** attract (`0xDE/0x91`) vs partida (`0x75/0x7C/0x12D`): ¿orden de carga
-   distinto o tabla 0x18B diferente? (notas §6.2).
-9. **Audio** (opcional, más adelante): con dummy-audio todo es silencioso; no afecta a #3.
-10. **Pivot N64Recomp**: el emulador sirve para obtener el mapa (tarea #3); la instrumentación
-    definitiva irá sobre el código recompilado (repo fuera de alcance de esta carpeta).
+11. **Reconciliar ids** attract (`0xDE/0x91`) vs partida (`0x75/0x7C/0x12D`): ¿orden de carga
+    distinto o tabla 0x18B diferente? (notas §6.2).
+12. **Audio** (opcional, más adelante): con dummy-audio todo es silencioso; no afecta a la Fase 2.
+13. **Pivot N64Recomp**: el emulador sirve para obtener el mapa (tarea #3) y validar el runtime;
+    la instrumentación definitiva irá sobre el código recompilado (repo fuera de alcance de esta carpeta).
 
 **Objetivos del TODO interno/histórico (persistidos para no perderlos; 3 superados)**:
 - ✅ **SUPERADO** "Dump RDRAM en runtime headless (core + RSP-hle real)" y "Detectar overlays por
@@ -344,13 +364,13 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
   juego es hoy la tarea #3 en curso (orden temporal = ráfagas; tamaño = gap entre bases).
 - ✅ **AVANZADO/SUFICIENTE** "Derivar mapa completo overlay→RAM base por orden temporal + tamaño":
   con el mecanismo confirmado y los dumps presentes (87 ids + set gameplay 31 + sesión1) el mapa
-  es derivable ya; ampliar cobertura con la partida larga = opcional (§12 #1).
+  es derivable ya; ampliar cobertura con la partida larga = opcional (§12 #5).
 - ⏳ **PENDIENTE** **Descompresor LZ del `trans` loader**: mapear las variantes LZSS/LZKN64 usando
   las copias DESCOMPRIMIDAS ya visibles en RAM (0x801BB000, 0x801FA000, ...) como **oráculo**
-  (notes/2026-09-06_emulator-rdram.md + PROYECTO.md §7.1.3).
+  (notes/2026-09-06_emulator-rdram.md + PROYECTO.md §7.1.3). → **ahora BLOQUEANTE marcado (§12 #3)**.
 - ⏳ **PENDIENTE** **Microcode de audio + tabla `seginfo` en runtime**: el ucode de audio no
   matchea aspMain (posible KCEO custom); localizar la tabla `seginfo` en RAM en runtime
-  (PROYECTO.md §9 #6, §7.1.2).
+  (PROYECTO.md §9 #6, §7.1.2). → **ahora BLOQUEANTE marcado (§12 #2)**.
 
 ---
 
@@ -460,6 +480,19 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
 - Combate contra mutantes = **por turnos** (lucha libre) con **menú para elegir golpes** (sí HUD).
 - El usuario tiene un **save state** y puede remontar la partida desde ahí.
 
-### 15.4 Qué queda (tareas 1-7 en §12)
-Pasar la partida larga al contenedor, procesar y etiquetar con el usuario, arreglar stick con el
-dump de la v5, etiquetar sets sueltos, commit hhinput.c, consolidar el mapa para el port.
+### 15.4 Qué queda (tareas en §12 — VISIÓN DESACOPLADA)
+- **Propulsor: arrancar la Fase 2 del núcleo plano** (ELF → build Linux → RT64) — no espera a la
+  tarea #3; arranca con audio dummy. (§12 #1)
+- **Bloqueantes a resolver de forma temprana**: microcode de audio custom KCEO y variantes LZSS del
+  `trans`. (§12 #2 y #3)
+- La **tarea #3** avanza en paralelo por la vía BizHawk (el usuario juega): pasar la partida larga,
+  procesar/etiquetar sets, y consolidar el mapa con criterio de corte (~6 sets de fase).
+
+### 15.5 Visión operativa desacoplada (2026-09-08)
+- El port del **código principal plano** es independiente del mapa de overlays → se arranca **ya**
+  (Fase 2). Estilo Zelda64/Goemon: base primero, overlays de fase después.
+- La **tarea #3** (mapa overlay→RAM) es necesaria para los ~462 overlays de código, pero NO bloquea
+  el arranque/render del núcleo. Avanza en paralelo (trabajo del usuario en BizHawk).
+- **Criterio de corte de la tarea #3:** cubrir los ~6 sets de fase y consolidar el entregable, no
+  perseguir exhaustividad que retrase la Fase 2.
+- Detalle técnico/estrategia: `PROYECTO.md` §3.1 + §9, `docs/README.md` §0/§2/§4.

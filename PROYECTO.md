@@ -6,7 +6,7 @@
 > Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
-Actualizado por última vez: **2026-09-05** (3ª sesión: asset map RZ011 + toolchain + repos clonados).
+Actualizado por última vez: **2026-09-08** (visión desacoplada: Fase 2 núcleo plano arranca ya; tarea #3 en paralelo; bloqueantes ucode de audio + LZSS). Hist: 2026-09-05 (asset map RZ011 + toolchain + repos clonados).
 
 ---
 
@@ -64,6 +64,25 @@ El resultado debe funcionar **sin emulador**, leyendo solo la ROM del usuario
 | Guardado | Reemplazar Controller Pak por archivos en disco | Elimina dependencia de hardware |
 | Input | SDL2 GameController + teclado/ratón | Estándar en estos ports |
 | Plataformas | **Windows + Linux + Steam Deck** (mismo código, 3 builds) | Requisito del usuario; SDL2 + RT64 (Vulkan/D3D12) ya es multiplataforma |
+
+### 3.1 Desacople estratégico (2026-09-08): Fase 2 ≠ mapa de overlays
+
+- El **código principal plano** (`0x1000+0x80000000`) es independiente de los overlays: se puede
+  recompilar con N64Recomp y arrancar el build Linux→RT64 **ahora mismo**, sin esperar al mapa
+  completo de overlays. Estilo Zelda64/Goemon: el port base arranca primero, los overlays de fase
+  (diálogos/combate/menús) se añaden después.
+- El **mapa overlay→RAM (tarea #3)** es necesario para los ~462 overlays de código, pero NO bloquea
+  el arranque/render del núcleo plano.
+- **División de trabajo:** el usuario avanza la tarea #3 jugando en BizHawk (work ajeno al
+  contenedor); el agente arranca la Fase 2 (núcleo plano → ELF → build → RT64) en paralelo.
+- **Bloqueantes que resolver de forma temprana (independientes del mapa):**
+  1. **Microcode de audio custom KCEO** (no matchea aspMain) → identificación; bloquea audio real,
+     no el render (usar audio dummy primero).
+  2. **Variantes LZSS del cargador `trans`** (`LZSS 5`/`LZSS 7`) → mapeo con oráculo de las copias
+     descomprimidas en RAM; bloquea el pipeline completo de overlays/extracción.
+- **Criterio de corte de la tarea #3:** cubrir los ~6 sets de fase (combate / menú pausa /
+  gameplay / diálogo / submenús) y consolidar el mapa como entregable, sin perseguir exhaustividad
+  total que retrase la Fase 2.
 
 ---
 
@@ -204,11 +223,11 @@ Pendientes:
 
 | Fase | Estado | Notas |
 |---|---|---|
-| 0. Preparación del entorno | En curso | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos ✅ |
-| 1. Análisis estático profundo | Pendiente | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja |
-| 2. Recompilación código base | Pendiente | Requiere mapa de símbolos + RAM bases de overlays + ELF; SIN descompresión de ROM |
-| 3. Integración RT64 (render) | Pendiente | Microcode F3DEX2 ✅ favorable |
-| 4. Audio | Pendiente | ABI de audio a identificar (ucode custom?) |
+| 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
+| 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
+| 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
+| 3. Integración RT64 (render) | En curso | Microcode F3DEX2 ✅ favorable. Se prueba con el núcleo plano (audio dummy primero). |
+| 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |
 | 7. Robustez/empaquetado | Pendiente | **3 builds: Windows + Linux + Steam Deck** (requisito) |
@@ -223,10 +242,12 @@ Detalle de las fases: `docs/README.md`.
 1. **Overlays/TLB:** comprobar cómo carga el juego los segmentos (posible TLB mapping).
    N64Recomp tiene soporte de relocaciones TLB en desarrollo; existe fork
    `RevoSucks/N64Recomp_New` con TLB support. **Verificar en Fase 1.**
-2. **Microcode custom:** el ucode de audio no matchea `aspMain` de Nintendo (firma LBV/LDV no
-   presente) → posible ucode de audio propio KCEO. Identificar en Fase 1/4.
-3. **Compresión LZKN64 + LZSS ("LZSS 5"/"LZSS 7")**: ya resuelto el descompresor LZKN64
-   (reutilizable de rommy/lzkn64); mapear las variantes LZSS del cargador `trans` de HH.
+2. **Microcode de audio custom KCEO (BLOQUEANTE para audio):** el ucode de audio no matchea
+   `aspMain` de Nintendo (firma LBV/LDV no presente) → posible ucode de audio propio KCEO.
+   Identificar en Fase 1/4. NO bloquea el render del núcleo (usar audio dummy primero).
+3. **Compresión LZKN64 + LZSS ("LZSS 5"/"LZSS 7") (BLOQUEANTE para pipeline completo):** ya
+   resuelto el descompresor LZKN64 (reutilizable de rommy/lzkn64); **pendiente mapear las variantes
+   LZSS del cargador `trans` de HH** (usar las copias descomprimidas en RAM como oráculo).
 4. **Efectos framebuffer** (el juego usa cinematografía): verificar en RT64.
 5. **Endianness:** RDRAM 32-bit BE → runtime lo maneja; vigilar rendimiento.
 
@@ -283,6 +304,11 @@ Detalle de las fases: `docs/README.md`.
 
 ## 9. Próximos pasos inmediatos
 
+> **VISIÓN OPERATIVA (2026-09-08):** la tarea #3 (mapa overlay→RAM) está **desacoplada** de la
+> Fase 2. El port del **código principal plano** se puede y debe empezar YA (no espera al mapa
+> completo de overlays); los overlays de código/fase se añaden progresivamente. La tarea #3 sigue
+> avanzando en paralelo por la vía BizHawk (es trabajo del usuario jugando, no del contenedor).
+
 1. ~~Instalar toolchain core~~ ✅ (gcc/g++, cmake, ninja, SDL2 — 2026-09-05).
 2. ~~Clonar repos base~~ ✅ N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp.
 3. ~~Instalar JDK y montar **Ghidra + N64LoaderWV**~~ ✅ (2026-09-05: JDK 21 + Ghidra 12.1.3 +
@@ -290,16 +316,25 @@ Detalle de las fases: `docs/README.md`.
    de overlays (cargador `trans`)~~ **SUPERADO por un método mejor**: el directorio `trans` se
    observa EN VIVO en runtime — write-bp sobre `0x8008DFC0` (§5, vía emulador) y volcado por
    script BizHawk (tarea #3, EN CURSO; ver `sesion.md` §1/§15 + `notes/2026-09-08-overlay-directory.md`).
-4. Construir el **mapa de símbolos inicial**: anclar funciones por archivo fuente (`/game/source/*.c`,
-   proyecto RZ011) usando referencias `lui/ori` a sus strings (requiere RAM bases de overlays).
-5. ~~Extraer tabla Nisitenma-Ichigo (US+EU)~~ ✅ 625 archivos; manifests en `notes/`; `tools/rommy.py`.
-6. Identificar el **microcode de audio** (ucode custom vs asp).
-7. Empezar Fase 2: generar ELF del código principal (0x1000+0x80000000) con N64Recomp y probar
-   el build Linux → RT64 (código principal plano favorece el arranque temprano del render).
-7. Empezar pipeline de extracción de textos (doc 03).
-8. **Tarea #3 (EN CURSO) — mapa overlay→RAM de todo el juego por runtime**: pipeline BizHawk
-   funcional (script **v5** en `work/gameplay screenshots/`, volcado de directorio + F12 PNG/txt
-   emparejados por wall-clock). **Confirmados con capturas**: combate por turnos
+4. **ARANCAR FASE 2 — ELF del código principal plano** (`0x1000+0x80000000`) con N64Recomp y
+   probar el build Linux → RT64. No depende del mapa de overlays ni del usuario/render. **Audio
+   dummy primero** (ver bloqueantes abajo). ← **PRÓXIMA ACCIÓN RECOMENDADA**
+5. Construir el **mapa de símbolos inicial** del núcleo plano: anclar funciones por archivo fuente
+   (`/game/source/*.c`, proyecto RZ011) usando referencias `lui/ori` a sus strings. (Para los
+   overlays sí requiere el mapa de RAM bases de la tarea #3.)
+6. ~~Extraer tabla Nisitenma-Ichigo (US+EU)~~ ✅ 625 archivos; manifests en `notes/`; `tools/rommy.py`.
+7. **IDENTIFICAR EL MICROCODE DE AUDIO** (ucode custom KCEO vs asp; §4.2/§7.1.2, docs/README §4).
+   **BLOQUEANTE duro** para audio real (Fase 4); NO bloquea el render del núcleo (audio dummy).
+   Sondear con Ghidra/runtime durante la Fase 2.
+8. **Mapear las variantes LZSS del cargador `trans`** (`LZSS 5`/`LZSS 7`; §4.6). **BLOQUEANTE**
+   para el pipeline completo de overlays/extracción. Usar las copias descomprimidas visibles en RAM
+   (0x801BB000, 0x801FA000, ...) como **oráculo** frente al `trans` loader.
+9. **Tarea #3 (EN CURSO, desacoplada) — mapa overlay→RAM de todo el juego por runtime**: pipeline
+   BizHawk funcional (script **v5** en `work/gameplay screenshots/`, volcado de directorio + F12
+   PNG/txt emparejados por wall-clock). **Confirmados con capturas**: combate por turnos
    (`010F`+`01AA…01B8`+`0125/0127`) y menú pausa (`0113…0121`) → `notes/…-overlay-directory.md` §10.7.
-   Pendiente: pasar la partida larga al contenedor, etiquetar sets sueltos, arreglar registro del
-   stick. Índice operativo y pendientes: `sesion.md` §1/§12/§15.
+   Pendiente: pasar la partida larga al contenedor, etiquetar sets sueltos. Índice operativo y
+   pendientes: `sesion.md` §1/§12/§15.
+10. **Criterio de corte de la tarea #3**: cubrir los ~6 sets de fase (combate / menú pausa /
+    gameplay / diálogo / submenús) y consolidar el mapa como entregable — NO perseguir exhaustividad
+    total que retrase la Fase 2.

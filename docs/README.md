@@ -29,6 +29,13 @@ usuario aporta su copia, que debe coincidir con el checksum.
 - SHA-256: `5476523049dd35c287cf05e0cc743cf5942dbc88d29bd7c351c220257bd18790`
 - XXH3-64 (el que valida el port internamente): `0x0F6A72F2C36A216D`
 
+> **VISIÓN OPERATIVA (2026-09-08):** el port del **código principal plano** (Fase 2) está
+> **desacoplado** del mapa de overlays (tarea #3). Se puede recompilar YA con N64Recomp y arrancar
+> el build Linux → RT64 sin esperar al mapa completo de overlays; los overlays de fase se añaden
+> progresivamente. La tarea #3 avanza en paralelo por la vía BizHawk. **Bloqueantes tempranos a
+> resolver (independientes del mapa): microcode de audio custom KCEO y variantes LZSS del `trans`.**
+> Detalle: `PROYECTO.md` §3.1 y §9.
+
 ---
 
 ## 1. Decisiones de arquitectura
@@ -44,6 +51,10 @@ usuario aporta su copia, que debe coincidir con el checksum.
 > **Nota sobre idiomas EU vs USA:** La versión europea trae EN/FR/DE y una pantalla extra de
 > selección de idioma + texto embebido en UTF-16LE para esos selectores. La USA trae solo inglés.
 > Para la **traducción a otro idioma**, partir de la USA simplifica la extracción (un solo idioma).
+
+> **Orden de trabajo (2026-09-08):** no es estrictamente secuencial Fase 1→2→3. Se prioriza
+> **arrancar la Fase 2 (núcleo plano) lo antes posible** en paralelo a la tarea #3 (mapa de overlays,
+> vía BizHawk). Los overlays y el mapa de símbolos completo llegan después. Ver §0 y PROYECTO.md §3.1.
 
 ---
 
@@ -71,16 +82,27 @@ Hybrid Heaven **incluye símbolos de debug del compilador** (paths como `/game/s
 Entregables: `config.toml` + primeros `overlays`/symbols para N64Recomp, mapa de memoria.
 
 ### Fase 2 — Recompilación del código base (semanas 4-10)
+
+> **Importante (2026-09-08):** esta fase está **desacoplada del mapa de overlays** (tarea #3).
+> El **código principal plano** (`0x1000+0x80000000`) NO depende de los overlays → se recompila y
+> arranca el render con RT64 **de inmediato**. Los overlays de código/fase (diálogos, combate,
+> menús) se añaden después, cuando el mapa de la tarea #3 esté disponible. Audio: usar **dummy**
+> primero (el microcode de audio está pendiente de identificar; ver Fase 4).
+
 - [ ] Crear `game.toml` de N64Recomp (config init, paths, funciones)
-- [ ] Obtener/detectar **ELF con símbolos** (o generar symbol map) — N64Recomp requiere un ELF
+- [ ] Obtener/detectar **ELF con símbolos del NÚCLEO PLANO** (o generar symbol map) — N64Recomp requiere un ELF
 
   > N64Recomp acepta un ELF con símbolos y relocaciones. Se puede producir un ELF *ad-hoc*
   > mediante scripts (ver PLAN detallado en `02-recompilacion-estatica.md`) o usar símbolos de plugins Ghidra.
+  > Para el núcleo plano NO es necesario el mapa de RAM bases de overlays (bases `ROM_offset+0x80000000`).
 
 - [ ] Compilar el C recompilado contra el runtime (N64ModernRuntime)
 - [ ] Boot loop mínimo: inicializar memoria, ejecutar game loop, sistema de vídeo DENTRO de la ventana
 - [ ] **Primer hito jugable**: título + pantalla de modo select renderizada nativamente
 - [ ] Implementar **input** (SDL Controller), reemplazando `osContStartReadData`
+
+> Cuando el render funcione, se incorporan progresivamente los **overlays de fase** (mapa de la
+> tarea #3) y se construye el mapa de símbolos completo (anclas `/game/source/*.c`, RZ011).
 
 ### Fase 3 — Integración RT64 (render) (semanas 8-16)
 - [ ] Implementar el adaptador microcode F3DEX2 → RT64 (que RT64 ya entiende nativamente)
@@ -90,7 +112,12 @@ Entregables: `config.toml` + primeros `overlays`/symbols para N64Recomp, mapa de
 - [ ] Widescreen/ultrawide + HUD
 
 ### Fase 4 — Audio (semanas 12-18)
-- [ ] Identificar el **microcode de audio** (ABI) usado (buscar el "audio ABI" en la ROM)
+> **Bloqueante temprano: identificar el microcode de audio.** El ABI de audio de HH **NO matchea**
+> `aspMain` de Nintendo (firma LBV/LDV ausente) → posible ucode **custom KCEO**. Sin identificarlo no
+> hay audio real. **NO bloquea el render del núcleo** (usar audio dummy en Fase 2/3). Sondear con
+> Ghidra/runtime durante la Fase 2.
+
+- [ ] **Identificar el microcode de audio (ABI)** usado (buscar el "audio ABI" en la ROM) — literalmente el primer paso
 - [ ] Emular el RSP de audio o traducir la secuencia MIDI
 - [ ] Implementar salida con miniaudio/SDL
 - [ ] Reproducir / enlazar los datos de sonido/música del juego (posible compresión tipo Konami)
@@ -151,12 +178,16 @@ CMake, gcc/clang C++20, ninja, SDL2, Vulkan/D3D12 headers, miniaudio/SDL_mixer.
 
 ## 4. Riesgos técnicos específicos de Hybrid Heaven
 
-1. **Overlays y TLB**: si el juego mapea código a través de TLB, N64Recomp requiere soporte de relocaciones TLB (parcialmente disponible; existe fork `RevoSucks/N64Recomp_New` con TLB support). **A verificar en Fase 1.**
+1. **Overlays y TLB**: si el juego mapea código a través de TLB, N64Recomp requiere soporte de relocaciones TLB (parcialmente disponible; existe fork `RevoSucks/N64Recomp_New` con TLB support). **A verificar en Fase 1.** → el mapa overlay→RAM es la tarea #3, desacoplada de la Fase 2.
 2. **Microcode gráfico**: si algún nivel usa un microcode custom (no F3DEX2), el adaptador RT64 necesitará trabajo extra.
-3. **Compresión de datos** (`trans.c` menciona `Lzss`): hay datos comprimidos (texturas, archivos por nivel). Habrá que reimplementar los descompresores para el pipeline RT64 y para el extractor de textos.
-4. **Audio Konami**: los bancos musicales de Konami de esta época pueden usar formatos propietarios; requerirá ingeniería inversa o traducción a MIDI.
-5. **Símbolos de debug presentes** (paths `/game/source/*.c`): son una gran ventaja, pero hay que limpiarlos (puede incluirse debugging del propio código original).
-6. **Endianness/alto rendimiento**: todos los accesos a memoria son 32-bit big-endian → el runtime lo convierte; la eficiencia dependerá de RT64/RDRAM mapping.
+3. **Microcode de audio custom KCEO (BLOQUEANTE para audio)**: el ABI de audio no matchea `aspMain` de Nintendo (firma LBV/LDV ausente). Identificar en Fase 1/4. NO bloquea el render del núcleo (audio dummy).
+4. **Compresión de datos** (`trans.c` menciona `Lzss`): LZKN64 ya resuelto (rommy/lzkn64); **pendiente mapear las variantes LZSS (`LZSS 5`/`LZSS 7`) del cargador `trans`** — uso del oráculo de copias descomprimidas en RAM (0x801BB000, 0x801FA000). BLOQUEANTE para el pipeline completo de overlays/extracción.
+5. **Audio Konami**: los bancos musicales de Konami de esta época pueden usar formatos propietarios; requerirá ingeniería inversa o traducción a MIDI.
+6. **Símbolos de debug presentes** (paths `/game/source/*.c`): son una gran ventaja, pero hay que limpiarlos (puede incluirse debugging del propio código original).
+7. **Endianness/alto rendimiento**: todos los accesos a memoria son 32-bit big-endian → el runtime lo convierte; la eficiencia dependerá de RT64/RDRAM mapping.
+
+> **Desacople estratégico:** la Fase 2 (núcleo plano) NO espera al mapa de overlays (tarea #3); se
+> arranca ya con RT64 + audio dummy. Ver `PROYECTO.md` §3.1 y `sesion.md`.
 
 ---
 
