@@ -129,6 +129,22 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 - Persistencia de seguridad: `/app/.backup/hh-wip-<ts>.tgz` (mupen-src parcheado + .so + tools +
   notes; sin ROM ni dumps).
 
+## 7d. HALLazgos 02:10 — rice OK + región viva + registro en vivo
+
+- **fbdecode.py v2**: bug de stride arreglado (16bpp = 2 B/pixel; antes 4B → PNG parecían
+  "artefactos/ruido"). Ahora el render es correcto (pitch = w*2).
+- **Región VIVA en RDRAM: 0x1C0000** (640x480×16bpp: 5781 col, mean=25; AE(t1,t9)=21301 por lo
+  que CAMBIA con el tiempo). ASCII = bandas + puntos (backdrop oscuro tipo película/logo).
+  Estático: 0x000500 y 0x080000 (prerender). Centroides: bloques dinámicos en
+  0x1C0000..0x1C7000, 0x20D000..0x211000, 0x388000..0x38A000 (ver sesion.md §6.4).
+- **rice con SDL_AUDIODRIVER=dummy YA ES ESTABLE** (el "crash" de rice era el FPE de audio, no el
+  plugin) y **presenta contenido a X**: crop 320x240 = 2861 col, AE=10072 entre 2 capturas a 3s,
+  ASCII = emblema centrado con reglas ⇒ frame real. Vía glide sigue siendo NO-presentar.
+- **Registro en vivo capturado** (fin de sess02, dir.bin 01:56): 6 no-nulas:
+  0x0018/0x0073/0x0075/0x007C → 0x801FA948/0x8020B5C8/0x8020B938/0x80225468,
+  **0x012D → 0x80235078** (registro nuevo en runtime), 0x0074 → base=0 (congelado a mitad de
+  `dir_set_id`/`dir_set_base`). Demuestra captura mecánica del instante de registro.
+
 ## 7. Pendiente para #3 (mapa overlay→RAM completo)
 
 1. Visibilidad de video o input guiado para pasar de attract a jugo (los trans de juego se cargan
