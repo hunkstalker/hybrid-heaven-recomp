@@ -1,0 +1,20 @@
+# ... ROMs, assets y derivados del usuario (NUNCA versionar)
+work/
+
+# Toolchain descargable/reproducible
+toolchain/
+
+# Entornos y caches
+__pycache__/
+*.pyc
+
+# Builds
+build/
+build_*/
+dist/
+*.so
+
+# Sistema
+.DS_Store
+# Backup temporal de trabajo (no versionar)
+.backup/
