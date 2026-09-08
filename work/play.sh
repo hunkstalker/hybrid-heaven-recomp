@@ -19,6 +19,7 @@
 #   <prefijo>           dump final
 #   stderr: lineas "[dbg] stop pc=... valid=YES ... loader pc=..." por cada carga
 
+export SDL_AUDIODRIVER=dummy   # REQUERIDO headless/Xvfb: sin esto audio-sdl falla y FPE (136) a ~6s
 export CORE_SO=/app/work/libmupen64plus-debug.so
 export RSP_PLUGIN=/usr/lib/mupen64plus/mupen64plus-rsp-hle.so
 export INPUT_PLUGIN=/usr/lib/mupen64plus/mupen64plus-input-sdl.so
