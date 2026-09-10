@@ -115,46 +115,41 @@ EOF
 
 ---
 
-## 6. INVESTIGACIÓN INTERNET (2026-09-10) — HALLAZGO CLAVE: el asset es LZKN64
+## 6. INVESTIGACIÓN INTERNET (2026-09-10) — el asset es un LZKN64 **estructurado en bloques**, no plano
 
-### 6.1 El asset 0x4E69A8 es LZKN64, NO el LZSS custom de FUN_80003824
+### 6.1 lzkn64 NO es un oráculo válido para este asset
 
-- **Goemon's `lzkn64_decompress` (ya en `tools/lzkn64/`) DECODIFICA correctamente el asset**:
-```python
-from lzkn64 import decompress
-data = rom[0x4E69A8:0x4E69A8+0x55DD4]
-out = decompress(data)   # 564464 bytes (0x89CF0) de codigo MIPS valido
-```
-- El output es **codigo MIPS coherente** (verificado con capstone en offsets 0x0, 0x1000, 0x40000:
-  `addiu sp,sp,-0x18; sw ra,0x14(sp); jal ...` = prologo valido; ramas a direcciones validas 0x800xxxxx).
-- La firma LZKN64: header de 4 bytes = `compressed_size` (0x00055dd4), y el stream empieza en offset 4
-  (`input_pos = 4` en el codigo de Goemon).
+- `lzkn64.decompress(asset)` decodifica **la primera parte** a MIPS coherente (offsets 0x0/0x1000/0x40000),
+  **pero el resto es basura**: de 30 regiones aleatorias, **19** no tienen ni 4 instrucciones válidas
+  en 40 bytes. → el asset NO es LZKN64 plano (el algoritmo plano de Goemon solo "encaja" por azar al inicio).
+- El asset es un LZKN64 **estructurado en bloques** (la variante propia del `trans`, "LZSS 5/7"):
+  cada bloque tiene un header de 4 bytes y datos LZSS.
 
-### 6.2 FUN_80003824 es un descompresor de la MISMA familia LZKN64 (mismos rangos de comando)
+### 6.2 FUN_80003824 = descompresor de la familia LZKN64 (mismos rangos de comando)
 
-- FUN_80003824 usa los **mismos rangos de comando** que LZKN64:
-  `0x00-0x7F` sliding-window copy, `0x80-0x9F` raw copy, `0xA0-0xDF` RLE any-value,
-  `0xE0-0xFE` RLE short-zero, `0xFF` RLE long-zero.
-- DIFERENCIA: FUN_80003824 usa offset de **10 bits** en el sliding-window
-  (`s3 = (s0<<8|next) & 0x3FF`, `length = (s0>>2)+2`), mientras LZKN64 (Goemon) usa offset de
-  **8 bits** (`offset = next_byte & 0x7FF`). → variantes distintas ("LZSS 5"/"LZSS 7" del cargador).
-- El routing (FUN_8000469C) SOLO tiene 2 caminos: `*(tabla+0xC) < 0` → FUN_80003824 (comprimido),
-  `>= 0` → DMA directo (sin comprimir). No hay un 3er descompresor.
+- Mismos rangos que LZKN64: `0x00-0x7F` sliding-window, `0x80-0x9F` raw, `0xA0-0xDF` RLE-any,
+  `0xE0-0xFE` RLE-zero, `0xFF` RLE-long-zero.
+- Diferencia: offset de **10 bits** (`s3 = (s0<<8|next) & 0x3FF`, `length=(s0>>2)+2`) vs 8 bits de Goemon.
+- El routing (FUN_8000469C) solo tiene 2 caminos: `*(tabla+0xC) < 0` → FUN_80003824 (comprimido),
+  `>= 0` → DMA directo. Es el único descompresor comprimido.
+- Header de bloque: lee 4 bytes en `s6` (`s7 = base + s6 - 4`), y si `s6 & 0xF000` → big-block path.
 
-### 6.3 Causa del crash (chunk-reload)
+### 6.3 Causa del crash (chunk-reload) — CONFIRMADO con instrumentación
 
-- FUN_80003824 lee el stream en **chunks de 0x2000 bytes** via DMA (FUN_80003DB4 → FUN_80001FE8 →
-  FUN_80001F30). Al agotarse un chunk, FUN_80003D3C (contador 0x8006D020 == 1) llama a FUN_80003DB4
-  para cargar el siguiente y resetea s2 a 0x80089518.
-- El crash es **s2 = 0xc** en el bloque 513 (frontera del 1er chunk 0x2000): el reload del chunk NO
-  se produjo (s2 no volvió a 0x80089518) y el puntero se corrompió. El estado global del descompresor
-  (0x8006D014=0x18, 0x8006D020=0x90, 0x8006D01C=0xffffb8ba en la ENTRY) parece mal inicializado.
+- **Solo se produce UN reload** de chunk (el contador 0x8006D020 llega a 1) — justo al final, antes del crash.
+  El reload es correcto (resetea s2 a 0x80089518). → el estado del chunk NO es el problema.
+- **El crash real**: en el bloque 512 (frontera del 1er chunk 0x2000) FUN_80003824 lee un **header
+  corrupto `0x82E7A800`** en los últimos 4 bytes del chunk (0x8008b514). Al tener `0xF000` set se va
+  al big-block path; `s6 & 0x0FFFFFFF` = 0x02E7A800 (tamaño gigante) → el puntero s2 colapsa a 0xc → SIGSEGV.
+- Los tamaños de bloque NO alinean con la frontera 0x2000 (los 512 bloques consumen 0x1FFC, dejando 4
+  bytes que se leen como un header fantasma). → bug de **contabilidad de bloques** en la frontera del chunk.
 
 ### 6.4 Próximo paso concreto
 
-1. El estado del chunk (0x8006D000) no está bien inicializado al entrar en FUN_80003824, O la cadena
-   de DMA (FUN_80003DB4/0x80001FE8/0x80001F30) no devuelve el chunk correcto en el 2º reload.
-2. Comparar la cadena DMA recompilada vs original (0x80001F30 llama a 0x80028A90/0x80030640/0x800306C0
-   = PI DMA del runtime). Verificar que el 2º reload lee de ROM[0x4E69A8+0x2000] correctamente.
-3. Alternativa (oráculo del TODO): el output de `lzkn64.decompress(asset)` (564464 bytes de MIPS
-   valido) sirve como **oráculo** para validar la salida del descompresor recompilado.
+1. **Contabilidad de bloques**: los tamaños de bloque no suman exactamente 0x2000 (quedan 4 bytes). Hay que
+   entender por qué el header del bloque 513 se lee en 0x8008b514 en vez de hacer reload antes.
+   - Comparar el recompilado vs original de la zona 0x80003A7C-0x80003D08 (big-block path + padding +
+     bgtzl) con capstone (rom_off = vram - 0x7FFFF400) para hallar el desvío.
+   - Posible límite de función incorrecto o un `s7`/`base` mal calculado al cruzar el chunk.
+2. **NO usar lzkn64 como oráculo** (su salida es basura para este asset). El oráculo válido es el
+   binario descomprimido real en RAM del emulador (tarea #3 / BizHawk).
