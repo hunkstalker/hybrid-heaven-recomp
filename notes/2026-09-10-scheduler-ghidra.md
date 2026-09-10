@@ -64,3 +64,32 @@ principal (FUN_8002AEA0) en Hybrid Heaven, para desbloquear el deadlock de Fase 
 El scheduler es la tarea pendiente más grande de Fase 2. Este plan con Ghidra (referencias cruzadas
 a 0x8005BF30 → emisor) es el camino más directo. El resto del trabajo (os funcs, método Goemon)
 ya está consolidado y versionado.
+
+---
+
+## ACTUALIZACIÓN — Ghidra headless operativo (2026-09-10)
+
+Se instaló Java 21 (`apk add openjdk21` + `bash`) y se ejecutó `analyzeHeadless` correctamente.
+
+**Comando:**
+```
+export JAVA_HOME=/usr/lib/jvm/openjdk21
+export PATH=$JAVA_HOME/bin:$PATH
+toolchain/ghidra/ghidra_12.1.3_PUBLIC/support/analyzeHeadless work/ghidra/proj HH \
+  -process -scriptPath <dir> -postScript <Script.java>
+```
+
+**Scripts (en `tools/analysis/ghidra_scripts/`):** FindMainQ (refs a 0x8005BF30),
+FindSender (callers de osSendMesg/osJamMesg), DecompFns/DecompSetup/DecompMain/DecompBoot/Decomp1078.
+
+**Hallazgos del flujo de boot (decompile):**
+- ramMain(0x80000400) → FUN_80001078: osInitialize + crea thread 1 (FUN_80001124).
+- Thread 1 (FUN_80001124): crea cola principal 0x8005BF30, crea thread 5 (FUN_800011b0), gira infinito.
+- Thread 5 (FUN_800011b0): crea colas 0x8005c268/0x8005c288, osRecvMesg(BLOCK) en 0x8005c288.
+- Callers de osSendMesg: FUN_8002add0/FUN_8002ae64 (envían a 0x800CD4D8).
+
+**Pendiente:** el emisor de la cola principal (0x8005BF30) usa puntero (solo FUN_80001124 la referencia
+directamente). El decompile de Ghidra es parcial (el main thread id=0 no aparece en el flujo visible).
+
+**Nota:** los scripts .java deben tener la clase pública con el MISMO nombre que el archivo; Ghidra
+cachea la compilación (si falla "class could not be found", renombrar el archivo o recompilar).
