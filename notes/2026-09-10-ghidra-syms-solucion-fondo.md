@@ -121,3 +121,41 @@ falta de render (0 tareas RSP) — ambos son la siguiente capa, no un problema d
    "terminate called without an active exception" o un thread esperando un mutex retenido.
 2. Verificar por qué no hay tareas RSP (0 `submit_rsp_task`) pese a que el game loop corre.
 3. Commit del estado funcional (syms Ghidra + ignored list).
+
+## 7. HITO — game loop CORRE (referencia: sp00nznet/racer) (2026-09-10)
+
+### 7.1 Proyecto de referencia encontrado
+`sp00nznet/racer` (Star Wars Racer, N64Recomp sin decomp) documenta EXACTAMENTE nuestros problemas
+y soluciones:
+- **`tools/fix_fallthroughs.py`**: "N64Recomp divide una función en dos; la primera mitad corre hasta
+  su final sin llamar a la segunda, dejando globals sin inicializar. El script encadena cada función
+  con su continuación. Re-ejecutar tras cada regen." → **adaptado a HH** en
+  `tools/analysis/fix_fallthroughs.py`.
+- **`fix_statics.py`**: auto-fix de errores `static_0_` sub-función.
+- **RSP Task Routing** (`osSpTaskLoad/StartGo`) + **`loadUCodeGBI` antes de `processDisplayLists`**.
+- **Thread scheduling fixes** (`pause_self` cede a igual prioridad; `run_next_thread_and_wait`).
+- **Event system wiring** (osSetEventMesg con IDs estándar → ultramodern).
+
+### 7.2 Aplicado y resultado
+- **Fix del game loop**: Ghidra había **dividido el game loop** (`FUN_800011b0` + `FUN_8000121c` +
+  `FUN_80001254`) en sub-funciones; el `beq v0,zero,L_8000126C` se recompiló mal como
+  `LOOKUP_FUNC(...); return;` y el camino `r2!=0` caía al final → **thread 5 RETORNABA y salía**.
+  **FIX**: fusionar `FUN_800011b0`+`FUN_8000121c`+`FUN_80001254` en una (size 0x2A4) en la syms.
+  → **thread 5 YA NO EXITEA; corre su bucle** (aparecen 8 trazas `[MQ]`).
+- **Fix del allocator (parcial)**: `FUN_80003D3C` (callee de `FUN_80003824`) no estaba en la syms
+  Ghidra (Ghidra la fusionó) → auto-detectada con límite incorrecto. **Añadida** (size 0x74).
+- `fix_fallthroughs.py`: 6 funciones encadenadas.
+
+### 7.3 Bloqueante actual
+Tras arreglar el game loop, el boot avanza hasta el **allocator de heap** (`FUN_80003824`) y crashea
+(SIGSEGV) leyendo `s2` basura en `0x80003D04`. El `FUN_80003D3C` correcto no lo resolvió del todo
+(el `s2` inicial/el bucle del allocator sigue corrupto). Es un problema de **mis-compilación profunda
+del allocator** (o de un callee en su cadena). **0 tareas RSP aún** (el game loop corre pero no
+submitea tareas de display).
+
+### 7.4 Próximos pasos (patrón racer)
+1. Depurar el allocator (`FUN_80003824`, s2 basura) — revisar el `s2` inicial y el bucle; puede ser
+   otra sub-función mal acotada o un split.
+2. Wiring del sistema de eventos + scheduling (pause_self/run_next_thread_and_wait) si el game loop
+   se queda esperando.
+3. RSP task routing + `loadUCodeGBI` para que aparezcan las tareas de display y el render.
