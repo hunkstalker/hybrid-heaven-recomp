@@ -159,3 +159,15 @@ submitea tareas de display).
 2. Wiring del sistema de eventos + scheduling (pause_self/run_next_thread_and_wait) si el game loop
    se queda esperando.
 3. RSP task routing + `loadUCodeGBI` para que aparezcan las tareas de display y el render.
+
+### 7.5 Actualización — allocator no-determinista (race) + fix scheduling
+- **`FUN_80003D3C`** añadida (size 0x74): el allocator camina el heap válidamente (gdb muestra `s2`
+  = 0x80089524, +0x10 por iteración). **Ya NO crashea en gdb.**
+- **PERO el crash es no-determinista**: en runs rápidos `s2` se corrompe (offset 0x8000000f > RDRAM).
+  En gdb (lento) `s2` válido. → **race / heap no inicializado a tiempo** (boot racy).
+- **Fix scheduling aplicado** (patrón racer): `check_running_queue` ahora cede a **prioridad igual**
+  (`>=`, antes solo `>`). + fix de `swap_to_thread` (era `ultramodern::swap_to_thread` → función
+  libre). **NO resolvió el race del allocator** (el crash persiste).
+- **Conclusión**: el allocator (o la inicialización del heap) tiene un **race** que se manifiesta
+  según timing. Requiere más investigación (serialización de threads del runtime, o el boot inicializa
+  el heap tarde). Aún **0 tareas RSP**.
