@@ -718,7 +718,7 @@ En `funcs_5.c`: +2.
 [✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (funcs_0..6, ~309 funcs; sin stubs de data)
 [✓] Copy unified set to port/RecompiledFuncs + CMakeLists GLOB funcs_*.c + Linux compile check (build_dbg OK); pending user Windows rebuild
 [✓] Run headless Linux -> iterate runtime failures: boot reaches Entrypoint returned + game threads start; added ~13 mid-funcs + 4 os funcs (osCreateThread/osStartThread/osGetThreadId/osSetThreadPri) to us_unified.syms.toml
-[•] BLOCKER: integrate libultra thread model - reimplemented os funcs (runtime) clash with game libultra compiled as C (__osRunQueue/__osRunningThread globals + __osEnqueueThread 0x800276CC) -> thread crash. PENDING DECISION: A) reimplement ALL thread os funcs, or B) runtime maintains game globals
+[•] BLOCKER: deadlock tras arranque - game estable (sin crash) pero todos los threads en espera; thread principal espera un mesg/evento que no llega. Os funcs de threads/mesg reimplementados: osSendMesg/osJamMesg/osRecvMesg/osStopThread (método: disassembler capstone /tmp/mips_dis.py). Identificar qué mesg/evento falta
 [ ] User: Windows run -> boot.log/hh.log; iterate on remaining runtime failures
 [ ] RSP audio ucode (aspMain) - follow-up after boot
 ```

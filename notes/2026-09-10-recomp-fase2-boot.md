@@ -90,3 +90,35 @@ reimplementados (runtime) no mantienen la cola del juego; las funciones libultra
 
 Los syms originales (`us_retail`/`us_dec`) no tenían NINGÚN nombre `os*`, así que el port original
 tampoco reimplementaba os funcs (era un work-in-progress con fallos de boot).
+
+---
+
+## ACTUALIZACIÓN — se eligió la opción A y ya avanzó (2026-09-10, 2ª tanda)
+
+**Resultado:** el juego pasó de crash a **estable (sin crash)** — arranca, crea threads y RT64
+hace setup OK. Ahora se queda en **deadlock** (todos los threads en `S`/sleeping, ninguno en `R`;
+utime no sube): el thread principal espera un mesg/evento que no llega.
+
+### Herramienta nueva
+- `pip install capstone` → disassembler MIPS big-endian fiable para identificar funciones os:
+  `/tmp/mips_dis.py <vram> <nbytes>`. ROM big-endian (CS_MODE_BIG_ENDIAN).
+- El proceso de identificación: desensamblar la función → reconocer su comportamiento (firma de
+  args, qué globals/helpers libultra usa: `__osRunningThread` 0x8005-66C0, `__osSetThreadPri`
+  0x80032660, `__osDispatchThread` 0x800326D0) → mapear al nombre `os*` en el syms.
+
+### Mappings os añadidos (identificados por desensamblado)
+- `osSendMesg` (0x80030A10, bloq. en fullqueue mq+4), `osJamMesg` (0x80026300, bloq. en mtqueue),
+  `osRecvMesg` (0x800266B0, vacío→bloquea/error, si no dequeue) — cola de mensajes.
+- `osStopThread` (0x80029580, enlaza thread y despacha).
+- Funciones de juego (mid-funciones) añadidas: `FUN_80001E70`, `FUN_80001EA0`, `FUN_8001F160`
+  (memset/bzero), y de la tanda previa `FUN_8002AEA0`, `FUN_800266B0`, etc.
+- El mapeo osSendMesg/osJamMesg/osRecvMesg eliminó el "Failed to find 0x800276CC" (la cola de
+  mensajes ya no corre como C → no llama a `__osEnqueueThread`).
+
+### Notas / riesgos
+- `osStopThread` del runtime hace `assert` si el thread no es el actual (threads.cpp) — el juego
+  puede parar threads arbitrarios → revisar si esto provoca el deadlock o un assert.
+- El deadlock actual: identificar **qué mesg/evento espera el thread principal** y por qué no
+  llega (otro os que sigue como C, o señal VI/timer/audio no entregada).
+- Los cambios en N64Recomp (operations.cpp, recompilation.cpp) siguen en `config/n64recomp_changes/`
+  (submódulo sin .git).

@@ -83,6 +83,17 @@ static void crash_handler(int sig, siginfo_t* info, void* ucontext_void) {
 static void install_crash_handlers() {
     if (getenv("HH_CRASH_LOG") == nullptr) return;
     std::set_terminate([] {
+        FILE* f = fopen("/tmp/hh_crash.log", "a");
+        if (f) {
+            if (auto e = std::current_exception()) {
+                try { std::rethrow_exception(e); }
+                catch (const std::exception& ex) { fprintf(f, "exception: %s\n", ex.what()); }
+                catch (...) { fprintf(f, "exception: unknown\n"); }
+            } else {
+                fprintf(f, "terminate (no current exception)\n");
+            }
+            fclose(f);
+        }
         crash_dump("terminate");
         _exit(1);
     });
