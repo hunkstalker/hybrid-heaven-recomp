@@ -150,3 +150,26 @@ eventos/scheduler/VI: `osSetEventMesg`, `osCreateViManager`, `osCreatePiManager`
 
 **Trazas de debug (temporales, en el código):** `[TH]` en osCreateThread/osStartThread/osStopThread
 (threads.cpp) y `[MQ]` en osCreateMesgQueue/osSendMesg/osRecvMesg/do_recv (mesgqueue.cpp).
+
+---
+
+## ACTUALIZACIÓN 3 — diagnóstico definitivo del deadlock (2026-09-10)
+
+**Confirmado:** el thread 0 (principal, FUN_8002AEA0) bloquea **como su primera acción** en
+`osRecvMesg(BLOCK)` sobre la cola principal **0x8005bf30** (apuntada por `[arg+8]`, configurada por
+el thread 1). Nadie envía a esa cola (ni osSendMesg/osJamMesg de threads del juego, ni mensajes
+externos). Thread 1 (setup, FUN_80001124) usa osCreateThread/osStartThread/osSetThreadPri/
+osCreateMesgQueue/osRecvMesg (todos mapeados) pero NO llama osSetEventMesg/osCreateViManager
+directamente — el setup de eventos está **enterrado en funciones del juego**.
+
+**Causa raíz:** el loop principal del juego espera su primer evento de la capa de emulación de
+hardware (VI vblank / scheduler / timer). Los os funcs de eventos (`osSetEventMesg`, `osCreateViManager`,
+`osSpTask*`, `osVi*`) corren como C → guardan en la **tabla de eventos del juego**, que el runtime
+NO lee → mismatch → el evento nunca llega a la cola principal. Es el MISMO problema de dos modelos
+que tenían los threads, ahora en la capa de eventos.
+
+**Decisión tomada (opción 1):** trazar los eventos del runtime (`osSetEventMesg_recomp`,
+`osCreateViManager_recomp`, disparo en events.cpp) para confirmar empíricamente si el runtime
+dispara el evento, o si esos os funcs no están mapeados (→ toca identificarlos en el ROM).
+Se descartó gdb como primera opción (ya sabemos dónde espera el thread 0; gdb no revela qué función
+del juego debería enviar el mensaje que falta).
