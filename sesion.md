@@ -687,16 +687,22 @@ En `funcs_5.c`: +2.
 - `sesion.md` real: `/app/hybrid-heaven-recomp/sesion.md` (AGENTS.md dice `/app/sesion.md`; corregir
   esa ruta si se toca AGENTS.md).
 
-## 16.6 TODO RESTRUCTURADO (2026-09-10) — NUEVO ENFOQUE
+## 16.6 TODO RESTRUCTURADO (2026-09-10, ACTUALIZADO tras sesión de boot) — NUEVO ENFOQUE
 
 1. [hecho] Port sources / CMake / submodules / Linux validation / headless sanity.
 2. [hecho] Baseline Windows: port en retail → `Hybrid Heaven Recomp.exe` (confirmar rebuild).
-3. [BLOQUEANTE] Terminar regeneración unificada con C válido (§16.4: buffered clean stub).
-4. Regenerar limpio + `gcc -fsyntax-only` en todos los funcs_*.c + exit 0 + set completo.
-5. Copiar unificado al port + CMakeLists (funcs_7..12) + compile check Linux + rebuild Windows.
-6. Usuario: correr exe → pegar `boot.log`/`hh.log` → iterar sobre fallos runtime (lookups 0x84…,
-   trampas do_break, yol adelanto del boot).
-7. Nombrar/os-reimplementar libultra EN LA MEDIDA que una syscall/ruta falle (NO es el bloqueante).
+3. [hecho] Terminar regeneración unificada con C válido (generación limpia, exit 0, set completo).
+4. [hecho] Regenerar limpio + `gcc -fsyntax-only` en todos los funcs_*.c + exit 0 + set completo
+   (us_unified + N64Recomp tolerante a data/overlay; ver nota Fase 2).
+5. [hecho] Copiar unificado al port + CMakeLists (GLOB funcs_*.c) + compile check Linux (build_dbg OK).
+   PENDIENTE: rebuild Windows del usuario.
+6. [hecho] Run headless Linux → iterar fallos runtime: boot llega a `Entrypoint returned` y crea
+   threads. Se añadieron ~13 funciones mid-función + 4 os funcs al syms (lookups 0x84… resueltos).
+   PENDIENTE: run Windows del usuario → pegar boot.log/hh.log.
+7. [BLOQUEANTE ACTUAL] Integrar modelo de threads libultra: los os funcs reimplementados (runtime)
+   chocan con el libultra del juego compilado como C (globals `__osRunQueue`/`__osRunningThread` +
+   `__osEnqueueThread` 0x800276CC) → crash en thread. DECISIÓN A/B pendiente (ver §12-A 4b):
+   A) reimplementar TODAS las os de threads, o B) mantener globals del juego en runtime.
 8. RSP audio ucode (aspMain) — follow-up tras boot.
 
 ## 16.7 LISTA DE TAREAS (copiar tal cual para recrear el TODO con el tool de todos)
@@ -708,13 +714,15 @@ En `funcs_5.c`: +2.
 ```
 [✓] Write port sources (main, renderer, overlays, support, input) + CMake + submodules + Linux validation + headless sanity
 [✓] Restore Windows-build baseline: port on retail RecompiledFuncs (known-good, builds Hybrid Heaven Recomp.exe)
-[✓] BLOCKER: finish unified funcs generation so it emits VALID C (buffered clean do_break stub + hex format). Solved via recompile_function_clean (see §16.4)
-[✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (301 funcs, 30 stubs)
-[•] Copy unified set to port/RecompiledFuncs + add all funcs_N to CMakeLists + Linux compile check + user Windows rebuild (copy/CMake/Linux build OK; pending user Windows rebuild + boot.log)
-[ ] User: Windows run -> boot.log; iterate on runtime failures (static funcs now registered; 0x8400103C lookups; do_break traps if stubbed data funcs get called)
-[ ] Name/os-reimplement HH libultra funcs in syms ONLY as needed for failing syscall/rsp/audio paths (NOT the boot blocker)
+[✓] BLOCKER: finish unified funcs generation so it emits VALID C (clean regen, exit=0, complete set; N64Recomp tolera data/overlay: traps/INVALID/COP2/movz/movn/sync/pref/cfc0/ctc0/jalr-no-ra como no-op). Solved via recompilation.cpp no-ops + use_lookup=true
+[✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (funcs_0..6, ~309 funcs; sin stubs de data)
+[✓] Copy unified set to port/RecompiledFuncs + CMakeLists GLOB funcs_*.c + Linux compile check (build_dbg OK); pending user Windows rebuild
+[✓] Run headless Linux -> iterate runtime failures: boot reaches Entrypoint returned + game threads start; added ~13 mid-funcs + 4 os funcs (osCreateThread/osStartThread/osGetThreadId/osSetThreadPri) to us_unified.syms.toml
+[•] BLOCKER: integrate libultra thread model - reimplemented os funcs (runtime) clash with game libultra compiled as C (__osRunQueue/__osRunningThread globals + __osEnqueueThread 0x800276CC) -> thread crash. PENDING DECISION: A) reimplement ALL thread os funcs, or B) runtime maintains game globals
+[ ] User: Windows run -> boot.log/hh.log; iterate on remaining runtime failures
 [ ] RSP audio ucode (aspMain) - follow-up after boot
 ```
 
 **Mapa estado → status del tool de todos**: `[✓]` → `completed`; `[•]` → `in_progress` (la única en
-progreso); `[ ]` → `pending`. Prioridades: tareas 1-6 `high`, tarea 7 `medium`, tarea 8 `low`.
+progreso); `[ ]` → `pending`. Prioridades: tareas 1-6 `high`, tarea 7 (bloqueante) `high`,
+tarea 8 `medium`, tarea 9 `low`.
