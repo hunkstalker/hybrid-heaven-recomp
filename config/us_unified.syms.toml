@@ -265,7 +265,7 @@ functions = [
     { name = "FUN_8002fc20", vram = 0x8002FC20, size = 0x8 },
     { name = "FUN_8002fc30", vram = 0x8002FC30, size = 0xB3C },
     { name = "FUN_800304A0", vram = 0x800304A0, size = 0x1A0 },
-    { name = "FUN_80030610", vram = 0x80030610, size = 0x30 },
+    { name = "osCreateMesgQueue", vram = 0x80030610, size = 0x30 },
     { name = "FUN_80030640", vram = 0x80030640, size = 0x130 },
     { name = "FUN_80030770", vram = 0x80030770, size = 0x94 },
     { name = "FUN_80030810", vram = 0x80030810, size = 0x8C },

@@ -122,3 +122,31 @@ utime no sube): el thread principal espera un mesg/evento que no llega.
   llega (otro os que sigue como C, o señal VI/timer/audio no entregada).
 - Los cambios en N64Recomp (operations.cpp, recompilation.cpp) siguen en `config/n64recomp_changes/`
   (submódulo sin .git).
+
+---
+
+## ACTUALIZACIÓN 2 — diagnóstico del deadlock (2026-09-10, 3ª tanda)
+
+Se instrumentó el runtime con trazas (`[TH]` en threads.cpp, `[MQ]` en mesgqueue.cpp) para trazar
+os funcs de threads/mesg. Resultado:
+
+**Mapa de threads (tras arranque):**
+- Thread 1 (entrypoint, FUN_80001124): corre y retorna OK ("Entrypoint returned").
+- Thread 0 (thread principal del juego, FUN_8002AEA0): bloquea en `osRecvMesg(BLOCK)` en la cola
+  principal **0x8005bf30** (count=200, vacía).
+- Thread 5 (FUN_800011b0): bloquea en `osRecvMesg(BLOCK)` en **0x800cd4d8**.
+
+**Nadie envía a la cola principal**: no hay `osSendMesg`/`osJamMesg` de threads del juego ni
+mensajes externos (`enqueue_external_message`). Los threads crean colas y todos se quedan
+esperando. → El loop principal espera el **primer evento** que no llega.
+
+**Interpretación:** el juego N64 espera un evento de hardware/emulación (VI vblank, controller,
+timer, o tarea del scheduler/RDP) que la capa de emulación debería entregar a la cola principal
+vía `osSetEventMesg`/`osSendMesg`. Probablemente faltan por reimplementar los os funcs de
+eventos/scheduler/VI: `osSetEventMesg`, `osCreateViManager`, `osCreatePiManager`, `osSpTaskStart`,
+`osContInit`.
+
+**Mappings añadidos esta tanda:** `osCreateMesgQueue` (0x80030610).
+
+**Trazas de debug (temporales, en el código):** `[TH]` en osCreateThread/osStartThread/osStopThread
+(threads.cpp) y `[MQ]` en osCreateMesgQueue/osSendMesg/osRecvMesg/do_recv (mesgqueue.cpp).
