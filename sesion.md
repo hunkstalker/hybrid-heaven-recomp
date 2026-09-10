@@ -543,23 +543,24 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
 
 ## 16.0b INVESTIGACIÓN 2026-09-10 (emulador harness + mapeo os funcs) — hallazgos
 
-> Complementa `notes/2026-09-10-osfuncs-investigation.md`. Tras la §16.0, se intentó identificar el
-> emisor del mensaje a `0x8005be40` con el emulador y se detectó un problema en el mapeo de os funcs.
+> Complementa `notes/2026-09-10-n64sym-osfuncs-rootcause.md` y `notes/2026-09-10-osfuncs-investigation.md`.
 
 - **Harness Linux puesto a funcionar** (faltaban deps: xvfb, libx11, glu, libSDL2, libopcodes,
   python3+capstone, git — reinstaladas). Write-bp (`HB_RES_DIR`) y exec-bp (`HB_EXEC`) operativos.
 - **write-bp en `0x8005be40` contaminado** (pila del thread 5) y **`ra` del harness lee 0** → no se
   aisló el emisor. El juego SÍ inicializa `0x8005be40` como cola y thread 5 recibe de ella.
-- **HALLAZGO**: el mapeo de os funcs del recompilador es sospechoso. `osSendMesg`→`0x80026300`
-  (copia de bytes), `osRecvMesg`→`0x800266B0` (accessor), `osCreateMesgQueue`→`0x80030610`
-  (función compleja), `osJamMesg`→`0x80030A10` (float math) — todos apuntan a **funciones de juego**,
-  no a libultra. El **libultra real no está en la región plana** (escaneo por patrón no encontró
-  `osCreateMesgQueue`).
-- **Contradicción sin resolver**: pese al mapeo sospechoso el port bootea y usa os funcs del runtime.
-  Hipótesis: el libultra vive en un segmento cargado vía `trans`; el byte-matching con Goemon se hizo
-  con una **base de offset incorrecta** (la ROM `mnsg.z64` de Goemon no mapea vram→offset).
-- **Próximo paso recomendado (fiable)**: Ghidra **interactivo** (no headless, que devolvía funciones
-  vacías) para identificar el segmento libultra real y re-derivar los vram de los os funcs.
+- **CORRECCIÓN**: la conclusión "os funcs mal mapeados" era ERRÓNEA (desensamblador con offset de ROM
+  equivocado: falta el header 0xC00 → `rom_off = vram - 0x7FFFF400`). Los 11 os funcs mapeados son
+  CORRECTOS (confirmado por `n64sym`).
+- **CAUSA RAÍZ CONFIRMADA (herramienta `n64sym`)**: la syms solo mapea 11 os funcs; la mayoría de los
+  os funcs libultra (~147) están como `FUN_xxx` → el recompilador los compila como código de juego →
+  el juego usa su propio `osSetTimer` (0x80034560) que gestiona su lista de timers vía
+  `__osInsertTimer`/`__osSetTimerIntr`/`__osTimerInterrupt` y el registro **cop0 Compare** (no emulado
+  por el runtime) → el timer no dispara → thread 5 colgado en `osRecvMesg(0x8005be40)`.
+- **SOLUCIÓN**: renombrar en la syms los `FUN_xxx` → os funcs con los vrams de `n64sym` (verificar
+  `_recomp` en el runtime antes). Lista de referencia:
+  `notes/reference/n64sym_osfuncs_us_retail.txt` (147 os funcs).
+- **Próximo paso**: mapear la cadena de timers (osSetTimer/osGetTime/osGetCount) y probar el boot.
 
 ## 16.1 QUÉ SE HIZO EN ESTA TANDA (cronología)
 
@@ -747,8 +748,8 @@ En `funcs_5.c`: +2.
 [✓] BLOCKER: scheduler del motor Konami (deadlock) — CAUSA RAÍZ: osCreateViManager_recomp stub no-op (vi.cpp:13) dejaba los globals VI del juego (0x8004aed0/0x8004aed4) a 0. FIX B: el juego usa su propio osCreateViManager/osViSetMode (renombrados FUN_80032220/FUN_80032360 en us_unified.syms.toml) + osVirtualToPhysical (0x80028A10). DEADLOCK ROTO (thread 5 corre bucle, VI manager reenvía vblank, frames avanzan). Detalle: notes/2026-09-10-scheduler-diagnosis.md
 [✓] Crash 'terminate called without an active exception' (mid-run) — endurecer ciclo de vida de threads (CleanupGuard + catch(...) + guard doble-enqueue + joinable-guard); juego estable 30s+
 [✓] Build Windows: port compila (MSVC 2026) y hace BOOT (Entrypoint returned, threads, RT64 OK). Fixes de portabilidad MSVC: recomp.h cop0 (cause_reg/cop0_regs/declaraciones), mesgqueue __builtin_return_address, osStopThread assert. Pantalla NEGRA = aún no renderiza. Detalle: notes/2026-09-10-windows-build.md
-[•] BLOQUEANTE: RENDER (pantalla negra). INVESTIGACIÓN (2026-09-10) — CORREGIDO el diagnóstico: la teoría del "gate por DAT_80037750" era ERRÓNEA (DAT_80037750/3730/3738 = 0 incluso renderizando en el emulador). El render del menú va por la COLA PRINCIPAL 0x8005BF30 + dispatcher (no por FUN_80001454). Investigación POSTERIOR: 0x8005be40 es una COLA stack-local (sp+0x28) de FUN_80027f20 (pila thread 5), NO un struct de contexto. Causa raíz = el juego usa su propio osSetTimer libultra (FUN_80034560+FUN_80031498, no mapeado a runtime) con lista en 0x8004ae60 cuyo sentinel nunca se inicializa (=0), y el timer_thread del runtime solo dispara osSetTimer_recomp. Mismo patrón TODO#7. Fixes intentados (mapear FUN_80031498->osSetTimer y polling de la lista del juego) REVERTIDOS. Detalle: notes/2026-09-10-render-investigation.md §7
-[ ] FIX RENDER: con Ghidra, investigar el sistema de timers del juego (dónde se inicializa el sentinel de __osTimerList/0x8004ae60; mapear osGetCount/osSetTimer para que el juego use el mecanismo del runtime) y CONFIRMAR si la espera de thread 5 es por TIMER o por completado de tarea RSP (teoría render-blocker). Método confirmado de la sesión: instrumentar osCreateMesgQueue/osRecvMesg/osSetTimer del runtime con dladdr+addr2line para capturar el caller recompilado. OJO: write-bp en 0x8005be40 está CONTAMINADO por las pilas de los threads (no usar ahí).
+[•] BLOQUEANTE: RENDER (pantalla negra). CAUSA RAÍZ CONFIRMADA (2026-09-10, herramienta n64sym): la syms solo mapea 11 os funcs; la mayoría de os funcs libultra (~147) están como FUN_xxx → el recompilador los compila como código de juego → el juego usa su propio osSetTimer (0x80034560, mecanismo cop0 Compare no emulado por el runtime) → el timer no dispara → thread 5 colgado en osRecvMesg(0x8005be40). Solución: renombrar los FUN_xxx → os funcs con los vrams de n64sym. Lista: notes/reference/n64sym_osfuncs_us_retail.txt. Detalle: notes/2026-09-10-n64sym-osfuncs-rootcause.md
+[ ] FIX RENDER: renombrar en us_unified.syms.toml los os funcs críticos (osSetTimer=0x80034560, osGetTime=0x80031190, osGetCount=0x8002BF90, osCreateViManager=0x800346C0, osViSetMode=0x80029FA0, osSpTaskLoad/StartGo=0x80026B0C/0x80026C9C, osDestroyThread=0x80026CE0, osGetThreadPri=0x80030C40, etc.) verificando que el runtime proporciona su _recomp (si no, error de link). Regenerar + build + run headless → comprobar si thread 5 desbloquea y aparece render (submit_rsp_task/send_dl). Los internos __osInsertTimer/__osSetTimerIntr/__osTimerInterrupt quizá NO tengan _recomp (el runtime usa su propia lista/timer thread).
 [ ] RSP audio ucode (aspMain) - follow-up DESPUÉS de conseguir render
 ```
 

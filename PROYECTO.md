@@ -6,7 +6,7 @@
 > Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
-Actualizado por última vez: **2026-09-10** (investigación emulador harness + hallazgo: mapeo de os funcs del recompilador sospechoso — los os funcs mapeados apuntan a funciones de juego y el libultra real no está en la región plana; ver `notes/2026-09-10-osfuncs-investigation.md`). Hist: 2026-09-10 (render-investigation: refutada la hipótesis "0x8005be40 = struct de contexto"; es una cola stack-local de FUN_80027f20). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
+Actualizado por última vez: **2026-09-10** (CAUSA RAÍZ del render confirmada: la syms solo mapea 11 os funcs; la mayoría de os funcs libultra están como `FUN_xxx` → el recompilador los compila como código de juego → el juego usa su propio osSetTimer (cop0 Compare, no emulado) → thread 5 colgado. Solución: renombrar con los vrams de `n64sym`. Ver `notes/2026-09-10-n64sym-osfuncs-rootcause.md`). Hist: 2026-09-10 (harness+mapeo sospechoso, luego corregido). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
 
 ---
 
@@ -226,7 +226,7 @@ Pendientes:
 | 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
 | 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
 | 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso — **bloqueado por la primera tarea del game loop** | Microcode F3DEX2 ✅ favorable. El boot funciona pero thread 5 (game loop) se clava en `osRecvMesg(0x8005be40)`. Investigación 2026-09-10: `0x8005be40` es una cola stack-local de `FUN_80027f20` (pila thread 5). **Hallazgo posterior**: el mapeo de os funcs del recompilador parece incorrecto (los os funcs mapeados apuntan a funciones de juego; el libultra real no está en la región plana) — posible causa raíz. Detalle: `notes/2026-09-10-render-investigation.md` §7 + `notes/2026-09-10-osfuncs-investigation.md`. |
+| 3. Integración RT64 (render) | En curso — **CAUSA RAÍZ CONFIRMADA: os funcs libultra sin mapear** | Microcode F3DEX2 ✅ favorable. El boot funciona pero thread 5 se clava en `osRecvMesg(0x8005be40)`. **Causa raíz (2026-09-10, herramienta `n64sym`)**: la syms solo mapea 11 os funcs; la mayoría de os funcs libultra están como `FUN_xxx` → el recompilador los compila como código de juego → el juego usa su propio `osSetTimer` (mecanismo cop0 Compare que el runtime no emula) → el timer no dispara → thread 5 colgado. **Solución**: renombrar los `FUN_xxx` → os funcs con los vrams de `n64sym`. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md`. |
 | 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |
