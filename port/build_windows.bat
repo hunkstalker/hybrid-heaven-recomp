@@ -6,13 +6,19 @@ REM =====================================================================
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 
-REM --- Rutas (ajusta si tu repo está en otro sitio) ---
-set "ROOT=%~dp0"
-set "PORT=%ROOT%port\HybridHeavenRecomp"
+REM --- Detectar la raiz del repo (busca 'port\HybridHeavenRecomp' hacia arriba desde el .bat) ---
+set "ROOT="
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'port\HybridHeavenRecomp'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
+if "%ROOT%"=="NONE" (
+    echo ERROR: no encuentro la carpeta 'port\HybridHeavenRecomp' hacia arriba desde este .bat.
+    echo        Ejecuta el .bat desde cualquier subcarpeta DEL REPO, o ponlo en la raiz del repo.
+    goto :err
+)
+set "PORT=%ROOT%\port\HybridHeavenRecomp"
 set "LIB=%PORT%\lib"
 set "RT64=%LIB%\rt64"
 set "NMR=%LIB%\N64ModernRuntime"
-set "PATCH=%ROOT%port\windows_runtime_changes.patch"
+set "PATCH=%ROOT%\port\windows_runtime_changes.patch"
 
 REM --- Commits exactos ---
 set "RT64_COMMIT=43373749dac9bbc1b653e6a02aed40a9e1783bed"
