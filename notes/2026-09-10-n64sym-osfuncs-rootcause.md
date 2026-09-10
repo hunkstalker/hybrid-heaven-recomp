@@ -218,3 +218,61 @@ syms completa con límites correctos (trabajo mayor, idealmente desde un decomp)
 - Nota: la syms/con fix está en estado "parcialmente funcional" (thread 5 desbloqueado pero crash en
   heap). El mapeo de os funcs es la parte correcta y estable; el `use_lookup=false` + límites de
   auto-detección es la parte en progreso.
+
+## 9. DOCUMENTACIÓN EXTERNA sobre el problema de límites de función (investigación)
+
+Búsqueda en internet sobre el crash en el allocator de heap (funciones mal acotadas).
+
+### 9.1 La opción OFICIAL del config: `function_sizes`
+Del proyecto `drmario64_recomp_plus` (DeepWiki):
+
+> "El recompilador a veces requiere **definiciones explícitas de tamaño de función** para acotar
+> correctamente su análisis, especialmente cuando los símbolos son ambiguos o se trata de ensamblado
+> escrito a mano."
+
+**Confirmado en el config local del recompilador** (`toolchain/src/N64Recomp/src/config.cpp:130`):
+la opción `[[function_sizes]]` define tamaños manuales (formato `name` + `size`, size divisible por 4).
+Es el mecanismo **oficial** para acotar funciones ambiguas (alternativa a editar la syms).
+
+```toml
+[[function_sizes]]
+name = "FUN_80003D3C"
+size = 0x74
+```
+
+### 9.2 Por qué el recompilador no detecta/acota bien las funciones (issues #53/#90)
+- *"Si el recompilador no detecta una función, normalmente es porque su símbolo está marcado como
+  ABSOLUTE o tiene tamaño cero en el ELF."*
+- El recompilador **solo usa símbolos con tamaño válido** (`FUNC`, size > 0). Los tamaños correctos
+  provienen de un **ELF generado por un decomp/splat**.
+- El mecanismo `CreateStatic` (`recompilation.cpp`): cuando un `jal` apunta a una dirección en la misma
+  sección sin match exacto, crea una función estática (`static_0_80003D3C`) cuyo límite lo decide el
+  análisis del recompilador — y ahí falla (detección de epílogo cortando `move v0,a0; jr ra`).
+
+### 9.3 La solución de fondo: syms/ELF con límites correctos
+- La vía estándar N64Recomp es un **ELF** (de decomp o splat) con todos los límites correctos. HH **no
+  tiene decomp** → la syms byte-matched es incompleta/mal acotada → el bucle de arreglos iterativos.
+- Herramientas que ayudan a construirlo: **splat** (crear el ELF), **flib** (identificar símbolos SDK),
+  **Ghidra**.
+
+### 9.4 `n64recomp_kit` (DohmBoy64Bit/n64recomp-companion) — NO adecuado para HH
+Investigado a fondo: **no es utilizable aquí**:
+- **Archivado** (read-only, jul 2026), **Windows-first**.
+- **Requiere un ELF** (flujo Splat→ELF→N64Recomp); HH usa el **modo symbol-file**
+  (`symbols_file_path = us_unified.syms.toml`), que n64recomp_kit no soporta.
+- Su `recomp-smoke` (llevar funciones descubiertas a la siguiente iteración) y los fixes de
+  tamaño/función serían útiles, pero dependen del ELF.
+
+### 9.5 Conclusión de la investigación
+- El problema (funciones mal acotadas) es un **problema conocido y documentado** de N64Recomp.
+- **Vía oficial**: `[[function_sizes]]` en el config para acotar funciones ambiguas (lo que ya se hace
+  en la syms, pero por el mecanismo previsto).
+- **Solución real**: una **syms/ELF completa con límites correctos** (vía decomp/splat/Ghidra).
+- `n64recomp_kit` no aplica (archivado, Windows, ELF-only).
+
+### 9.6 Siguiente acción recomendada
+1. Aplicar `[[function_sizes]]` para `FUN_80003D3C` (0x74) y las funciones mal acotadas que vayan
+   apareciendo, en vez de (o además de) la syms.
+2. Iterar el boot hasta que el allocator de heap (`FUN_80003824`) y siguientes dejen de crashear.
+3. A largo plazo, generar una syms completa con límites correctos (splat/Ghidra) para eliminar el
+   bucle de arreglos.
