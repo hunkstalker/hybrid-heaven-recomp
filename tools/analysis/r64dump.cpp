@@ -534,6 +534,12 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[dbg] stop pc=0x%08X (t=%.2fs) runstate=%d valid=%s flags=0x%X wrote=0x%08X\n",
                     (unsigned)g_halt_pc, el, (int)DebugGetState(M64P_DBG_RUN_STATE),
                     is_real ? "YES" : "no", (unsigned)fw, (unsigned)f_accessed);
+            if (DebugGetCPUDataPtr) {
+                uint32_t *gpr = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_REG_REG);
+                if (gpr) fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X ra=0x%08X\n",
+                        (unsigned)gpr[4], (unsigned)gpr[5], (unsigned)gpr[6], (unsigned)gpr[7],
+                        (unsigned)gpr[31]);
+            }
             if (is_real) {
                 uint32_t hpc = (unsigned)g_halt_pc;
                 /* boot's directory zero-fill loops at 0x80000414/0x80000418 and is
@@ -548,8 +554,9 @@ int main(int argc, char **argv) {
                         uint32_t *pc = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_PC);
                         if (pc) fprintf(stderr, "[dbg] loader pc=0x%08X (wrote phys 0x%08X)\n", (unsigned)*pc, (unsigned)f_accessed);
                         uint32_t *gpr = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_REG_REG);
-                        if (gpr) fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X\n",
-                                (unsigned)gpr[4], (unsigned)gpr[5], (unsigned)gpr[6], (unsigned)gpr[7]);
+                        if (gpr) fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X ra=0x%08X\n",
+                                (unsigned)gpr[4], (unsigned)gpr[5], (unsigned)gpr[6], (unsigned)gpr[7],
+                                (unsigned)gpr[31]);
                     }
                     /* snapshot the resource directory for map derivation */
                     char dout[1024];
