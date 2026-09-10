@@ -215,6 +215,13 @@ reabrir, inspeccionar). Si se retoma, usar la GUI de Ghidra con el proyecto HH.
 
 ## 9. Próximo paso concreto (para la sesión nueva)
 
+> **DIAGNÓSTICO del scheduler (2026-09-10, post-Ghidra):** thread 5 (FUN_800011b0) bloquea en
+> osRecvMesg(0x8005be40) antes de su main loop; el VI manager reenvía la vblank via osSendMesg a
+> [structVI+0x10] (NULL en recompilado); el juego registra el VI (osViSetEvent FUN_800329f0 via
+> FUN_80000460:1054) hacia 0x8005c560, NO a 0x8005be40; 0 tareas RSP. Arquitectura completa y
+> cadena del deadlock en **`notes/2026-09-10-scheduler-diagnosis.md`**. Siguiente: instrumentar
+> runtime (osViSetEvent, osCreateMesgQueue caller, submit_rsp_task) y re-run headless.
+
 1. Abrir Ghidra (GUI o headless) con el proyecto HH.
 2. Referencias a `0x8004ab18` (donde el main thread lee el puntero a la cola principal) → encontrar
    el scheduler que reparte/usa ese puntero.
