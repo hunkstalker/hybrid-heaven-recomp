@@ -541,6 +541,26 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
   §16.4 para el fix pendiente. Hasta resolverlo, `config/RecompiledFuncs_unified/` NO se debe copiar
   al port.
 
+## 16.0b INVESTIGACIÓN 2026-09-10 (emulador harness + mapeo os funcs) — hallazgos
+
+> Complementa `notes/2026-09-10-osfuncs-investigation.md`. Tras la §16.0, se intentó identificar el
+> emisor del mensaje a `0x8005be40` con el emulador y se detectó un problema en el mapeo de os funcs.
+
+- **Harness Linux puesto a funcionar** (faltaban deps: xvfb, libx11, glu, libSDL2, libopcodes,
+  python3+capstone, git — reinstaladas). Write-bp (`HB_RES_DIR`) y exec-bp (`HB_EXEC`) operativos.
+- **write-bp en `0x8005be40` contaminado** (pila del thread 5) y **`ra` del harness lee 0** → no se
+  aisló el emisor. El juego SÍ inicializa `0x8005be40` como cola y thread 5 recibe de ella.
+- **HALLAZGO**: el mapeo de os funcs del recompilador es sospechoso. `osSendMesg`→`0x80026300`
+  (copia de bytes), `osRecvMesg`→`0x800266B0` (accessor), `osCreateMesgQueue`→`0x80030610`
+  (función compleja), `osJamMesg`→`0x80030A10` (float math) — todos apuntan a **funciones de juego**,
+  no a libultra. El **libultra real no está en la región plana** (escaneo por patrón no encontró
+  `osCreateMesgQueue`).
+- **Contradicción sin resolver**: pese al mapeo sospechoso el port bootea y usa os funcs del runtime.
+  Hipótesis: el libultra vive en un segmento cargado vía `trans`; el byte-matching con Goemon se hizo
+  con una **base de offset incorrecta** (la ROM `mnsg.z64` de Goemon no mapea vram→offset).
+- **Próximo paso recomendado (fiable)**: Ghidra **interactivo** (no headless, que devolvía funciones
+  vacías) para identificar el segmento libultra real y re-derivar los vram de los os funcs.
+
 ## 16.1 QUÉ SE HIZO EN ESTA TANDA (cronología)
 
 ### 16.1.1 Arreglos del build (Windows)

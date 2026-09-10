@@ -18,6 +18,8 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 Estado actual (2026-09-10): portado/recompilación en curso (Fase 2) — el port **compila y hace boot**
 (Linux y Windows) con el set unificado; el juego **aún no renderiza**: thread 5 (game loop) se clava en
 `osRecvMesg(0x8005be40)`. Investigación 2026-09-10: `0x8005be40` es una cola stack-local de
-`FUN_80027f20`; la causa raíz es el **osSetTimer libultra del juego no integrado con el runtime**
-(patrón del TODO#7). Para el estado exacto, bloqueante activo y TODO restructurado, leer
-**`sesion.md` §16 primero**; detalle de la investigación del render: `notes/2026-09-10-render-investigation.md` §7.
+`FUN_80027f20`. **Hallazgo posterior**: el mapeo de os funcs del recompilador parece incorrecto (los
+os funcs mapeados apuntan a funciones de juego; el libultra real no está en la región plana) —
+posible causa raíz. Para el estado exacto, bloqueante activo y TODO restructurado, leer
+**`sesion.md` §16 primero**; detalle: `notes/2026-09-10-render-investigation.md` §7 y
+`notes/2026-09-10-osfuncs-investigation.md`.
