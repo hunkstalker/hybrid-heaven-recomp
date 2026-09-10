@@ -15,7 +15,9 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
   (ROMs del usuario descomprimidas, proyecto Ghidra, toolchain). El repo versionado queda
   limpio de assets (modelo No-Intro): el port requiere la ROM del usuario en runtime.
 
-Estado actual (2026-09-10): portado/recompilación en curso (Fase 2) — el port **compila** y genera
-exe con el set retail; el **boot** sigue bloqueado por límites de función sueltos en la syms (enfoque
-nuevo: sección única + auto-detección de funciones, ver **`sesion.md` §16** para estado exacto,
-bloqueante activo y TODO restructurado). Ante cualquier duda, leer **`sesion.md` §16 primero**.
+Estado actual (2026-09-10): portado/recompilación en curso (Fase 2) — el port **compila y hace boot**
+(Linux y Windows) con el set unificado; el juego **aún no renderiza**: thread 5 (game loop) se clava en
+`osRecvMesg(0x8005be40)`. Investigación 2026-09-10: `0x8005be40` es una cola stack-local de
+`FUN_80027f20`; la causa raíz es el **osSetTimer libultra del juego no integrado con el runtime**
+(patrón del TODO#7). Para el estado exacto, bloqueante activo y TODO restructurado, leer
+**`sesion.md` §16 primero**; detalle de la investigación del render: `notes/2026-09-10-render-investigation.md` §7.

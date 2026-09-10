@@ -6,7 +6,7 @@
 > Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
-Actualizado por última vez: **2026-09-08** (visión desacoplada: Fase 2 núcleo plano arranca ya; tarea #3 en paralelo; bloqueantes ucode de audio + LZSS). Hist: 2026-09-05 (asset map RZ011 + toolchain + repos clonados).
+Actualizado por última vez: **2026-09-10** (investigación RENDER: refutada la hipótesis "0x8005be40 = struct de contexto"; es una cola stack-local de FUN_80027f20; causa raíz = osSetTimer libultra del juego no integrado con el runtime — patrón TODO#7). Hist: 2026-09-08 (visión desacoplada: Fase 2 núcleo plano arranca ya; tarea #3 en paralelo; bloqueantes ucode de audio + LZSS). 2026-09-05 (asset map RZ011 + toolchain + repos clonados).
 
 ---
 
@@ -226,7 +226,7 @@ Pendientes:
 | 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
 | 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
 | 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso | Microcode F3DEX2 ✅ favorable. Se prueba con el núcleo plano (audio dummy primero). |
+| 3. Integración RT64 (render) | En curso — **bloqueado por la primera tarea del game loop** | Microcode F3DEX2 ✅ favorable. El boot funciona pero thread 5 (game loop) se clava en `osRecvMesg(0x8005be40)` esperando un mensaje que nunca llega. Investigación 2026-09-10: `0x8005be40` es una cola stack-local de `FUN_80027f20` (pila thread 5); causa raíz = el juego usa su propio osSetTimer libultra (no mapeado a runtime, lista en 0x8004ae60 cuyo sentinel nunca se inicializa) — patrón TODO#7. Detalle: `notes/2026-09-10-render-investigation.md` §7. |
 | 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |

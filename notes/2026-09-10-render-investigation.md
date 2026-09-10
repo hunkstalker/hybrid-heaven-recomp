@@ -3,6 +3,10 @@
 > Complementa `notes/2026-09-10-scheduler-diagnosis.md`, `notes/2026-09-10-windows-build.md` y
 > `notes/2026-09-10-render-blocker.md`. Documenta la sesión de investigación del bloqueo de render
 > (pantalla negra) usando el **emulador (BizHawk) + dumps de RAM**, y el estado exacto para retomar.
+>
+> ⚠️ **CORRECCIÓN 2026-09-10 (sesión posterior): la "sospecha principal" de este doc está REFUTADA.**
+> `0x8005BE40` NO es un struct de contexto: es una **cola de mensajes stack-local** (`sp+0x28`) de
+> `FUN_80027f20` (pila del thread 5), creada con `osCreateMesgQueue`. Ver §7 al final.
 
 ## 0. RESUMEN EJECUTIVO — estado para retomar
 
@@ -13,6 +17,7 @@
 - **Sospecha principal (a confirmar)**: el runtime recompilado trata `0x8005BE40` como **cola**
   (`osCreateMesgQueue` + `osRecvMesg` → thread 5 bloqueado), pero en el juego real `0x8005BE40` es
   un **struct de contexto/frame**, no una cola. Posible **error de recompilación/mapeo**.
+  → **REFUTADA en la sesión posterior (ver §7).** `0x8005BE40` SÍ es una cola (stack-local).
 - El punto exacto donde se quedó: thread 5 (game loop) bloqueado en `osRecvMesg(0x8005be40)`.
 
 ## 1. Confirmaciones con el emulador (BizHawk) — dumps reales
@@ -97,3 +102,41 @@ para que el F12 vuelque, además del directorio de overlays, estas estructuras:
    recompilados que apuntan ahí.
 3. **Alternativa**: volcar desde BizHawk el **caller** o un rango más amplio alrededor de
    `0x8005BE40` para entender el struct completo (contexto/frame) y su rol.
+
+## 7. CORRECCIÓN 2026-09-10 — la sospecha está REFUTADA (investigación de la sesión posterior)
+
+Se instrumentó el runtime para capturar el **caller real** de `osCreateMesgQueue(0x8005be40)` y
+`osRecvMesg(0x8005be40)` (shims en `ultra_translation.cpp` + `dladdr`/`addr2line` sobre el binario
+Linux headless). Resultado:
+
+- **`0x8005be40` NO es un struct de contexto. Es una COLA de mensajes stack-local.**
+- Caller resuelto: **`FUN_80027f20`** (funcs_6.c:1252), que corre en la pila del **thread 5**
+  (`sp≈0x8005be18`). La cola es un local `sp+0x28` = `0x8005be40`.
+- `FUN_80027f20` hace: chequea flag global `0x80049960` → computa un **deadline** (`FUN_80031190`→
+  `osGetCount`) → crea la cola local → configura un **timer** (`FUN_80034560`→`FUN_80031498`) →
+  `osRecvMesg(0x8005be40, BLOCK)`. Es una espera por **timer/timeout**.
+- `FUN_80027f20` es llamada por `FUN_800020b0` (0x80002100), que a su vez la llama `FUN_800011b0`
+  (thread 5, 0x80001304).
+
+**Causa raíz (patrón del TODO #7, osCreateViManager):** el juego usa su **propio** libultra
+`osSetTimer` (dividido en `FUN_80034560`+`FUN_80031498`), compilado como código de juego y **NO**
+mapeado al runtime `osSetTimer_recomp`. Ese osSetTimer del juego gestiona su lista de timers en el
+global `0x8004ae60`, cuyo **sentinel nunca se inicializa (=0)** → el juego no llega a registrar
+timers, y además el `timer_thread` del runtime **solo dispara** timers registrados vía
+`osSetTimer_recomp` (que el juego no llama). Resultado: ningún timer dispara → nunca postea a
+`0x8005be40` → thread 5 colgado. (Coincide con la hipótesis de `render-blocker.md`: mecanismo
+custom del motor Konami no interceptado por el runtime.)
+
+**Fixes intentados y resultado (TODOS revertidos a baseline conocido-bueno):**
+1. Mapear `FUN_80031498`→`osSetTimer` en la syms: el timer **empezó a disparar** (countdown=500ms,
+   progreso real), pero el shim leyó `mq=0`/`msg=0` (ABI incompatible: `FUN_80031498` es el
+   insertador que lee el struct pre-rellenado, no args de pila) → SIGSEGV. **Revertido**.
+2. Hacer que `timer_thread` del runtime haga **polling** de la lista de timers del juego (0x8004ae60)
+   y dispare los vencidos (timestamps relativos estilo libultra): no dispara porque la lista está
+   **vacía** (0x8004ae60=0, el sentinel no se inicializó). **Revertido**.
+
+**Estado actual:** de vuelta al baseline conocido-bueno (boot OK, thread 5 bloqueado en
+`0x8005be40`). Siguiente paso: investigar con Ghidra el sistema de timers del juego (dónde se
+inicializa el sentinel de `__osTimerList`/0x8004ae60, mapear `osGetCount`/`osSetTimer` para que el
+juego use el mecanismo del runtime), y **confirmar** si la espera de thread 5 es por timer o por
+completado de tarea RSP (teoría de render-blocker).
