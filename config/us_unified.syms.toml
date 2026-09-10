@@ -58,6 +58,7 @@ functions = [
     { name = "FUN_800033cc", vram = 0x800033CC, size = 0x184 },
     { name = "FUN_80003550", vram = 0x80003550, size = 0x174 },
     { name = "FUN_80003824", vram = 0x80003824, size = 0x514 },
+    { name = "FUN_80003D3C", vram = 0x80003D3C, size = 0x74 },
     { name = "FUN_80004484", vram = 0x80004484, size = 0x53C },
     { name = "FUN_80004adc", vram = 0x80004ADC, size = 0x640 },
     { name = "FUN_8000511c", vram = 0x8000511C, size = 0x54 },
