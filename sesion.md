@@ -321,14 +321,20 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 > de forma temprana. **Criterio de corte de la tarea #3:** ~6 sets de fase, no exhaustividad total.
 
 ### A. Fase 2 / recompilación (PROPULSOR — arrancar YA)
-1. **[CÓDIGO] Arrancar la Fase 2 del NÚCLEO PLANO**: generar ELF de `0x1000+0x80000000` con
-   N64Recomp y probar build Linux → RT64. NO depende de overlays ni del usuario. Audio dummy primero.
+1. **[CÓDIGO] Arrancar la Fase 2 del NÚCLEO PLANO** — **AVANZADO (2026-09-10)**: generación completa
+   (302 funciones) + build Linux + boot: `init_heap → init_saving done → Calling entrypoint →
+   Entrypoint returned`, y se crean/ejecutan threads del juego. Ver
+   `notes/2026-09-10-recomp-fase2-boot.md`. Pendiente: crash en un thread por modelo de threads.
 2. **[CÓDIGO] Bloqueante — identificar el microcode de audio** (ucode custom KCEO vs asp). NO bloquea
    el render (dummy); sondear con Ghidra/runtime durante la Fase 2.
 3. **[CÓDIGO] Bloqueante — mapear las variantes LZSS del `trans`** (`LZSS 5`/`LZSS 7`) usando las
    copias descomprimidas en RAM (0x801BB000, 0x801FA000, ...) como oráculo.
 4. **[CÓDIGO] Mapa de símbolos del núcleo plano** (anclas `/game/source/*.c`, RZ011). Para overlays
    sí requiere el mapa de la tarea #3.
+4b. **[CÓDIGO] Integrar modelo de threads (DECISIÓN A/B pendiente)**: el libultra del juego compilado
+   como C usa los globals `__osRunQueue`/`__osRunningThread` + `__osEnqueueThread` (0x800276CC), que
+   chocan con los os funcs reimplementados del runtime. Resolver con la opción A (reimplementar todas
+   las os) o B (mantener globals del juego). Detalle en la nota de Fase 2.
 
 ### B. Tarea #3 (desacoplada, vía BizHawk — el usuario juega)
 5. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al contenedor: añade fases nuevas al
@@ -496,3 +502,219 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
 - **Criterio de corte de la tarea #3:** cubrir los ~6 sets de fase y consolidar el entregable, no
   perseguir exhaustividad que retrase la Fase 2.
 - Detalle técnico/estrategia: `PROYECTO.md` §3.1 + §9, `docs/README.md` §0/§2/§4.
+
+---
+
+# 16. FASE 2 — RECOMPILACIÓN / BOOT (actualizado 2026-09-10)
+
+> Esta sección documenta el trabajo de **portado/recompilación del núcleo plano** (Fase 2 del §12)
+> hecho en esta tanda de sesiones. Es LA documentación de handoff para retomar desde el estado
+> actual. La tarea #3 (BizHawk/overlays, §§1-15) sigue desacoplada y avanzando en paralelo.
+
+## 16.0 ESTADO ACTUAL (2026-09-10) — RESUMEN EJECUTIVO
+
+- **El port SÍ compila y genera exe** con el set de funciones **retail** (301 funcs, 10 archivos)
+  restaurado en `port/HybridHeavenRecomp/RecompiledFuncs/`. Este es el **estado conocido-bueno**
+  sobre el que construimos.
+- **El boot NO llega a gameplay todavía.** El impedimento real NO es "nombrar os-functions" (como
+  decía el plan §12), sino la **syms con límites de función sueltos/fusionados**:
+  - `merge_loop.py` fusionó funciones al tropezarse con errores de branch → **contenedores enormes**.
+  - ~74 de 130 objetivos `LOOKUP_FUNC` del boot quedaron **dentro de contenedores** y no están
+    registrados como función → en runtime: `Failed to find function at 0x80030610` (etc.).
+  - Además, algunas entradas de la syms apuntan a **bloques de DATOS** (datos comprimidos/asset en
+    la región plana de la ROM) → al regenerar chocaban con `Unhandled instruction: INVALID`
+    (`0xef1ed4aa` tiene opcode 59 = no existe), o instrucciones sin soporte (`trunc.l.d`, `teq`).
+- **Enfoque nuevo (difiere del plan §12)**: usar `use_lookup_for_all_function_calls = false` con UNA
+  sección única (`.entry`+`.main` fusionadas). Así el **recompilador descubre automáticamente los
+  límites finos de función desde el código** (`static_*`, una por dirección jal/llamada) y el problema
+  de los contenedores desaparece sin tocar a mano las 300+ entradas de la syms. Nombrar os-functions
+  queda como tarea posterior (solo cuando una syscall/ruta falla), NO es el bloqueante del boot.
+- **BLOQUEANTE activo del enfoque nuevo**: la regeneración unificada todavía **no emite C válido**
+  en 2 archivos (`funcs_5.c` y `funcs_12.c`): al hacer stub de una función con datos, se corta una
+  cadena de `if (cond) {` anidados (branch en delay-slot de branch) sin cerrar las llaves. Ver
+  §16.4 para el fix pendiente. Hasta resolverlo, `config/RecompiledFuncs_unified/` NO se debe copiar
+  al port.
+
+## 16.1 QUÉ SE HIZO EN ESTA TANDA (cronología)
+
+### 16.1.1 Arreglos del build (Windows)
+- N64Recomp en Windows compila como `.lib`, NO genera `.exe`: la regeneración de `RecompiledFuncs`
+  se hace en el contenedor con el binario ELF y luego se copia al port. (Decisión clave.)
+- `config/RecompiledFuncs/` original estaba roto (faltaba `funcs.h` y `funcs_0.c`); `RecompiledFuncs_retail`
+  tenía una mezcla inconsistente. Se regeneró un set retail limpio desde `us_retail.syms.toml`
+  (salida estable: `config/RecompiledFuncs_retail/`, 301 funcs, exit 0) y se copiaron los 10 archivos
+  al port → **`Hybrid Heaven Recomp.exe` se genera.**
+
+### 16.1.2 Orden de arranque (main.cpp)
+- **`recomp::start` NUNCA retorna** (bloquea en `while (!exited)`), así que `start_game()` se debe
+  llamar **ANTES** de `recomp::start`. Corregido en `src/main/main.cpp`.
+- `game_entry.entrypoint` = `hh::recomp_entrypoint`; `entrypoint_address = get_entrypoint_address()`
+  (`0x80000400`).
+
+### 16.1.3 Registro de funciones planas (overlays.cpp / overlays.hpp)
+- **`register_flat_code()`**: añadido a `librecomp/src/overlays.cpp` (+decl en `overlays.hpp`).
+  `load_overlays(rom, ram, size)` calcula el RAM relativo al entrypoint, INCORRECTO para secciones
+  planas con `ram_addr` absoluto. `register_flat_code()` registra las funciones de TODAS las
+  secciones en su `ram_addr` absoluto; se llama en `init()`.
+- Antes de esto: `Failed to find function at 0x80001078`.
+
+### 16.1.4 Crash de arranque ($a0) + SEH + logging
+- Crash initial (window se abría y cerraba): ACCESS VIOLATION. Handler SEH `run_entrypoint_seh` en
+  `librecomp/src/recomp.cpp` loguea `Crash host IP` (usar `ExceptionAddress`, no `ExceptionInformation[0]`),
+  `Crash host addr` y `Crash N64 addr`.
+- Root cause: el main del boot usa **`$a0` como puntero base de un struct** pero el recompilador sólo
+  inicializa `$sp` (en Goemon el main lo setea él; en HH no). Fix en `init()`:
+  `ctx->r4 = (gpr)(int32_t)0x800E5F40;` — **las macros `MEM_*` esperan direcciones sign-extendidas**
+  (0x800E5F40 = fin de `.main` = RAM válida). Antes de esto: crash N64 addr `0x2`.
+- Logging instrumentado: `hh::log()` → `hh.log` en `%APPDATA%\HybridHeavenRecomp` (truncado con
+  timestamp `[HH:MM:SS.mmm]`); `boot_log()` → `boot.log` en CWD (= junto al exe), también truncado
+  y con timestamp. Instrumentados: init_heap, entrypoint, create_gfx/create_window, RT64 setup,
+  `send_dl`, validación de ROM, overlays registered.
+
+### 16.1.5 Prioridad "no fatales" en el recompilador (toolchain/src/N64Recomp)
+Dificultan la regeneración estas cosas que ahora se resuelven (ver §16.2 para el estado exacto):
+- `Unhandled instruction: trunc.l.d` (FUN_80034a10) → añadidas `cpu_trunc_l_s`/`cpu_trunc_l_d`
+  (`TruncateLFromS/D`, `FdU64`) al mapa de unarias en `src/operations.cpp`.
+- `teq` y trampas similares (`tne`, `tge`, `tgeu`, `tlt`, `tltu`) → tratadas como **no-op** en
+  `src/recompilation.cpp` (patrón de `cpu_cache`/`cpu_eret`). OJO: `cpu_tgt`/`cpu_tle`/`cpu_tleu`
+  NO existen en rabbitizer — no usarlos.
+- Objetivo de jal **desconocido en runtime** (`0x8400103C`: puntero a memoria no plana/overlay):
+  el caso `NoMatch` en `src/recompilation.cpp` ahora **cae a `call_by_lookup` (LOOKUP_FUNC en
+  runtime)** en vez de `return false` (que abortaba toda la generación).
+- **Stubbing no-fatal**: ante `Unhandled instruction: INVALID` o fallo de análisis `analyze_function`:
+  se emite una función trampa `do_break(0x…); return;` (existe en `librecomp/src/recomp.cpp`, imprime
+  el vram y hace `assert(false)`) y la generación CONTINÚA en vez de matar el build completo. Se
+  emiten también las etiquetas pendientes antes del `do_break` para que los `goto` previos queden definidos.
+  - Mensaje de error con dirección: `Unhandled instruction: {} @ 0x{:08X}`.
+
+### 16.1.6 Icono de ventana
+- `HybridHeavenV2.ico` ≙ icono del exe. `assets/icon_bmp.inc` regenerado (96×96) con **altura
+  negativa** (`0xA0 0xFF 0xFF 0xFF` = -96) porque los datos van top-down y `set_window_icon` no
+  invierte → icono derecho (antes invertido).
+
+## 16.2 ARCHIVOS MODIFICADOS / ESTADO EXACTO
+
+| Archivo | Cambio / estado |
+|---|---|
+| `port/HybridHeavenRecomp/RecompiledFuncs/` | **RESTAURADO al set retail** (10 archivos, 301 funcs). Buildable. NO tocar hasta completar §16.4. |
+| `port/HybridHeavenRecomp/CMakeLists.txt` | Lista `funcs_0..6.c + lookup.cpp` (restaurado). Al copiar el set unificado habrá que añadir `funcs_7..12.c`. |
+| `config/game_retail.toml` | Config estable: `use_lookup_for_all_function_calls=true`, `us_retail.syms.toml`, out `RecompiledFuncs_retail`. |
+| `config/game_unified.toml` | Config unificada: `false`, `us_unified.syms.toml`, out `RecompiledFuncs_unified`. **WIP.** |
+| `config/us_unified.syms.toml` | Sección única `.text` vram `0x80000400` size `0x4E5B40`, ~301 funcs. **WIP.** |
+| `config/RecompiledFuncs_unified/` | **Salida WIP — C inválido en `funcs_5.c` y `funcs_12.c`** (llaves sin cerrar). NO copiar al port. |
+| `toolchain/src/N64Recomp/build_recomp/N64Recomp` | Binario recompilador con todos los fixes de §16.1.5. El `N64Recomp` válido es SOLO el de `build_recomp/` (los de `build2/` están desfasados). |
+| `toolchain/src/N64Recomp/src/operations.cpp` | Añadidos `cpu_trunc_l_s/cpu_trunc_l_d`. |
+| `toolchain/src/N64Recomp/src/recompilation.cpp` | NoMatch→lookup; trampas→noop; stubbing no-fatal; dirección en error. **Falta el fix de §16.4.** |
+| `port/HybridHeavenRecomp/src/main/main.cpp` | Orden `start_game` antes de `recomp::start`; logging. |
+| `port/HybridHeavenRecomp/src/main/support.cpp` | `hh::log` (truncado+timestamp), logging create_gfx/window. |
+| `port/HybridHeavenRecomp/src/main/rt64_render_context.cpp` | Logs RT64 setup + `send_dl`. |
+| `port/HybridHeavenRecomp/lib/.../librecomp/src/overlays.cpp` +`overlays.hpp` | `register_flat_code()`. |
+| `port/HybridHeavenRecomp/lib/.../librecomp/src/recomp.cpp` | `boot_log`, SEH, `$a0=0x800E5F40`, entrypoint logs, `do_break` (ya existía). |
+| `port/HybridHeavenRecomp/assets/icon_bmp.inc` | Icono regenerado (altura -96). |
+
+Todo esto SIN git (el repo no es git): los cambios están solo en el árbol. No commitear sin pedirlo.
+
+## 16.3 RECETA DE REGENERACIÓN (contenedor)
+
+```sh
+# 1) Construir el recompilador (tras tocar toolchain):
+cd /app/hybrid-heaven-recomp/toolchain/src/N64Recomp
+cmake --build build_recomp --target N64RecompCLI        # binario → build_recomp/N64Recomp
+
+# 2) Regenerar el set unificado:
+cd /app/hybrid-heaven-recomp/config
+rm -rf RecompiledFuncs_unified
+/app/hybrid-heaven-recomp/toolchain/src/N64Recomp/build_recomp/N64Recomp game_unified.toml 2>&1 | tee /tmp/regen_unified.log
+# Esperado: "Function count: 301", exit 0, 13 archivos funcs_0..12.c + funcs.h + lookup.cpp + recomp_overlays.inl
+# Varios "[Warn] Stubbing X ..." = funciones con datos absorbidos (trampa do_break). Normal.
+
+# 3) CUIDADO: verificaciones ANTES de copiar al port:
+gcc -fsyntax-only -I port/HybridHeavenRecomp/RecompiledFuncs \
+    -I port/HybridHeavenRecomp/lib/N64ModernRuntime/N64Recomp/include -x c <cad a funcs_*.c>
+# (todas deben pasar; hoy fallan funcs_5.c y funcs_12.c por llaves sin cerrar)
+
+# 4) Copiar al port (SOLO tras fases limpias):
+cp config/RecompiledFuncs_unified/funcs.h config/RecompiledFuncs_unified/funcs_*.c \
+   config/RecompiledFuncs_unified/lookup.cpp config/RecompiledFuncs_unified/recomp_overlays.inl \
+   port/HybridHeavenRecomp/RecompiledFuncs/
+# + añadir en CMakeLists las líneas RecompiledFuncs/funcs_7.c .. funcs_12.c
+```
+
+Windows (usuario): `cmake --build build --target HybridHeavenRecomp --config Debug` desde
+`port/HybridHeavenRecomp`. Exe: `build\bin\Debug\Hybrid Heaven Recomp.exe`. Logs junto al exe:
+`boot.log` (CWD) y `hh.log` (`%APPDATA%\HybridHeavenRecomp`). Copiar ambos al pegar en el chat.
+
+## 16.4 BLOQUEANTE ACTIVO + CÓMO RESOLVERLO
+
+**Qué pasa**: al stubbear una función cortada en un `INVALID`, el cuerpo parcial dejó **cadenas de
+`if (cond) {` anidadas sin cerrar** (branch cuyo delay-slot es otro branch → el generador anida
+`if { if {` y cierra recién al final de la cadena; al cortar antes, no cierra). Concretamente en
+`funcs_12.c`: `static_0_80151DA4` (+4), `static_0_80133AA0` (+1), `static_0_80151BC4` (+1); total +6.
+En `funcs_5.c`: +2.
+
+**Fix propuesto (NO implementado — no tocar más código esta tanda)**:
+1. En `toolchain/src/N64Recomp/src/recompilation.cpp` pasar `bool* stubbed_out` por
+   `recompile_function`/`recompile_function_impl` (default `nullptr`) y fijarlo al stubbar.
+2. En `toolchain/src/N64Recomp/src/main.cpp` (sitios ~775 y ~865): bufferizar cada función en un
+   `std::ostringstream`, llamar `recompile_function(..., &stubbed)`; si `stubbed`, DESCARTAR el
+   buffer y emitir limpio `RECOMP_FUNC void <name>(uint8_t* rdram, recomp_context* ctx){ do_break(<vram>u); return; }`
+   en `current_output_file`; si no, escribir el buffer al archivo. Mantener `functions_per_output_file`.
+   (Alternativa 2: cerrar las llaves pendientes contando los `if` de rama abiertos; más frágil.)
+3. Regenerar + `gcc -fsyntax-only` en TODOS los `funcs_*.c` = OK → §16.3 paso 4.
+   - La función está declarada en `funcs.h` de todos modos (export_function_indices), por eso el
+     stub debe existir sí o sí para no romper el link.
+
+**Riesgo deliberado**: las funciones stubbed son bloques de datos; si alguna se llama en runtime
+`do_break` la detecta al instante en `boot.log` (vram impreso) → iterar como hasta ahora.
+
+## 16.5 PROBLEMAS CONOCIDOS / NOTAS PARA LA SIGUIENTE SESIÓN
+
+- **Set unificado WIP**: NO copiar al port todavía (C inválido). El port queda en retail (buildable)
+  para poder probar cualquier otro cambio.
+- `0x8400103C` = target jalr calculado en runtime apuntando a memoria **no plana** (0x84…). Con el
+  fix NoMatch ya no aborta la generación; en runtime si el boot lo ejecuta dará lookup fallido.
+  No bloquear por esto: puede que esa ruta no se ejecute temprano.
+- Los auto-detected `static_0_80035090`, `static_*` etc. registrados por `register_flat_code()` se
+  espera que resuelvan el "Failed to find function at 0x80030610" (ese target está dentro de un
+  contenedor; con la sección única + `false` se convierte en `static_0_...`).
+- Popup "Failed to write to the save file…" al arrancar: **no fatal** (save folder/permisos), tratar
+  aparte.
+- `0x800E5F40` = `$a0` inicial (end of `.main`, RAM válida). Recordar el sign-extend
+  `(gpr)(int32_t)`.
+- Shell en el contenedor es **dash**: no usar `${PIPESTATUS[0]}` (da syntax error). Usar `echo $?`
+  o capturar a archivo.
+- No hay python en el contenedor: para leer bytes de la ROM usar `xxd -g4 -s <off> -l <len>`.
+- `sesion.md` real: `/app/hybrid-heaven-recomp/sesion.md` (AGENTS.md dice `/app/sesion.md`; corregir
+  esa ruta si se toca AGENTS.md).
+
+## 16.6 TODO RESTRUCTURADO (2026-09-10) — NUEVO ENFOQUE
+
+1. [hecho] Port sources / CMake / submodules / Linux validation / headless sanity.
+2. [hecho] Baseline Windows: port en retail → `Hybrid Heaven Recomp.exe` (confirmar rebuild).
+3. [BLOQUEANTE] Terminar regeneración unificada con C válido (§16.4: buffered clean stub).
+4. Regenerar limpio + `gcc -fsyntax-only` en todos los funcs_*.c + exit 0 + set completo.
+5. Copiar unificado al port + CMakeLists (funcs_7..12) + compile check Linux + rebuild Windows.
+6. Usuario: correr exe → pegar `boot.log`/`hh.log` → iterar sobre fallos runtime (lookups 0x84…,
+   trampas do_break, yol adelanto del boot).
+7. Nombrar/os-reimplementar libultra EN LA MEDIDA que una syscall/ruta falle (NO es el bloqueante).
+8. RSP audio ucode (aspMain) — follow-up tras boot.
+
+## 16.7 LISTA DE TAREAS (copiar tal cual para recrear el TODO con el tool de todos)
+
+> La siguiente sesión debe **recrear estas mismas tareas** con el sistema de todos, con el MISMO
+> contenido y en este MISMO orden (los `[✓]`/`[•]`/`[ ]` delante indican el estado al cierre de esta
+> tanda). Reconocer pegado-estado: `BLOCKER/boF` en la tarea activa.
+
+```
+[✓] Write port sources (main, renderer, overlays, support, input) + CMake + submodules + Linux validation + headless sanity
+[✓] Restore Windows-build baseline: port on retail RecompiledFuncs (known-good, builds Hybrid Heaven Recomp.exe)
+[✓] BLOCKER: finish unified funcs generation so it emits VALID C (buffered clean do_break stub + hex format). Solved via recompile_function_clean (see §16.4)
+[✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (301 funcs, 30 stubs)
+[•] Copy unified set to port/RecompiledFuncs + add all funcs_N to CMakeLists + Linux compile check + user Windows rebuild (copy/CMake/Linux build OK; pending user Windows rebuild + boot.log)
+[ ] User: Windows run -> boot.log; iterate on runtime failures (static funcs now registered; 0x8400103C lookups; do_break traps if stubbed data funcs get called)
+[ ] Name/os-reimplement HH libultra funcs in syms ONLY as needed for failing syscall/rsp/audio paths (NOT the boot blocker)
+[ ] RSP audio ucode (aspMain) - follow-up after boot
+```
+
+**Mapa estado → status del tool de todos**: `[✓]` → `completed`; `[•]` → `in_progress` (la única en
+progreso); `[ ]` → `pending`. Prioridades: tareas 1-6 `high`, tarea 7 `medium`, tarea 8 `low`.

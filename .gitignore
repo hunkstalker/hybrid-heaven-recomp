@@ -10,6 +10,8 @@ __pycache__/
 
 # Builds
 build/
+build2/
+build3/
 build_*/
 dist/
 *.so
@@ -18,3 +20,12 @@ dist/
 .DS_Store
 # Backup temporal de trabajo (no versionar)
 .backup/
+
+# Repos git anidados (librerías vendored) — se versionan dentro de su PROPIO .git, no aquí
+port/HybridHeavenRecomp/lib/N64ModernRuntime/
+port/HybridHeavenRecomp/lib/rt64/
+
+# Generaciones antiguas / backups del recompilador (no versionar; la vigente sí)
+config/RecompiledFuncs_retail/
+config/RecompiledFuncs_retail_backup/
+config/RecompiledFuncs/

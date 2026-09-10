@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=@APP_DISPLAY_NAME@
+Comment=Native PC port of Hybrid Heaven (N64)
+Exec=HybridHeavenRecomp
+Icon=@APP_ICON_NAME@
+Terminal=true
+Categories=Game;ActionGame;

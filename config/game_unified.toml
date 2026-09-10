@@ -1,0 +1,19 @@
+# Config file for Hybrid Heaven (USA) flat main-code recompilation.
+# ROM: work/roms/us_retail.z64 (16MB retail USA dump).
+# Re-generated from the reliable retail base instead of the us_dec overdump.
+
+[input]
+entrypoint = 0x80000400
+output_func_path = "RecompiledFuncs_unified"
+relocatable_sections_path = ""
+symbols_file_path = "us_unified.syms.toml"
+rom_file_path = "../work/roms/us_retail.z64"
+use_lookup_for_all_function_calls = true
+
+[patches]
+stubs = [
+]
+
+ignored = [
+    "FUN_800493c4",
+]

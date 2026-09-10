@@ -15,7 +15,7 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
   (ROMs del usuario descomprimidas, proyecto Ghidra, toolchain). El repo versionado queda
   limpio de assets (modelo No-Intro): el port requiere la ROM del usuario en runtime.
 
-Estado actual (2026-09-05): motor Konami compartido con Goemon **confirmado**; extracción
-Nisitenma-Ichigo de US+EU completa (625 archivos); **Ghidra 12.1.3 + N64LoaderWV operativos**
-sobre la ROM US; siguiente paso técnico = mapeo de RAM bases de los overlays (`trans`) y
-microcode de audio (custom).
+Estado actual (2026-09-10): portado/recompilación en curso (Fase 2) — el port **compila** y genera
+exe con el set retail; el **boot** sigue bloqueado por límites de función sueltos en la syms (enfoque
+nuevo: sección única + auto-detección de funciones, ver **`sesion.md` §16** para estado exacto,
+bloqueante activo y TODO restructurado). Ante cualquier duda, leer **`sesion.md` §16 primero**.
