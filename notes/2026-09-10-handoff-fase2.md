@@ -10,14 +10,20 @@
 **Objetivo:** recompilar el núcleo plano de Hybrid Heaven (N64Recomp) y hacer que el juego arranque
 y llegue a gameplay en el runtime (RT64/N64ModernRuntime).
 
-**Estado alcanzado (2026-09-10):**
-- ✅ El juego **compila** (build Linux `build_dbg`, `Hybrid Heaven Recomp`).
+**Estado alcanzado (2026-09-10, actualizado al final de la sesión):**
+- ✅ El juego **compila** (build Linux `build_dbg` y `build`, `Hybrid Heaven Recomp`).
 - ✅ **Boot completo**: `init_heap → init_saving done → Calling entrypoint → Entrypoint returned`,
   y **se crean y ejecutan threads del juego** + RT64 setup OK.
 - ✅ De SIGSEGV/crash → **juego estable (sin crash)**.
-- ❌ **Bloqueante**: el thread principal (FUN_8002AEA0) bloquea en `osRecvMesg(BLOCK)` en la cola
-  principal **0x8005bf30** esperando la **primera tarea del scheduler del motor Konami** que nunca
-  llega (todos los threads del juego quedan en espera). → deadlock.
+- ✅ **FIX deadlock VI**: el VI manager (`FUN_80034840`) ya **no se deadlockea**; recibe y procesa
+  mensajes VI. Se arregló `osSetEventMesg` (faltaba `OS_EVENT_VI=7`) y la **entrega de mensajes
+  externos** (los mensajes VI/AI/SP/DP ahora despiertan a los game threads bloqueados). Verificado
+  en run headless real. Detalle en `notes/2026-09-10-session-vi-mesg-fix.md`.
+- ❌ **Bloqueante (sigue)**: el thread principal (FUN_8002AEA0) bloquea en `osRecvMesg(BLOCK)` en la
+  cola principal **0x8005bf30** esperando la **primera tarea del scheduler del motor Konami** que
+  nunca llega (0 mensajes enviados; sin tareas RSP ni de render). → deadlock previo a gameplay.
+- ⚠️ Crash secundario (race): `terminate called without an active exception` tras procesar mensajes
+  VI. Dependiente de timing; no reproducido bajo gdb.
 
 ---
 
@@ -213,8 +219,14 @@ reabrir, inspeccionar). Si se retoma, usar la GUI de Ghidra con el proyecto HH.
 2. Referencias a `0x8004ab18` (donde el main thread lee el puntero a la cola principal) → encontrar
    el scheduler que reparte/usa ese puntero.
 3. Identificar al emisor de la primera tarea (osSendMesg con ese puntero) y por qué no corre.
+   OJO: en el run headless real, thread 5 (`FUN_800011b0`) queda bloqueado en `osRecvMesg` de la
+   cola **0x8005be40** (count=1) ANTES de poder postear la tarea — investigar qué envía a 0x8005be40.
 4. Si depende de un os func sin mapear → mapearlo con el método Goemon (§3).
 5. Regenerar + build + run headless → ver si el deadlock se desbloquea.
+
+> **Para el run headless del build de Linux** (requiere GPU por software): ver
+> `notes/2026-09-10-session-vi-mesg-fix.md` §4 (Xvfb + `mesa-vulkan-swrast`/lavapipe +
+> `VK_ICD_FILENAMES`). La ROM retail (16MB) debe estar como `baserom.us.z64` junto al ejecutable.
 
 **Repos clave para el contexto:**
 - `/app/goemon-sourcecode` — ROM + syms + N64Recomp de referencia (mismo motor Konami).
