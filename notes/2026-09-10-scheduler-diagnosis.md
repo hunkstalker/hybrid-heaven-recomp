@@ -105,6 +105,28 @@ que el recompilador **enlaza al stub no-op del runtime**. Resultado: los dos pun
 `FUN_80032220`), no el stub del runtime. Revisar también los demás os funcs VI que puedan estar
 stubeados (`osViSetMode`, `osViSwapBuffer`, etc.) si rompen el estado del juego.
 
+## 4.6 FIX APLICADO Y VERIFICADO (2026-09-10) — DEADLOCK ROTO
+
+Cambios en `config/us_unified.syms.toml`:
+- `osCreateViManager` → `FUN_80032220` (0x80032220, size 0x13C).
+- `osViSetMode` → `FUN_80032360` (0x80032360, size 0x370).
+- Añadido `osVirtualToPhysical` (0x80028A10, size 0x7C) — dependencia de osViSetMode como game code.
+
+Regenerado `config/RecompiledFuncs_unified/` (341 funcs, funcs_0..6) + copiado a
+`port/HybridHeavenRecomp/RecompiledFuncs/` + build OK + run headless:
+
+- **DEADLOCK ROTO.** Confirmado en `/tmp/hh_run7.log`:
+  - Thread 5 pasó de `0x8005be40` y corre su bucle (`osSendMesg mq=0x8005c288 msg=0x8005c4b0`).
+  - VI manager reenvía la vblank a thread 19 (`osSendMesg mq=0x8005c560 msg=0x29a`).
+  - Los punteros VI swap por frame (`vis=100/200/300/400` → cur alterna 0x8004AEA0/0x8004AE70).
+  - `[GVI] curVI+0x10 mq=0x8005C560` y `nxtVI+0x10 mq=0x8005C560` (VI event registrado).
+- **Resto (secundario):** crash `terminate called without an active exception` (race conocido de
+  la sesión anterior; no bloqueante). Aún no se ve `submit_rsp_task` (sin tarea RSP/gfx todavía).
+
+Los stubs `osCreateViManager_recomp`/`osViSetMode_recomp` del runtime (vi.cpp) quedan sin uso para
+el juego; el recompilador ahora emite los del juego. RT64 usa `set_dummy_vi` cuando el juego no ha
+arrancado, así que el render no depende de esos stubs en el boot.
+
 **Trazas añadidas al runtime para el diagnóstico** (en `events.cpp`/`mesgqueue.cpp`):
 - `[VIEV] osViSetEvent mq=...` (events.cpp) — nunca se imprime → el juego usa su propio osViSetEvent.
 - `[SPT] submit_rsp_task type=...` (events.cpp) — nunca se imprime → 0 tareas RSP.
