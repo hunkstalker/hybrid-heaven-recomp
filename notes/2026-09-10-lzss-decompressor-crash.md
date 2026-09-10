@@ -169,3 +169,23 @@ EOF
   (s1 no avanza) → bug de recompilación profundo del bucle de decode, NO de stride ni de datos.
   - Siguiente: por qué s6 (tamaño de bloque) sale 0/negativo y el `sltu v1, s7` (decode loop) sale al
     instante sin escribir. Comparar el recompilado vs original del decode (0x80003918-0x80003C98).
+
+### 6.6 PIVOT (2026-09-10) — CAUSA RAÍZ: el asset NO se carga (buffer vacío), el DMA no copia
+
+- **s6 = 0x0 para TODOS los 513 bloques.** El header de 4 bytes leído en `s2=0x80089518` es 0.
+  → **El buffer del chunk (0x80089518) está vacío (ceros): el asset NUNCA se cargó en RDRAM.**
+- La traza del DMA (2 llamadas) muestra args CORRECTOS:
+  - `src=0x4E69A8 dest=0x80089518 size=0x2000` (chunk 1)
+  - `src=0x4E89A8 dest=0x80089518 size=0x2000` (chunk 2, = 0x4E69A8+0x2000)
+- **PERO la copia NO ocurre**: la cadena de carga `FUN_80003DB4 → FUN_80001FE8 → FUN_80001F30`
+  llama a `FUN_80028A90`, `0x80030640`, `0x800306C0` que son **TODAS operaciones de cache**
+  (`cache 0x19/0x10/0x15`) + preparación de un struct en 0x8005D280 — **NO copian ROM→RDRAM.**
+- **El runtime lee la ROM vía `osPiStartDma_recomp` → `do_dma` → `do_rom_read` (pi.cpp)**, pero el DMA
+  del juego (custom, FUN_80001F30) **NO pasa por `osPiStartDma`** → `do_dma` nunca se invoca → sin copia.
+- **CONCLUSIÓN (PIVOT)**: el descompresor FUN_80003824 probablemente es CORRECTO; el problema es que el
+  asset **no se carga del ROM al RDRAM** porque la vía de lectura del juego (custom PI DMA / trans loader)
+  no está soportada por el runtime. Es un **hueco de emulación del PI DMA / ROM read**, NO un bug del
+  descompresor.
+- **Siguiente**: averiguar CÓMO el juego lee el asset del ROM (¿osPiStartDma real de libultra? ¿MMIO del
+  PI 0xA4600000? ¿memory-mapped 0x10000000?) y hacer que el runtime lo soporte (o parchear el juego para
+  usar `recomp::do_rom_read`). Ver pi.cpp (do_dma/do_rom_read/osPiStartDma_recomp).
