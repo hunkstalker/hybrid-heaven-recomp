@@ -720,15 +720,18 @@ En `funcs_5.c`: +2.
 ```
 [✓] Write port sources (main, renderer, overlays, support, input) + CMake + submodules + Linux validation + headless sanity
 [✓] Restore Windows-build baseline: port on retail RecompiledFuncs (known-good, builds Hybrid Heaven Recomp.exe)
-[✓] BLOCKER: finish unified funcs generation so it emits VALID C (clean regen, exit=0, complete set; N64Recomp tolera data/overlay: traps/INVALID/COP2/movz/movn/sync/pref/cfc0/ctc0/jalr-no-ra como no-op). Solved via recompilation.cpp no-ops + use_lookup=true
-[✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (funcs_0..6, ~309 funcs; sin stubs de data)
-[✓] Copy unified set to port/RecompiledFuncs + CMakeLists GLOB funcs_*.c + Linux compile check (build_dbg OK); pending user Windows rebuild
-[✓] Run headless Linux -> iterate runtime failures: boot reaches Entrypoint returned + game threads start; added ~13 mid-funcs + 4 os funcs (osCreateThread/osStartThread/osGetThreadId/osSetThreadPri) to us_unified.syms.toml
-[•] BLOCKER: scheduler del motor Konami — thread principal (0) bloquea en osRecvMesg en la cola principal 0x8005bf30 esperando la primera tarea que nadie envía. NO es un os function; necesita Ghidra/mapa de símbolos del motor. Método Goemon funciona para os funcs (libultra byte-idéntico; ver nota Fase 2 ACT.4)
-[ ] User: Windows run -> boot.log/hh.log; iterate on remaining runtime failures
-[ ] RSP audio ucode (aspMain) - follow-up after boot
+[✓] BLOCKER: finish unified funcs generation so it emits VALID C (clean regen, exit=0, complete set)
+[✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (funcs_0..6, 341 funcs)
+[✓] Copy unified set to port/RecompiledFuncs + CMakeLists GLOB funcs_*.c + Linux compile check
+[✓] Run headless Linux -> boot reaches Entrypoint returned + game threads start
+[✓] BLOCKER: scheduler del motor Konami (deadlock) — CAUSA RAÍZ: osCreateViManager_recomp stub no-op (vi.cpp:13) dejaba los globals VI del juego (0x8004aed0/0x8004aed4) a 0. FIX B: el juego usa su propio osCreateViManager/osViSetMode (renombrados FUN_80032220/FUN_80032360 en us_unified.syms.toml) + osVirtualToPhysical (0x80028A10). DEADLOCK ROTO (thread 5 corre bucle, VI manager reenvía vblank, frames avanzan). Detalle: notes/2026-09-10-scheduler-diagnosis.md
+[✓] Crash 'terminate called without an active exception' (mid-run) — endurecer ciclo de vida de threads (CleanupGuard + catch(...) + guard doble-enqueue + joinable-guard); juego estable 30s+
+[✓] Build Windows: port compila (MSVC 2026) y hace BOOT (Entrypoint returned, threads, RT64 OK). Fixes de portabilidad MSVC: recomp.h cop0 (cause_reg/cop0_regs/declaraciones), mesgqueue __builtin_return_address, osStopThread assert. Pantalla NEGRA = aún no renderiza. Detalle: notes/2026-09-10-windows-build.md
+[•] BLOQUEANTE (PRÓXIMO): conseguir la PRIMERA TAREA DE RENDER (RSP/display list) — el game loop corre pero no emite la primera tarea gráfica (no hay submit_rsp_task, pantalla negra). Atacar con Ghidra/runtime como el scheduler. VA ANTES que el audio
+[ ] RSP audio ucode (aspMain) - follow-up DESPUÉS de conseguir render
 ```
 
 **Mapa estado → status del tool de todos**: `[✓]` → `completed`; `[•]` → `in_progress` (la única en
-progreso); `[ ]` → `pending`. Prioridades: tareas 1-6 `high`, tarea 7 (bloqueante) `high`,
-tarea 8 `medium`, tarea 9 `low`.
+progreso); `[ ]` → `pending`. Prioridades: las 8 primeras `high`, la tarea 9 (render, bloqueante)
+`high`, tarea 10 (audio) `low`. **Aclaración de orden:** el renderizado (tarea 9) va ANTES que el
+audio RSP (tarea 10).
