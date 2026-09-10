@@ -321,10 +321,16 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 > de forma temprana. **Criterio de corte de la tarea #3:** ~6 sets de fase, no exhaustividad total.
 
 ### A. Fase 2 / recompilación (PROPULSOR — arrancar YA)
+> **HANDOFF COMPLETO DE FASE 2:** leer **`notes/2026-09-10-handoff-fase2.md`** (todo el contexto:
+> estado, comandos, herramientas, método Goemon, mapa de os funcs, diagnóstico del deadlock,
+> plan Ghidra y próximo paso). La tarea #3 va aparte (vía BizHawk).
+
 1. **[CÓDIGO] Arrancar la Fase 2 del NÚCLEO PLANO** — **AVANZADO (2026-09-10)**: generación completa
-   (302 funciones) + build Linux + boot: `init_heap → init_saving done → Calling entrypoint →
-   Entrypoint returned`, y se crean/ejecutan threads del juego. Ver
-   `notes/2026-09-10-recomp-fase2-boot.md`. Pendiente: crash en un thread por modelo de threads.
+   + build Linux + boot: `init_heap → init_saving done → Calling entrypoint → Entrypoint returned`,
+   y se crean/ejecutan threads del juego (juego **estable**, sin crash). Ver
+   `notes/2026-09-10-recomp-fase2-boot.md`. **Bloqueante actual**: el thread principal (FUN_8002AEA0)
+   bloquea en osRecvMesg en la cola principal 0x8005bf30 esperando la primera tarea del **scheduler
+   del motor Konami** (no es un os function). Atacable con Ghidra (ver handoff).
 2. **[CÓDIGO] Bloqueante — identificar el microcode de audio** (ucode custom KCEO vs asp). NO bloquea
    el render (dummy); sondear con Ghidra/runtime durante la Fase 2.
 3. **[CÓDIGO] Bloqueante — mapear las variantes LZSS del `trans`** (`LZSS 5`/`LZSS 7`) usando las
