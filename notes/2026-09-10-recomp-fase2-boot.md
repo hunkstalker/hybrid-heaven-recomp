@@ -153,6 +153,59 @@ eventos/scheduler/VI: `osSetEventMesg`, `osCreateViManager`, `osCreatePiManager`
 
 ---
 
+## ACTUALIZACIÓN 4 — método Goemon para os funcs (2026-09-10)
+
+**Breakthrough:** el libultra es **byte-idéntico entre Goemon (Mystical Ninja) y Hybrid Heaven**
+(osCreateThread coincide exactamente). El motor es el mismo (Konami). Método fiable para mapear
+os funcs de HH:
+
+1. `/app/goemon-sourcecode/Goemon64RecompSyms/mnsg.syms.toml` — lista de os funcs de Goemon
+   (75 funciones, con vram y tamaño).
+2. `mnsg.z64` (ROM de Goemon, presente) + `/tmp/mips_dis.py <rom> <vram> <n>` — desensamblar.
+3. Buscar el byte-sequence de la os func de Goemon en el ROM de HH (emparejamiento de bytes;
+   enmascarando el operando del `jal` y la dirección de tabla cuando difieren).
+
+**Correcciones autoritativas (por bytes de Goemon):**
+- `osSendMesg` = 0x80026300, `osJamMesg` = 0x80030A10 — **estaban AL REVÉS** en un mapeo previo.
+- `osSetEventMesg` = 0x8002FB60 (antes FUN_8002FB60).
+- `osRecvMesg` = 0x800266B0, `osCreateThread` = 0x80028260 (confirmados).
+
+**Nota:** las funciones de JUEGO difieren entre Goemon y HH (contenido distinto), así que el
+byte-matching NO sirve para el scheduler del juego (solo para os funcs).
+
+**Herramientas:** `/tmp/mips_dis.py`, `/tmp/match_os3.py`, `/tmp/find_hh_event.py`,
+`/tmp/find_viset.py`, `/tmp/find_mainq.py`.
+
+---
+
+## ACTUALIZACIÓN 5 — estado final del deadlock (2026-09-10, checkpoint)
+
+**Diagnóstico completo:**
+- Thread 0 (principal, FUN_8002AEA0) = loop de despacho de tareas. Bloquea en `osRecvMesg(BLOCK)`
+  en la cola principal **0x8005bf30** (count=200) como su primera acción.
+- Nadie envía a la cola principal → el juego espera la **primera tarea del scheduler del motor
+  Konami** que nunca llega.
+- El VI vblank dispara (RT64) pero con `mq=NULLPTR`; el juego conecta el evento VI a **0x800cd4b0**
+  (vía `osSetEventMesg event=8`), NO a la cola principal. O sea, el evento VI no alimenta la cola
+  principal.
+- Threads del juego creados: 1 (setup, FUN_80001124, retorna), 0 (main, bloqueado), 5
+  (FUN_800011b0, bloqueado en 0x800cd4d8). Solo 3.
+
+**Por qué no converge con el enfoque actual:** la primera tarea la envía el **scheduler del motor**
+(lógica de juego específica de HH), que:
+- No es un os function (no se mapea con Goemon).
+- El source de Goemon (`src/game/*.cpp`) es solo la capa API del port, NO el motor.
+- Las funciones de juego difieren entre Goemon y HH → el byte-matching no aplica al scheduler.
+- Todos los threads del juego están en espera → el scheduler no envía.
+
+**Necesita otra herramienta/plan:** Ghidra con el proyecto del motor, o el mapa de símbolos del
+motor Konami. Es un esfuerzo grande y separado.
+
+**Logro consolidado:** de SIGSEGV/crash → **juego estable** (boot completo, threads corriendo,
+RT64 setup OK), con método fiable para os funcs. Este checkpoint cierra la sesión de Fase 2.
+
+---
+
 ## ACTUALIZACIÓN 3 — diagnóstico definitivo del deadlock (2026-09-10)
 
 **Confirmado:** el thread 0 (principal, FUN_8002AEA0) bloquea **como su primera acción** en

@@ -718,7 +718,7 @@ En `funcs_5.c`: +2.
 [✓] Regenerate unified set cleanly (game_unified.toml), gcc -fsyntax-only all funcs_*.c, exit=0, complete file set (funcs_0..6, ~309 funcs; sin stubs de data)
 [✓] Copy unified set to port/RecompiledFuncs + CMakeLists GLOB funcs_*.c + Linux compile check (build_dbg OK); pending user Windows rebuild
 [✓] Run headless Linux -> iterate runtime failures: boot reaches Entrypoint returned + game threads start; added ~13 mid-funcs + 4 os funcs (osCreateThread/osStartThread/osGetThreadId/osSetThreadPri) to us_unified.syms.toml
-[•] BLOCKER: deadlock tras arranque - game estable (sin crash) pero todos los threads en espera; thread principal espera un mesg/evento que no llega. Os funcs de threads/mesg reimplementados: osSendMesg/osJamMesg/osRecvMesg/osStopThread (método: disassembler capstone /tmp/mips_dis.py). Identificar qué mesg/evento falta
+[•] BLOCKER: scheduler del motor Konami — thread principal (0) bloquea en osRecvMesg en la cola principal 0x8005bf30 esperando la primera tarea que nadie envía. NO es un os function; necesita Ghidra/mapa de símbolos del motor. Método Goemon funciona para os funcs (libultra byte-idéntico; ver nota Fase 2 ACT.4)
 [ ] User: Windows run -> boot.log/hh.log; iterate on remaining runtime failures
 [ ] RSP audio ucode (aspMain) - follow-up after boot
 ```
