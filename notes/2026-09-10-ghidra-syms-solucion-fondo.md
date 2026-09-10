@@ -86,3 +86,38 @@ Resultado: `us_ghidra.syms.toml` = 867 funciones (vs 351 actuales). Mucho más c
 3. Añadir declaraciones faltantes a funcs.h (auto, tras cada regen).
 4. Resolver las funciones de overlay que el código plano llama (requiere el mapa de overlays — tarea #3).
 5. Regenerar con la syms Ghidra refinada → build → boot → render.
+
+## 6. AVANCE — el enfoque Ghidra FUNCIONA (aplicado, 2026-09-10)
+
+### 6.1 Qué se aplicó (soluciones de la investigación externa)
+- **`ignored`** en `game_unified.toml`: se añadieron los **blobs de datos** que Ghidra detectó como
+  funciones (`FUN_800493c4`, `FUN_80049430`, `FUN_80049538`, `FUN_800495ec`). El recompilador los
+  salta (issue #58/#108: datos-como-funciones y libultra sin nombre → ignorar).
+- Config → `symbols_file_path = us_ghidra.syms.toml` + `use_lookup_for_all_function_calls = true`
+  (usa los límites de Ghidra, no la auto-detección que mis-acotaba).
+- Tras ignorar los datos, la regeneración produce **866 funciones SIN errores duros** y TODOS los
+  `funcs_*.c` pasan `gcc -fsyntax-only`.
+
+### 6.2 Resultado del run headless (¡PROGRESO!)
+- **El juego CORRE**: el log llega a `[RND] vis=1500` (1500 frames de VI avanzando), sin crash en el
+  allocator.
+- **thread 5 NO bloqueado** en `0x8005be40` (0), **0 "Failed to find function"**.
+- **Nuevo bloqueante**: crash/deadlock en `std::mutex::lock()` (runtime, threading) tras ~1500 frames.
+- **Aún sin render**: 0 tareas RSP (`submit_rsp_task`/`send_dl` = 0); `[RND] 3750=0` (state machine no
+  activa).
+
+### 6.3 Comparación
+| Estado | Resultado |
+|---|---|
+| `us_unified` (byte-matched) + os funcs | thread 5 desbloqueado, pero crash temprano en el allocator de heap |
+| **`us_ghidra` (límites de Ghidra)** | **el juego corre 1500 frames** (pasa el allocator), sin be40/funciones faltantes; crash en mutex del runtime; sin render |
+
+**El enfoque Ghidra es un gran avance**: los límites de Ghidra corrigen el allocator y el juego
+progresa mucho más. El bloqueante actual es un **deadlock de threading del runtime** (mutex) y la
+falta de render (0 tareas RSP) — ambos son la siguiente capa, no un problema de límites.
+
+### 6.4 Siguiente acción
+1. Investigar el deadlock de `std::mutex::lock` (threading del runtime) — posible carrera
+   "terminate called without an active exception" o un thread esperando un mutex retenido.
+2. Verificar por qué no hay tareas RSP (0 `submit_rsp_task`) pese a que el game loop corre.
+3. Commit del estado funcional (syms Ghidra + ignored list).
