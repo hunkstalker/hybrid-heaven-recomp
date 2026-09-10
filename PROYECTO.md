@@ -6,7 +6,7 @@
 > Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
-Actualizado por última vez: **2026-09-10** (CAUSA RAÍZ del render confirmada: la syms solo mapea 11 os funcs; la mayoría de os funcs libultra están como `FUN_xxx` → el recompilador los compila como código de juego → el juego usa su propio osSetTimer (cop0 Compare, no emulado) → thread 5 colgado. Solución: renombrar con los vrams de `n64sym`. Ver `notes/2026-09-10-n64sym-osfuncs-rootcause.md`). Hist: 2026-09-10 (harness+mapeo sospechoso, luego corregido). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
+Actualizado por última vez: **2026-09-10** (FIX APLICADO: se mapearon 46 os funcs en la syms + `use_lookup_for_all_function_calls=false` → **thread 5 DESBLOQUEADO** de `osRecvMesg(0x8005be40)`; el boot progresa más pero crashea en el allocator de heap por límites de función del auto-detector). Hist: 2026-09-10 (causa raíz con n64sym). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
 
 ---
 
@@ -226,7 +226,7 @@ Pendientes:
 | 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
 | 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
 | 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso — **CAUSA RAÍZ CONFIRMADA: os funcs libultra sin mapear** | Microcode F3DEX2 ✅ favorable. El boot funciona pero thread 5 se clava en `osRecvMesg(0x8005be40)`. **Causa raíz (2026-09-10, herramienta `n64sym`)**: la syms solo mapea 11 os funcs; la mayoría de os funcs libultra están como `FUN_xxx` → el recompilador los compila como código de juego → el juego usa su propio `osSetTimer` (mecanismo cop0 Compare que el runtime no emula) → el timer no dispara → thread 5 colgado. **Solución**: renombrar los `FUN_xxx` → os funcs con los vrams de `n64sym`. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md`. |
+| 3. Integración RT64 (render) | En curso — **thread 5 desbloqueado, crash en allocator de heap** | Microcode F3DEX2 ✅. **FIX aplicado (2026-09-10)**: se mapearon 46 os funcs en la syms (vrams de `n64sym`) + `use_lookup_for_all_function_calls=false` → **thread 5 ya no se queda en `osRecvMesg(0x8005be40)`**. El boot progresa más pero **crashea (SIGSEGV)** en el allocator (`FUN_80003824`/`static_0_80003D3C`) por **límites de función** del auto-detector. Siguiente: corregir límites (iterativo) o regenerar syms completa. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md` §8. |
 | 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |

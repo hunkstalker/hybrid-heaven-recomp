@@ -163,6 +163,58 @@ Y para el mecanismo de tareas/VI: `osSpTaskLoad`, `osSpTaskStartGo`, `osCreateVi
 
 - `notes/reference/n64sym_osfuncs_us_retail.txt` — lista de 147 os funcs (salida de n64sym).
 - `n64sym` compilado en `/tmp/n64sym` (bin `bin/n64sym`); firmas integradas OK.
-- La syms **NO se ha modificado aún** — el mapeo de os funcs es la siguiente acción.
 - El repo sigue en baseline conocido-bueno (boot OK, thread 5 bloqueado). `funcs_6.c` modificado
   (preexistente, diff NAN_CHECK, no de esta sesión).
+
+## 8. FIX APLICADO (2026-09-10) — thread 5 DESBLOQUEADO
+
+> Resultado de aplicar la solución. **El mapeo de os funcs funcionó**: thread 5 ya NO se queda en
+> `osRecvMesg(0x8005be40)`.
+
+### 8.1 Qué se cambió
+- **`config/us_unified.syms.toml`**: se renombraron **46 os funcs** de `FUN_xxx` a sus nombres os
+  reales (vrams de n64sym), y se añadieron los que faltaban. Entre ellos:
+  - Cadena de timers: `osSetTimer`(0x80034560), `osGetTime`(0x80031190), `osGetCount`(0x8002BF90).
+  - Controladores: `osContInit`(0x80027F20), `osContStartReadData`(0x800283B0),
+    `osContGetReadData`(0x80028434).
+  - VI: `osCreateViManager`(0x800346C0), `osViSetMode`(0x80029FA0), `osViBlack`(0x800295D0),
+    `osViSetEvent`(0x800329F0), `osViSwapBuffer`(0x80030DC0), `osViSetYScale`(0x80034DE0),
+    `osViGetCurrentFramebuffer`(0x80028F20), `osViSetSpecialFeatures`(0x80032890).
+  - RSP: `osSpTaskLoad`(0x80026B0C), `osSpTaskStartGo`(0x80026C9C), `osSpTaskYield`(0x80029690),
+    `osSpTaskYielded`(0x80030FF0).
+  - Threads: `osDestroyThread`(0x80026CE0), `osYieldThread`(0x80033CD0),
+    `osGetThreadPri`(0x80030C40, antes mal como osGetThreadId), `osSetIntMask`(0x800267F0).
+  - Misc: `osInitialize`(0x80028B10), `osCreatePiManager`(0x8002AC60), `osPiStartDma`(0x8002BFA0),
+    `osCartRomInit`(0x80032BE0), `osGetMemSize`(0x8002C0B0), `osAiGetLength`(0x80033C60),
+    `osAiSetNextBuffer`(0x80034F70), `osUnmapTLBAll`(0x800304A0), `osWritebackDCache`(0x80028A90),
+    `__osRestoreInt`(0x800326D0), `__osMotorAccess`(0x80027A90), `osMotorInit`(0x80027D04),
+    y los `osPfs*` (FreeBlocks/ReadWriteFile/NumFiles/InitPak).
+- **`config/game_unified.toml`**: `use_lookup_for_all_function_calls` cambió de `true` → **`false`**
+  (auto-detección de funciones). Con `true`, TODAS las llamadas requieren registro en la syms y había
+  **293 funciones faltantes** → "Failed to find function". Con `false` el recompilador auto-detecta
+  los límites (cubre las faltantes).
+- **`funcs.h`**: se añadió la declaración `void osYieldThread_recomp(...)` (quirk del recompilador:
+  emite la llamada pero no la declara).
+
+### 8.2 Resultado del run headless
+- **thread 5 ya NO está bloqueado** en `0x8005be40` (0 ocurrencias) — **el fix funcionó**.
+- **0 "Failed to find function"** (auto-detección cubre las 293 faltantes).
+- El boot **progresa más** (thread 5 llega al allocator de heap) pero **crashea (SIGSEGV)** en
+  `FUN_80003824`/`static_0_80003D3C` (lee un byte en un puntero inválido `s2`).
+
+### 8.3 Bloqueante actual — límites de función (auto-detección)
+El crash está en el **allocator de heap**: `FUN_80003824` (size corregida a 0x514) llama a
+`static_0_80003D3C`, que devuelve un puntero inválido. Es un problema de **límites de función**
+del auto-detector (alguna función mal acotada → punteros basura). Es el trabajo iterativo clásico de
+N64Recomp: corregir cada función mal acotada añadiéndola a la syms con su size correcta.
+
+**Siguiente paso**: corregir los límites de las funciones mal acotadas (iterativo), o regenerar una
+syms completa con límites correctos (trabajo mayor, idealmente desde un decomp).
+
+### 8.4 Cambios no commitados de esta sesión (además de la doc)
+- `config/us_unified.syms.toml` (46 os funcs), `config/game_unified.toml` (use_lookup=false),
+  `config/RecompiledFuncs_unified/*` y `port/HybridHeavenRecomp/RecompiledFuncs/*` (regenerados).
+- `funcs.h` con la declaración `osYieldThread_recomp`.
+- Nota: la syms/con fix está en estado "parcialmente funcional" (thread 5 desbloqueado pero crash en
+  heap). El mapeo de os funcs es la parte correcta y estable; el `use_lookup=false` + límites de
+  auto-detección es la parte en progreso.

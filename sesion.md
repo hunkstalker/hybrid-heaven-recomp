@@ -560,7 +560,13 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
 - **SOLUCIÓN**: renombrar en la syms los `FUN_xxx` → os funcs con los vrams de `n64sym` (verificar
   `_recomp` en el runtime antes). Lista de referencia:
   `notes/reference/n64sym_osfuncs_us_retail.txt` (147 os funcs).
-- **Próximo paso**: mapear la cadena de timers (osSetTimer/osGetTime/osGetCount) y probar el boot.
+- **FIX APLICADO (misma sesión) — thread 5 DESBLOQUEADO**: se mapearon 46 os funcs en la syms +
+  `use_lookup_for_all_function_calls=false` (auto-detección). Resultado: thread 5 ya NO se queda en
+  `osRecvMesg(0x8005be40)` (0 ocurrencias), 0 "Failed to find function" (cubre las 293 faltantes),
+  pero el boot **crashea (SIGSEGV)** en el allocator de heap (`FUN_80003824`/`static_0_80003D3C`)
+  por **límites de función** del auto-detector. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md` §8.
+- **Próximo paso**: corregir los límites de las funciones mal acotadas (iterativo) o regenerar una
+  syms completa con límites correctos.
 
 ## 16.1 QUÉ SE HIZO EN ESTA TANDA (cronología)
 
@@ -748,8 +754,8 @@ En `funcs_5.c`: +2.
 [✓] BLOCKER: scheduler del motor Konami (deadlock) — CAUSA RAÍZ: osCreateViManager_recomp stub no-op (vi.cpp:13) dejaba los globals VI del juego (0x8004aed0/0x8004aed4) a 0. FIX B: el juego usa su propio osCreateViManager/osViSetMode (renombrados FUN_80032220/FUN_80032360 en us_unified.syms.toml) + osVirtualToPhysical (0x80028A10). DEADLOCK ROTO (thread 5 corre bucle, VI manager reenvía vblank, frames avanzan). Detalle: notes/2026-09-10-scheduler-diagnosis.md
 [✓] Crash 'terminate called without an active exception' (mid-run) — endurecer ciclo de vida de threads (CleanupGuard + catch(...) + guard doble-enqueue + joinable-guard); juego estable 30s+
 [✓] Build Windows: port compila (MSVC 2026) y hace BOOT (Entrypoint returned, threads, RT64 OK). Fixes de portabilidad MSVC: recomp.h cop0 (cause_reg/cop0_regs/declaraciones), mesgqueue __builtin_return_address, osStopThread assert. Pantalla NEGRA = aún no renderiza. Detalle: notes/2026-09-10-windows-build.md
-[•] BLOQUEANTE: RENDER (pantalla negra). CAUSA RAÍZ CONFIRMADA (2026-09-10, herramienta n64sym): la syms solo mapea 11 os funcs; la mayoría de os funcs libultra (~147) están como FUN_xxx → el recompilador los compila como código de juego → el juego usa su propio osSetTimer (0x80034560, mecanismo cop0 Compare no emulado por el runtime) → el timer no dispara → thread 5 colgado en osRecvMesg(0x8005be40). Solución: renombrar los FUN_xxx → os funcs con los vrams de n64sym. Lista: notes/reference/n64sym_osfuncs_us_retail.txt. Detalle: notes/2026-09-10-n64sym-osfuncs-rootcause.md
-[ ] FIX RENDER: renombrar en us_unified.syms.toml los os funcs críticos (osSetTimer=0x80034560, osGetTime=0x80031190, osGetCount=0x8002BF90, osCreateViManager=0x800346C0, osViSetMode=0x80029FA0, osSpTaskLoad/StartGo=0x80026B0C/0x80026C9C, osDestroyThread=0x80026CE0, osGetThreadPri=0x80030C40, etc.) verificando que el runtime proporciona su _recomp (si no, error de link). Regenerar + build + run headless → comprobar si thread 5 desbloquea y aparece render (submit_rsp_task/send_dl). Los internos __osInsertTimer/__osSetTimerIntr/__osTimerInterrupt quizá NO tengan _recomp (el runtime usa su propia lista/timer thread).
+[•] BLOQUEANTE: RENDER (pantalla negra). CAUSA RAÍZ CONFIRMADA + FIX APLICADO (2026-09-10, n64sym): la syms solo mapeaba 11 os funcs; la mayoría estaban como FUN_xxx → recompilados como código de juego → el juego usaba su propio osSetTimer (cop0 Compare no emulado) → thread 5 colgado en osRecvMesg(0x8005be40). FIX: se mapearon 46 os funcs (vrams n64sym) + use_lookup_for_all_function_calls=false → THREAD 5 DESBLOQUEADO (0 be40), 0 funciones faltantes. PERO el boot crashea (SIGSEGV) en el allocator de heap (FUN_80003824/static_0_80003D3C) por límites de función del auto-detector. Detalle: notes/2026-09-10-n64sym-osfuncs-rootcause.md §8
+[ ] FIX RENDER: corregir los límites de función mal acotados del auto-detector (FUN_80003824/static_0_80003D3C y siguientes) añadiéndolos a la syms con su size correcta (iterativo), o regenerar una syms completa con límites correctos. Luego probar el boot hasta que aparezca render (submit_rsp_task/send_dl). Recordar: añadir declaración osYieldThread_recomp a funcs.h tras cada regeneración (quirk del recompilador).
 [ ] RSP audio ucode (aspMain) - follow-up DESPUÉS de conseguir render
 ```
 

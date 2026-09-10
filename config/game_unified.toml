@@ -8,7 +8,7 @@ output_func_path = "RecompiledFuncs_unified"
 relocatable_sections_path = ""
 symbols_file_path = "us_unified.syms.toml"
 rom_file_path = "../work/roms/us_retail.z64"
-use_lookup_for_all_function_calls = true
+use_lookup_for_all_function_calls = false
 
 [patches]
 stubs = [
