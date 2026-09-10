@@ -276,3 +276,50 @@ Investigado a fondo: **no es utilizable aquí**:
 2. Iterar el boot hasta que el allocator de heap (`FUN_80003824`) y siguientes dejen de crashear.
 3. A largo plazo, generar una syms completa con límites correctos (splat/Ghidra) para eliminar el
    bucle de arreglos.
+
+## 10. RESULTADO DE LA ITERACIÓN (debug del allocator) — conclusión
+
+### 10.1 Qué se corrigió
+- `FUN_80003D3C` (límite 0x74): el auto-detector la cortaba antes de `move v0,a0; jr ra`, devolviendo
+  basura. Ahora devuelve `a0+1` (avanza) o `0x8009-0x6AE8` (reset) — válido.
+- `FUN_80003824` (límite 0x514): estaba sobre-dimensionada (0xC58) absorbiendo `static_0_80003D3C`.
+
+### 10.2 Por qué la iteración no converge rápido
+Tras corregir los límites, el boot **sigue crasheando** en `FUN_80003824` (allocator de heap), leyendo
+`s2` corrupto en `0x80003D04`. Se verificó que:
+- `FUN_80003D3C` (el callee) está correctamente recompilado.
+- El loop `L_80003CE0` y el check pre-loop (`s7 & 0xF == 0` → saltar) están correctamente recompilados.
+- Aun así `s2` se corrompe → **error de recompilación más profundo** (algún callee auto-detectado mal
+  acotado en la cadena del allocator, o la propia lógica).
+
+**Conclusión:** el debug iterativo de límites sobre un allocator complejo es **lento** — cada arreglo
+revela otro nivel. Es el **problema conocido** de N64Recomp (syms byte-matched incompleta/mal acotada).
+
+### 10.3 RECOMENDACIÓN: la solución de fondo (fiable)
+> **La vía fiable es regenerar una syms/ELF completa con límites de función correctos**, en lugar de
+> seguir parcheando límites uno a uno.
+
+**Por qué:** el recompilador solo usa símbolos `FUNC` con `size > 0` (issues #53/#90); los límites
+correctos vienen de un **ELF generado por un decomp/splat**. HH no tiene decomp → la syms byte-matched
+es el origen del problema. Parchear cada límite en la syms es un bucle sin convergencia rápida.
+
+**Plan de la solución de fondo:**
+1. **Splat** (`splat-init`): crear la metadata/ELF desde la ROM (auto-detecta entrypoint, compiler,
+   multi-segment). Refinar con `dump-symbols` para las referencias cruzadas.
+2. **flib** (decompals/flib): identificar los **símbolos SDK/libultra** para reemplazarlos por las
+   implementaciones del runtime.
+3. **Ghidra**: asistir la identificación de código y límites.
+4. **n64sym**: ya da los os funcs (147) — complementa.
+5. Construir el **ELF** y usarlo como `elf_path` en el config (modo ELF), o exportar la syms completa
+   con límites correctos.
+
+**Herramientas de apoyo:** `n64recomp_kit` no aplica (archivado/Windows/ELF-only), pero su enfoque
+(Splat→ELF→N64Recomp + auditar límites) es el patrón a seguir.
+
+### 10.4 Estado final del progreso (commitado)
+- ✅ **Thread 5 desbloqueado** de `osRecvMesg(0x8005be40)` — causa raíz resuelta (os funcs mapeadas,
+  commit `e67490d`).
+- ✅ **0 funciones faltantes** (auto-detección), `FUN_80003D3C`/`FUN_80003824` corregidos
+  (commit `fbcfb1e`).
+- ⚠️ Boot crashea en el allocator de heap → **siguiente: solución de fondo (syms/ELF con límites
+  correctos vía splat/flib/Ghidra)**.

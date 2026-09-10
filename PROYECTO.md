@@ -6,7 +6,7 @@
 > Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
-Actualizado por última vez: **2026-09-10** (FIX APLICADO: se mapearon 46 os funcs en la syms + `use_lookup_for_all_function_calls=false` → **thread 5 DESBLOQUEADO** de `osRecvMesg(0x8005be40)`; el boot progresa más pero crashea en el allocator de heap por límites de función del auto-detector). Hist: 2026-09-10 (causa raíz con n64sym). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
+Actualizado por última vez: **2026-09-10** (progreso: thread 5 desbloqueado (os funcs mapeadas); boot crashea en el allocator de heap → **recomendación: solución de fondo** = regenerar syms/ELF con límites correctos vía splat/flib/Ghidra, en vez de parchear límites uno a uno). Hist: 2026-09-10 (causa raíz n64sym + fix os funcs). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
 
 ---
 
@@ -226,7 +226,7 @@ Pendientes:
 | 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
 | 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
 | 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso — **thread 5 desbloqueado, crash en allocator de heap** | Microcode F3DEX2 ✅. **FIX aplicado (2026-09-10)**: se mapearon 46 os funcs en la syms (vrams de `n64sym`) + `use_lookup_for_all_function_calls=false` → **thread 5 ya no se queda en `osRecvMesg(0x8005be40)`**. El boot progresa más pero **crashea (SIGSEGV)** en el allocator (`FUN_80003824`/`static_0_80003D3C`) por **límites de función** del auto-detector. Siguiente: corregir límites (iterativo) o regenerar syms completa. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md` §8. |
+| 3. Integración RT64 (render) | En curso — **thread 5 desbloqueado; siguiente = solución de fondo (syms/ELF correcta)** | Microcode F3DEX2 ✅. **FIX (2026-09-10)**: mapeadas 46 os funcs (vrams `n64sym`) + `use_lookup_for_all_function_calls=false` → **thread 5 desbloqueado** de `osRecvMesg(0x8005be40)`. El boot progresa más pero **crashea (SIGSEGV)** en el allocator de heap (`FUN_80003824`) por **límites de función** del auto-detector (problema conocido: syms byte-matched incompleta). **RECOMENDACIÓN (solución de fondo)**: regenerar una **syms/ELF completa con límites correctos** vía **splat/flib/Ghidra** en vez de parchear límites uno a uno. Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md` §10. |
 | 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |
