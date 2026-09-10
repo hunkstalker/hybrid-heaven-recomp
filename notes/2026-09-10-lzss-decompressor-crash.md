@@ -153,3 +153,19 @@ EOF
    - Posible límite de función incorrecto o un `s7`/`base` mal calculado al cruzar el chunk.
 2. **NO usar lzkn64 como oráculo** (su salida es basura para este asset). El oráculo válido es el
    binario descomprimido real en RAM del emulador (tarea #3 / BizHawk).
+
+### 6.5 CORRECCIÓN CLAVE (2026-09-10) — los globales están en 0x8005D0xx, NO 0x8006D0xx
+
+- **Error mío**: `0x80060000 - 0x2FEC = 0x8005D014`. Los globales del descompresor son:
+  `0x8005D010` (fuente ROM), `0x8005D014` (base/posición), `0x8005D018` (restante),
+  `0x8005D01C` (fin), `0x8005D020` (contador de chunk), `0x8005D026` (**stride**).
+- Con las direcciones CORRECTAS, la instrumentación (513 iteraciones del block-top) muestra:
+  - **ENTRY: a0=0x4E69A8 a1=0x80107830 a2=0x55DD4** (args correctos).
+  - **stride(0x8005D026) = 1** constante → **NO es el bug** (descartado).
+  - **s1 (puntero de salida) = 0x80107830 CONSTANTE** → el descompresor **lee el stream pero NO escribe
+    salida** (0 bytes producidos). base(0x8005D014) y el contador 5D020 sí cambian (procesa bloques).
+  - s2 avanza 0x10 por bloque (lee el header de 4 bytes + 0xC de datos).
+- **Conclusión**: FUN_80003824 procesa bloques (estado cambia) pero el **decode LZSS no produce salida**
+  (s1 no avanza) → bug de recompilación profundo del bucle de decode, NO de stride ni de datos.
+  - Siguiente: por qué s6 (tamaño de bloque) sale 0/negativo y el `sltu v1, s7` (decode loop) sale al
+    instante sin escribir. Comparar el recompilado vs original del decode (0x80003918-0x80003C98).
