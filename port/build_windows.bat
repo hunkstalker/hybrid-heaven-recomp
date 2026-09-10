@@ -36,10 +36,15 @@ if not exist "%RT64%\CMakeLists.txt" (
     git clone https://github.com/rt64/rt64.git "%RT64%"
     if errorlevel 1 ( echo ERROR clonando rt64 & goto :err )
 ) else (
-    echo [1/4] lib/rt64 ya existe.
+    echo [1/4] lib/rt64 ya existe. Comprobando que sea un repo git ...
+    if not exist "%RT64%\.git" (
+        echo ERROR: %RT64% existe pero NO es un repositorio git.
+        echo        Borra la carpeta lib\rt64 y vuelve a ejecutar este script.
+        goto :err
+    )
 )
 pushd "%RT64%"
-git checkout %RT64_COMMIT% >nul 2>&1
+git checkout %RT64_COMMIT%
 if errorlevel 1 echo AVISO: no se pudo hacer checkout de %RT64_COMMIT% en rt64
 popd
 
@@ -49,7 +54,12 @@ if not exist "%NMR%\CMakeLists.txt" (
     git clone --recursive https://github.com/N64Recomp/N64ModernRuntime.git "%NMR%"
     if errorlevel 1 ( echo ERROR clonando N64ModernRuntime & goto :err )
 ) else (
-    echo [2/4] lib/N64ModernRuntime ya existe.
+    echo [2/4] lib/N64ModernRuntime ya existe. Comprobando que sea un repo git ...
+    if not exist "%NMR%\.git" (
+        echo ERROR: %NMR% existe pero NO es un repositorio git.
+        echo        Borra la carpeta lib\N64ModernRuntime y vuelve a ejecutar este script.
+        goto :err
+    )
 )
 pushd "%NMR%"
 git checkout %NMR_BASE% >nul 2>&1
@@ -91,9 +101,11 @@ echo.
 echo Falta: copia baserom.us.z64 (16MB USA) junto al .exe y ejecutalo.
 echo Logs: boot.log (junto al exe) y %%APPDATA%%\HybridHeavenRecomp\hh.log
 echo.
+pause
 goto :eof
 
 :err
 echo.
 echo *** Se detuvo con errores. Revisa los mensajes de arriba. ***
+pause
 exit /b 1
