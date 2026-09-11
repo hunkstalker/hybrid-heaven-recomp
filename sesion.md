@@ -744,6 +744,12 @@ En `funcs_5.c`: +2.
    A) reimplementar TODAS las os de threads, o B) mantener globals del juego en runtime.
 8. RSP audio ucode (aspMain) — follow-up tras boot.
 
+> **SUPERADO por el avance de 2026-09-10 (ver nota `notes/2026-09-10-lzss-decompressor-crash.md` §6.x):**
+> el bloqueante del boot NO era el modelo de threads ni el descompresor per se, sino (1) la función del
+> DMA dividida por Ghidra (`FUN_80001f30`, fusionada en `8387efd` → el asset YA carga) y (2) el clobber
+> del `a0` del reload (bloqueante actual). El fix de concurrencia (`56182ef`) y la limpieza de syms
+> (`2024692`) también están hechos.
+
 ## 16.7 LISTA DE TAREAS (copiar tal cual para recrear el TODO con el tool de todos)
 
 > La siguiente sesión debe **recrear estas mismas tareas** con el sistema de todos, con el MISMO
@@ -764,12 +770,13 @@ En `funcs_5.c`: +2.
 [✓] SOLUCIÓN DE FONDO (2026-09-10, Ghidra): Ghidra exporta 1095 funciones → config/us_ghidra.syms.toml (867 funcs rango .text, 94 os funcs n64sym); config usa use_lookup=true (límites de Ghidra); ignored list con blobs de datos (FUN_800493c4/FUN_80049430/FUN_80049538/FUN_800495ec). Regeneración limpia (864 funcs, sin errores duros). Splat NO instalable (tables/HDF5 falla Py3.14/Alpine). Detalle: notes/2026-09-10-ghidra-syms-solucion-fondo.md
 [✓] GAME LOOP CORRE (2026-09-10): Ghidra había dividido el game loop (FUN_800011b0+FUN_8000121c+FUN_80001254) rompiendo el control de flujo (beq→LOOKUP_FUNC+return; r2!=0 cae al final → thread 5 RETORNABA). FIX: fusionar en una (size 0x2A4) → thread 5 ya no exitea, corre su bucle (8 trazas MQ). Referencia: sp00nznet/racer (fix_fallthroughs.py, fix_statics, RSP routing, loadUCodeGBI, thread scheduling). fix_fallthroughs.py adaptado (6 funcs encadenadas). Detalle: notes/2026-09-10-ghidra-syms-solucion-fondo.md §7
 [✓] FIX CONCURRENCIA (2026-09-10, runtime): osStartThread desde el hilo de boot (thread_self==NULL) señalaba threads SIN aparcar el hilo de boot → game-threads corrían concurrentemente (violación single-CPU N64) → corrompían datos compartidos (heap/colas). FIX: lock global (acquire/release_game_lock) en ultramodern threads.cpp/mesgqueue.cpp + boot entrypoint (recomp.cpp). Correcto; NO arregla el crash del descompresor (determinista). PENDIENTE validar en Windows. Detalle: notes/2026-09-10-lzss-decompressor-crash.md §3
-[•] BLOQUEANTE: RENDER (pantalla negra). El boot CRASHEA (SIGSEGV) en FUN_80003824 — DIAGNOSTICADO 2026-09-10: es el **descompresor LZSS** del cargador `trans` (asset 0x4E69A8, size 0x55DD4). NO es un race (se reproduce en gdb): el puntero s2 (dato comprimido) colapsa a 0xc al final del walk de 512 bloques (header corrupto 0x8000000f en el último bloque) → desborda RDRAM. Es el **bloqueante #3 (variantes LZSS)**. Detalle + herramienta de disasm (rom_off=vram-0x7FFFF400, capstone): notes/2026-09-10-lzss-decompressor-crash.md. Aplicado además FIX DE CONCURRENCIA del runtime (lock global single-CPU; ver §3 de esa nota): correcto pero NO arregla este crash determinista. 0 tareas RSP aún.
-[ ] FIX RENDER: investigar el RACE del allocator (¿heap se inicializa tarde? ¿serialización de threads del runtime? — ver swap_to_thread/resume_thread_and_wait en threads.cpp). Luego wiring del sistema de eventos (osSetEventMesg con IDs estándar→ultramodern) y RSP task routing + loadUCodeGBI para que aparezcan las tareas de display (submit_rsp_task/send_dl) y el render. Recordar: añadir declaración osYieldThread_recomp a funcs.h tras cada regeneración (quirk); ejecutar tools/analysis/fix_fallthroughs.py tras cada regeneración.
+[✓] FIX DMA (2026-09-10, commit 8387efd): Ghidra dividió la función del DMA 0x80001F30-0x80001FE8 en 4 (FUN_80001f30/fb4/fc8/fd8); el caller FUN_80001fe8 solo llamaba a la 1ª mitad (cache ops) y NUNCA a la que hace osEPiStartDma → el asset NUNCA se cargaba (buffer vacío, s6=0). FUSIONADAS en FUN_80001f30 (size 0xB8) → **el asset 0x4E69A8 YA carga** (s6=0x55dd4, source 0x4e69a8, chunk counter 0x1FFC, dramAddr=0x80089518 correcto). Detalle: notes/2026-09-10-lzss-decompressor-crash.md §6.7
+[•] BLOQUEANTE: RENDER (pantalla negra). Tras el fix del DMA, el boot CRASHEA (SIGSEGV) por un **clobber del a0**: el reload (FUN_80003D3C) guarda a0=0x80089518 en sp+0x18=0x8005BE18, llama a la cadena del DMA, y al restaurar lee 0 → s2=0 → MEM_BU(0,0) → SIGSEGV. DESCARTADO (verificado): funciones recompiladas (no alcanzan 0x8005BE18), do_rom_read (escribe en 0x80089518), osRecvMesg/do_recv (msg_=0 descarta, NO bloquea, validCount=1), swap de osRecvMesg (probado, no ayudó). El write es de la vía de runtime del DMA/mensajes (posible do_send de enqueue_external_message_src o interacción con el game-lock). ENFOQUES: (a) verificar qué es 0x8005BE18 (¿struct/cola compartida? ¿solapamiento de stacks?); (b) parchear el juego para DMA síncrona vía do_rom_read (estilo GoldenRecomp boot_osPiRawStartDma). Detalle: notes/2026-09-10-lzss-decompressor-crash.md §6.5-6.12
+[ ] FIX RENDER (tras el clobber): wiring del sistema de eventos (osSetEventMesg con IDs estándar→ultramodern) y RSP task routing + loadUCodeGBI para que aparezcan las tareas de display (submit_rsp_task/send_dl) y el render. Recordar: añadir declaración osYieldThread_recomp a funcs.h tras cada regeneración (quirk); ejecutar tools/analysis/fix_fallthroughs.py tras cada regeneración. NOTA lectura: globales del descompresor en 0x8005D0xx (NO 0x8006D0xx); MEM_W con literal NO sign-extended lee fuera de RDRAM → usar 0xFFFFFFFF8005D0xx.
 [ ] RSP audio ucode (aspMain) - follow-up DESPUÉS de conseguir render
 ```
 
 **Mapa estado → status del tool de todos**: `[✓]` → `completed`; `[•]` → `in_progress` (la única en
-progreso); `[ ]` → `pending`. Prioridades: las 8 primeras `high`, la tarea 9 (render, bloqueante)
-`high`, tarea 10 (audio) `low`. **Aclaración de orden:** el renderizado (tarea 9) va ANTES que el
-audio RSP (tarea 10).
+progreso); `[ ]` → `pending`. Prioridades: el fix del DMA `high` (completed), el clobber del a0 `high`
+(la única in-progress), FIX RENDER `high`, audio `low`. **Aclaración de orden:** el clobber del a0 va
+ANTES que el FIX RENDER; el renderizado va ANTES que el audio RSP.

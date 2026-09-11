@@ -226,7 +226,7 @@ Pendientes:
 | 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
 | 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
 | 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso — **thread 5 corriendo; siguiente = descompresor LZSS (bloqueante #3)** | Microcode F3DEX2 ✅. **2026-09-10**: el game loop corre pero el boot crashea (SIGSEGV) en `FUN_80003824`. **DIAGNOSTICADO**: es el **descompresor LZSS** del `trans` (asset 0x4E69A8) — NO es un race (se reproduce en gdb); el puntero `s2` colapsa a 0xc al final del walk de 512 bloques (header corrupto). Es el bloqueante #3 (variantes LZSS). Detalle: `notes/2026-09-10-lzss-decompressor-crash.md`. Además se aplicó un **FIX de concurrencia** del runtime (lock global single-CPU N64) que es correcto pero NO arregla este crash determinista. Tras boot estable: wiring de eventos + RSP routing + `loadUCodeGBI`. |
+| 3. Integración RT64 (render) | En curso — **el asset ya carga (fix del DMA); siguiente = clobber del `a0` en el descompresor** | Microcode F3DEX2 ✅. **2026-09-10**: el game loop corre pero el boot crashea (SIGSEGV) en `FUN_80003824` (descompresor LZSS del `trans`). **AVANCES**: (1) fusión de `FUN_80001f30` (Ghidra la dividió en 4 → el DMA de carga nunca se ejecutaba) → **el asset 0x4E69A8 ya carga** (`s6=0x55dd4`, source `0x4e69a8`, chunk counter `0x1FFC`); (2) fix de concurrencia (lock single-CPU). **BLOQUEANTE ACTUAL**: el reload (`FUN_80003D3C`) guarda `a0` en `0x8005BE18` y la vía de runtime del DMA lo pisa a 0 → `s2=0` → crash (clobber del `a0`, candidatos descartados; ver §6.5-6.12 de la nota). Detalle: `notes/2026-09-10-lzss-decompressor-crash.md`. |
 | 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
 | 5. Guardado | Pendiente | Controller Pak → disk |
 | 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |
@@ -338,3 +338,30 @@ Detalle de las fases: `docs/README.md`.
 10. **Criterio de corte de la tarea #3**: cubrir los ~6 sets de fase (combate / menú pausa /
     gameplay / diálogo / submenús) y consolidar el mapa como entregable — NO perseguir exhaustividad
     total que retrase la Fase 2.
+
+### 9.1 FASE 2 (boot/recompilación) — estado actual 2026-09-10 (para retomar)
+
+> La fuente de verdad del detalle es `notes/2026-09-10-lzss-decompressor-crash.md` (secciones §6.x).
+> Este es el resumen ejecutivo para arrancar una sesión nueva.
+
+- **FIX DMA HECHO (commit `8387efd`)**: Ghidra dividió la función del DMA `0x80001F30-0x80001FE8`
+  en 4 (`FUN_80001f30/fb4/fc8/fd8`); el caller `FUN_80001fe8` solo llamaba a la 1ª mitad (cache ops)
+  y **nunca** a la que hace `osEPiStartDma` → el asset NUNCA se cargaba → buffer vacío → crash.
+  **Fusionadas en `FUN_80001f30` (size 0xB8)** → **el asset 0x4E69A8 YA carga** (`s6=0x55dd4`,
+  source `0x4e69a8`, chunk counter `0x1FFC`, `dramAddr=0x80089518` correcto).
+- **BLOQUEANTE ACTUAL — clobber del `a0`**: el reload (`FUN_80003D3C`) guarda `a0=0x80089518` en
+  `sp+0x18 = 0x8005BE18`, llama a la cadena del DMA (`FUN_80003db4→FUN_80001fe8→FUN_80001f30→
+  osEPiStartDma→osRecvMesg`), y al restaurar lee `0` → `s2=0` → `MEM_BU(0,0)` → SIGSEGV.
+  **Descartado**: funciones recompiladas (no alcanzan 0x8005BE18: max sp+0x2C/0x28/0x14), `do_rom_read`
+  (escribe en 0x80089518), `osRecvMesg`/`do_recv` (msg_=0 descarta, NO bloquea, validCount=1), swap de
+  `osRecvMesg` (probado y no ayudó). El write a 0x8005BE18 es de la **vía de runtime del DMA/mensajes**
+  (posible `do_send` de `enqueue_external_message_src`, o interacción con el game-lock de concurrencia).
+  **Enfoques propuestos**: (a) verificar qué es `0x8005BE18` (¿struct/cola compartida? ¿solapamiento de
+  stacks entre threads?); (b) parchear el juego para DMA síncrona vía `do_rom_read` (estilo GoldenRecomp
+  `boot_osPiRawStartDma`) evitando el mecanismo de mensaje/swap.
+- **Nota IMPORTANTE (lecturas)**: los globales del descompresor están en `0x8005D0xx` (NO `0x8006D0xx`),
+  y `MEM_W(0, 0x8005D0xx)` con literal NO sign-extended lee una dirección fuera de RDRAM — usar
+  `MEM_W(0, 0xFFFFFFFF8005D0xx)`.
+- **Commits**: `8387efd` (fix DMA), `2024692` (syms limpio), `4e82178`-`935b836` (docs/diagnóstico),
+  y en el submodule `56182ef` (fix de concurrencia single-CPU).
+- **Tras resolver el clobber**: wiring de eventos + RSP routing + `loadUCodeGBI` (render).
