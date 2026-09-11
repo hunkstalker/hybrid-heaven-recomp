@@ -25,7 +25,17 @@ dist/
 port/HybridHeavenRecomp/lib/N64ModernRuntime/
 port/HybridHeavenRecomp/lib/rt64/
 
-# Generaciones antiguas / backups del recompilador (no versionar; la vigente sí)
+# Recompilaciones generadas por el pipeline (se regeneran con tools/setup_module.py o tools/recomp.py).
+# El input de build real es port/HybridHeavenRecomp/RecompiledFuncs/ (sí versionado).
 config/RecompiledFuncs_retail/
 config/RecompiledFuncs_retail_backup/
 config/RecompiledFuncs/
+config/RecompiledFuncs_unified/
+config/RecompiledFuncs_combined/
+config/RecompiledFuncs_module7/
+config/*.fixed.syms.toml
+config/*.syms.toml.bak
+config/*.bak
+
+# Artefactos de build del usuario (release de Windows)
+hhport_win.zip
