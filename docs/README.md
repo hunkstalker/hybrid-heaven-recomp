@@ -4,8 +4,9 @@
 > Mario 64 EX/Coop, Zelda64Recomp, Goemon64Recomp, Banjo (Lighthouse), etc.
 > **Objetivo adicional:** extraer y traducir todos los textos del juego.
 >
-> ⚠️ **El contexto maestro vive en `../../PROYECTO.md` (raíz del proyecto).** Este documento es el
-> plan detallado; `PROYECTO.md` es la fuente de contexto canónica que se actualiza cada sesión.
+> ⚠️ **Este documento es el plan de alto nivel por fases.** Las fuentes canónicas son:
+> `../PROYECTO.md` (contexto y estado), `../TODO.md` (tareas), `./architecture.md` (modelo técnico)
+> y `./adr/` (decisiones). Las secciones de abajo pueden quedar desfasadas respecto a esos documentos.
 
 ---
 
@@ -186,8 +187,9 @@ CMake, gcc/clang C++20, ninja, SDL2, Vulkan/D3D12 headers, miniaudio/SDL_mixer.
 6. **Símbolos de debug presentes** (paths `/game/source/*.c`): son una gran ventaja, pero hay que limpiarlos (puede incluirse debugging del propio código original).
 7. **Endianness/alto rendimiento**: todos los accesos a memoria son 32-bit big-endian → el runtime lo convierte; la eficiencia dependerá de RT64/RDRAM mapping.
 
-> **Desacople estratégico:** la Fase 2 (núcleo plano) NO espera al mapa de overlays (tarea #3); se
-> arranca ya con RT64 + audio dummy. Ver `PROYECTO.md` §3.1 y `sesion.md`.
+> **Nota (2026-09-11):** el supuesto de "desacople" quedó superado: el boot ejecuta módulos de
+> código cargados por `trans`, así que los módulos/overlays están en el **camino crítico**.
+> Ver `architecture.md` §2 y `adr/0001-modelo-de-modulos.md`.
 
 ---
 

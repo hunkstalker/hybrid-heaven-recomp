@@ -1,41 +1,43 @@
-# AGENTS.md — arranque obligatorio para cualquier sesión
+# AGENTS.md — arranque de sesión
 
-Proyecto: portar **Hybrid Heaven (N64, `work/roms/us_dec.z64`)** a PC (N64Recomp). Fase actual:
-**tarea #3 — mapa overlay→RAM base** (qué overlay se carga en qué dirección RAM y en qué momento).
+Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck.
+Fase actual: **fundaciones de diseño** (modelo de módulos `trans`). El boot corre pero se bloquea al
+ejecutar un módulo descomprimido (`0x80107830`). Ver `TODO.md` y `docs/adr/0001-modelo-de-modulos.md`.
 
-## LEE ESTO EN PRIMER LUGAR (en este orden)
+## Lee esto (y solo esto) al empezar
 
-1. **`/app/sesion.md`** — handoff operativo completo. Léelo entero antes de tocar nada.
-   Contiene: objetivo, entorno, calibración crítica, recetas, hallazgos y, al final, **§1/§12/§15**
-   con el estado ACTUAL y las tareas pendientes priorizadas.
-2. **`/app/notes/2026-09-08-overlay-directory.md`** — detalle técnico (byte-order, directorio
-   0x8008DFC0, write-bp, sets confirmados). **§10.7** = los 2 sets de pantalla confirmados por
-   captura+usuario (combate por turnos = `010F`+`01AA…01B8`+`0125/0127`; menú pausa =
-   `0113…0121`).
-3. `work/gameplay screenshots/README_bizhawk.md` — cómo funciona el flujo Windows/BizHawk.
+1. **`docs/documentation.md`** — cómo documentar (normativo; leer cada sesión).
+2. **`PROYECTO.md`** — contexto y estado (corto).
+3. **`TODO.md`** — qué toca ahora.
+4. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
+5. Bajo demanda: `docs/workflows.md` (procedimientos), `docs/adr/`, `notes/` (evidencia), `notes/archive/`.
 
-## Calibración crítica (resumen; detalle en sesion.md §3)
+## Al cerrar sesión
 
-- **El modelo NO ve imágenes.** Nunca afirmar haber visto una pantalla. El USUARIO ve los PNG
-  desde su filesystem y describe. Percepción = ASCII (`ppmascii.py`) + ImageMagick + logs.
-- **El usuario no ve adjuntos del chat**: todo PNG se guarda en archivo (`work/gameplay screenshots/`).
+Sigue el checklist de `docs/documentation.md` §3: actualizar `TODO.md` y `PROYECTO.md`, escribir una
+nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. No commitear salvo petición.
+
+## Calibración crítica
+
+- **Visión disponible** (verificado 2026-09-11; modelo DeepSeek V4.1 Flash): puedo leer imágenes.
+  Aun así el usuario **no ve adjuntos del chat** → los PNG se guardan en archivo y él los abre desde
+  su filesystem. Usar la visión con criterio (cada imagen consume contexto); para análisis masivo de
+  frames preferir representaciones baratas (ASCII/estadísticas). Si cambia el modelo, re-verificar.
+- **Imágenes por lotes**: triaje con `tools/analysis/triage_screenshots.py` y lectura en lotes de
+  2-3 volcando cada imagen a texto. Ver `docs/workflows.md` §3.
 - Dumps RDRAM del harness Linux vienen **word-swapped** → bswap32. En BizHawk leer CPU BE.
-- Reglas de etiquetado del usuario (ground truth): A rápidas = diálogos; R+A = pistola contra
-  robots **sin HUD**; combate de mutantes = **por turnos con menú de golpes (sí HUD)**.
+- Regla de oro: **nunca editar a mano el C generado** (`RecompiledFuncs/`). Todo fix va a `config/*.syms.toml`.
+- Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
+- No commitear sin pedirlo. No tocar ROMs ni `work/*.so` sin pedirlo.
 
-## Estado actual rápido
+## Comandos y workflows
 
-- Vía principal = usuario juega en **BizHawk/Windows** con el script **v5**
-  `work/gameplay screenshots/bizhawk_hh_tracker.lua` (NOTA: ignorar el `.lua` viejo en `work/`).
-- El script vuelca `game.log`/`buttons.log` + en cada F12 un `.png` y `.txt` **emparejados por
-  wall-clock** en la carpeta compartida (auto). Dominio de memoria detectado: "System Bus".
-- Lo pendiente AHORA (ver sesion.md §12): procesar la partida larga del usuario (¡aún no está en
-  el contenedor!), correlacionar PNG↔dump, y etiquetar sets de pantalla con el usuario.
+Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imágenes).
 
-## Inventario mínimo de archivos
+## Inventario
 
-- `/app/sesion.md` — handoff (LEER PRIMERO). · `/app/notes/2026-09-08-overlay-directory.md` — notas.
-- `/app/work/gameplay screenshots/` — folder compartida (logs + capturas + `session1/` archivada).
-- `/app/work/scratch/sess42.dir.bin` — set gameplay de 31 entradas (referencia).
-- `/app/tools/analysis/hhinput.c` — parche stick (4B) SIN commit todavía.
-- GUI: no tocar `/app/work/*.so`, ROM, ni commits a menos que el usuario lo pida.
+- `PROYECTO.md`, `TODO.md`, `AGENTS.md` — docs vivos. · `docs/` (architecture, workflows,
+  documentation) y `docs/adr/` — técnico/decisiones.
+- `config/` — `game_unified.toml`, `us_ghidra.syms.toml`, `RecompiledFuncs_unified/`.
+- `port/HybridHeavenRecomp/` — port (CMake, `RecompiledFuncs/`, `src/`, `lib/`, builds).
+- `tools/` — scripts propios. · `notes/` — histórico (no editar). · `work/`, `toolchain/` — gitignored.

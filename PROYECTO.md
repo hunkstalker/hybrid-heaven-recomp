@@ -1,367 +1,99 @@
-# PROYECTO — Hybrid Heaven: Recompiled (Contexto maestro)
+# PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)
 
-> **ESTE ARCHIVO ES LA FUENTE DE CONTEXTO PRINCIPAL DEL PROYECTO.**
-> Cada sesión debe leerlo y actualizarlo con TODA la información relevante que obtenga
-> (hallazgos, decisiones, estado, rutas, herramientas, problemas).
-> Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
-> Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
+> **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
+> Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-11**.
 
-Actualizado por última vez: **2026-09-10** (progreso: thread 5 desbloqueado (os funcs mapeadas); boot crashea en el allocator de heap → **recomendación: solución de fondo** = regenerar syms/ELF con límites correctos vía splat/flib/Ghidra, en vez de parchear límites uno a uno). Hist: 2026-09-10 (causa raíz n64sym + fix os funcs). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
+## 1. Objetivo
 
----
+Port nativo a PC de **Hybrid Heaven** (N64, Konami/KCEO, 1999, proyecto interno **RZ011**) por
+**recompilación estática** (N64Recomp + RT64 + N64ModernRuntime), **sin emulador**, leyendo la ROM
+del usuario. Sub-objetivo obligatorio: **extraer y traducir todo el texto**. Plataformas:
+**Windows + Linux + Steam Deck** (mismo código). Legal: no se distribuyen ROM ni assets.
 
-## 1. Objetivo del proyecto
-
-Construir un **port a PC nativo** de **Hybrid Heaven** (N64, Konami Computer Entertainment
-Osaka, 1999) mediante **recompilación estática**, en la línea de Mario 64 EX/Coop,
-Zelda64Recomp, Goemon64Recomp, Lighthouse (Banjo), etc.
-
-**Sub-objetivo obligatorio:** extraer TODO el texto del juego y poder **traducirlo**
-(pipeline de extracción → traducción → re-inserción en el port).
-
-**Plataformas objetivo (REQUISITO del usuario):** el port debe funcionar en
-**Windows, Linux y Steam Deck** (build multiplataforma desde el primer día;
-tres binarios desde el mismo código, sin bifurcar).
-
-El resultado debe funcionar **sin emulador**, leyendo solo la ROM del usuario
-(en el estilo de Zelda64Recomp: los assets se cargan de la ROM al primer arranque).
-
----
-
-## 2. Entorno de trabajo
+## 2. Entorno
 
 | Ítem | Valor |
 |---|---|
-| Diretorio de trabajo actual | `/app` |
 | Proyecto | `/app/hybrid-heaven-recomp/` |
-| SO del entorno | Alpine Linux 3.24.1 (ligero; gestor de paquetes `apk`) |
-| Workspace del proyecto | Todo vive en este repo (ver §8): `work/` y `toolchain/` se generan/descargan y están gitignored |
-| ROM USA | `/app/baserom.us.z64` (16 MB, big-endian/z64, ID NHVE) |
-| ROM Europa | `/app/baserom.eu.z64` (16 MB, big-endian/z64, ID NHVP) |
-| MD5 US | `da861c4d9202f661575466450a27c412` |
-| MD5 EU | `c47e95bb32ab132c41d67bd243f9e02a` |
-| Red a internet | OK (GitHub, repos Alpine accesibles) |
-| Toolchain instalada | python3 3.14, pip, git, binutils, file, wget, xxd/od/hexdump, **gcc/g++ 15.2.0, cmake 4.2.3, ninja, SDL2 2.32.10** + **JDK 21 + Ghidra 12.1.3 + N64LoaderWV** |
-| Toolchain FALTA | emulador de referencia (Ares/Mupen64Plus + dump RDRAM para overlays), `mingw-w64` (build Windows), cargo/rust (solo si abandonamos el shim Python de `lzkn64`) |
-| Repos clonados (en `toolchain/src/`) | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp (con mnsg, mnsg_syms) |
-| Extracción de assets | ✅ `rommy.py` (Konami Nisitenma-Ichigo): US y EU descomprimidas; manifests en `notes/` |
-| Análisis Ghidra US | ✅ Ghidra 12.1.3 (JDK 21) + N64LoaderWV → importación + análisis de `baserom.us.z64` completados (2026-09-05); proyecto en `work/ghidra/proj` |
+| ROM USA | `/app/baserom.us.z64` (z64 BE, ID NHVE, MD5 `da861c4d9202f661575466450a27c412`) |
+| ROM Europa | `/app/baserom.eu.z64` (ID NHVP, MD5 `c47e95bb32ab132c41d67bd243f9e02a`) |
+| Toolchain | gcc/g++ 15, cmake 4.2, ninja, SDL2, JDK 21 + Ghidra 12.1.3 + N64LoaderWV |
+| Repos | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp (en `toolchain/src/`) |
+| Derivados | `work/` y `toolchain/` gitignored (ROMs descomprimidas, Ghidra, builds, artefactos) |
 
-> Las ROMs son **uso personal/legal propio del usuario**; NO se suben al repo ni se
-> versionan. El repo debe quedar limpio de assets (modelo No-Intro).
+## 3. Arquitectura (resumen)
 
----
+Stack: **N64Recomp** (MIPS→C) + **N64ModernRuntime** (`ultramodern`+`librecomp`) + **RT64** +
+SDL2. Microcode gfx **F3DEX2 fifo 2.06** (RT64 lo soporta nativo). Audio: microcode custom KCEO
+**sin identificar** (no matchea `aspMain`); bloquea audio real, no el render.
 
-## 3. Decisiones de arquitectura (confirmadas)
+**Modelo unificado: imagen plana + módulos.** El boot es una imagen de código plana; el juego
+descomprime módulos de código de la ROM a RAM y los ejecuta vía `trans`. → `docs/architecture.md`.
 
-| Decisión | Elección | Razón |
+Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
+
+## 4. Hallazgos técnicos clave (ROM)
+
+- Formato **z64 BE**, entry `0x80000400`, cartucho 16 MB.
+- Símbolos de debug del original (paths `/game/source/*.c`, 62 fuentes) → anclas de análisis.
+- **Compresión**: tabla **Nisitenma-Ichigo** + **LZKN64** (`tools/rommy.py`, `tools/lzkn64`).
+  El código plano NO está comprimido; se comprimen assets y módulos. Variantes **LZSS 5/7** del
+  `trans` por caracterizar.
+- Carga de módulos por el loader `trans` (`seg_RomDecode_sep`); directorio `id→base` en
+  `0x8008DFC0`. Mapa dinámico = tarea #3 (BizHawk).
+- **Textos**: encoding custom (USA) en varias zonas; anclas: `WASHINGTON D.C.` @`0x061CD7A`,
+  `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`, `ITEM...WEAPON` @`0x06C33AF`.
+- Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`.
+
+## 5. Estado de avance
+
+| Fase | Estado | Nota |
 |---|---|---|
-| Enfoque | Recompilación estática con **N64Recomp** | Port sin decompilación completa; método probado (Zelda64Recomp, Goemon, Lighthouse) |
-| Render | **RT64** (Vulkan/D3D12/Metal) | Emula RDP N64 fielmente, ya soporta microcode F3DEX2 |
-| Runtime | **N64ModernRuntime** | Provee macros/funciones del runtime del recompilado |
-| Port de referencia clave | **Goemon64Recomp** (klorfmorf) | Juego de Konami coetáneo, no-Zelda → problemas de port muy similares |
-| ROM base del port | **USA** (`baserom.us.z64`) | 1 solo idioma (inglés), sin selector de idioma → menos código a parchear y extracción de textos más simple |
-| Guardado | Reemplazar Controller Pak por archivos en disco | Elimina dependencia de hardware |
-| Input | SDL2 GameController + teclado/ratón | Estándar en estos ports |
-| Plataformas | **Windows + Linux + Steam Deck** (mismo código, 3 builds) | Requisito del usuario; SDL2 + RT64 (Vulkan/D3D12) ya es multiplataforma |
+| 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
+| 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
+| 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline reproducible + validador (`tools/recomp.py`, `validate_syms.py`) |
+| 3. Render (RT64) | en curso | boot **estable** (corre indefinido, apagado limpio); símbolos completos; módulo idx 7 ejecuta; envía tareas RSP de **audio** (no-op) → falta wiring eventos/RSP + `loadUCodeGBI` |
+| 4. Audio | bloqueado | ucode custom KCEO sin identificar |
+| 5. Guardado | pendiente | Controller Pak → disco |
+| 6. Textos/traducción | pendiente | encoding parcialmente localizado |
+| 7. Robustez/empaquetado | pendiente | 3 builds (Win/Linux/Deck) |
 
-### 3.1 Desacople estratégico (2026-09-08): Fase 2 ≠ mapa de overlays
+Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
 
-- El **código principal plano** (`0x1000+0x80000000`) es independiente de los overlays: se puede
-  recompilar con N64Recomp y arrancar el build Linux→RT64 **ahora mismo**, sin esperar al mapa
-  completo de overlays. Estilo Zelda64/Goemon: el port base arranca primero, los overlays de fase
-  (diálogos/combate/menús) se añaden después.
-- El **mapa overlay→RAM (tarea #3)** es necesario para los ~462 overlays de código, pero NO bloquea
-  el arranque/render del núcleo plano.
-- **División de trabajo:** el usuario avanza la tarea #3 jugando en BizHawk (work ajeno al
-  contenedor); el agente arranca la Fase 2 (núcleo plano → ELF → build → RT64) en paralelo.
-- **Bloqueantes que resolver de forma temprana (independientes del mapa):**
-  1. **Microcode de audio custom KCEO** (no matchea aspMain) → identificación; bloquea audio real,
-     no el render (usar audio dummy primero).
-  2. **Variantes LZSS del cargador `trans`** (`LZSS 5`/`LZSS 7`) → mapeo con oráculo de las copias
-     descomprimidas en RAM; bloquea el pipeline completo de overlays/extracción.
-- **Criterio de corte de la tarea #3:** cubrir los ~6 sets de fase (combate / menú pausa /
-  gameplay / diálogo / submenús) y consolidar el mapa como entregable, sin perseguir exhaustividad
-  total que retrase la Fase 2.
+## 6. Riesgos
 
----
+1. **Módulos de código dinámicos (`trans`)**: base del módulo de boot determinista (ADR 0001);
+   riesgo residual = bases de módulos posteriores (aún no medibles).
+2. **Símbolos sin decompilación**: límites de Ghidra frágiles → mitigar con validador (TODO A3).
+3. **Microcode de audio custom KCEO**: bloqueante para audio.
+4. **LZSS 5/7** del `trans`: bloqueante para módulos.
+5. **Efectos framebuffer / cinematografía**: verificar en RT64.
+6. **Rendimiento/multiplataforma**: RDRAM 32-bit BE + 3 backends.
 
-## 4. Hallazgos técnicos de la ROM (análisis 2026-09-05)
-
-### 4.1 Datos básicos
-- Formato **z64 nativo (big-endian)** — NO requiere conversión de byte order.
-- Tamaño **16 MB (128 Mbit)** — cartucho expandido.
-- Entry point boot: **`0x80000400`** (estándar libultra).
-- Título interno US: `HYBRID HEAVEN USA`; EU: `HYBRID HEAVEN PAL`.
-- Código interno (bytes 0x3B-0x3E): **NHVE** (USA) / **NHVP** (PAL).
-- CRC1/CRC2 (US): `0x102888BF` / `0x434888CA`. (EU): `0x641D3A7F` / `0x86820466`.
-
-### 4.2 Microcode / librerías
-- Microcode gráfico: **`RSP Gfx ucode F3DEX2 fifo 2.06 — Yoshitaka Yasumoto 1998 Nintendo`**
-  (detectado por strings en ambas ROMs). → RT64 lo entiende nativamente. ✅
-- Presencia de llamadas libultra estándar a confirmar por detalle en Fase 1
-  (`osInitialize`, `osCreateThread`, `osViSetMode`, `osContStartReadData`, etc.).
-- El juego usa **segments/overlays**: el string `trans.c seg_RomDecode_sep` y rutas
-  `/game/source/...` sugieren carga de segmentos (posible TLB) → **riesgo** ver sección 7.1.
-
-### 4.3 Símbolos de debug presentes (HALLAZGO CRÍTICO)
-El binario conserva **nombres de archivos fuente del proyecto original** de KCE Osaka:
+## 7. Estructura de documentación (modelo por capas)
 
 ```
-/game/source/expansionram.c
-/game/source/titlescreen.c
-/game/source/auto_sub.c
-/game/source/democamera.c
-/game/source/a02_s05demo.c, a03_s02capdemo.c, a04_s05demo.c, a05demo.c,
-/game/source/a08demo.c, a09elevatordemo.c, a10_s01_explodedemo.c, area6to8demo.c
-/game/source/device/alarm.c, device/bridge.c, device/kugutu.c, device/messenger.c
-/game/source/enemy/e_n40.c, enemy/wanderer.c
-/game/source/ground/door.c, ground/door_demo.c
-/game/source/player/battle_...
-trans.c (menciona Lzss, pic, seg_RomDecode_sep)
-cam_change.c, _operation.c, _demo_cam.c, _demo_sub.c
-titlescreen.c
+/AGENTS.md          # arranque de sesión (1 pantalla)
+/PROYECTO.md        # ESTE archivo: contexto + estado (vivo, corto)
+/TODO.md            # única lista de tareas (viva, corta)
+/docs/
+  README.md         # plan de alto nivel por fases
+  architecture.md   # modelo técnico canónico (vivo)
+  documentation.md  # cómo documentar (normativo, leer cada sesión)
+  workflows.md      # procedimientos (build, regen, protocolo de imágenes)
+  adr/NNNN-*.md     # decisiones inmutables
+/notes/             # ARCHIVO histórico append-only (no se mantiene)
+  archive/          # docs legacy congelados
+  reference/        # datos generados (syms, manifests)
+/tools/             # scripts propios; /work y /toolchain gitignored
 ```
 
-**Implicación:** el compilador IDO dejó símbolos → localizar estos strings en la ROM y
-usarlos como anclas de funciones para el mapa de símbolos. Acelera muchísimo la Fase 1.
-Ruta de strings principal: zona `0x0530000-0x06D0000` (ver nota completa 4.5).
+**Normativa detallada: `docs/documentation.md`** (dónde va cada cosa, ciclo de sesión, cuándo crear
+un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema; docs vivos cortos;
+`notes/` es evidencia (no se edita); ADRs inmutables; nunca editar a mano el C generado.
 
-### 4.4 Sistemas de hardware del juego
-- **Guardado:** Controller Pak externo, **53 páginas**, 4 slots de guardado.
-  (La versión japonesa usaba EEPROM interno; USA/EU usan Controller Pak.)
-- **Rumble Pak:** soportado para feedback de daño/defensa.
-- **Expansion Pak:** soportado; **3 resoluciones**: Low / High Normal / High Letterbox.
-  Presente el string `expansion_memory_fg %x` y `EXPANSION_PAK_`.
-- **Modo widescreen:** el juego original ya es uno de los pocos del N64 con 16:9 → favorece el port.
+## 8. Próximos pasos
 
-### 4.5 Estructuras de texto detectadas (clave para la traducción)
-- **USA:** texto en un **encoding custom** (no ASCII puro), localizado en varias zonas.
-  Ejemplos de anclas: `WASHINGTON D.C.` @ `0x061CD7A` (US) / `0x0635DDC` (EU);
-  `PLEASE SELECT` @ `0x05FB543`; `%pPLEASE SELECT.GAME S...`; menú `BATTLE` @ `0x05FAF4C`;
-  `ITEM...WEAPON` @ `0x06C33AF`; `DEMO SELECT` @ `0x06DC878`; `attack selection` @ `0x06C3566`.
-- **EU:** selector de idioma con strings **UTF-16LE interleaved con datos**: `ENGLISH`,
-  `GERMAN`, `FRENCH` (N rodeado por bytes de métricas). El manual confirma
-  "English, German and French" como los 3 idiomas de la versión PAL.
-- Zonas con alta densidad de texto ASCII (ambas ROMs, window de 64KB):
-  `0x0400000, 0x0410000, 0x0420000, 0x0440000, 0x0470000, 0x0530000, 0x05F-0x06D.., 0x0700000-0x0730000`.
-- Rutinas/estructura del sistema de texto: **pendiente de desentrañar** (Fase 6).
-
-### 4.6 Compresión — **FORMATO KONAMI CONFIRMADO (LZKN64 + tabla Nisitenma-Ichigo)**
-- Ambos ROMs contienen la firma ASCII **`Nisitenma-Ichigo`** (US @0x39BE0 → tabla @0x39BF0;
-  EU @0x3AA30 → tabla @0x3AA40). Es la **tabla de archivos de todos los N64 de Konami**,
-  exactamente la que maneja `rommy.py` del repo mnsg (Goemon).
-- **Formato de tabla**: entradas de **4 bytes BE**: bits [0-30] = offset en ROM, bit31 =
-  flag de compresión **LZKN64**; el final del fichero N es el inicio de N+1; termina en `0x00000000`.
-- **Verificado en ambas ROMs**: la 1ª entrada comprimida descomprime con LZKN64 a exactamente
-  **4096 bytes (0x1000)**. → El algoritmo `lzkn64_decompress` de Goemon64Recomp y la librería
-  `pip install lzkn64` funcionan **sin cambios** con Hybrid Heaven. ✅
-- Ejemplo (US): `[0] off=0x4E5F40 comp=1 → 2664 bytes → 4096 decod.; [7] off=0x4E69A8 comp=1 size=351700…`.
-- **El código principal NO está comprimido** (evidencia: densidad MIPS uniforme 0.74–1.0 en todo
-  el ROM; cola de ceros ~1.6 MiB al final). Goemon, en cambio, comprimía TODO su código con LZKN64
-  (16 MiB → 64 MiB). En HH solo se comprimen **assets/datos** (texturas PIC, niveles, etc.).
-- `trans.c` (strings de debug @0x4C6E0-0x4CD00) referencia el sistema de carga segmentado:
-  `seg_RomDecode_sep`, `romNo[%d]`, `seginfo_Tail`, `split_seginfo`, `trans_to_malloc64_sep(s)`,
-  y las variantes **`LZSS 5 %x %x %x` / `LZSS 7 %x %x %x`** (LZSS de Konami en offsets de 5/7 bits)
-  → el cargador `trans` soporta LZKN64 Y LZSS propio; hay que mapear ambos en Fase 1.
-
-### 4.8 Motor compartido con Goemon (hallazgo de la 2ª sesión)
-- **Confirmado**: Goemon N64 (Mystical Ninja Starring Goemon / Ganbare Goemon 2) y **Hybrid Heaven
-  son ambos de Konami Computer Entertainment Osaka (KCEO)** → motor/librerías de la misma casa.
-- Evidencia compartida verificada: mismo entrypoint (0x80000400), mismo microcode gfx F3DEX2
-  fifo 2.06, y el **mismo formato de tabla de archivos Nisitenma-Ichigo + LZKN64**.
-- Microcode de audio: NO encontrada la firma estándar de Nintendo (`aspMain` `LDV/LBV` inicial)
-  → **PENDIENTE identificar** (posible ucode custom KCEO; verificarlo con Ghidra/emulador).
-- **Qué NO se reutiliza de Goemon64Recomp tal cual**: su `decompress_mnsg`/descompresión de ROM
-  completa (innecesaria en HH: el código es plano). Nuestro pipeline N64Recomp arranca directo
-  sobre el ROM sin paso de descompresión (como Zelda64Recomp).
-- **Qué SÍ se reutiliza**: scaffolding del port (main.cpp/GameEntry, integración RT64 +
-  N64ModernRuntime), formato de tomas `mnsg.toml`/`patches/*.toml`, sistema de parches por
-  instrucción, y `rommy.py` + `lzkn64` para extracción de assets (Fase 0/1 y 6).
-
-### 4.9 Mapa de assets y nombre interno **RZ011** (3ª sesión)
-- **Nombre interno del proyecto KCEO: `RZ011`** — build path: `/hdisk1/u/nu64/rz011_usa/...`.
-- **62 archivos fuente `.c` únicos** conservados (solo módulos con `-g`: demo/player/camera/device/
-  enemy/ground/titlescreen/expansionram). Lista completa en `notes/2026-09-05_asset-map.md`.
-- **325+ archivos** en la tabla Nisitenma-Ichigo (US y EU extraídas con `rommy.py`): 482 comprimidos
-  LZKN64 → **462 overlays de código** (13.9 MB) + tablas de datos (floats/animación), texturas PIC, textos.
-- **Boot/BSS/SP**: limpia 0x80DC0 bytes en 0x8004DBD0..0x800D5880; SP=0x80057BD0; salta a 0x80001078.
-- **Mapeo RAM del código principal = ROM_offset + 0x80000000.** (Los overlays usan sus propias RAM
-  bases vía `trans` — PENDIENTE mapearlas con Ghidra/emulador.)
-- Anclas de texto en overlays 262/264/303 (además de la zona pre-tabla).
-- Herramientas persistidas en `tools/` (`rommy.py`, paquete shim `lzkn64/`); manifests en `notes/`.
-
-### 4.7 Códigos / referencias externas
-- GameHacking.org: códigos para debug camera (existen códigos "debug info" → el juego
-  tiene equipo de debug interno). Código maestro: `F102C164 2400` (Action Replay).
-- Cheatsheet de libretro para Hybrid Heaven (Japan) existe → útil para tests.
-- Título japonés: ハイブリッドヘヴン (release JP 1999-08-05, US 1999-08-31, EU 1999-09-24).
-
----
-
-## 5. Dependencias a instalar (pendientes)
-
-Ya instaladas (2026-09-05): `build-base` (gcc/g++ 15.2.0), `cmake` 4.2.3, `ninja`, `sdl2-dev`
-(2.32.10), `linux-headers`.
-
-Pendientes:
-- Java JDK (para Ghidra) — Ghidra descargable; también plugin N64LoaderWV
-- `mingw-w64` para build **Windows desde Linux** (NO opcional: Windows es plataforma objetivo)
-- Un emulador de referencia para comparación frame-a-frame: **Ares** o **Mupen64Plus+**
-  (Mupen más fácil de scriptear; Ares más preciso).
-
-**Build multiplataforma (Windows + Linux + Steam Deck):**
-- Mismo código base, 3 binarios: Linux nativo (dev/release), Windows (cross via `mingw-w64`
-  en CI o release local), Steam Deck = binario **Linux x86_64** + controles SDL2 GameController
-  (perfil Gamepad). Verificar estado de build de SteamDeck en Fase 7 (empaquetado).
-- Stack ya compatible: SDL2 (input), RT64 (Vulkan/D3D12/Metal), N64ModernRuntime (C++ portable).
-- Considerar `GitHub Actions` multi-OS para builds de release (Windows/Linux/macOS) en Fase 7.
-
----
-
-## 6. Estado de avance (checklist viviente)
-
-| Fase | Estado | Notas |
-|---|---|---|
-| 0. Preparación del entorno | ✅ Cerrada | Doc + análisis inicial OK; toolchain core instalada; repos clonados; assets US/EU extraídos |
-| 1. Análisis estático profundo | En curso | Símbolos de debug (RZ011) + tabla Nisitenma-Ichigo localizada y extraída → gran ventaja. El **mapa overlay→RAM** (tarea #3) avanza por vía runtime/BizHawk (ver §9.8). |
-| 2. Recompilación código base | **Desacoplada de la tarea #3 — puede arrancar YA** | El **núcleo plano** (`0x1000+0x80000000`, código principal NO comprimido) NO depende del mapa de overlays → ELF + build Linux→RT64 inmediato. Los overlays de código/fase se añaden después. |
-| 3. Integración RT64 (render) | En curso — **el asset ya carga (fix del DMA); siguiente = clobber del `a0` en el descompresor** | Microcode F3DEX2 ✅. **2026-09-10**: el game loop corre pero el boot crashea (SIGSEGV) en `FUN_80003824` (descompresor LZSS del `trans`). **AVANCES**: (1) fusión de `FUN_80001f30` (Ghidra la dividió en 4 → el DMA de carga nunca se ejecutaba) → **el asset 0x4E69A8 ya carga** (`s6=0x55dd4`, source `0x4e69a8`, chunk counter `0x1FFC`); (2) fix de concurrencia (lock single-CPU). **BLOQUEANTE ACTUAL**: el reload (`FUN_80003D3C`) guarda `a0` en `0x8005BE18` y la vía de runtime del DMA lo pisa a 0 → `s2=0` → crash (clobber del `a0`, candidatos descartados; ver §6.5-6.12 de la nota). Detalle: `notes/2026-09-10-lzss-decompressor-crash.md`. |
-| 4. Audio | Bloqueado por identificación del ucode | **ABI de audio a identificar: ucode CUSTOM KCEO** (no matchea aspMain). Requerido para audio real; NO bloquea render del núcleo (audio dummy). |
-| 5. Guardado | Pendiente | Controller Pak → disk |
-| 6. Textos y traducción | Pendiente | Zonas de texto mapeadas en parte (overlays 262/264/303) |
-| 7. Robustez/empaquetado | Pendiente | **3 builds: Windows + Linux + Steam Deck** (requisito) |
-
-Detalle de las fases: `docs/README.md`.
-
----
-
-## 7. Riesgos y problemas conocidos
-
-### 7.1 Riesgos técnicos
-1. **Overlays/TLB:** comprobar cómo carga el juego los segmentos (posible TLB mapping).
-   N64Recomp tiene soporte de relocaciones TLB en desarrollo; existe fork
-   `RevoSucks/N64Recomp_New` con TLB support. **Verificar en Fase 1.**
-2. **Microcode de audio custom KCEO (BLOQUEANTE para audio):** el ucode de audio no matchea
-   `aspMain` de Nintendo (firma LBV/LDV no presente) → posible ucode de audio propio KCEO.
-   Identificar en Fase 1/4. NO bloquea el render del núcleo (usar audio dummy primero).
-3. **Compresión LZKN64 + LZSS ("LZSS 5"/"LZSS 7") (BLOQUEANTE para pipeline completo):** ya
-   resuelto el descompresor LZKN64 (reutilizable de rommy/lzkn64); **pendiente mapear las variantes
-   LZSS del cargador `trans` de HH** (usar las copias descomprimidas en RAM como oráculo).
-4. **Efectos framebuffer** (el juego usa cinematografía): verificar en RT64.
-5. **Endianness:** RDRAM 32-bit BE → runtime lo maneja; vigilar rendimiento.
-
-### 7.2 Riesgo legal/ético
-- No distribuir ROM ni assets. Distribuir solo el port que **requiere la ROM del usuario**.
-- Proyecto fan sin ánimo de lucro; no comercializar. Mantener repo privado durante desarrollo.
-
-### 7.3 Requisitos transversales del usuario
-- **Windows + Linux + Steam Deck**: mantener el código portable desde el inicio (sin
-  dependencias solo-Windows, paths relativos a la ROM del usuario, nada de assumir directorio
-  de instalación). El binario de Steam Deck es el mismo Linux con perfil Gamepad; validar TDP/
-  folio (RT64 Vulkan) y SteamInput en Fase 7.
-
----
-
-## 8. Estructura de documentación
-
-```
-/app/hybrid-heaven-recomp/
-├── PROYECTO.md          ← ESTE ARCHIVO (contexto maestro, se actualiza cada sesión)
-├── docs/
-│   ├── README.md        ← Plan maestro + fases + stack + riesgos (detallado)
-│   ├── 01-analisis-rom  ← (pendiente) análisis profundo de la ROM
-│   ├── 02-recompilacion ← (pendiente) arquitectura N64Recomp/RT64
-│   └── 03-textos        ← (pendiente) pipeline de extracción/traducción
-├── tools/               ← scripts propios (parsing, textos, build)
-│   ├── rommy.py         ← extracción/compresión Nisitenma-Ichigo
-│   ├── lzkn64/           ← paquete shim `lzkn64` (LZKN64, API decompress/compress)
-│   ├── lzkn64/           ← paquete shim `lzkn64` (import lzkn64 con PYTHONPATH=tools)
-│   ├── analysis/         ← scripts de análisis de ROM (densidad MIPS, escaneos LZKN64)
-│   └── README.md        ← guía de uso de las herramientas
-├── notes/               ← notas de sesión sueltas + manifests Nisitenma
-├── work/                ← GITIGNORED: derivados del usuario (ROMs del usuario descomprimidas,
-│   │                       proyecto Ghidra, artefacts temporales) — NUNCA versionar
-│   ├── roms/            ← us_dec.z64 / eu_dec.z64 (assets descomprimidos, derivados)
-│   ├── ghidra/proj/     ← proyecto Ghidra con baserom.us.z64 importado y analizado
-│   └── scratch/         ← salidas temporales de scripts
-└── toolchain/           ← GITIGNORED: herramientas descargables (no versionar)
-    ├── ghidra/          ← Ghidra 12.1.3 (install + zip)
-    ├── venv/            ← virtualenv Python (PyYAML, etc.)
-    ├── ext/             ← N64LoaderWV (zip + fuente extraída)
-    └── src/             ← repos fuente: N64Recomp, N64ModernRuntime, RT64,
-                           Zelda64Recomp, Goemon64Recomp (+ mnsg, mnsg_syms)
-```
-
-**Nota:** la extensión N64LoaderWV se instala a nivel de usuario
-(`~/.config/ghidra/ghidra_12.1.3_PUBLIC/Extensions/`), independiente de dónde viva
-`toolchain/ghidra/`.
-
-**Regla de oro:** al finalizar/hacer-hallazgos durante cada sesión, actualizar este
-`PROYECTO.md` para que la siguiente sesión arranque con todo el contexto necesario.
-
----
-
-## 9. Próximos pasos inmediatos
-
-> **VISIÓN OPERATIVA (2026-09-08):** la tarea #3 (mapa overlay→RAM) está **desacoplada** de la
-> Fase 2. El port del **código principal plano** se puede y debe empezar YA (no espera al mapa
-> completo de overlays); los overlays de código/fase se añaden progresivamente. La tarea #3 sigue
-> avanzando en paralelo por la vía BizHawk (es trabajo del usuario jugando, no del contenedor).
-
-1. ~~Instalar toolchain core~~ ✅ (gcc/g++, cmake, ninja, SDL2 — 2026-09-05).
-2. ~~Clonar repos base~~ ✅ N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp.
-3. ~~Instalar JDK y montar **Ghidra + N64LoaderWV**~~ ✅ (2026-09-05: JDK 21 + Ghidra 12.1.3 +
-   extensión N64LoaderWV; ROM US importada y analizada). ~~Derivar de Ghidra el mapa de RAM bases
-   de overlays (cargador `trans`)~~ **SUPERADO por un método mejor**: el directorio `trans` se
-   observa EN VIVO en runtime — write-bp sobre `0x8008DFC0` (§5, vía emulador) y volcado por
-   script BizHawk (tarea #3, EN CURSO; ver `sesion.md` §1/§15 + `notes/2026-09-08-overlay-directory.md`).
-4. **ARANCAR FASE 2 — ELF del código principal plano** (`0x1000+0x80000000`) con N64Recomp y
-   probar el build Linux → RT64. No depende del mapa de overlays ni del usuario/render. **Audio
-   dummy primero** (ver bloqueantes abajo). ← **PRÓXIMA ACCIÓN RECOMENDADA**
-5. Construir el **mapa de símbolos inicial** del núcleo plano: anclar funciones por archivo fuente
-   (`/game/source/*.c`, proyecto RZ011) usando referencias `lui/ori` a sus strings. (Para los
-   overlays sí requiere el mapa de RAM bases de la tarea #3.)
-6. ~~Extraer tabla Nisitenma-Ichigo (US+EU)~~ ✅ 625 archivos; manifests en `notes/`; `tools/rommy.py`.
-7. **IDENTIFICAR EL MICROCODE DE AUDIO** (ucode custom KCEO vs asp; §4.2/§7.1.2, docs/README §4).
-   **BLOQUEANTE duro** para audio real (Fase 4); NO bloquea el render del núcleo (audio dummy).
-   Sondear con Ghidra/runtime durante la Fase 2.
-8. **Mapear las variantes LZSS del cargador `trans`** (`LZSS 5`/`LZSS 7`; §4.6). **BLOQUEANTE**
-   para el pipeline completo de overlays/extracción. Usar las copias descomprimidas visibles en RAM
-   (0x801BB000, 0x801FA000, ...) como **oráculo** frente al `trans` loader.
-9. **Tarea #3 (EN CURSO, desacoplada) — mapa overlay→RAM de todo el juego por runtime**: pipeline
-   BizHawk funcional (script **v5** en `work/gameplay screenshots/`, volcado de directorio + F12
-   PNG/txt emparejados por wall-clock). **Confirmados con capturas**: combate por turnos
-   (`010F`+`01AA…01B8`+`0125/0127`) y menú pausa (`0113…0121`) → `notes/…-overlay-directory.md` §10.7.
-   Pendiente: pasar la partida larga al contenedor, etiquetar sets sueltos. Índice operativo y
-   pendientes: `sesion.md` §1/§12/§15.
-10. **Criterio de corte de la tarea #3**: cubrir los ~6 sets de fase (combate / menú pausa /
-    gameplay / diálogo / submenús) y consolidar el mapa como entregable — NO perseguir exhaustividad
-    total que retrase la Fase 2.
-
-### 9.1 FASE 2 (boot/recompilación) — estado actual 2026-09-10 (para retomar)
-
-> La fuente de verdad del detalle es `notes/2026-09-10-lzss-decompressor-crash.md` (secciones §6.x).
-> Este es el resumen ejecutivo para arrancar una sesión nueva.
-
-- **FIX DMA HECHO (commit `8387efd`)**: Ghidra dividió la función del DMA `0x80001F30-0x80001FE8`
-  en 4 (`FUN_80001f30/fb4/fc8/fd8`); el caller `FUN_80001fe8` solo llamaba a la 1ª mitad (cache ops)
-  y **nunca** a la que hace `osEPiStartDma` → el asset NUNCA se cargaba → buffer vacío → crash.
-  **Fusionadas en `FUN_80001f30` (size 0xB8)** → **el asset 0x4E69A8 YA carga** (`s6=0x55dd4`,
-  source `0x4e69a8`, chunk counter `0x1FFC`, `dramAddr=0x80089518` correcto).
-- **BLOQUEANTE ACTUAL — clobber del `a0`**: el reload (`FUN_80003D3C`) guarda `a0=0x80089518` en
-  `sp+0x18 = 0x8005BE18`, llama a la cadena del DMA (`FUN_80003db4→FUN_80001fe8→FUN_80001f30→
-  osEPiStartDma→osRecvMesg`), y al restaurar lee `0` → `s2=0` → `MEM_BU(0,0)` → SIGSEGV.
-  **Descartado**: funciones recompiladas (no alcanzan 0x8005BE18: max sp+0x2C/0x28/0x14), `do_rom_read`
-  (escribe en 0x80089518), `osRecvMesg`/`do_recv` (msg_=0 descarta, NO bloquea, validCount=1), swap de
-  `osRecvMesg` (probado y no ayudó). El write a 0x8005BE18 es de la **vía de runtime del DMA/mensajes**
-  (posible `do_send` de `enqueue_external_message_src`, o interacción con el game-lock de concurrencia).
-  **Enfoques propuestos**: (a) verificar qué es `0x8005BE18` (¿struct/cola compartida? ¿solapamiento de
-  stacks entre threads?); (b) parchear el juego para DMA síncrona vía `do_rom_read` (estilo GoldenRecomp
-  `boot_osPiRawStartDma`) evitando el mecanismo de mensaje/swap.
-- **Nota IMPORTANTE (lecturas)**: los globales del descompresor están en `0x8005D0xx` (NO `0x8006D0xx`),
-  y `MEM_W(0, 0x8005D0xx)` con literal NO sign-extended lee una dirección fuera de RDRAM — usar
-  `MEM_W(0, 0xFFFFFFFF8005D0xx)`.
-- **Commits**: `8387efd` (fix DMA), `2024692` (syms limpio), `4e82178`-`935b836` (docs/diagnóstico),
-  y en el submodule `56182ef` (fix de concurrencia single-CPU).
-- **Tras resolver el clobber**: wiring de eventos + RSP routing + `loadUCodeGBI` (render).
+Ver **`TODO.md`**. Modelo de módulos caracterizado y ADR 0001 aceptado. Foco inmediato: **pipeline
+reproducible + validador de símbolos** (Fase A #3) e **implementar el módulo idx 7** (Fase B #9).
