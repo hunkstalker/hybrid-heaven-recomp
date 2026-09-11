@@ -206,13 +206,21 @@ EOF
   `0x80089518` tiene datos reales (chunk 2 = `0x9ce78ba2`) y **s6 = 0x55dd4** (tamaño descomprimido
   correcto). Antes s6=0. El boot avanza más.
 
-### 6.8 SIGUIENTE BLOQUEANTE (tras el merge) — s2=0 / contador de chunk 0x8005D020 corrupto
+### 6.8 SIGUIENTE BLOQUEANTE (tras el merge) — CORRECCIÓN: el chunk setup es correcto; el decode corrompe base/s2
 
-- Tras el merge, el crash es `s2 = 0` (antes 0xc). El primer header se lee bien (s6=0x55dd4) pero
-  durante el decode `s2` colapsa a 0.
-- **0x8005D020 (contador de chunk) = 0x142B12C4** (huge, debería ser 0x2000). FUN_80003db4 lo setea a
-  a2 (chunk size, 0x2000 si remaining>=0x2000) pero en runtime queda 0x142B12C4 → el reload de chunk
-  (FUN_80003D3C, contador==1) nunca dispara → s2 camina más allá del buffer → envuelve a 0 → crash.
-- **A investigar**: por qué 0x8005D020 queda en 0x142B12C4 (¿lo pisa la función del DMA/osEPiStartDma
-  fusionada? ¿FUN_80003db4 no lo setea bien? ¿a2/remaining incorrecto?). Instrumentar FUN_80003db4 y
-  el estado del chunk (0x8005D010/0x8005D014/0x8005D018/0x8005D020) en el decode.
+- **CORRECCIÓN de mi error de lectura**: `MEM_W(0, 0x8005D0xx)` con literal NO sign-extended calcula
+  `addr + 0x80000000` (fuera de RDRAM) → leía basura. Hay que usar `MEM_W(0, 0xFFFFFFFF8005D0xx)`.
+  Con las lecturas CORRECTAS, el estado del chunk ES correcto:
+  - `5D014 = 0x4e69a8`, `5D010 = 0x4e69a8` (fuente, correcta)
+  - `5D020 = 8188 (0x1FFC)` (contador de chunk, decrementando bien desde 0x2000)
+  - `s6 = 0x55dd4` (tamaño descomprimido, correcto), `s2 = 0x80089518` (buffer), `s1 = 0x80107830` (salida)
+- **PERO** el decode del PRIMER bloque corrompe `base(v1) = 2` y `s2 = 0` (valores pequeños) → crash.
+  Solo se procesa 1 bloque (1 HDR print). El DMA carga el asset y el chunk setup es correcto, pero el
+  **bucle de decode LZSS corrompe base/s2** → parece OTRA función dividida por Ghidra en la cadena del
+  decode, o una mis-compilación profunda del decode de FUN_80003824.
+- **fix_fallthroughs agresivo (259 cadenas, racer-proven) NO arregló** este crash (el crash sigue en
+  FUN_80003824, no en una función dividida de la cadena). Se revirtió (dejó el estado limpio con el
+  merge de FUN_80001f30).
+- **A investigar**: por qué el decode corrompe base/s2 a valores pequeños. Comparar el recompilado vs
+  original del bucle de decode (0x80003918-0x80003C98) — posible mis-compilación o función dividida
+  dentro de FUN_80003824 que el recompilador no fusiona.
