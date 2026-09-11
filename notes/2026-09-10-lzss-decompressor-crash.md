@@ -224,3 +224,26 @@ EOF
 - **A investigar**: por qué el decode corrompe base/s2 a valores pequeños. Comparar el recompilado vs
   original del bucle de decode (0x80003918-0x80003C98) — posible mis-compilación o función dividida
   dentro de FUN_80003824 que el recompilador no fusiona.
+
+### 6.9 MECANISMO EXACTO del crash (2026-09-10, instrumentado con lecturas corregidas)
+
+- **El merge de FUN_80001f30 FUNCIONA**: `osEPiStartDma_recomp` lee `dramAddr=0x80089518` (correcto),
+  `devAddr=0xb04e69a8` (ROM, correcto), `size=0x2000`, `mq=0x8005c268` → **el asset se carga bien**
+  (s6=0x55dd4, chunk counter 0x1FFC, source 0x4e69a8).
+- **El crash es un CLOBBER del stack del reload**: `FUN_80003D3C` (reload) guarda `a0=0x80089518` en
+  `sp+0x18 = RDRAM 0x8005BE18`, llama a la cadena del DMA, y al restaurar lee **0x0** (clobbered).
+  → `FUN_80003D3C` devuelve 0 → `s2 = 0` → `MEM_BU(0,0)` = rdram-0x80000000+3 → SIGSEGV.
+- **Confirmado**: la traza LIT muestra s2 avanzando `0x8008b511..0x8008b517` con 5D020 `7..1`, y al
+  llegar a 5D020=1 el reload dispara (5D020→8192 correcto) pero `s2=0x0` (a0 restaurado = 0).
+- **La cadena DMA clobberea 0x8005BE18**: los frames del stack (FUN_80003db4 sp-0x18, FUN_80001fe8
+  sp-0x20, FUN_80001f30 sp-0x20, osEPiStartDma 0x800304F0, osSendMesg 0x800266B0) usan `ctx->r29`.
+  Alguno escribe en `sp+0x30` (=0x8005BE18) → pisa el `a0` guardado por FUN_80003D3C.
+- **NO es la cache op** (FUN_80028A90: el `cache` es no-op en N64Recomp). Es la cadena
+  osEPiStartDma/osSendMesg recompiladas (posible frame grande con offset positivo) o un solapamiento
+  de frames del stack recompilado.
+- **A investigar**: el frame del stack de `osEPiStartDma` (0x800304F0) y `osSendMesg` (0x800266B0)
+  recompilados — por qué escriben en `sp+0x30` (0x8005BE18). Comparar el recompilado vs original.
+- **Alternativa**: el problema es que la DMA recompilada (async-callback del juego, FUN_80001f30)
+  pisa el stack. Considerar que el juego usa `osEPiStartDma` con un `OSIoMesg` en 0x8005D280 + cola
+  0x8005c268, y el runtime lo hace SÍNCRONO (do_dma/do_rom_read). Si la recompilación de
+  osEPiStartDma/osSendMesg tiene un frame bug, ese es el fix.
