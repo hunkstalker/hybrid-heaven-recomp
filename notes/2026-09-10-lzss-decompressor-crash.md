@@ -189,3 +189,30 @@ EOF
 - **Siguiente**: averiguar CÓMO el juego lee el asset del ROM (¿osPiStartDma real de libultra? ¿MMIO del
   PI 0xA4600000? ¿memory-mapped 0x10000000?) y hacer que el runtime lo soporte (o parchear el juego para
   usar `recomp::do_rom_read`). Ver pi.cpp (do_dma/do_rom_read/osPiStartDma_recomp).
+
+### 6.7 FIX ENCONTRADO (2026-09-10) — la función del DMA estaba dividida por Ghidra (igual que el game loop)
+
+- **Ghidra dividió la función del DMA** `0x80001F30-0x80001FE8` en **4 partes**:
+  `FUN_80001f30` (0x80001F30-0x80001FB4) + `FUN_80001fb4` (0x80001FB4-0x80001FC8) +
+  `FUN_80001fc8` + `FUN_80001fd8`. El caller `FUN_80001fe8` solo llamaba a `LOOKUP_FUNC(0x80001F30)`
+  (cache ops + struct setup) y **NUNCA** a `FUN_80001fb4` (que llama a **osEPiStartDma**).
+  → **el DMA de carga del asset NUNCA se ejecutaba** → buffer 0x80089518 vacío → s6=0 → crash.
+- **FIX**: fusionar las 4 en una `FUN_80001f30` (vram 0x80001F30, size 0xB8 = 0x80001F30-0x80001FE8)
+  en `us_ghidra.syms.toml` (commit `8387efd`). El caller `FUN_80001fe8` ahora alcanza el DMA completo.
+- **Por qué fix_fallthroughs.py no lo cazó**: su heurística `has_ret = any("return;")` es demasiado
+  amplia — FUN_80001f30 tiene 22 `return;` (early jr ra en ramas), así que la saltaba. (He dejado la
+  heurística conservadora y he resuelto el caso concreto con el merge en la syms.)
+- **VERIFICADO (progreso)**: tras el merge el DMA corre (postea a 0x8005c268, src=5=Pi), el buffer
+  `0x80089518` tiene datos reales (chunk 2 = `0x9ce78ba2`) y **s6 = 0x55dd4** (tamaño descomprimido
+  correcto). Antes s6=0. El boot avanza más.
+
+### 6.8 SIGUIENTE BLOQUEANTE (tras el merge) — s2=0 / contador de chunk 0x8005D020 corrupto
+
+- Tras el merge, el crash es `s2 = 0` (antes 0xc). El primer header se lee bien (s6=0x55dd4) pero
+  durante el decode `s2` colapsa a 0.
+- **0x8005D020 (contador de chunk) = 0x142B12C4** (huge, debería ser 0x2000). FUN_80003db4 lo setea a
+  a2 (chunk size, 0x2000 si remaining>=0x2000) pero en runtime queda 0x142B12C4 → el reload de chunk
+  (FUN_80003D3C, contador==1) nunca dispara → s2 camina más allá del buffer → envuelve a 0 → crash.
+- **A investigar**: por qué 0x8005D020 queda en 0x142B12C4 (¿lo pisa la función del DMA/osEPiStartDma
+  fusionada? ¿FUN_80003db4 no lo setea bien? ¿a2/remaining incorrecto?). Instrumentar FUN_80003db4 y
+  el estado del chunk (0x8005D010/0x8005D014/0x8005D018/0x8005D020) en el decode.
