@@ -247,3 +247,20 @@ EOF
   pisa el stack. Considerar que el juego usa `osEPiStartDma` con un `OSIoMesg` en 0x8005D280 + cola
   0x8005c268, y el runtime lo hace SÍNCRONO (do_dma/do_rom_read). Si la recompilación de
   osEPiStartDma/osSendMesg tiene un frame bug, ese es el fix.
+
+### 6.10 REFINADO (2026-09-10) — el clobber NO es de las funciones recompiladas de la cadena
+
+- Verificado con precisión (extracción de cuerpos): `FUN_80003db4` solo accede a `sp+0x14` (frame 0x18,
+  correcto). `FUN_80001fe8`/`FUN_80001f30` (merged) acceden a sp+0x30..0x34 pero sus sp están por debajo
+  de 0x8005BE18 (0x8005BDC8/0x8005BDA8 + 0x30 = 0x8005BDF8/0x8005BDD8), así que NO alcanzan 0x8005BE18.
+- `do_rom_read` escribe en `ram_address` (0x80089518), correcto (0x80089518..0x8008B518), NO en 0x8005BE18.
+- `0x800266B0` es `osRecvMesg` (runtime, HOST stack) y `osEPiStartDma` es `osEPiStartDma_recomp`
+  (runtime, HOST stack). Ambos usan la pila del host, NO la recompilada (ctx->r29).
+- **CONCLUYENDO**: el clobber de 0x8005BE18 (a0 guardado por FUN_80003D3C) proviene de la **vía de runtime
+  del DMA** (osEPiStartDma_recomp/osRecvMesg_recomp + do_dma) o de su **interacción con el lock de
+  concurrencia** (mi fix: al hacer osRecvMesg la cola está vacía → bloquea → suelta el game lock → otro
+  thread corre y pisa el stack del thread 5). El watchpoint de gdb cae en syscall de pthread (park),
+  no en un write del recompilado → confirma que el clobber ocurre durante el park/unpark del threading.
+- **Siguiente**: (a) verificar si osRecvMesg bloquea (cola 0x8005c268 vacía en el momento del reload)
+  y si el game-lock/otro-thread pisa el stack; (b) si es el lock de concurrencia, reconsiderar su alcance
+  (tal vez no debe liberarse en el park de osRecvMesg, o el stack del thread 5 debe protegerse).
