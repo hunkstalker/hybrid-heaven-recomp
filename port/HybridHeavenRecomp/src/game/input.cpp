@@ -13,6 +13,7 @@
 #endif
 
 #include "ultramodern/input.hpp"
+#include "ultramodern/ultramodern.hpp"
 
 #include "hh.h"
 
@@ -73,8 +74,10 @@ void hh::poll_input() {
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
-                SDL_Quit();
-                std::exit(EXIT_SUCCESS);
+                // Cierre ordenado: NO usar std::exit (destruiría std::threads joinable al
+                // ejecutar destructores estáticos -> std::terminate). quit() activa la salida
+                // limpia de recomp::start, que hace join de todos los hilos.
+                ultramodern::quit();
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 if (SDL_IsGameController(event.cdevice.which)) {

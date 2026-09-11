@@ -219,7 +219,5 @@ int main(int argc, char** argv) {
     recomp::start(configuration);
     hh::log("recomp::start returned\n");
 
-    while (true) {
-        SDL_Delay(100);
-    }
+    return 0;
 }
