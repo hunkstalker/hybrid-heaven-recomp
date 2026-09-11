@@ -264,3 +264,39 @@ EOF
 - **Siguiente**: (a) verificar si osRecvMesg bloquea (cola 0x8005c268 vacía en el momento del reload)
   y si el game-lock/otro-thread pisa el stack; (b) si es el lock de concurrencia, reconsiderar su alcance
   (tal vez no debe liberarse en el park de osRecvMesg, o el stack del thread 5 debe protegerse).
+
+### 6.11 ELIMINACIÓN DEFINITIVA (2026-09-10) — el clobber NO es de osRecvMesg ni de las funciones recompiladas
+
+- **osRecvMesg(msg=NULL) DESCARTÁ el mensaje** (docs de Nintendo + impl de referencia: `if (msg != NULL) { *msg = ...; }`).
+  El runtime `do_recv` lo hace bien: `if (msg_ != NULLPTR) { *TO_PTR(OSMesg, msg_) = ...; }` (mesgqueue.cpp:186).
+  → osRecvMesg NO escribe en *msg_ (0) ni en 0x8005BE18.
+- **El mensaje del DMA SÍ está presente** (`validCount=1` en 0x8005c268) → osRecvMesg NO bloquea → se
+  descarta la hipótesis del park de otro thread pisando el stack.
+- **Sp offsets máximos** (extracción precisa de cuerpos): FUN_80001f30 frame 0x20 max sp+0x2C (0x8005BDD4);
+  FUN_80001fe8 frame 0x20 max sp+0x28 (0x8005BDF0); FUN_80003db4 frame 0x18 max sp+0x14. Todos por DEBAJO
+  de 0x8005BE18 → **ninguna función recompilada alcanza 0x8005BE18**.
+- do_rom_read escribe en 0x80089518; osEPiStartDma (runtime) usa HOST stack y lee valores correctos.
+- **CONCLUSIÓN**: el clobber de 0x8005BE18 (a0 guardado por FUN_80003D3C) NO lo causa ninguna función
+  recompilada ni osRecvMesg/do_recv/do_rom_read. Es un write de la **vía de runtime del DMA/eventos**
+  (enqueue_external_message_src → do_send → check_running_queue, que puede swap a otro thread) o una
+  interacción sutil. El watchpoint de gdb cae en pthread (park/unpark), no en un write del recompilado.
+- **Siguiente**: instrumentar `check_running_queue`/`swap_to_thread` (scheduling.cpp) para ver si al hacer
+  el DMA/mensaje se cambia de thread y ese thread escribe en 0x8005BE18. Alternativa: reconsiderar el
+  alcance del game-lock de concurrencia (mi fix) — quizá al swap se pisa la zona del stack compartida.
+
+### 6.12 CLUE (2026-09-10) — el clobber ocurre durante el DMA, que hace SWAP del thread 5 a los threads RSP
+
+- Instrumentado: `RELOAD-BEFORE` muestra `0x8005BE18 = 0x0` ANTES del save (el save escribe 0x80089518),
+  y `RELOAD-AFTER` muestra `0x0` → **el clobber ocurre DENTRO de FUN_80003db4** (cadena del DMA).
+- **Durante FUN_80003db4 hay 5 SWAPs**: `thread 1→5`, `thread 5→19`, `5→18`, `5→17`, `5→16`
+  (thread 5 se aparca y se intercambia con los threads RSP 16-19, que son bucles de osRecvMesg).
+- Los threads RSP (0x80000774 etc.) son bucles de mensaje y **NO escriben en 0x8005BE18** (verificado por
+  disasm: usan su propio sp+0x60 como msg_ buffer). → el write a 0x8005BE18 NO es del código RSP.
+- **Conclusión**: el write a 0x8005BE18 (frame del thread 5) ocurre durante el **park/unpark del swap**
+  (thread 5 ↔ RSP) o en la **vía de runtime del DMA/eventos** (do_send → schedule_running_thread →
+  check_running_queue → swap_to_thread → resume_thread_and_wait). El watchpoint cae en pthread (park),
+  no en un write del recompilado → apunta al mecanismo de threading, no al código del juego.
+- **Siguiente**: (a) instrumentar `wait_for_resumed`/`resume_thread_and_wait`/`run_next_thread_and_wait`
+  para ver qué se escribe en 0x8005BE18 durante el park; (b) comprobar si 0x8005BE18 es un struct/cola
+  compartida que el runtime escribe (no solo el frame del thread 5). Si es la vía de runtime del DMA,
+  puede ser el `enqueue_external_message`/`do_send` (que escribe en la cola y despierta threads).
