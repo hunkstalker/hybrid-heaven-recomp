@@ -1,0 +1,21 @@
+# Config combinada: imagen plana + módulo idx 7 como segunda sección.
+# Ver notes/2026-09-11-modulo-idx7-extraccion.md y TODO B9.
+
+[input]
+entrypoint = 0x80000400
+output_func_path = "RecompiledFuncs_combined"
+relocatable_sections_path = ""
+symbols_file_path = "us_combined.syms.toml"
+rom_file_path = "../work/scratch/us_combined.z64"
+use_lookup_for_all_function_calls = true
+
+[patches]
+stubs = [
+]
+
+ignored = [
+    "FUN_800493c4",
+    "FUN_80049430",
+    "FUN_80049538",
+    "FUN_800495ec",
+]
