@@ -122,10 +122,18 @@ registrar en la base determinista.
   MMIO** que escribe `__osViSwapContext`). `OSViContext` (`0x8004AE70…`) queda como en el emulador
   (`00190001 8038F800 80049990 00013006 8005C560…`) y el gate de tareas RSP reabre (dispatcher 430
   llamadas/45 s, loader 10 módulos, 1359 DLs a RT64, sin símbolos faltantes).
-  **Frontera actual**: la cadena de boot del port ya coincide con el emulador (setter `FUN_800058DC`
-  y `obj@0x801D0474` idénticos). El emulador avanza el progreso `fe00` y escribe código en
-  `0x801D03C0`/`0x801CFE20` entre 60-90 s; el port aún no a VIS7200 porque el gate
-  `[0x8005CD4C]>=2` cierra ~la mitad de los frames (dispatcher 9,5/s vs 36/s) (ver `../TODO.md` #14
+  **Resuelto (deadlock SP, 2026-09-13)**: las completaciones SP/DP se asocian a la task
+  (`sp_task_submitters`) y se entregan **al hilo emisor** mediante una cola de pendientes por
+  (hilo, mq) en `mesgqueue.cpp` (`do_send` dirigido sin insertar en el ring + consumo en `do_recv`,
+  también si el emisor aún no se había bloqueado). Antes, las colas SP/DP compartidas por t17/t18
+  dejaban la completación en el waiter equivocado y el gate quedaba cerrado (dispatcher 9,5/s vs
+  36/s). Evidencia (300 s): dispatcher **3723**, `[0x8005CD4C]` oscila 1/2, sin hilos congelados con
+  task en vuelo (detalle: `../notes/2026-09-13-deadlock-sp-race.md` §5).
+  **Frontera actual**: la cadena de boot coincide con el emulador (setter `FUN_800058DC` y
+  `obj@0x801D0474` idénticos), pero la transición de progreso `fe00` (id 0x19 → ROM `0x5FBEC6` →
+  `0x801BF1A0`, t≈63,9 s del emulador) no se alcanza ni a VIS18000/300 s (`fe00=0`, nodo
+  `+0x1C=0x801BF1CC`, 10 `[LD384]`) pese a superar el dispatch count del emulador ⇒ el trigger no
+  depende solo del ritmo del gate (ver `../TODO.md` #14
   y `../notes/2026-09-13-cadena-boot-y-progreso-fe00.md`).
 
 ## 6. Toolchain de recompilación

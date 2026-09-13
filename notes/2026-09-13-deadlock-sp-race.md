@@ -57,3 +57,24 @@ transición (`fe00`/id 0x19) a VIS comparable.
 - Wrappers `HH_TBLTRACE`: `[SETCB]` (FUN_800058DC), `[DISP]` (FUN_80005270), `[M23]`
   (FUN_801CBE88/BDC0/BF1CC), `[LD384]` (FUN_80003824).
 - Artefactos: `work/debug/{port_220,port_spc,emu_prog,emu_wfe,emu_ld2}.log`, dumps `*_vi*.bin`.
+
+## 5. Fix implementado (2026-09-13): completaciones dirigidas con cola por hilo
+
+- `submit_rsp_task` ya asociaba `this_thread()` a cada task (`sp_task_submitters`). El primer
+  intento de entrega dirigida en `do_send` no bastó porque la completación llega **antes** de que el
+  emisor se bloquee: `do_send` solo puede despertar hilos ya encolados en `blocked_on_recv`; si el
+  emisor no estaba aún, caía al reparto normal y otro hilo la consumía.
+- Solución final (runtime, `mesgqueue.cpp`): **cola de completaciones pendientes por (hilo, mq)**
+  (`pending_completions`). Con `target != NULLPTR`, `do_send` **no inserta en el ring**: guarda el
+  mensaje para el hilo emisor y, si ese hilo está bloqueado en esa cola, lo saca de la lista y lo
+  programa. `do_recv` consume la pendiente (a) al entrar y (b) dentro del bucle de bloqueo, bajo el
+  mismo lock con el que `do_send` decide guardar/despertar (cierra la race).
+- Validación (300 s, `HH_TBLTRACE`; `work/debug/port_fixsp4.log`): **3723 [DISP]** (vs 428 antes del
+  fix, 2874 a 220 s), `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, t18 alterna entre su
+  cola de entrada (`0x8005C4B8`) y SP (ya no queda congelado en `0x8005C598` con task en vuelo), sin
+  símbolos faltantes ni asserts.
+- **Límite**: la transición del emulador (id 0x19 → ROM `0x5FBEC6` → `0x801BF1A0` a t≈63,9 s) **no
+  se alcanza todavía**: a VIS18000 (300 s) `fe00=0`, nodo `+0x1C=0x801BF1CC` y 10 `[LD384]`. El port
+  ya supera el conteo de dispatcher del emulador a t≈64 s (~2300) sin disparar la carga ⇒ el trigger
+  de la transición no depende (solo) del gate/ritmo; nueva investigación: secuencia de peticiones
+  del pump (`[SUBM]`) y callbacks del módulo 23 en run largo de emulador vs port.

@@ -91,16 +91,17 @@
       dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos faltantes (splits de
       mid-entries `0x80002364`, `0x800243F0`, `0x8002487C`…). Detalle:
       `notes/2026-09-13-vi-opcion-a-implementada.md` y ADR 0003.
-    - **Frontera actual (deadlock SP)**: el port se congela con `[0x8005CD4C]=2`: **t18** espera la
-      completación SP de una task audio (`0x800C89E8`) en `0x8005C598` y **t17** espera el ack de
-      t18 por `+0x158` (`+0x890`/`+0x894` set). Las colas SP/DP son compartidas por t17 y t18; el
-      runtime despierta a un solo waiter y una completación puede consumirla el hilo equivocado
-      (race de timing; en el emulador ambos están idle). Efecto: dispatcher 9,5/s vs 36/s, sin
-      transición (`fe00`, id 0x19 → ROM `0x5FBEC6` → `0x801BF1A0` a t≈63,9 s del emulador).
-    - Siguiente: **asociar cada task RSP al hilo emisor** y entregar la completación SP a ese hilo
-      (mapa task→thread en `submit_rsp_task`, entrega directa en `sp_complete`). Alternativas:
-      serializar el SP en el runtime o replicar el timing del emulador. Detalle:
-      `notes/2026-09-13-deadlock-sp-race.md`.
+    - **Resuelto (2026-09-13, deadlock SP)**: las completaciones SP/DP se entregan al hilo que
+      envió la task (mapa task→thread + **cola de pendientes por (hilo, mq)** en `mesgqueue.cpp`:
+      `do_send` dirigido que no inserta en el ring y `do_recv` que consume la pendiente, incluso si
+      el emisor aún no se había bloqueado). Evidencia (300 s): dispatcher **3723** (vs 428 antes),
+      `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, sin símbolos faltantes ni asserts.
+      Detalle: `notes/2026-09-13-deadlock-sp-race.md` §5.
+    - **Frontera actual (transición `fe00`)**: a VIS18000 (300 s) el port sigue en `fe00=0`, nodo
+      `+0x1C=0x801BF1CC` y solo 10 `[LD384]`, pese a superar el conteo de dispatcher del emulador a
+      t≈63,9 s (~2300). El trigger de la carga id 0x19 → ROM `0x5FBEC6` → `0x801BF1A0` no depende
+      (solo) del ritmo del gate. Siguiente: comparar la secuencia de peticiones del pump
+      (`[SUBM]`/`[LD384]`) y los callbacks del módulo 23 en un run largo de emulador vs port.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
