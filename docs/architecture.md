@@ -110,12 +110,17 @@ registrar en la base determinista.
 - **Wiring de render**: ✅ verificado — eventos (`osSetEventMesg` IDs estándar) + routing RSP
   (`submit_rsp_task` → action queue) + `loadUCodeGBI` llegan a RT64, que **procesa display lists**.
   **Loader/directorio Nisitenma descartados**: el directorio es estático (`0x80038FF0`, magic
-  `Nisitenma-Ichigo`), idéntico al emulador, y el port carga idx7/idx0/idx54. Bloqueante actual: el
-  **gate de tareas RSP** de `FUN_80001454` (`0x80001820`): con `[0x8008D545]==0` y
-  `[0x8005C4B0+0x89C]>=2` se salta `FUN_80005270`; en el port el contador `0x8005CD4C` queda clavado
-  en 2 y el estado de colas/hilos se corrompe (`0x8005C4F0`, `0x80049930/40`) → `fase=0` y sin
-  display lists del juego (ver `../TODO.md` #14 y
-  `../notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`).
+  `Nisitenma-Ichigo`), idéntico al emulador, y el port carga idx7/idx0/idx54.
+  **Fix aplicado (syms)**: `FUN_80030610` era el `osCreateMesgQueue` del ROM e inicializaba
+  `mtqueue/fullqueue` con `&__osThreadTail` (`0x80049930`), incompatible con las listas
+  NULL-terminated del runtime de mensajes (el centinela se programaba como hilo y corrompía
+  `__osRunningThread`). Se renombró a `osCreateMesgQueue` en `config/*.syms.toml` para que las
+  llamadas usen la versión del runtime (`reimplemented_funcs`).
+  Bloqueante actual: el **`OSViContext` del juego** (`0x8004AE70…`) nunca se inicializa
+  (`__osViInit`/`__osViSwapContext` = 0 llamadas; `osCreateViManager` reimplementado ⇒ el hilo VI
+  del ROM `FUN_80034840` no corre) → `FUN_80035050`=0 → el hilo 17 espera un cambio de framebuffer →
+  `[0x8005CD4C]>=2` cierra el gate de `FUN_80001454` (`0x80001820`) y no se llama a `FUN_80005270`
+  → `fase=0` (ver `../TODO.md` #14 y `../notes/2026-09-13-vi-context-y-sentinel.md`).
 
 ## 6. Toolchain de recompilación
 

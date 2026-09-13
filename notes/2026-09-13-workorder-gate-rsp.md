@@ -9,8 +9,18 @@
 El juego queda en `fase=0` porque `FUN_80001454` (hilo 5) **deja de llamar al dispatcher
 `FUN_80005270`**: el gate de `0x80001820` salta al epílogo si `[0x8008D545]==0` **y**
 `[0x8005C4B0+0x89C] >= 2`. En el port ese contador (`0x8005CD4C`, tareas RSP pendientes) queda
-clavado en 2 y no drena; en el emulador oscila 0/1. Detrás hay **estado de hilos/colas corrupto**
-(`0x8005C4F0`, `0x80049930`). Loader, directorio Nisitenma y recompilación están descartados.
+clavado en 2; en el emulador oscila 0/1. Loader, directorio Nisitenma y recompilación descartados.
+
+**ACTUALIZACIÓN (misma fecha):**
+1. **Resuelto** el estado corrupto de hilos/colas: `FUN_80030610` era el `osCreateMesgQueue` del ROM
+   (inicializa `mtqueue/fullqueue` con `&__osThreadTail` = `0x80049930`) y el runtime de mensajes
+   asumía listas NULL. Fix: rename de símbolo `FUN_80030610` → `osCreateMesgQueue` en las syms
+   (las llamadas pasan al runtime). Detalle: `notes/2026-09-13-vi-context-y-sentinel.md` §2.
+2. **Bloqueo actual**: el **contexto VI del juego** (`0x8004AE70…`, `OSViContext`) nunca se
+   inicializa/mantiene: `__osViInit`/`__osViSwapContext` no se ejecutan (0 llamadas) porque
+   `osCreateViManager` está reimplementado y el hilo VI del ROM (`FUN_80034840`) no corre. `t17`
+   espera un cambio de framebuffer que el juego no puede hacer ⇒ contador clavado ⇒ gate cerrado.
+   Siguiente paso en §9.
 
 ## 1. Objetivo y criterio de éxito
 
@@ -144,3 +154,41 @@ python3 tools/recomp.py --config config/game_combined.toml --build
 `emu_wq`, `emu_wc.log`, `gdb_ed0.gdb/log`, `gdb_t17.gdb/log`, `gdb_t17arg.gdb/log`,
 `gdb_stuck.gdb`, `parse_exec_trace.py` (también en `tools/analysis/`).
 Nota de evidencia: `notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`.
+
+## 9. ACTUALIZACIÓN — sentinel resuelto y bloqueo actual (contexto VI)
+
+### 9.1 Hecho
+- `config/us_ghidra.syms.toml` + `config/us_combined.syms.toml`: `FUN_80030610` → `osCreateMesgQueue`
+  (vram 0x80030610, size 0x30). Recompilado y construido con
+  `python3 tools/recomp.py --config config/game_combined.toml --build`.
+- Efecto verificado: `0x8005C4F0`/`0x8005C4F4` = 0 (NULL runtime), `__osRunningThread` (0x80049940)
+  válido, sin auto-referencias en `0x80049930`. El contador ya no está «siempre en 2»: oscila en las
+  ventanas de submit.
+
+### 9.2 Bloqueo actual (evidencia)
+- `[0x8005CD4C]` constante en 2 desde VIS 85 (`work/debug/port_gate.log`).
+- `FUN_80005270` 6 llamadas en 25 s (emulador ~544/15 s).
+- `FUN_80035050` (framebuffer del `OSViContext` del juego, `[[0x8004AED0]+4]`) devuelve **0** en el
+  port y `0x8038F800` en el emulador; `0x8004AE70` está a cero en el port.
+- Port: `__osViInit`=0, `__osViSwapContext`=0, `osViSwapBuffer`=2.
+  Emulador: `__osViInit`=1, `__osViSwapContext`=541/10 s (1/retrace), `osViSwapBuffer`=427,
+  desde `FUN_80034840` (hilo VI manager del ROM; `osCreateViManager` 0x800346C0 está reimplementado
+  ⇒ ese hilo no existe en el port).
+- Efecto: `t17` gira en el sync de `+0x158` (`[PUSH]/[POP]/[BCAST]` ~1/VI) esperando que cambie el
+  framebuffer; no completa las 2 tasks pendientes ⇒ gate cerrado ⇒ el boot no avanza ⇒ no hay swap.
+
+### 9.3 Plan propuesto (implementar y elegir)
+- **A (fiel)**: quitar `osCreateViManager` de `reimplemented_funcs`
+  (`toolchain/src/N64Recomp/src/symbol_lists.cpp`, estilo ADR 0002) para que corra el hilo VI del ROM
+  (`FUN_80034840` → `__osViInit`/`__osViSwapContext`). Auditar duplicidad de eventos VI
+  (t19 espera en `0x8005C560`, igual que el hilo VI del ROM) y MMIO VI.
+- **B (quirúrgico)**: mantener el `OSViContext` (0x8004AE70…) desde el runtime; p. ej. invocar el
+  `__osViSwapContext` recompilado (`0x80032360`) tras cada retrace (`get_function(0x80032360)`), o
+  replicar sus escrituras (framebuffer, mq/msg, modo) en `osViSetMode`/`osViSetEvent`/`osViSwapBuffer`.
+
+### 9.4 Herramientas nuevas (opt-in, runtime local gitignored)
+- `HH_VERBOSE=1`: `[GATE]` (cambio de `0x8005CD4C` con VIS) y `[RND]` ampliado (cd4c, t17q/t16q,
+  mq0x8005C4F0, req +0x888, q158, t19q).
+- `HH_TBLTRACE=1`: `[SUBM]`, `[PUSH]/[POP]/[BCAST]` (con tid) y `[FB]` (`FUN_80035050`).
+- `HH_GATELOG=1`: `[GATE2]` recv/send de `0x8005C4F0` y `0x8005C528` con `[msg+8]` y contador.
+- Evidencia: `notes/2026-09-13-vi-context-y-sentinel.md`.

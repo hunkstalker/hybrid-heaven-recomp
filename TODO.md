@@ -79,19 +79,21 @@
       3.ª llamada a `FUN_80003824` disparada por `FUN_801079B0` (init módulo 7, call site `0x80107A0C`),
       igual que el emulador (`ra=0x80107A14`).
     Detalle y trazas: `notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`.
-14. [•] **Gate de tareas RSP (`0x8005CD4C`) — el bloqueo real**. `FUN_80001454` deja de llamar al
+14. [•] **Gate de tareas RSP + contexto VI — el bloqueo real**. `FUN_80001454` deja de llamar al
     dispatcher `FUN_80005270` cuando `[0x8008D545]==0 && [0x8005C4B0+0x89C]>=2` (gate en
-    `0x80001820`). En el port el contador queda clavado en 2 (VI60→VI1500; 6 llamadas al dispatcher)
-    mientras el emulador oscila 0/1 (544 llamadas/15 s). El contador lo sube `FUN_80000ed0`
-    (`[msg+8]&0x40`) y lo baja el hilo 17 `FUN_80000bf0` (`0x80000D74`). Al bloquearse, la cola
-    `0x8005C4F0` del port queda con `blocked_on_recv=blocked_on_send=0x80049930` (no es un thread del
-    runtime; el hilo 17 es `0x8005C9D8`) y `__osRunningThread` (`0x80049940`) corrupto
-    (`0x00011BF0` vs `0x80059D80` del emulador) → **estado de hilos/colas corrupto**.
-    Siguiente: identificar quién escribe `0x8005C4F0+0/+4` y `0x80049930/40` (wplog en emulador +
-    watchpoint gdb en port) y decidir si el origen es la convivencia del scheduler del runtime con
-    las rutinas libultra del ROM recompiladas (`FUN_8002Dxxx/0x8002Exxx`).
-    **Work order autocontenido: `notes/2026-09-13-workorder-gate-rsp.md`** (mecanismo, evidencia,
-    hipótesis y comandos).
+    `0x80001820`). Cadena diagnosticada:
+    - **Hecho**: `FUN_80030610` era el `osCreateMesgQueue` del ROM (centinela `&__osThreadTail` =
+      `0x80049930`); el runtime de mensajes asumía listas NULL ⇒ sacaba/programaba el centinela como
+      hilo (corrompía `__osRunningThread` y las colas). **Fix**: rename `FUN_80030610` →
+      `osCreateMesgQueue` en las syms. Verificado: colas NULL, `__osRunningThread` válido.
+    - **Bloqueo actual**: el **`OSViContext` del juego** (`0x8004AE70…`) nunca se inicializa
+      (`__osViInit`/`__osViSwapContext` = 0 llamadas) porque `osCreateViManager` está reimplementado
+      y el hilo VI del ROM (`FUN_80034840`) no corre; `FUN_80035050` devuelve 0 y el hilo 17 gira
+      esperando un cambio de framebuffer ⇒ contador clavado en 2 ⇒ gate cerrado.
+    - Siguiente: opción **A** (sacar `osCreateViManager` de `reimplemented_funcs`, auditar duplicidad
+      VI) u opción **B** (mantener el `OSViContext` desde el runtime invocando/replicando
+      `__osViSwapContext` por retrace). Detalle: `notes/2026-09-13-vi-context-y-sentinel.md` §4 y
+      work order `notes/2026-09-13-workorder-gate-rsp.md` §9.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

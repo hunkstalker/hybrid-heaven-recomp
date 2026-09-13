@@ -606,7 +606,7 @@ functions = [
     { name = "FUN_800304a0", vram = 0x800304A0, size = 0x50 },
     { name = "osEPiStartDma", vram = 0x800304F0, size = 0xE0 },
     { name = "FUN_800305d0", vram = 0x800305D0, size = 0x40 },
-    { name = "FUN_80030610", vram = 0x80030610, size = 0x30 },
+    { name = "osCreateMesgQueue", vram = 0x80030610, size = 0x30 },
     { name = "FUN_80030640", vram = 0x80030640, size = 0x80 },
     { name = "FUN_800306c0", vram = 0x800306C0, size = 0xB0 },
     { name = "FUN_80030770", vram = 0x80030770, size = 0xA0 },
