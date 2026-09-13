@@ -107,13 +107,12 @@
       gfx/audio (`osSpTaskYield`/`Yielded` estaban stubeados); el fix entrega una completación SP
       sintética al hilo que hace yield. Resultado: **743 audio tasks** (vs 62), request `0x87`
       procesada y **carga #11** (`0x5D280 → 0x801B6600 = 0x0020004C`) = hito del emulador a t≈10,5 s.
-    - **Frontera actual**: el audio corre a ~60 tasks/s con 0 yields; ASan (build_asan con
-      `-fsanitize=address`) **no** detecta corrupción de memoria host: el crash es un READ inválido
-      del **propio juego** (`FUN_8001FD14` con descriptor `a1` basura) ⇒ corrupción **lógica en
-      RDRAM**. `[BADMQ]` (validación en APIs y cola externa) da 0 ⇒ el puntero corrupto no pasa por
-      las APIs. Siguiente: comparar el estado del driver (descriptor/buffers AI) port vs emulador
-      antes del fallo y validar los punteros de las DMAs del ucode. Detalle:
-      `notes/2026-09-13-ucode-audio-gate-transicion.md` §10.
+    - **Frontera actual**: el descriptor corrupto sale de `s0 = *(ctx+4)` (contextos de audio
+      `0x800C7A50/8A40/9A30`); el ucode **no** escribe ahí (ventana `[RSPW]`: solo buffers AI en
+      `+0x10`). La corrupción es estado del propio juego (llega `a1` basura, incluso direcciones
+      físicas). Siguiente: comparar `ctx+4`/buffers AI port vs emulador justo antes del fallo, y
+      revisar el modelado del AI (registros/counters) que el driver usa para calcular el descriptor.
+      Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md` §11.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

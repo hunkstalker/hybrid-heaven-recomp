@@ -198,3 +198,24 @@ salida) sobre estructuras del driver cuando el command list/estado del juego se 
 orden (protocolo de completaciones SP). Siguiente: comparar el estado del driver (descriptor
 {ptr,size} y buffers AI) port vs emulador justo antes del fallo, y validar los punteros de las
 comandos DMA del ucode contra los rangos del juego.
+
+## 11. Origen del descriptor corrupto y descarte del ucode (2026-09-13)
+
+- Instrumentando `FUN_8001FD14` (entrada y carga del descriptor) y `FUN_8001FBA8` (asignación de
+  `s0`): `a1` sale de `s0 = *(ctx+4)`, donde `ctx` es uno de los **tres contextos de audio**
+  `0x800C7A50 / 0x800C8A40 / 0x800C9A30` (los mensajes que recibe el driver en `0x80091DA0`; el
+  descriptor apunta al command list, p.ej. `0x800C79F0`, con `{ptr, size}` en `+0/+4`).
+- Se ve la corrupción en vivo: `call FD14: ... a1=F6EFF864` y en otro run `a1=000A1868` (¡física!),
+  siempre en `ctx+4` ⇒ el juego lee basura de su propio estado.
+- **El ucode no es el culpable**: la ventana de DMAs del ucode sobre los contextos solo muestra
+  escrituras a `0xC7A60/0xC8A50/0xC9A40` (+0x10, los buffers AI), nunca a `ctx+4`
+  (`0xC7A54/0xC8A44/0xC9A34`); `RSPW=0` en la ventana `+4`.
+- Las completaciones SP dirigidas y la cola compartida dan igual: el crash aparece en ambos modos a
+  los ~9-13 s de audio (con `ctx+4` sobrescrito en algún momento anterior).
+- Hipótesis viva: el driver del juego calcula el descriptor a partir de estado que depende del
+  **AI** (registros/counters que el port no modela) y/o reutiliza contextos fuera de orden; comparar
+  `ctx+4` y los buffers AI port vs emulador justo antes del fallo.
+
+Instrumentación temporal usada (ya restaurada): logs `[FD14]`/`[FBA8]` en
+`port/.../RecompiledFuncs/funcs_7.c` (copiado de `config/RecompiledFuncs_combined/`), ventanas
+`[RSPW]` en `rsp.hpp`.
