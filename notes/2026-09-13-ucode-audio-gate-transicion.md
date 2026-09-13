@@ -171,3 +171,30 @@ para ver por qué deja de emitir con el contador en 2.
 Siguiente: (1) diagnosticar el descriptor inválido de `FUN_8001FD14`/`MQ_IS_EMPTY` (loguear `a1` y
 su origen aguas arriba); (2) repetir un run largo con `HH_DUMP_VI` para confirmar el burst de la
 transición (`[LD384]` >11, `0x5FBEC6`, `fe00`).
+
+## 10. Diagnóstico del crash con AddressSanitizer (2026-09-13)
+
+Setup ASan (reproducible):
+- `apk add gcompat` (el `dxc` prebuilt de RT64 necesita el loader glibc `/lib64/ld-linux-x86-64.so.2`).
+- `build_asan` con `-fsanitize=address -fno-omit-frame-pointer` y symlink de `baserom.us.z64`.
+- El handler propio de SIGSEGV anula el de ASan ⇒ se desactiva con `#if !defined(__SANITIZE_ADDRESS__)`
+  en `main.cpp`.
+
+Resultados:
+- ASan **no detecta ninguna violación de memoria host** (ni overflow de DMEM: los chequeos ya son
+  reales en `rsp.hpp`; 0 overflows en los runs). El crash es un **READ inválido en el código del
+  propio juego**: `FUN_8001FD14` (driver de audio) leyendo el descriptor `a1` (ptr+size) con un
+  puntero basura (p.ej. `0x73c50209e1c6`, desalineado).
+- La cadena del otro crash era `FUN_80000ed0 → osSendMesg → dequeue_external_messages → do_send →
+  thread_queue_pop` con un `mq` basura; se añadió validación `[BADMQ]` en encolar/desencolar y en
+  `osRecvMesg/osSendMesg_recomp` (con `ra` del juego): **0 BADMQ** ⇒ el mq corrupto no pasa por las
+  APIs; la corrupción es **lógica en RDRAM** (estructuras del juego), no un BADMQ de argumento.
+- Ocurre en ambos modos (shared y dirigido) a los ~10-13 s de audio (~700-750 tasks); con el timing
+  dependiente, algunos runs llegan a 109 s.
+- El audio sigue yendo a ~60 tasks/s con 0 yields.
+
+Hipótesis principal: la corrupción la produce el **propio ucode** al escribir en RDRAM (DMAs de
+salida) sobre estructuras del driver cuando el command list/estado del juego se reutiliza fuera de
+orden (protocolo de completaciones SP). Siguiente: comparar el estado del driver (descriptor
+{ptr,size} y buffers AI) port vs emulador justo antes del fallo, y validar los punteros de las
+comandos DMA del ucode contra los rangos del juego.

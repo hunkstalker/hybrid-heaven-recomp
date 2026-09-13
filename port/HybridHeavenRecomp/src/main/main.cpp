@@ -123,23 +123,22 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
             sig, info ? info->si_addr : nullptr, rip);
     }
     uint64_t* sp = (uint64_t*)uc->uc_mcontext.gregs[REG_RSP];
-    fprintf(stderr, "[SEGV] stack scan (rsp=%p):\n", (void*)sp);
-    for (int i = 0; i < 64; i++) {
-        void* p = (void*)sp[i];
-        Dl_info di2{};
-        if (dladdr(p, &di2) != 0 && di2.dli_fname != nullptr) {
-            fprintf(stderr, "  [%2d] %p %s+%td\n", i, p, di2.dli_sname ? di2.dli_sname : "?", (char*)p - (char*)di2.dli_saddr);
-        }
+    fprintf(stderr, "[SEGV] stack (base=%p):", (void*)di.dli_fbase);
+    for (int i = 0; i < 40; i++) {
+        fprintf(stderr, " %llX", (unsigned long long)sp[i]);
     }
+    fprintf(stderr, "\n");
     _exit(139);
 }
 
 int main(int argc, char** argv) {
+#if !defined(__SANITIZE_ADDRESS__)
     struct sigaction hh_sa{};
     hh_sa.sa_sigaction = hh_segv_handler;
     hh_sa.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &hh_sa, nullptr);
     sigaction(SIGBUS, &hh_sa, nullptr);
+#endif
     auto app_folder_path = hh::get_app_folder_path();
 #ifndef _WIN32
     install_crash_handlers();

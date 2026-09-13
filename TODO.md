@@ -107,13 +107,13 @@
       gfx/audio (`osSpTaskYield`/`Yielded` estaban stubeados); el fix entrega una completación SP
       sintética al hilo que hace yield. Resultado: **743 audio tasks** (vs 62), request `0x87`
       procesada y **carga #11** (`0x5D280 → 0x801B6600 = 0x0020004C`) = hito del emulador a t≈10,5 s.
-    - **Frontera actual**: con `HH_SP_SHARED=1` + `sp_complete` del gfx en el submit el audio corre a
-      **~60 tasks/s con 0 yields**; mejor run: **6575 tasks en 109,7 s de audio** (el emulador
-      transiciona a ~64 s), pero un **segfault intermitente** corta los runs (crash en `FUN_8001FD14`
-      @0x8001FD44, descriptor de buffer inválido, y en `MQ_IS_EMPTY` con mq basura). Siguiente:
-      (1) diagnosticar el descriptor inválido; (2) run largo con dumps para confirmar el burst de la
-      transición (`[LD384]`>11, `0x5FBEC6`, `fe00`). Detalle:
-      `notes/2026-09-13-ucode-audio-gate-transicion.md` §9.
+    - **Frontera actual**: el audio corre a ~60 tasks/s con 0 yields; ASan (build_asan con
+      `-fsanitize=address`) **no** detecta corrupción de memoria host: el crash es un READ inválido
+      del **propio juego** (`FUN_8001FD14` con descriptor `a1` basura) ⇒ corrupción **lógica en
+      RDRAM**. `[BADMQ]` (validación en APIs y cola externa) da 0 ⇒ el puntero corrupto no pasa por
+      las APIs. Siguiente: comparar el estado del driver (descriptor/buffers AI) port vs emulador
+      antes del fallo y validar los punteros de las DMAs del ucode. Detalle:
+      `notes/2026-09-13-ucode-audio-gate-transicion.md` §10.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
