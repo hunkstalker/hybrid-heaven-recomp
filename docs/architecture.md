@@ -131,12 +131,14 @@ registrar en la base determinista.
   task en vuelo (detalle: `../notes/2026-09-13-deadlock-sp-race.md` §5).
   **Frontera actual**: el estado del port a VI36000 es **idéntico** al del emulador antes de su
   transición (`node1C=801BF1CC`, `n18=8012E584`, `fe00=0`); el emulador dispara a t≈63,7 s un burst
-  de 12 loads (id 0x19 = `0x5FBEC6 → 0x801BF1A0`). El port ya supera el conteo de dispatches del
-  emulador (0,15/frame vs 1/frame; 9–12/s vs 64/s) ⇒ el trigger no depende solo del ritmo. Divergencia
-  estructural candidata: la estructura de contexto `0x8004FAEC..0x8004FBC0` (hilo actual, code ptrs,
-  mqs) está a cero en el port y poblada en el emulador (ver `../TODO.md` #14
-  y `../notes/2026-09-13-audio-ai-y-estructura-pre-transicion.md`).
-  **Ojo**: los dumps de `r64dump` ya están en LE nativo (no aplicar `bswap32`).
+  de 12 loads (id 0x19 = `0x5FBEC6 → 0x801BF1A0`). **Causa raíz**: sin RSP-HLE el emulador no hace el
+  burst ⇒ la transición la dispara el **ucode de audio (RSP)**: el mixer `FUN_8002C4D0` invoca por
+  `jalr` el callback `FUN_80020460`, que procesa `*(u16*)0x800CBB4C` con `FUN_80022044` (carga
+  `0x801B6600`). El port no-opera las tasks de audio (`get_rsp_microcode → nullptr`). Siguiente:
+  recompilar el ucode (ROM `0x37130`, `RSPRecomp`) y registrarlo (ver `../TODO.md` #14 y
+  `../notes/2026-09-13-ucode-audio-gate-transicion.md`).
+  **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los
+  corrompe (`801BF1CC` → `CCF11B80`).
 
 ## 6. Toolchain de recompilación
 

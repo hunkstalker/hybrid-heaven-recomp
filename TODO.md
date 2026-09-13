@@ -97,19 +97,17 @@
       el emisor aún no se había bloqueado). Evidencia (300 s): dispatcher **3723** (vs 428 antes),
       `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, sin símbolos faltantes ni asserts.
       Detalle: `notes/2026-09-13-deadlock-sp-race.md` §5.
-    - **Frontera actual (transición `fe00`)**: con el deadlock resuelto y el mapa task→hilo corregido
-      (audio dirigido a t18), el port sigue en el estado pre-transición a VI36000 (620 s):
-      `node1C=801BF1CC`, `n18=8012E584`, `fe00=0`, **idéntico al emulador antes de su burst**. El
-      emulador transiciona a t≈63,7 s (12 loads seguidos; id 0x19 = `0x5FBEC6 → 0x801BF1A0`), con
-      64 dispatcher/s vs 9–12/s del port, pero el port ya superó el conteo de dispatches del emulador
-      ⇒ no es (solo) ritmo. Divergencia estructural candidata: la estructura de contexto
-      `0x8004FAEC..0x8004FBC0` (hilo actual + code ptrs + mqs) está **a cero en el port** y poblada en
-      el emulador desde t0 (réplicas en `0x80051AEC`/`0x80053AEC`). Detalle:
-      `notes/2026-09-13-audio-ai-y-estructura-pre-transicion.md`.
-    - Siguiente: identificar quién inicializa `0x8004FAEC` en el emulador (wplog en
-      `0x4FAE0..0x4FBC0`; el core wplog segfaultea en la config actual → reconstruir) o el hook del
-      scheduler del ROM que el port no ejecuta; comprobar si el gate de la transición depende de ese
-      contexto.
+    - **Frontera actual (transición `fe00`)**: **causa raíz encontrada** — el gate es el **ucode de
+      audio (RSP)**. Sin RSP-HLE el emulador solo hace 2 cargas de boot y **nunca** el burst de la
+      transición; con él, el mixer `FUN_8002C4D0` invoca el callback `FUN_80020460` (~128/s) que
+      procesa la petición `*(u16*)0x800CBB4C` y llama a `FUN_80022044` (carga con `a1=0x801B6600`).
+      El port no-opera las tasks de audio (`get_rsp_microcode → nullptr`), así que la petición nunca
+      aparece (`0x801B6600=0`). (`0x8004FAEC` era la **pila** de un hilo del ROM: red herring.)
+    - Siguiente: **implementar el ucode de audio** — delimitar el texto RSP en ROM `0x37130`
+      (`task->t.ucode=0x80036530`), generar con `RSPRecomp` (existe en el toolchain; configs de
+      referencia `aspMain` en Zelda64Recomp/goemon64recomp), registrarlo en `hh::get_rsp_microcode`
+      para `type==2` y validar la petición + el burst + `fase`. Detalle/work order:
+      `notes/2026-09-13-ucode-audio-gate-transicion.md`.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
