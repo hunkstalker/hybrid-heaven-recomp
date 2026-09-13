@@ -91,14 +91,16 @@
       dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos faltantes (splits de
       mid-entries `0x80002364`, `0x800243F0`, `0x8002487C`…). Detalle:
       `notes/2026-09-13-vi-opcion-a-implementada.md` y ADR 0003.
-    - **Frontera actual**: la cadena de callbacks del port ya es **idéntica** a la del emulador
-      (setter `FUN_800058DC`; estado `obj@0x801D0474` igual a port VIS5400 = emu VIS2700). El
-      emulador avanza `fe00` (`0x801E`) y escribe código en `0x801D03C0`/`0x801CFE20` entre 60-90 s;
-      el port aún no a VIS7200 (120 s) porque el gate `[0x8005CD4C]>=2` cierra ~la mitad de los
-      frames (dispatcher 9,5/s vs 36/s). Siguiente: (1) emparejar el ritmo del gate (por qué el
-      contador descansa en 1-2 vs 0-1), (2) trazar el evento de progreso entre VIS3600-5400 del
-      emulador y compararlo con el port. Detalle:
-      `notes/2026-09-13-cadena-boot-y-progreso-fe00.md`.
+    - **Frontera actual (deadlock SP)**: el port se congela con `[0x8005CD4C]=2`: **t18** espera la
+      completación SP de una task audio (`0x800C89E8`) en `0x8005C598` y **t17** espera el ack de
+      t18 por `+0x158` (`+0x890`/`+0x894` set). Las colas SP/DP son compartidas por t17 y t18; el
+      runtime despierta a un solo waiter y una completación puede consumirla el hilo equivocado
+      (race de timing; en el emulador ambos están idle). Efecto: dispatcher 9,5/s vs 36/s, sin
+      transición (`fe00`, id 0x19 → ROM `0x5FBEC6` → `0x801BF1A0` a t≈63,9 s del emulador).
+    - Siguiente: **asociar cada task RSP al hilo emisor** y entregar la completación SP a ese hilo
+      (mapa task→thread en `submit_rsp_task`, entrega directa en `sp_complete`). Alternativas:
+      serializar el SP en el runtime o replicar el timing del emulador. Detalle:
+      `notes/2026-09-13-deadlock-sp-race.md`.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
