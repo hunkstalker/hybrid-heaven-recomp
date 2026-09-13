@@ -112,7 +112,8 @@
       `+0x10`). La corrupción es estado del propio juego (llega `a1` basura, incluso direcciones
       físicas). Siguiente: comparar `ctx+4`/buffers AI port vs emulador justo antes del fallo, y
       revisar el modelado del AI (registros/counters) que el driver usa para calcular el descriptor.
-      Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md` §11.
+      Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md` §11. **Work order autocontenido
+      para retomar: `notes/2026-09-13-workorder-audio-ai-descriptor.md`.**
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
