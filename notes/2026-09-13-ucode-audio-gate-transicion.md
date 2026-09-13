@@ -128,3 +128,27 @@ Siguiente: instrumentar el handshake `+0x88C`/`+0x890`/`+0x894`/`+0x158` (escrit
   Siguiente: cuadrar el yield con el protocolo (p.ej. devolver `OS_TASK_YIELDED` y marcar la task
   para que el juego tome la rama de resubmit, o entregar la sintética solo si no hay completación
   real en vuelo).
+
+## 8. Ajuste del yield: completación SP del gfx independiente del render (2026-09-13)
+
+El emulador **nunca** llama `osSpTaskYield`/`Yielded` (0 en 15 s), pero el port lo hacía cientos de
+veces: el `sp_complete` de los gfx se emitía en el hilo de RT64 **después del backlog de render**
+(~80 ms en software), así que `+0x88C` (task en vuelo) permanecía activo y el driver de audio
+yieldaba constantemente.
+
+**Fix** (runtime, `events.cpp`): el `sp_complete` de las tasks gfx se emite en `submit_rsp_task`
+(el RSP real completa al parsear la DL, independiente del RDP); el hilo gfx solo hace `send_dl` +
+`dp_complete`. Se probó además `HH_SP_SHARED` (cola SP compartida estilo libultra, sin reparto
+dirigido; el yield sin completación sintética).
+
+Resultados (run 60 s, `HH_SP_SHARED=1`):
+- **0 yields** (como el emulador), **813 audio tasks en 13,8 s = 59 tasks/s** (velocidad del
+  emulador; antes ~5/s).
+- Hito repetido: request `0x87` (`[MDLE]`/`[MDL]`) y carga #11 (`0x5D280 → 0x801B6600`).
+- **Nuevo tope**: a los ~813 tasks (13,8 s de audio) se detiene el **emisor de ticks** (mq
+  `0x80091DA0` vacío, t3 esperando en él, t18 en `c4b8`, colas vacías, `+0x89C=2`, `cd4c=2`). El
+  juego sigue renderizando (llega a VI3600) pero sin audio ni progresión (`fe00=0`).
+
+Siguiente: instrumentar el emisor de ticks (`FUN_80000A0C`/BCAST a `0x80091DA0`) y la contabilidad
+de `+0x89C` (incremento en `FUN_80000ed0`, decremento en `FUN_80000bf0`/`FUN_80000dc8` @0x80000D7C)
+para ver por qué deja de emitir con el contador en 2.

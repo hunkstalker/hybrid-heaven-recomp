@@ -107,12 +107,12 @@
       gfx/audio (`osSpTaskYield`/`Yielded` estaban stubeados); el fix entrega una completación SP
       sintética al hilo que hace yield. Resultado: **743 audio tasks** (vs 62), request `0x87`
       procesada y **carga #11** (`0x5D280 → 0x801B6600 = 0x0020004C`) = hito del emulador a t≈10,5 s.
-    - **Frontera actual**: el pipeline se desincroniza a las ~743 tasks (t18 consume una
-      completación extra del yield en el wait post-submit, queda en `c4b8`/SP y t3 esperando ack en
-      `EB8`). Siguiente: cuadrar el yield con el protocolo (devolver `OS_TASK_YIELDED` y marcar la
-      task para la rama de resubmit, o sintetizar solo si no hay completación real en vuelo) y
-      verificar la transición (`fe00`, burst id 0x19). Detalle:
-      `notes/2026-09-13-ucode-audio-gate-transicion.md` §7.
+    - **Frontera actual**: con el `sp_complete` del gfx movido al submit (independiente del render)
+      y `HH_SP_SHARED=1` el audio corre a **59 tasks/s con 0 yields** (antes ~5/s y cientos de
+      yields). Nuevo tope: a los ~813 tasks (13,8 s de audio) deja de emitir el **emisor de ticks**
+      (`0x80091DA0` vacío, t3 esperando, `+0x89C=2`, `cd4c=2`) y no llega la transición. Siguiente:
+      instrumentar `FUN_80000A0C`/BCAST y la contabilidad de `+0x89C`. Detalle:
+      `notes/2026-09-13-ucode-audio-gate-transicion.md` §8.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

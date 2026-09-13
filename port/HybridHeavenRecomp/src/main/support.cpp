@@ -326,7 +326,9 @@ RspUcodeFunc* hh::get_rsp_microcode(const OSTask* task) {
     uint32_t type = task->t.type;
     if (type == M_AUDTASK) {
         if (getenv("HH_VERBOSE") != nullptr) {
-            fprintf(stderr, "[AUD] type=%u flags=%X boot=%08X/%X ucode=%08X/%X udata=%08X/%X stack=%08X/%X out=%08X/%X data=%08X/%X yield=%08X/%X\n",
+            static const auto t0 = std::chrono::steady_clock::now();
+            double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            fprintf(stderr, "[AUD] t=%.0fms type=%u flags=%X boot=%08X/%X ucode=%08X/%X udata=%08X/%X stack=%08X/%X out=%08X/%X data=%08X/%X yield=%08X/%X\n", ms,
                 type, task->t.flags,
                 (unsigned)task->t.ucode_boot, task->t.ucode_boot_size,
                 (unsigned)task->t.ucode, task->t.ucode_size,
