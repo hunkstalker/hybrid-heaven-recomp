@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 86 | 2026-09-13 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 102 | 2026-09-13 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 26 | 2026-09-10 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 160 | 2026-09-13 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 161 | 2026-09-13 |
 
 ## Técnico y guías (vivos)
 
@@ -37,7 +37,7 @@
 | [Work order — Bloqueo por gate de tareas RSP (`0x8005CD4C`)](../notes/2026-09-13-workorder-gate-rsp.md) | Documento operativo para retomar ESTA tarea en una sesión nueva. Autocontenido. | 194 | 2026-09-13 |
 | [2026-09-13 — ADR 0003 implementado: subsistema VI del ROM (opción A)](../notes/2026-09-13-vi-opcion-a-implementada.md) | Evidencia de la implementación de la decisión A (ver `../docs/adr/0003-vi-libultra-del-rom.md`). | 57 | 2026-09-13 |
 | [2026-09-13 — Sentinel de colas libultra + contexto VI del juego](../notes/2026-09-13-vi-context-y-sentinel.md) | Evidencia (continúa `2026-09-13-directorio-nisitenma-y-gate-rsp.md` y su work order). | 85 | 2026-09-13 |
-| [2026-09-13 — El gate de la transición es el ucode de audio (RSP)](../notes/2026-09-13-ucode-audio-gate-transicion.md) | Continúa `2026-09-13-audio-ai-y-estructura-pre-transicion.md`. **Causa raíz encontrada** de por | 154 | 2026-09-13 |
+| [2026-09-13 — El gate de la transición es el ucode de audio (RSP)](../notes/2026-09-13-ucode-audio-gate-transicion.md) | Continúa `2026-09-13-audio-ai-y-estructura-pre-transicion.md`. **Causa raíz encontrada** de por | 173 | 2026-09-13 |
 | [2026-09-13 — Segundo gate: des-stubbing de libultra y bloqueo del loader](../notes/2026-09-13-segundo-gate-libultra.md) | Nota de evidencia (continuación de `2026-09-13-arranque-memsize-y-accesorios.md`). No operativa. | 93 | 2026-09-13 |
 | [2026-09-13 — Directorio Nisitenma, loader y gate de tareas RSP](../notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md) | Nota de evidencia (continúa `2026-09-13-segundo-gate-libultra.md`). No operativa. | 131 | 2026-09-13 |
 | [2026-09-13 — Deadlock del gate: race de completaciones SP entre hilos de tareas](../notes/2026-09-13-deadlock-sp-race.md) | Evidencia de la tarea "emparejar el ritmo del gate `0x8005CD4C`". Continúa | 80 | 2026-09-13 |

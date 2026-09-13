@@ -107,7 +107,39 @@ static void install_crash_handlers() {
 }
 #endif
 
+#include <csignal>
+#include <ucontext.h>
+#include <dlfcn.h>
+static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
+    ucontext_t* uc = (ucontext_t*)uctx;
+    void* rip = (void*)uc->uc_mcontext.gregs[REG_RIP];
+    Dl_info di{};
+    if (dladdr(rip, &di) != 0) {
+        fprintf(stderr, "\n[SEGV] signal=%d addr=%p rip=%p base=%p sym=%s+%td\n",
+            sig, info ? info->si_addr : nullptr, rip, di.dli_fbase,
+            di.dli_sname ? di.dli_sname : "?", (char*)rip - (char*)di.dli_saddr);
+    } else {
+        fprintf(stderr, "\n[SEGV] signal=%d addr=%p rip=%p (sin simbolo)\n",
+            sig, info ? info->si_addr : nullptr, rip);
+    }
+    uint64_t* sp = (uint64_t*)uc->uc_mcontext.gregs[REG_RSP];
+    fprintf(stderr, "[SEGV] stack scan (rsp=%p):\n", (void*)sp);
+    for (int i = 0; i < 64; i++) {
+        void* p = (void*)sp[i];
+        Dl_info di2{};
+        if (dladdr(p, &di2) != 0 && di2.dli_fname != nullptr) {
+            fprintf(stderr, "  [%2d] %p %s+%td\n", i, p, di2.dli_sname ? di2.dli_sname : "?", (char*)p - (char*)di2.dli_saddr);
+        }
+    }
+    _exit(139);
+}
+
 int main(int argc, char** argv) {
+    struct sigaction hh_sa{};
+    hh_sa.sa_sigaction = hh_segv_handler;
+    hh_sa.sa_flags = SA_SIGINFO;
+    sigaction(SIGSEGV, &hh_sa, nullptr);
+    sigaction(SIGBUS, &hh_sa, nullptr);
     auto app_folder_path = hh::get_app_folder_path();
 #ifndef _WIN32
     install_crash_handlers();

@@ -152,3 +152,22 @@ Resultados (run 60 s, `HH_SP_SHARED=1`):
 Siguiente: instrumentar el emisor de ticks (`FUN_80000A0C`/BCAST a `0x80091DA0`) y la contabilidad
 de `+0x89C` (incremento en `FUN_80000ed0`, decremento en `FUN_80000bf0`/`FUN_80000dc8` @0x80000D7C)
 para ver por qué deja de emitir con el contador en 2.
+
+## 9. Rendimiento pleno del audio y segfault intermitente (2026-09-13)
+
+- Con `HH_SP_SHARED=1` + `sp_complete` del gfx en el submit, el audio corre a **~60 tasks/s**
+  (velocidad del emulador) sin yields: mejor run **6575 tasks en 109,7 s** de audio (el emulador
+  transiciona a ~64 s / ~3500 tasks) ⇒ el port ya supera el punto lógico de la transición en runs
+  buenos, pero ese run no tenía dumps y no se pudo confirmar `fe00`/burst.
+- **Nuevo blocker**: segfault **intermitente** (corta runs a los ~10-110 s):
+  - Crash en `FUN_8001FD14` @0x8001FD44 (`lh a1, 4(v1)`): el descriptor de buffer de salida `v1`
+    (a1 del driver) es inválido. La ejecución viene de `FUN_8001FBA8`.
+  - Otro crash en `MQ_IS_EMPTY` (`mesgqueue.cpp:131`) con `mq` = dirección de heap inválida.
+  - Con manejador de SIGSEGV en `main.cpp` (imprime RIP/stack scan) porque no hay core dumps
+    (`core_pattern` ro) ni ptrace.
+- Instrumentación nueva: `[R560]` (msg recibido por t19 en `0x8005C560`, gateado por `HH_VERBOSE`),
+  `[BCAST]` contador incondicional, timestamp en `[AUD]`, y SIGSEGV handler.
+
+Siguiente: (1) diagnosticar el descriptor inválido de `FUN_8001FD14`/`MQ_IS_EMPTY` (loguear `a1` y
+su origen aguas arriba); (2) repetir un run largo con `HH_DUMP_VI` para confirmar el burst de la
+transición (`[LD384]` >11, `0x5FBEC6`, `fe00`).
