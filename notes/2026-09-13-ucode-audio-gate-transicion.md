@@ -82,3 +82,29 @@ port_tim.log}`.
   (2417 llamadas/15 s desde `FUN_80020460`); en el port `FUN_80021EB8` **nunca** se llama porque la
   cadencia del driver de audio es demasiado baja. Instrumentar el productor (thread 3 → mq
   `0x8005C4B8` de t18) para hallar el gate de la cadencia (VI/AI/contador).
+
+## 6. Análisis del atasco del driver de audio (2026-09-13)
+
+Cadena (emulador y port):
+- Ticks: mq `0x80091DA0` (msg `0x8005C4B0`) desde `FUN_80000A0C` (BCAST del handler VI), ~57/s.
+- Driver: thread 3 (`FUN_8001FBA8`) recibe tick → `FUN_8001FD14` (mixer `FUN_8002C4D0` + submit)
+  → envía task a t18 (mq `0x8005C4B8`, `osSendMesg` flags=1) → espera ack en `0x80091EB8`.
+- t18 (`FUN_80000a5c`): recibe task de `c4b8` → si `*(obj+0x88C)!=0` espera SP (cola de la task
+  anterior) → `osSpTaskStartGo` → espera SP (`obj+0xE8` = `0x8005C598`) → ack a `0x80091EB8`
+  (y ack a `+0x158`/t17 si `+0x894!=0`; `+0x890=0`).
+
+Estado del port tras el arranque (runs `port_hang`/`port_noexp`, 100-170 s):
+- El driver corre bien al principio (**930 tasks/25 s = 37/s** con `HH_QLOG=1`), pero se atasca tras
+  **~62-70 tasks**: t18 bloqueado en SP con `+0x88C=0` y sin task en vuelo; t3 bloqueado en
+  `0x80091EB8`; el mq `0x80091DA0` acumula **64 ticks** (lleno) y deja de consumirse.
+- Conteos: sends a `c4b8`=**63**, `[SPT] type=2`=**62**, acks a `EB8`=**62**, `[AUD]`=**62** ⇒ una
+  task fue consumida por t18 pero **no se envió al SP ni se ackó** (evento perdido en el
+  handshake `+0x88C`/`+0x894`).
+- Experimentos: (a) desactivar el reparto dirigido para audio **no** cambia el atasco (no es la
+  causa); (b) con `HH_QLOG=1` el arranque va a 37/s (el timing lo enmascara, pero no se ha probado
+  >60 s).
+- Los pendientes dirigidos sin consumir son todos de **t17** (gfx); ninguno de audio.
+
+Siguiente: instrumentar el handshake `+0x88C`/`+0x890`/`+0x894`/`+0x158` (escritores en
+`FUN_80000bf0` PCs `0x80000CF8`/`0x80000D24`; lecturas en `FUN_80000a5c`) y `FUN_800349E0`/
+`FUN_80030FF0` (manejo SP) para localizar el evento perdido que deja a t18 esperando SP.

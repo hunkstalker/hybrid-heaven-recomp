@@ -103,11 +103,14 @@
       registrado en `hh::get_rsp_microcode` para `M_AUDTASK`. Procesa los comandos reales y **0
       exits** (antes 66/72). La petición la escribe `FUN_80021EB8` (id `0x87`) llamada por
       `FUN_80020F60` desde `FUN_80020460`.
-    - **Frontera actual**: cadencia del driver de audio. Emulador: **55 tasks/s** (caller `t18
-      FUN_80000a5c`) y mixer `FUN_80020460` ~128-160/s; port: ~1,8 tasks/s y ~3,3/s ⇒ ~30x lento,
-      por lo que `FUN_80021EB8` nunca corre (requisito para la petición y el burst id 0x19).
-      Siguiente: instrumentar el productor (thread 3 → mq `0x8005C4B8` de t18) y hallar su gate
-      (VI/AI/contador). Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md`.
+    - **Frontera actual**: el driver de audio corre a plena velocidad al principio (**930 tasks/25 s
+      = 37/s** con `HH_QLOG=1`), pero se **atasca tras ~62-70 tasks**: t18 queda bloqueado en SP
+      (`+0x88C=0`, sin task en vuelo) y t3 en `0x80091EB8`, con 64 ticks acumulados en
+      `0x80091DA0`. Conteos: tasks a t18=63, submits SP=62, acks=62 ⇒ una task consumida sin
+      submit/ack (evento perdido en el handshake). Descartado: el reparto dirigido para audio no es
+      la causa. Siguiente: instrumentar `+0x88C/+0x890/+0x894/+0x158` (escritores en `FUN_80000bf0`)
+      y `FUN_800349E0`/`FUN_80030FF0`. Detalle:
+      `notes/2026-09-13-ucode-audio-gate-transicion.md` §6.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
