@@ -122,10 +122,11 @@ registrar en la base determinista.
   MMIO** que escribe `__osViSwapContext`). `OSViContext` (`0x8004AE70…`) queda como en el emulador
   (`00190001 8038F800 80049990 00013006 8005C560…`) y el gate de tareas RSP reabre (dispatcher 430
   llamadas/45 s, loader 10 módulos, 1359 DLs a RT64, sin símbolos faltantes).
-  **Frontera actual**: `fase` sigue en 0 porque los callbacks de progreso del módulo 23
-  (`FUN_801CBDC0`/`FUN_801CBE88`/`FUN_801CBE90`, que avanzan `0x801CFE00/02`) no se ejecutan; el nodo
-  de boot apunta a `+0x1C=0x801BF1CC` (ver `../TODO.md` #14 y
-  `../notes/2026-09-13-vi-opcion-a-implementada.md`).
+  **Frontera actual**: la cadena de boot del port ya coincide con el emulador (setter `FUN_800058DC`
+  y `obj@0x801D0474` idénticos). El emulador avanza el progreso `fe00` y escribe código en
+  `0x801D03C0`/`0x801CFE20` entre 60-90 s; el port aún no a VIS7200 porque el gate
+  `[0x8005CD4C]>=2` cierra ~la mitad de los frames (dispatcher 9,5/s vs 36/s) (ver `../TODO.md` #14
+  y `../notes/2026-09-13-cadena-boot-y-progreso-fe00.md`).
 
 ## 6. Toolchain de recompilación
 

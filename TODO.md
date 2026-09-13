@@ -91,11 +91,14 @@
       dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos faltantes (splits de
       mid-entries `0x80002364`, `0x800243F0`, `0x8002487C`…). Detalle:
       `notes/2026-09-13-vi-opcion-a-implementada.md` y ADR 0003.
-    - **Frontera actual**: `fase` sigue en 0 y `0x801CFE00/02` en 0: los callbacks de progreso del
-      módulo 23 (`FUN_801CBDC0`/`FUN_801CBE88`/`FUN_801CBE90`) no se ejecutan (el nodo de boot apunta
-      a `+0x1C=0x801BF1CC`). Siguiente: rastrear la cadena de descriptores/objetos que debe instalar
-      el callback de progreso (comparar selección de descriptor/estado del nodo con el emulador).
-      Work order: `notes/2026-09-13-workorder-gate-rsp.md`.
+    - **Frontera actual**: la cadena de callbacks del port ya es **idéntica** a la del emulador
+      (setter `FUN_800058DC`; estado `obj@0x801D0474` igual a port VIS5400 = emu VIS2700). El
+      emulador avanza `fe00` (`0x801E`) y escribe código en `0x801D03C0`/`0x801CFE20` entre 60-90 s;
+      el port aún no a VIS7200 (120 s) porque el gate `[0x8005CD4C]>=2` cierra ~la mitad de los
+      frames (dispatcher 9,5/s vs 36/s). Siguiente: (1) emparejar el ritmo del gate (por qué el
+      contador descansa en 1-2 vs 0-1), (2) trazar el evento de progreso entre VIS3600-5400 del
+      emulador y compararlo con el port. Detalle:
+      `notes/2026-09-13-cadena-boot-y-progreso-fe00.md`.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
