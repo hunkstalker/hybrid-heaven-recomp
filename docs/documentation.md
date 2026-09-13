@@ -20,6 +20,7 @@ histórico que no compite con la verdad actual. El objetivo es que una sesión n
 | Tareas (única lista priorizada) | `../TODO.md` | vivo, corto |
 | Modelo técnico (memoria, `trans`, runtime) | `architecture.md` | vivo |
 | Plan de alto nivel por fases | `README.md` | vivo (puede quedar genérico) |
+| Índice de toda la documentación | `INDEX.md` | **generado** (`tools/analysis/docs_index.py`) |
 | Decisiones de arquitectura | `adr/NNNN-*.md` | **inmutable** |
 | Evidencia, diagnósticos, sesiones | `../notes/YYYY-MM-DD-*.md` | **histórico, no se edita** |
 | Docs legacy congelados | `../notes/archive/` | histórico |

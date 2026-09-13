@@ -176,3 +176,18 @@ for off in range(0,0x800000,4):
 **Resultado medido (2026-09-11)**: código de módulos y tablas estáticas **idénticos**; la divergencia
 está en **estado mutado** (el buffer scratch `0x8005BDB4`, estructuras de hilo, etc.), así que el diff
 puntual es ruidoso → el siguiente refinamiento es un **write-trace diff** (traza de writes ordenada).
+
+## 7. Documentación (índice y validación)
+
+`docs/INDEX.md` es **generado** (no editar a mano): agrupa todos los `.md` del proyecto (raíz,
+`docs/`, `notes/`) con título, resumen, líneas y fecha, y valida enlaces relativos y presupuestos de
+tamaño de los docs vivos.
+
+```sh
+python3 tools/analysis/docs_index.py          # regenera docs/INDEX.md y valida
+python3 tools/analysis/docs_index.py --check  # solo valida (útil como pre-commit/CI)
+```
+
+Reglas que aplica: `AGENTS`/`PROYECTO`/`TODO`/`documentation` tienen límite duro (si se supera, el
+checker sale != 0); los `.md` vivos por encima de 250 líneas avisan. Si un doc vivo crece, recortar
+y archivar según `documentation.md` §6.

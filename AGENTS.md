@@ -33,6 +33,8 @@ leer primero el work order `notes/2026-09-13-workorder-gate-rsp.md`** (autoconte
 3. **`TODO.md`** — qué toca ahora.
 4. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
 5. Bajo demanda: `docs/workflows.md` (procedimientos), `docs/adr/`, `notes/` (evidencia), `notes/archive/`.
+6. Índice completo de la documentación (generado): **`docs/INDEX.md`**. Regenerar/validar:
+   `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y tamaños sin escribir).
 
 ## Al cerrar sesión
 
