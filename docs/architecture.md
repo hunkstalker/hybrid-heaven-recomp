@@ -116,11 +116,16 @@ registrar en la base determinista.
   NULL-terminated del runtime de mensajes (el centinela se programaba como hilo y corrompía
   `__osRunningThread`). Se renombró a `osCreateMesgQueue` en `config/*.syms.toml` para que las
   llamadas usen la versión del runtime (`reimplemented_funcs`).
-  Bloqueante actual: el **`OSViContext` del juego** (`0x8004AE70…`) nunca se inicializa
-  (`__osViInit`/`__osViSwapContext` = 0 llamadas; `osCreateViManager` reimplementado ⇒ el hilo VI
-  del ROM `FUN_80034840` no corre) → `FUN_80035050`=0 → el hilo 17 espera un cambio de framebuffer →
-  `[0x8005CD4C]>=2` cierra el gate de `FUN_80001454` (`0x80001820`) y no se llama a `FUN_80005270`
-  → `fase=0` (ver `../TODO.md` #14 y `../notes/2026-09-13-vi-context-y-sentinel.md`).
+  **Resuelto (ADR 0003)**: el subsistema VI se genera del ROM (`osCreateViManager`, `osViSetMode/
+  Event/SwapBuffer`, `osViBlack`, `osViSetSpecialFeatures`, `osViGetCurrent/NextFramebuffer`); el
+  runtime solo emula hardware (temporización del interrupt y `ViRegs` leídos de los **registros VI
+  MMIO** que escribe `__osViSwapContext`). `OSViContext` (`0x8004AE70…`) queda como en el emulador
+  (`00190001 8038F800 80049990 00013006 8005C560…`) y el gate de tareas RSP reabre (dispatcher 430
+  llamadas/45 s, loader 10 módulos, 1359 DLs a RT64, sin símbolos faltantes).
+  **Frontera actual**: `fase` sigue en 0 porque los callbacks de progreso del módulo 23
+  (`FUN_801CBDC0`/`FUN_801CBE88`/`FUN_801CBE90`, que avanzan `0x801CFE00/02`) no se ejecutan; el nodo
+  de boot apunta a `+0x1C=0x801BF1CC` (ver `../TODO.md` #14 y
+  `../notes/2026-09-13-vi-opcion-a-implementada.md`).
 
 ## 6. Toolchain de recompilación
 

@@ -5,12 +5,12 @@ Fase actual: **arranque/carga**. Dos causas raíz ya resueltas: (1) el juego exi
 (`osGetMemSize=0x400000`; fix en `recomp.cpp`) y (2) el port tenía **stubeada la init de libultra**
 (des-stubbing del toolchain, ver **ADR 0002**). El port ya no aborta y su cadena de boot coincide con
 el emulador. **Loader y directorio Nisitenma descartados** (idénticos al emulador; el port sí carga
-idx54 vía `FUN_801079B0`). **Bloqueo actual**: gate de tareas RSP — `[0x8005CD4C]` queda clavado en 2 y `FUN_80001454` deja de
-llamar al dispatcher `FUN_80005270` → `fase=0`. Ya resuelto el sentinel de colas libultra
-(`osCreateMesgQueue`, `0x80049930`); queda el **`OSViContext` del juego sin inicializar/mantener**
-(`__osViInit`/`__osViSwapContext` no corren ⇒ el hilo 17 espera un cambio de framebuffer que nunca
-llega). Detalle: `notes/2026-09-13-vi-context-y-sentinel.md` y `TODO.md` #14. **Para retomar esta
-tarea, leer primero el work order `notes/2026-09-13-workorder-gate-rsp.md`** (autocontenido).
+idx54 vía `FUN_801079B0`). **Resuelto el bloqueo VI (ADR 0003)**: VI libultra del ROM + runtime leyendo registros MMIO; gate
+de tareas RSP reabierto (dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos
+faltantes). Sigue `fase=0`: los callbacks de progreso del módulo 23 (`FUN_801CBDC0`/`FUN_801CBE88`/
+`FUN_801CBE90`, que avanzan `0x801CFE00/02`) no se ejecutan (nodo de boot `+0x1C=0x801BF1CC`).
+Detalle: `notes/2026-09-13-vi-opcion-a-implementada.md` y `TODO.md` #14. **Para retomar, leer el
+work order `notes/2026-09-13-workorder-gate-rsp.md`** (autocontenido).
 
 ## Persistencia y entorno (CRÍTICO)
 

@@ -86,19 +86,22 @@
       `0x80049930`); el runtime de mensajes asumía listas NULL ⇒ sacaba/programaba el centinela como
       hilo (corrompía `__osRunningThread` y las colas). **Fix**: rename `FUN_80030610` →
       `osCreateMesgQueue` en las syms. Verificado: colas NULL, `__osRunningThread` válido.
-    - **Bloqueo actual**: el **`OSViContext` del juego** (`0x8004AE70…`) nunca se inicializa
-      (`__osViInit`/`__osViSwapContext` = 0 llamadas) porque `osCreateViManager` está reimplementado
-      y el hilo VI del ROM (`FUN_80034840`) no corre; `FUN_80035050` devuelve 0 y el hilo 17 gira
-      esperando un cambio de framebuffer ⇒ contador clavado en 2 ⇒ gate cerrado.
-    - Siguiente: opción **A** (sacar `osCreateViManager` de `reimplemented_funcs`, auditar duplicidad
-      VI) u opción **B** (mantener el `OSViContext` desde el runtime invocando/replicando
-      `__osViSwapContext` por retrace). Detalle: `notes/2026-09-13-vi-context-y-sentinel.md` §4 y
-      work order `notes/2026-09-13-workorder-gate-rsp.md` §9.
+    - **Resuelto (ADR 0003, opción A)**: el subsistema VI se genera del ROM (`osCreateViManager` y
+      la familia `osVi*`); el runtime lee los registros VI MMIO para RT64. `OSViContext` correcto,
+      dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos faltantes (splits de
+      mid-entries `0x80002364`, `0x800243F0`, `0x8002487C`…). Detalle:
+      `notes/2026-09-13-vi-opcion-a-implementada.md` y ADR 0003.
+    - **Frontera actual**: `fase` sigue en 0 y `0x801CFE00/02` en 0: los callbacks de progreso del
+      módulo 23 (`FUN_801CBDC0`/`FUN_801CBE88`/`FUN_801CBE90`) no se ejecutan (el nodo de boot apunta
+      a `+0x1C=0x801BF1CC`). Siguiente: rastrear la cadena de descriptores/objetos que debe instalar
+      el callback de progreso (comparar selección de descriptor/estado del nodo con el emulador).
+      Work order: `notes/2026-09-13-workorder-gate-rsp.md`.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
-    referencia (sin mempak ni rumble) antes de dar por bueno el arranque. Detalle:
-    `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
+    referencia (sin mempak ni rumble) antes de dar por bueno el arranque. `osGbpakInit` queda
+    **stubeado a "no pak"** (`GB_PAK_ERR_NOPAK`) en el runtime; validar que el boot no diverge por
+    ello. Detalle: `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
 
 ## Fundaciones pendientes
 
