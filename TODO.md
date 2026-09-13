@@ -103,14 +103,16 @@
       registrado en `hh::get_rsp_microcode` para `M_AUDTASK`. Procesa los comandos reales y **0
       exits** (antes 66/72). La petición la escribe `FUN_80021EB8` (id `0x87`) llamada por
       `FUN_80020F60` desde `FUN_80020460`.
-    - **Frontera actual**: el driver de audio corre a plena velocidad al principio (**930 tasks/25 s
-      = 37/s** con `HH_QLOG=1`), pero se **atasca tras ~62-70 tasks**: t18 queda bloqueado en SP
-      (`+0x88C=0`, sin task en vuelo) y t3 en `0x80091EB8`, con 64 ticks acumulados en
-      `0x80091DA0`. Conteos: tasks a t18=63, submits SP=62, acks=62 ⇒ una task consumida sin
-      submit/ack (evento perdido en el handshake). Descartado: el reparto dirigido para audio no es
-      la causa. Siguiente: instrumentar `+0x88C/+0x890/+0x894/+0x158` (escritores en `FUN_80000bf0`)
-      y `FUN_800349E0`/`FUN_80030FF0`. Detalle:
-      `notes/2026-09-13-ucode-audio-gate-transicion.md` §6.
+    - **HECHO (yield)**: se identificó que el atasco de la task ~63 era el protocolo de **yield**
+      gfx/audio (`osSpTaskYield`/`Yielded` estaban stubeados); el fix entrega una completación SP
+      sintética al hilo que hace yield. Resultado: **743 audio tasks** (vs 62), request `0x87`
+      procesada y **carga #11** (`0x5D280 → 0x801B6600 = 0x0020004C`) = hito del emulador a t≈10,5 s.
+    - **Frontera actual**: el pipeline se desincroniza a las ~743 tasks (t18 consume una
+      completación extra del yield en el wait post-submit, queda en `c4b8`/SP y t3 esperando ack en
+      `EB8`). Siguiente: cuadrar el yield con el protocolo (devolver `OS_TASK_YIELDED` y marcar la
+      task para la rama de resubmit, o sintetizar solo si no hay completación real en vuelo) y
+      verificar la transición (`fe00`, burst id 0x19). Detalle:
+      `notes/2026-09-13-ucode-audio-gate-transicion.md` §7.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

@@ -108,3 +108,23 @@ Estado del port tras el arranque (runs `port_hang`/`port_noexp`, 100-170 s):
 Siguiente: instrumentar el handshake `+0x88C`/`+0x890`/`+0x894`/`+0x158` (escritores en
 `FUN_80000bf0` PCs `0x80000CF8`/`0x80000D24`; lecturas en `FUN_80000a5c`) y `FUN_800349E0`/
 `FUN_80030FF0` (manejo SP) para localizar el evento perdido que deja a t18 esperando SP.
+
+## 7. Fix de yield y hito alcanzado (2026-09-13)
+
+- El runtime stubeaba `osSpTaskYield`/`osSpTaskYielded` (`sp.cpp`). El juego usa el protocolo de
+  yield para alternar gfx/audio en el RSP: t18 llama `osSpTaskYield` mientras t17 tiene una task en
+  vuelo (`+0x88C != 0`) y luego espera la completación SP. Con el reparto dirigido, esa completación
+  va a t17 y el que hace yield se quedaba esperando para siempre (observado: `osSpTaskYield` 1 vez
+  y `osSpTaskYielded` 0 veces justo antes del atasco de la task 63).
+- **Fix**: `osSpTaskYield` entrega una **completación SP sintética al hilo que hace yield**
+  (`sp_complete(this_thread())`); la task real completa por su lado. `osSpTaskYielded` sigue
+  devolviendo 0 (la task no se interrumpe realmente).
+- **Resultado** (run 170 s): `AUD=743` (vs 62), yields=2, **request 0x87 procesada**
+  (`[MDLE]` id 0x87, `[MDL] v1=0087`), **carga #11** (`0x5D280 → 0x801B6600`, `0x0020004C`) = el
+  hito del emulador a t≈10,5 s. `fe00` sigue 0 (la transición del emulador es a t≈63,7 s).
+- **Nuevo gap**: a las ~743 tasks el pipeline se desincroniza: t18 consume una completación extra
+  (las 2 sintéticas del yield) en el wait post-submit y luego queda bloqueado en `c4b8`/SP con la
+  última completación pendiente; t3 queda esperando ack en `EB8` y los ticks se acumulan en `DA0`.
+  Siguiente: cuadrar el yield con el protocolo (p.ej. devolver `OS_TASK_YIELDED` y marcar la task
+  para que el juego tome la rama de resubmit, o entregar la sintética solo si no hay completación
+  real en vuelo).
