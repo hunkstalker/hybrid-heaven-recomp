@@ -288,9 +288,9 @@ bool hh::reset_audio(uint32_t output_freq) {
 }
 
 RspUcodeFunc* hh::get_rsp_microcode(const OSTask* task) {
-    // The audio (aspMain) RSP ucode has not been recompiled yet.
+    // The audio (aspMain) RSP ucode has not been recompiled yet. tasks without a registered ucode are
+    // completed as no-ops by the runtime, which is enough for the game to keep running (dummy audio).
     uint32_t type = task->t.type;
-    fprintf(stderr, "No registered RSP ucode for task type %" PRIu32 "\n", type);
     hh::log("RSP ucode not registered: type=%" PRIu32 " (0x%08" PRIx32 ")\n", type, type);
     return nullptr;
 }

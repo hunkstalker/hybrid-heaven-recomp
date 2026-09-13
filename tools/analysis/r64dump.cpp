@@ -24,10 +24,12 @@
 #include <mupen64plus/m64p_types.h>
 
 static int g_win_w = 640, g_win_h = 480;
-static const char *g_cap_dir = "/app/work/scratch/frames";
+static const char *g_cap_dir = "/app/hybrid-heaven-recomp/work/debug/frames";
 
-static const char *g_cfgdir = "/root/.config/mupen64plus";
-static const char *g_datadir = "/usr/share/mupen64plus";
+// Persistent, project-local defaults (everything outside /app is lost between sessions).
+// Overridable via MU64_CFGDIR / MU64_DATADIR.
+static const char *g_cfgdir = "/app/hybrid-heaven-recomp/work/debug/mupencfg";
+static const char *g_datadir = "/app/hybrid-heaven-recomp/work/debug/mupendata";
 
 static void dbg_cb(void *context, int level, const char *msg) {
     if (level <= M64MSG_VERBOSE) fprintf(stderr, "[core] %s\n", msg ? msg : "");
@@ -43,11 +45,18 @@ static int g_bp_idx = -1;
 static int g_bp_suspended = 0;      /* wp disabled to skip the boot dir-clear loop */
 static double g_bp_reenable_at = 0;
 static void ui_init_cb(void) {}
+static void *(*g_getcpu_dbg)(int) = NULL;   /* DebugGetCPUDataPtr, set after dlsym */
+static int64_t g_halt_regs[32];
 static void ui_update_cb(unsigned int pc) {
     g_halt_pc = pc;
     g_halt_seen = 1;
+    if (g_getcpu_dbg != NULL) {
+        int64_t *g = (int64_t *)g_getcpu_dbg(2 /* M64P_CPU_REG_REG */);
+        if (g != NULL) memcpy(g_halt_regs, g, sizeof(g_halt_regs));
+    }
 }
-static void ui_vi_cb(void) {}
+static volatile unsigned long g_vi_count = 0;
+static void ui_vi_cb(void) { g_vi_count++; }
 
 // --- video extension stubs (headless: no SDL/GL window) ---
 static m64p_error vx_init(void) { return M64ERR_SUCCESS; }
@@ -276,6 +285,8 @@ static void write_keys(double t) {
 
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
+    if (const char *e = getenv("MU64_CFGDIR"); e && *e) g_cfgdir = e;
+    if (const char *e = getenv("MU64_DATADIR"); e && *e) g_datadir = e;
     if (argc < 3) { fprintf(stderr, "usage: %s <rom> <out.rdram> [seconds]\n", argv[0]); return 1; }
     const char *rompath = argv[1];
     const char *out = argv[2];
@@ -310,6 +321,7 @@ int main(int argc, char **argv) {
         (ptr_DebugVirtualToPhysical)dlsym(core, "DebugVirtualToPhysical");
     ptr_DebugGetCPUDataPtr DebugGetCPUDataPtr =
         (ptr_DebugGetCPUDataPtr)dlsym(core, "DebugGetCPUDataPtr");
+    g_getcpu_dbg = (void *(*)(int))DebugGetCPUDataPtr;
     ptr_DebugBreakpointTriggeredBy DebugBreakpointTriggeredBy =
         (ptr_DebugBreakpointTriggeredBy)dlsym(core, "DebugBreakpointTriggeredBy");
     ptr_DebugStep DebugStep = (ptr_DebugStep)dlsym(core, "DebugStep");
@@ -442,10 +454,12 @@ int main(int argc, char **argv) {
      * memory-access breakpoint (the breakpoint list entry stays, but the gate is gone). */
     const char *bpaddr_env = getenv("HB_RES_DIR");
     const char *bpexec_env = getenv("HB_EXEC");
+    const char *trace_exec_env = getenv("HB_TRACE_EXEC");
+    const char *dumpvi_env = getenv("HB_DUMP_VI");
     int have_bp = 0;
     int want_wp = 0;
     uint32_t wp_vaddr = 0;
-    if ((bpaddr_env && *bpaddr_env) || (bpexec_env && *bpexec_env)) {
+    if ((bpaddr_env && *bpaddr_env) || (bpexec_env && *bpexec_env) || (trace_exec_env && *trace_exec_env) || (dumpvi_env && *dumpvi_env)) {
         if (DebugSetCallbacks && DebugBreakpointCommand) {
             DebugSetCallbacks(ui_init_cb, ui_update_cb, ui_vi_cb);
             if (bpexec_env && *bpexec_env && DebugVirtualToPhysical) {
@@ -454,6 +468,17 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "[dbg] EXEC breakpoint @0x%X -> %d\n", (unsigned)eaddr, bc);
                 have_bp = (bc >= 0);
                 g_bp_paddr = eaddr;
+            }
+            if (trace_exec_env && *trace_exec_env && DebugVirtualToPhysical) {
+                char tbuf[1024]; strncpy(tbuf, trace_exec_env, sizeof(tbuf) - 1); tbuf[sizeof(tbuf) - 1] = 0;
+                char *tok = strtok(tbuf, ",");
+                while (tok != NULL) {
+                    uint32_t ea = (uint32_t)strtoul(tok, NULL, 0);
+                    int bc = DebugBreakpointCommand(M64P_BKP_CMD_ADD_ADDR, ea, NULL);
+                    fprintf(stderr, "[dbg] TRACE exec @0x%X -> %d\n", (unsigned)ea, bc);
+                    if (bc >= 0) have_bp = 1;
+                    tok = strtok(NULL, ",");
+                }
             }
             if (bpaddr_env && *bpaddr_env) {
                 want_wp = 1;
@@ -484,10 +509,13 @@ int main(int argc, char **argv) {
         m64p_breakpoint bp;
         memset(&bp, 0, sizeof(bp));
         bp.address = paddr;               /* whole 1KB directory: catches id/base writes */
-        bp.endaddr = paddr + 0x3FF;
+        uint32_t wp_size = 0x400;
+        const char *wpsz_env = getenv("HB_WP_SIZE");
+        if (wpsz_env && *wpsz_env) wp_size = (uint32_t)strtoul(wpsz_env, NULL, 0);
+        bp.endaddr = paddr + wp_size - 1;
         bp.flags = M64P_BKP_FLAG_ENABLED | M64P_BKP_FLAG_WRITE;
         int bc = DebugBreakpointCommand(M64P_BKP_CMD_ADD_STRUCT, 0, &bp);
-        fprintf(stderr, "[dbg] write breakpoint @0x%X..0x%X -> %d\n", (unsigned)paddr, (unsigned)(paddr+0x3FF), bc);
+        fprintf(stderr, "[dbg] write breakpoint @0x%X..0x%X -> %d\n", (unsigned)paddr, (unsigned)(paddr+wp_size-1), bc);
         have_bp = (bc >= 0);
         g_bp_paddr = paddr;
         g_bp_idx = bc;
@@ -514,10 +542,28 @@ int main(int argc, char **argv) {
         char *tok = strtok(buf, ",");
         while (tok && ndt < 64) { dump_times[ndt++] = atof(tok); tok = strtok(NULL, ","); }
     }
+    const char *dvi = getenv("HB_DUMP_VI");
+    long dump_vi[64]; int ndvi = 0, dump_vi_idx = 0;
+    if (dvi) {
+        char b[512]; strncpy(b, dvi, sizeof(b)-1); b[sizeof(b)-1] = 0;
+        char *tok = strtok(b, ",");
+        while (tok && ndvi < 64) { dump_vi[ndvi++] = atol(tok); tok = strtok(NULL, ","); }
+    }
     while (true) {
-        usleep(100000);
+        usleep(100);
         clock_gettime(CLOCK_MONOTONIC, &t1);
         double el = (double)(t1.tv_sec - t0.tv_sec) + (double)(t1.tv_nsec - t0.tv_nsec) / 1e9;
+        if (dump_vi_idx < ndvi && (long)g_vi_count >= dump_vi[dump_vi_idx]) {
+            char dout[1024];
+            snprintf(dout, sizeof(dout), "%s.vi%ld.bin", out, dump_vi[dump_vi_idx]);
+            void *dp = DebugMemGetPointer(M64P_DBG_PTR_RDRAM);
+            if (dp) {
+                FILE *df = fopen(dout, "wb");
+                if (df) { fwrite(dp, 1, 0x800000, df); fclose(df);
+                          printf("dump @vi=%ld -> %s\n", (long)g_vi_count, dout); }
+            }
+            dump_vi_idx++;
+        }
         /* re-arm the watchpoint once we're past boot's dense dir-clear loop */
         if (g_bp_suspended && el >= g_bp_reenable_at) {
             g_bp_suspended = 0;
@@ -534,14 +580,39 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[dbg] stop pc=0x%08X (t=%.2fs) runstate=%d valid=%s flags=0x%X wrote=0x%08X\n",
                     (unsigned)g_halt_pc, el, (int)DebugGetState(M64P_DBG_RUN_STATE),
                     is_real ? "YES" : "no", (unsigned)fw, (unsigned)f_accessed);
+            fprintf(stderr, "[dbg] vi_count=%lu t=%.2f\n", g_vi_count, el);
             if (DebugGetCPUDataPtr) {
-                uint32_t *gpr = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_REG_REG);
-                if (gpr) fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X ra=0x%08X\n",
+                int64_t *gpr = g_halt_regs; /* captured in ui_update_cb (int64 regs) */
+                if (gpr) {
+                    fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X ra=0x%08X sp=0x%08X\n",
                         (unsigned)gpr[4], (unsigned)gpr[5], (unsigned)gpr[6], (unsigned)gpr[7],
-                        (unsigned)gpr[31]);
+                        (unsigned)gpr[31], (unsigned)gpr[29]);
+                    void *ramp = DebugMemGetPointer(M64P_DBG_PTR_RDRAM);
+                    uint32_t sp = (uint32_t)gpr[29] & 0x7FFFFF;
+                    if (ramp && sp + 64 <= 0x800000) {
+                        uint32_t *r32 = (uint32_t *)ramp;
+                        fprintf(stderr, "[dbg]   stack@0x%08X:", (unsigned)gpr[29]);
+                        for (int q = 0; q < 14; q++) fprintf(stderr, " %08X", (unsigned)r32[(sp + q*4)/4]);
+                        fprintf(stderr, "\n");
+                    }
+                }
             }
             if (is_real) {
                 uint32_t hpc = (unsigned)g_halt_pc;
+                /* one-shot RDRAM dump triggered by the watchpoint (alignment for port/emu diff) */
+                {
+                    static int wp_dumped = 0;
+                    const char *dump_on_wp = getenv("HB_DUMP_ON_WP");
+                    if (dump_on_wp && *dump_on_wp && !wp_dumped) {
+                        wp_dumped = 1;
+                        void *dp = DebugMemGetPointer(M64P_DBG_PTR_RDRAM);
+                        if (dp) {
+                            FILE *df = fopen(dump_on_wp, "wb");
+                            if (df) { fwrite(dp, 1, 0x800000, df); fclose(df);
+                                      fprintf(stderr, "[dbg] WP dump -> %s\n", dump_on_wp); }
+                        }
+                    }
+                }
                 /* boot's directory zero-fill loops at 0x80000414/0x80000418 and is
                  * dense; disable the watchpoint, free-run past it, re-arm later. */
                 if (hpc == 0x80000414u || hpc == 0x80000418u) {
@@ -553,7 +624,7 @@ int main(int argc, char **argv) {
                     if (DebugGetCPUDataPtr) {
                         uint32_t *pc = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_PC);
                         if (pc) fprintf(stderr, "[dbg] loader pc=0x%08X (wrote phys 0x%08X)\n", (unsigned)*pc, (unsigned)f_accessed);
-                        uint32_t *gpr = (uint32_t *)DebugGetCPUDataPtr((m64p_dbg_cpu_data)M64P_CPU_REG_REG);
+                        int64_t *gpr = g_halt_regs; /* captured in ui_update_cb (int64 regs) */
                         if (gpr) fprintf(stderr, "[dbg]   a0=0x%08X a1=0x%08X a2=0x%08X a3=0x%08X ra=0x%08X\n",
                                 (unsigned)gpr[4], (unsigned)gpr[5], (unsigned)gpr[6], (unsigned)gpr[7],
                                 (unsigned)gpr[31]);
@@ -580,7 +651,7 @@ int main(int argc, char **argv) {
             char dout[1024];
             snprintf(dout, sizeof(dout), "%s.t%d.bin", out, dump_idx);
             DebugSetRunState(M64P_DBG_RUNSTATE_PAUSED);
-            usleep(100000);
+            usleep(100);
             void *dptr = DebugMemGetPointer(M64P_DBG_PTR_RDRAM);
             if (dptr) {
                 FILE *df = fopen(dout, "wb");

@@ -33,9 +33,18 @@ registrar en la base determinista.
 - El módulo es **MIPS autoligado** en `base+offset` (entry en offset 0), con **direcciones
   absolutas** (llama al código plano por `jal 0x8000xxxx` y se autorreferencia); **sin relocs**.
 - El salto sale de un **descriptor** en heap con `+0x1C = base` (lo consume `FUN_80005270`).
-- Módulo de boot = **Nisitenma índice 7**: `ROM 0x4E69A8`, comprimido `0x55DD4`, descomprimido
-  `0x89DB0` (~564 KB MIPS), CRC32 `0xA9213032`, base `0x80107830` (determinista en 3 runs).
-- Detalle: `../notes/2026-09-11-modelo-modulos-trans.md`.
+- **Módulos de código del boot** (bases idénticas en 3 runs; medir con `break FUN_80003824` →
+  `ctx->r4/r5/r6` = src/dest/size, o el dir `trans` en `0x8008DFC0`):
+
+  | Nisitenma idx | ROM offset | base RAM | descomp. | CRC32 |
+  |---|---|---|---|---|
+  | 7  | `0x4E69A8` | `0x80107830` | 564464 (0x89CF0) | `0xA9213032` |
+  | 23 | `0x5F1190` | `0x801BF1A0` | 68432 (0x10B50) | `0x17AE0EEF` |
+  | 54 | `0x68BF26` | `0x803837E0` | 42464 (0xA5E0)  | `0x486A3F0F` |
+
+  (idx 0 en `0x800F41C0` y idx 114 en `0x801FA948` se cargan pero son **datos**, no código.)
+- Detalle: `../notes/2026-09-11-modelo-modulos-trans.md` y
+  `../notes/2026-09-11-a3-multi-modulo-jumptables.md`.
 
 ## 3. Mapa de memoria (a confirmar en runtime cuando aplique)
 
@@ -71,28 +80,58 @@ registrar en la base determinista.
 
 - **Modelo single-CPU**: el N64 tiene una CPU; el runtime debe serializar los hilos de juego.
 - Hilos, message queues, eventos (VI/AI/SP/DP/SI/PI) y VI timing vienen del runtime.
-- **Parches del port (deben ser mínimos y documentados):**
+- **Base**: `lib/N64ModernRuntime` es un fork del upstream (`toolchain/src/N64ModernRuntime`). Toda
+  divergencia debe estar aquí documentada y justificada; el objetivo es mantenerla **mínima**.
+- **Parches funcionales del port (deliberados):**
+  - `addresses.hpp`: `mem_size` 512 MB → 1 GB para cubrir accesos a registros de hardware vía `0xA0000000+`.
+  - `overlays`: `register_flat_code()` (modelo de imagen plana, ADR 0001) + `init_mmio()`.
+  - `recomp.cpp`: `boot_log` (**opt-in** `HH_BOOTLOG=<ruta>`), `do_break` no aborta, `cop0_register_read/write`
+    con `uint32_t`, y `ctx->r4` del entrypoint fijado a scratch de boot (HH-specific; **revisar**).
+    Además: **`osGetMemSize` y `osMemSize` (`0x80000318`) reportan 4 MB** — el juego exige la máquina
+    base (`osGetMemSize() == 0x400000`; si no, bucle de espera). El runtime asigna 8 MB igualmente.
+  - `events.cpp`: evento VI también por `osSetEventMesg(OS_EVENT_VI)`; tareas RSP sin ucode → no-op.
+    Además: **`osSetEventMesg` replica la escritura de `__osEventStateTab`** (`0x800CD5F0 + e*8` →
+    `{mq,msg}`), que el ROM hacía y el runtime C++ no. El juego lee esa tabla.
+  - `ultrainit.cpp`/`ultra64.h`/`ultra_translation.cpp`: el stub C++ de `osInitialize` se renombró a
+    **`osInitialize_stub`** porque ahora se recompila la **versión del ROM** (des-stubbing; ADR 0002).
+  - `cont.cpp`: `osContGetReadData` escribe los 4 `OSContPad` (libultra escribe también los ausentes
+    con `CONT_NO_RESPONSE_ERROR`; el juego ramifica según eso).
+  - `input.cpp`: `osContInit` fiel a libultra (query SI + espera en `mq` + one-shot). Upstream lo
+    simplifica (no bloquea); para HH el orden de arranque depende de ese wait. **Nota**: el mensaje SI
+    se entrega síncrono en el runtime, así que el wait no siempre cede; un `osContInit` 100% fiel
+    requeriría entrega SI asíncrona (worker), pendiente de decidir.
   - `run_next_thread_and_wait` hace *idle* en mensajes externos si la `running_queue` está vacía
-    (patrón racer). Evita el abort "No threads left to run".
-  - Lock global single-CPU (`acquire_game_lock`/`release_game_lock`) — **reevaluar**; puede
-    enmascarar comportamiento (ver `../TODO.md`, fundación 4).
-  - Revertida la entrega directa de mensajes externos a RDRAM desde hilos I/O (se usa el
-    `external_messages` de upstream).
-- **Pendiente para render**: wiring de eventos (`osSetEventMesg` con IDs estándar) + routing de
-  tareas RSP + `loadUCodeGBI`.
+    (evita el abort "No threads left to run").
+  - Lock global single-CPU (`acquire_game_lock`/`release_game_lock`) — **candidato a eliminar**
+    (experimento 2026-09-12: con upstream no cambia el bloqueo; ver `../TODO.md` #9).
+- **Instrumentación de debug**: toda traza verbose del runtime es **opt-in** (`HH_VERBOSE=1`) mediante
+  `ultramodern::debug::verbose()` / `HH_LOG(...)` (`ultramodern.hpp`). Normal runs quedan en silencio.
+  Hooks de diagnóstico dedicados: `HH_CALLTRACE` (traza de llamadas), `HH_SOFT_LOOKUP`, `HH_DUMP_VI`.
+- **Wiring de render**: ✅ verificado — eventos (`osSetEventMesg` IDs estándar) + routing RSP
+  (`submit_rsp_task` → action queue) + `loadUCodeGBI` llegan a RT64, que **procesa display lists**.
+  Bloqueante actual: el **loader sale antes de iterar todos los módulos** → `fase=0` y sin display
+  lists del juego (ver `../TODO.md` #13 y `../notes/2026-09-13-segundo-gate-libultra.md`).
 
 ## 6. Toolchain de recompilación
 
-- Config activa: `config/game_unified.toml` → `us_ghidra.syms.toml` → `RecompiledFuncs_unified/`.
-- Recompilador: `toolchain/src/N64Recomp/build_recomp/N64Recomp`.
+- Config activa: `config/game_combined.toml` → `us_combined.syms.toml` → `RecompiledFuncs_combined/`
+  (imagen plana + módulos idx 7/23/54). La `game_unified.toml` es auxiliar.
+- Recompilador: `toolchain/src/N64Recomp/build_recomp/N64Recomp` (OUTPUT_NAME de `N64RecompCLI`:
+  rebuild con **`--target N64RecompCLI`**, no `--target N64Recomp`).
+- **Parche del toolchain** (`symbol_lists.cpp`, ver ADR 0002): se quitó de `reimplemented_funcs`/
+  `ignored_funcs` la init de libultra que el juego usa como fuente de verdad (`osInitialize`,
+  `__osInitialize_common`, `osCreatePiManager`, `__osDevMgrMain`, `__osViInit`, `__osViSwapContext`,
+  `__osGetSR/SetSR/GetCause/SetCause`, `__osSpRawReadIo/WriteIo`) para que se recompile la versión del
+  ROM. `toolchain/` está gitignored: el parche se documenta aquí (y en ADR 0002), no se versiona.
 - Port: `port/HybridHeavenRecomp/` (CMake globs `RecompiledFuncs/funcs_*.c`).
 - Post-paso obligatorio: `tools/analysis/fix_fallthroughs.py`.
 - Quirk conocido: añadir la declaración `osYieldThread_recomp` a `funcs.h` tras cada regen.
-- Regla: **nunca editar a mano el C generado**; todo fix va a la syms/config (ver ADR futuro).
+- Regla: **nunca editar a mano el C generado**; todo fix va a la syms/config (ADR 0002).
 
 ## 7. Preguntas abiertas (bloquean el diseño)
 
-1. ¿Las bases RAM de los módulos son **deterministas**? (`init_trans 0x80018420`, tabla `0x8009EBD4`).
+1. ✅ Bases RAM de los módulos de boot **deterministas** (idx 7/23/54, 3 runs). Pendiente: inventario
+   automático de módulos posteriores (fuera del boot).
 2. ¿Cuál es el **contrato del módulo** (cómo se referencian sus funciones: `base+offset`? tabla?
    relocs internas?).
 3. ¿Qué assets de la tabla Nisitenma son **código ejecutable** vs datos?

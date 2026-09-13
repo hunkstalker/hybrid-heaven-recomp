@@ -19,3 +19,15 @@ ignored = [
     "FUN_80049538",
     "FUN_800495ec",
 ]
+
+# HH fix: FUN_80125814's resource-registration step branches on the value returned by
+# FUN_80017064, but in the recompiled port that value is unstable (it takes the "already
+# registered" path even when the lookup returned -1), so entries 0x18/0x91 are never
+# registered and the game later crashes looking them up. Patch `bne $v0,$at,L_80125954`
+# (0x8012591C) to a nop so the not-found/registration path is always taken; the game then
+# re-checks for id 0 and already-present entries are idempotent through the insert helper.
+[[patches.instruction]]
+vram = 0x8012591C
+func = "FUN_80125814"
+value = 0x00000000
+

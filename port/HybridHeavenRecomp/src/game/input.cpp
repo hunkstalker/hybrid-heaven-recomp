@@ -98,6 +98,12 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     n64_button input = 0;
     if (controller_num == 0) {
         input = read_input_button();
+        static n64_button last_input = 0;
+        static unsigned long input_calls = 0;
+        if (getenv("HH_INLOG") != nullptr && (input != last_input || (++input_calls % 512 == 0))) {
+            fprintf(stderr, "[IN] ctrl=%d call=%lu buttons=0x%04X\n", controller_num, input_calls, (unsigned)input);
+            last_input = input;
+        }
     }
 
     float axis_x = 0.0f;
@@ -135,7 +141,11 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     *x = axis_x;
     *y = axis_y;
 
-    return true;
+    // Only controller port 0 is populated. Reporting a response for every port made the
+    // runtime mark absent controllers as connected (err_no == 0), which the game's boot
+    // code reads to pick its initialization path. Match the original hardware/emulator:
+    // the other ports report CONT_NO_RESPONSE_ERROR.
+    return controller_num == 0;
 }
 
 void hh::set_rumble(int controller_num, bool rumble) {
@@ -144,10 +154,11 @@ void hh::set_rumble(int controller_num, bool rumble) {
 }
 
 ultramodern::input::connected_device_info_t hh::get_connected_device_info(int controller_num) {
-    bool connected = false;
-    if (controller_num == 0) {
-        connected = SDL_NumJoysticks() > 0;
-    }
+    // Controller port 0 is always reported as a connected standard controller. This matches the
+    // original hardware's boot state (and the reference emulator's input plugin): the game reads
+    // the SI bit pattern during boot to decide its initialization path, and a missing controller
+    // there sends it down a different branch. Physical input is still read via SDL in get_input.
+    bool connected = (controller_num == 0);
 
     ultramodern::input::connected_device_info_t result{};
     result.connected_device = ultramodern::input::Device::None;

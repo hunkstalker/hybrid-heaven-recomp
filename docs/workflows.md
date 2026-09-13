@@ -3,20 +3,33 @@
 > Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle
 > histórico, a `../notes/`.
 
-## 0. Primer setup (reconstruir los artefactos del módulo desde la ROM)
+## 0. Primer setup (reconstruir los artefactos de los módulos desde la ROM)
 
-El módulo de código idx 7 no está plano en la ROM (Konami lo comprime con **LZKN64**, tabla
-Nisitenma-Ichigo). Se reconstruye **determinísticamente** desde la ROM del usuario:
+Los módulos de código (boot: Nisitenma idx **7, 23, 54**) no están planos en la ROM (Konami los
+comprime con **LZKN64**, tabla Nisitenma-Ichigo). Se reconstruyen **determinísticamente** desde la
+ROM del usuario:
 
 ```sh
 python3 tools/setup_module.py --build
-# ROM -> blob (lzkn64, CRC 0xA9213032) -> config/us_module7.syms.toml
+# ROM -> blobs (lzkn64) -> config/us_module{7,23,54}.syms.toml
 #     -> work/scratch/us_combined.z64 -> config/us_combined.syms.toml
 #     -> recompila el set combinado y construye (--build)
 ```
 
 Sin `--build`, solo regenera los artefactos; luego `recomp.py --config config/game_combined.toml --build`.
 Requisito: ROM US retail en `work/roms/us_retail.z64` (gitignored; la aporta el usuario).
+
+**Añadir un módulo** (al aparecer un `Failed to find function at 0x8...` en zona de módulo):
+1. Medir su base: `break FUN_80003824` → `ctx->r4`(src RO)/`r5`(base RAM)/`r6`(size); confirmar que
+   `src` es una entrada Nisitenma y que la base es estable en 2-3 runs.
+2. Añadir la entrada a `MODULES` en `tools/setup_module.py` (idx, `vram`=base, `rom_off` libre, CRC
+   del manifest). Si la función llamada **no** se detecta por prólogo/jal/jr, añadirla a `extra`.
+3. `python3 tools/setup_module.py --build`.
+
+**Nota (jump-tables)**: `gen_module_syms.py` fusiona los `switch` (el detector `jr $ra` los parte y
+N64Recomp exige las tablas dentro de la función). No reordenar/eliminar ese paso.
+
+`recomp.py` **limpia** `RecompiledFuncs/funcs_*.c` antes de copiar (el número de ficheros cambia).
 
 ## 1. Recompilar y construir (pipeline)
 
@@ -100,3 +113,66 @@ python3 tools/analysis/add_missing_funcs.py --syms config/us_ghidra.syms.toml --
 - `tools/analysis/fix_function_bounds.py <syms> --rom <rom> --report-only`: asesor CFG (propone
   inicios; **no** auto-aplicar: sobre-parte).
 - `HH_SOFT_LOOKUP=1` es solo para depurar símbolos (los stubs no-op falsean la lógica del juego).
+
+## 6. Oráculo con emulador (comparar port vs juego real)
+
+`work/r64dump` corre la ROM bajo `libmupen64plus` **headless** y vuelca RDRAM por la API de depuración.
+Es la referencia para saber si una variable/flujo del port diverge. Requisitos: `SDL_AUDIODRIVER=dummy`.
+
+```sh
+# Dumps completos de 8 MB en t = 5,10,20,40 s
+SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so HH_DUMP_TIMES=5,10,20,40 \
+  timeout 70 ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu 55
+# -> /tmp/opencode/emu.t0.bin, .t1.bin, ... (8 MB cada uno) + volcado final
+
+# Watchpoint de escritura (rango de 1 KB en una vaddr); loguea PC+tiempo de cada write
+SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so \
+  HB_RES_DIR=0x801CFE00 HH_WP_ARM=3 timeout 20 ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu_wp 15
+```
+
+**Endianness (CRÍTICO)**: el buffer RDRAM (emulador y port) está **word-swapped**. Para leer el valor
+CPU real:
+- `u32(V)` = little-endian en offset `V & 0x1FFFFFFF`
+- `u16(V)` = little-endian en offset `(V ^ 2) & 0x1FFFFFFF`  ← ojo al `^2`
+- `u8(V)`  = byte crudo en offset `(V ^ 3) & 0x1FFFFFFF`
+
+Para volcar la RDRAM del port: `dump binary memory <out> (char*)rdram (char*)rdram+0x800000` en gdb
+(con `rdram` en scope). Comparar port vs `emu.tN.bin` en la misma vaddr.
+
+> Nota: los watchpoints de la API de depuración solo ven **stores de CPU**. Los cambios hechos por
+> **DMA/RSP** no se capturan; si una variable cambia sin write logueado, es DMA.
+
+### 6.1 Volcado alineado y diff port↔emulador
+
+Para hallar divergencias sin adivinar, se alinea un **evento** (p. ej. el write de un callback) y se
+vuelca RDRAM en ambos lados:
+
+```sh
+# Emulador: volcado one-shot al primer write del watchpoint (tras HH_WP_ARM)
+HB_RES_DIR=0x801D03DC HB_WP_SIZE=4 HH_WP_ARM=7.9 HB_DUMP_ON_WP=/tmp/opencode/emu_at.bin \
+  SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so timeout 25 \
+  ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu 20
+```
+
+```gdb
+# Port: mismo evento (aquí, la copia de la tarea con dest=0x801D03C0) y dump de RDRAM
+break FUN_80005b98 if (unsigned)ctx->r4 == 0x801D03C0u
+commands
+  silent
+  dump binary memory /tmp/opencode/port_at.bin (char*)rdram (char*)rdram+0x800000
+  quit
+end
+run
+```
+
+Diff (palabras de 32 bits, endianness del buffer = LE):
+
+```python
+a=open("emu_at.bin","rb").read(); b=open("port_at.bin","rb").read()
+for off in range(0,0x800000,4):
+    if a[off:off+4]!=b[off:off+4]: print(hex(off|0x80000000))
+```
+
+**Resultado medido (2026-09-11)**: código de módulos y tablas estáticas **idénticos**; la divergencia
+está en **estado mutado** (el buffer scratch `0x8005BDB4`, estructuras de hilo, etc.), así que el diff
+puntual es ruidoso → el siguiente refinamiento es un **write-trace diff** (traza de writes ordenada).

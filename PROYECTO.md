@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-11**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-13**.
 
 ## 1. Objetivo
 
@@ -52,8 +52,8 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 |---|---|---|
 | 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
 | 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
-| 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline reproducible + validador (`tools/recomp.py`, `validate_syms.py`) |
-| 3. Render (RT64) | en curso | boot **estable** (corre indefinido, apagado limpio); símbolos completos; módulo idx 7 ejecuta; envía tareas RSP de **audio** (no-op) → falta wiring eventos/RSP + `loadUCodeGBI` |
+| 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
+| 3. Render (RT64) | en curso | RT64 **procesa DLs** (wiring OK). Arranque corregido en dos tandas: (1) 4 MB de RDRAM, (2) **des-stubbing de la init de libultra** (ADR 0002: `osInitialize`, PI manager, VI, `__osEventStateTab`…). El port **no aborta** y su cadena de boot coincide con el emulador. Sigue en `fase=0`: el **loader sale antes de iterar todos los módulos** (772 vs 1302 `SETID`; la decisión está en el directorio Nisitenma del caller `0x80004700`), y por eso no construye display lists. Ver `notes/2026-09-13-segundo-gate-libultra.md` |
 | 4. Audio | bloqueado | ucode custom KCEO sin identificar |
 | 5. Guardado | pendiente | Controller Pak → disco |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
@@ -70,6 +70,9 @@ Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
 4. **LZSS 5/7** del `trans`: bloqueante para módulos.
 5. **Efectos framebuffer / cinematografía**: verificar en RT64.
 6. **Rendimiento/multiplataforma**: RDRAM 32-bit BE + 3 backends.
+7. **Accesorios N64 (Controller Pak / Rumble Pak / device type)**: el boot ramifica según el estado
+   del SI; ya han mordido input y Expansion Pak. Auditar contra el emulador de referencia (sin mempak
+   ni rumble) — ver `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
 
 ## 7. Estructura de documentación (modelo por capas)
 

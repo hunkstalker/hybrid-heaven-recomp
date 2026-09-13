@@ -3,38 +3,124 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — hacia las primeras píxeles (render)
+## Ahora — primera divergencia de ejecución (arranque)
 
-1. [ ] **Wiring de render (A3)**: enganchar el sistema de eventos (`osSetEventMesg` con IDs estándar →
-   ultramodern), el **routing de tareas RSP** y **`loadUCodeGBI`** para que el juego envíe tareas de
-   **display** (hoy solo envía audio, type 2) y RT64 las procese. Objetivo: primera imagen.
-2. [ ] **Validar en Windows (MSVC)** el estado actual (módulo idx 7 + audio no-op + fixes de apagado).
+> **A3 (wiring de render) CERRADA**: verificado que eventos + routing RSP + `loadUCodeGBI` llegan a
+> RT64 y éste procesa display lists. **A3b–A3h cerradas como fase de diagnóstico**: recompilación y
+> carga son correctas (código/datos idénticos al emulador); el bloqueo es **orden/timing de
+> ejecución** → apunta al **runtime** (scheduling de hilos/mensajes, lock single-CPU), no al juego.
+> Detalle: `notes/2026-09-11-a3-multi-modulo-jumptables.md`.
+
+1. [x] **Traza de mensajería (escalón 1)**: hecha. El port y el emulador divergen en el **orden de
+   arranque de hilos / entrega de eventos** (runtime), no en lógica de juego (ver nota §escalón 1).
+   Fix del oráculo: `r4300_regs` es `int64_t[32]` (el frontend lo leía mal) → exec-breakpoints ya dan
+   args correctos; añadido `HB_TRACE_EXEC`.
+2. [x] **Escalón 2 — runtime**: probado que los parches `>=` (prioridad) e idle de
+   `run_next_thread_and_wait` **no** son la causa (revertidos y restaurados). **Medición decisiva**: el
+   emulador avanza la fase a **VIS≈1857 (60 fps real)**; el port llega a VIS 5400 con fase 0 y **nunca
+   escribe el progreso de carga `0x801CFE00/02`/`0x801D1E00`**. Lo avanzan funciones del módulo 23
+   (`FUN_801cbdc0`…) referenciadas en un descriptor estático (`0x801CE65C`).
+3. [x] **Diff alineado por frame (escalón 4)**: port volcado por VI (`HH_DUMP_VI`) vs emulador por
+   tiempo. Primera divergencia de **juego** a **VI≈600**: `0x801CFE00` (progreso de carga) no se
+   rellena en el port.
+4. [x] **Ruta PI (escalón 5)**: `osCreatePiManager_recomp` es un **stub vacío** (no hay hilo del PI
+   manager del juego); las estructuras `0x800CD79x` las copia un `memcpy` genérico. Confirmado:
+   recompilación correcta, divergencia de **estado de arranque encadenado** (tarea de boot → objeto →
+   índice). El método manual por capas ha llegado a su límite.
+5. [x] **Traza de control (port↔emulador)**: construida. Port vía `get_function` (`HH_CALLTRACE`);
+   emulador reconstruyendo mupen con trazador `jal`/`jalr` (`HH_JALTRACE`, requiere `binutils-dev` +
+   `nasm`, `make all OSD=0 VULKAN=0 DEBUGGER=1`). **Primera divergencia de juego**: tras
+   `FUN_80000EC8`, el port ejecuta `FUN_8001FEBC` y el emulador `FUN_800021B4` (función de hilo) →
+   **los hilos corren en orden distinto** en el arranque. Raíz confirmada: **scheduler de hilos del
+   runtime**.
+6. [x] **Ruta SI/controller → DESCARTADA** (verificado): el port llama `osRecvMesg(0x8005CE20)` (cola SI)
+   cada frame **sin bloquear**; la divergencia de traza en `FUN_800021B4` era por **orden de hilo**, no
+   por la ruta SI. No era la causa raíz.
+7. [•] **State machine de la tarea de arranque (`nodo 0x801D03C0`)** — causa real, confirmada por frame:
+   la fase `0x80037750` sólo sube si `0x801CFE02==4` y `0x801CFE00>=0x97` (`FUN_801cbe90`); esos contadores
+   los avanza `FUN_801cbe88` (callback del nodo, `+0x1C`), invocado por el dispatcher `FUN_80005270`
+   (`ra=0x8000535C`) cada frame en el emulador desde t≈8.2 s. En el port el nodo se queda con
+   `+0x1C=0x801C1034` (`FUN_801c0f70`) y **nunca** pasa a `0x801CBE88`; `FUN_801cbe88/90` **no se ejecutan**
+   (gdb) y `fe00/fe02` quedan a 0 durante 90 s. **Detalle de la cadena**: el callback del nodo lo fija el
+   setter `FUN_800058DC` (`sw a1,0x1C(a0)`). El port recorre el sub-chain **auto-terminante**
+   `FUN_801c0f70 → FUN_801c0f98 → FUN_801c1034` (no-op); el emulador instala `FUN_801cbdc0`, que fija
+   `node+0x1C=0x801CBE88` (`FUN_801cbe88`) y avanza la carga. **Origen**: `0x801D03C0` se instancia
+   desde el struct runtime en `0x8005BDB4` (construido dentro de `FUN_8005ba00`); en el port queda sin
+   construir (`0xFF00FF00…`). **Hipótesis de materialización de datos DESCARTADA**: región módulo 23
+   16384/16384 palabras idénticas, `0x801CE65C` idéntico, el port tiene todos los datos (los grandes
+   diffs son su heap en regiones vacías). Es **estado runtime**, no datos.
+8. [x] **CAUSA RAÍZ del bloqueo original — input/controller + mid-entries**: la ruta SI/controller NO
+   era (descartada). El juego ramifica según el estado de mandos: el port reportaba los 4 puertos
+   conectados (`get_input` devolvía `true` para todos; `osContGetReadData_recomp` no escribía ausentes;
+   `get_connected_device_info(0)` = None), desviando el state machine de boot. **Fix aplicado y
+   verificado**: solo el puerto 0 responde, se escriben los 4 `OSContPad`, ctrl0 siempre presente.
+   Además **mid-entries sin símbolo** (`0x8000106C`, `0x800165CC`, `0x80016634`) añadidas al syms y
+   recompilado. **Resultado: el objeto de boot `0x801D03C0` ahora se instancia idéntico al emulador.**
+9. [x] **BLOQUEO DE ARRANQUE RESUELTO (fase 0 → 1)**: causa = registro de recursos incompleto
+   (`FUN_80125814` tomaba el camino "ya registrado" por un `v0` inestable → no registraba `0x18`/`0x91`)
+   + mid-entry `0x8001769C` sin símbolo. **Fixes**: patch de instrucción
+   (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
+   `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
+   corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
+10. [•] **Siguiente: render/juego tras el arranque**: comprobar geometría/píxeles (RT64) y avanzar la
+   fase más allá de 1; validar textos/audio/guardado.
+11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
+12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
+   máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
+   modo 1 = bucle de espera infinito). Fix en `lib/N64ModernRuntime/librecomp/src/recomp.cpp`
+   (`osGetMemSize_recomp` y `osMemSize` → 4 MB). **Verificado**: modo 0, sin spin de `osGetTime`, 4
+   display lists. Detalle: `notes/2026-09-13-arranque-memsize-y-accesorios.md`.
+13. [•] **Loader: sale antes de iterar todos los módulos**. Análisis del loader (`FUN_80003824`, el
+   descompresor Nisitenma/LZKN64): su bucle se controla con contadores en `0x8005D014` (cursor ROM),
+   `0x8005D018` (bytes restantes), `0x8005D01C`/`0x8005D020` (bloque 0x2000). En el port están
+   **congelados** (`ld18=0`, `ld1C=-9`, `ld20=-8`) — no es lentitud. Verificado con gdb/watchpoints:
+   - El loader recibe los tamaños correctos (`0x55DD4` módulo 7, `0xA68`) y `FUN_80003DB4` maneja bien
+     el último bloque parcial (underflow transitorio corregido a 0).
+   - El port llama a `FUN_80003824` 2 veces; el emulador sigue iterando (1302 `SETID` vs 772).
+   - La decisión de qué módulo cargar y su tamaño está en el **caller** `0x80004700-0x80004774`
+     (`a2 = (entry[+0x14] & mask) - entry[+0x0C]`), leyendo el **directorio Nisitenma** en RDRAM
+     (base DMA `0x80089518`). Siguiente: comparar el directorio y los campos `entry[+0xC]`/`[+0x14]`
+     port vs emulador para el módulo que se salta.
+   Artefactos: `work/debug/gdb_ld384.log` (args del loader), `gdb_w518.log` (contadores),
+   `emu_cnt.log`; port con `[RND]` ampliado (`ld14/ld18/ld1C/ld20`).
+14. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
+   device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
+   Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
+   referencia (sin mempak ni rumble) antes de dar por bueno el arranque. Detalle:
+   `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
 
 ## Fundaciones pendientes
 
-3. [ ] **Higiene de runtime**: parches mínimos y documentados; decidir si el lock single-CPU sigue
-   siendo necesario (hoy exonerado en 9d); mantener `N64ModernRuntime` cercano a upstream.
-4. [ ] **Interfaces de sub-objetivos** (texto/traducción, audio, guardado): contrato y punto de hook.
+4. [•] **Higiene de runtime** (ligado al #2): **hecho 2026-09-12** — toda la traza verbose es opt-in
+   (`HH_VERBOSE=1`), `boot_log` opt-in (`HH_BOOTLOG`), mensajes RSP warn-once; divergencias con upstream
+   auditadas y documentadas en `docs/architecture.md` §5. Pendiente: decidir si el lock single-CPU se
+   elimina (experimento: no cambia el bloqueo) y si se hace la entrega SI asíncrona.
+5. [ ] **Interfaces de sub-objetivos** (texto/traducción, audio, guardado): contrato y punto de hook.
+6. [ ] **Automatizar el inventario de módulos**: medir bases de forma desatendida (log del loader,
+   p.ej. hook en `FUN_80003824`) y proponer las entradas de `MODULES`; hoy se miden con gdb.
 
 ## Backlog
 
-- [ ] **Audio**: identificar el microcode custom KCEO (no matchea `aspMain`).
+- [ ] **Audio**: identificar el microcode custom KCEO (no matchea `aspMain`). **Puede ser el gate del render.**
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: Controller Pak → ficheros en disco (+ Rumble).
 - [ ] **Builds**: Windows + Linux + Steam Deck; resolución/widescreen; empaquetado sin ROM.
-- [ ] **Tarea #3** (mapa overlay→RAM por BizHawk): necesaria para módulos/overlays futuros.
+- [ ] **Tarea #3** (mapa overlay→RAM por BizHawk): complementa la medición empírica de bases.
 - [ ] Limpiar data-as-code (189 sospechosas) → habilita re-evaluar `use_lookup_for_all_function_calls=false`.
 
 ## Hecho (2026-09-11)
 
-- [x] Boot **estable**: corre indefinidamente + **apagado limpio** (9d: `exit(0)` en `poll_input` → `~std::thread` joinable → terminate; fix `ultramodern::quit()` + `return 0`).
-- [x] **0 funciones faltantes** (A2) vía evidencia runtime (`add_missing_funcs.py` + `HH_SOFT_LOOKUP`).
-- [x] **Módulo idx 7 integrado y ejecutando** (B9): config combinada de 2 secciones; `get_function(0x80107830)` resuelve.
+- [x] **A3* diagnóstico cerrado**: wiring de render OK; divergencia de arranque identificada como de **orden/timing** (runtime), no de recompilación (código/datos idénticos al emulador).
+- [x] **A3 wiring verificado**: eventos + routing RSP + `loadUCodeGBI` → RT64 procesa display lists (no era el bloqueante).
+- [x] **Oráculo emulador** (`r64dump`): volcados por tiempo, watchpoints exactos (`HB_WP_SIZE`), volcado one-shot por watchpoint (`HB_DUMP_ON_WP`); diff port↔emulador documentado (`docs/workflows.md` §6/§6.1).
+- [x] **Pipeline multi-módulo** (`setup_module.py`): integra idx **7, 23, 54** como secciones, bases deterministas (3 runs), `lzkn64` + CRC.
+- [x] **`gen_module_syms.py` consciente de jump-tables**: fusiona dispatch+cases (46/46 tablas OK); elimina `switch_error`.
+- [x] **Fix de pipeline**: limpiar `RecompiledFuncs/funcs_*.c` antes de copiar (evita multiple definition).
+- [x] **0 faltantes / 0 `switch_error` / 0 `do_break`**; el boot corre indefinidamente.
+- [x] Boot **estable** + **apagado limpio** (9d: `ultramodern::quit()` + `return 0`).
 - [x] **Audio RSP no-op** (A1): tareas sin ucode se completan como dummy.
 - [x] **Pipeline reproducible** `tools/recomp.py` + **validador** `validate_syms.py` (+ `gen_module_syms.py`, `fix_function_bounds.py` report-only).
-- [x] **Reproducibilidad ROM→módulo** (`tools/setup_module.py`): extrae el módulo idx 7 de la ROM con `lzkn64` (CRC `0xA9213032`), regenera syms + ROM combinado, todo determinista y sin ejecutar el juego.
 - [x] **Modelo de módulos `trans`** caracterizado + **ADR 0001** aceptado (base determinista, blob autoligado).
-- [x] Extracción exacta del módulo (RDRAM + bswap32, CRC `0xA9213032`).
 - [x] **Documentación consolidada** (modelo por capas) + protocolo de imágenes.
 - [x] (histórico) Toolchain/repos/extracción Nisitenma; port + builds; syms Ghidra; fix DMA; game loop; scheduler VI.
 

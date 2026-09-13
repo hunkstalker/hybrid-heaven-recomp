@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module7_be.bin — funciones por prólogo+jal+jr-ra.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module7_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
 [[section]]
 name = ".module7"
 rom = 0x1000000
@@ -75,7 +75,6 @@ functions = [
     { name = "FUN_8010fa10", vram = 0x8010FA10, size = 0xAC },
     { name = "FUN_8010fabc", vram = 0x8010FABC, size = 0x3614 },
     { name = "FUN_801130d0", vram = 0x801130D0, size = 0x68 },
-    # [validate_syms] FUN_80113108 fusionada (split incorrecto)
     { name = "FUN_80113138", vram = 0x80113138, size = 0x10 },
     { name = "FUN_80113148", vram = 0x80113148, size = 0x288 },
     { name = "FUN_801133d0", vram = 0x801133D0, size = 0x6E4 },
@@ -329,8 +328,7 @@ functions = [
     { name = "FUN_8012c36c", vram = 0x8012C36C, size = 0xC },
     { name = "FUN_8012c378", vram = 0x8012C378, size = 0x20 },
     { name = "FUN_8012c398", vram = 0x8012C398, size = 0x8 },
-    { name = "FUN_8012c3a0", vram = 0x8012C3A0, size = 0xA4 },
-    { name = "FUN_8012c444", vram = 0x8012C444, size = 0x34 },
+    { name = "FUN_8012c3a0", vram = 0x8012C3A0, size = 0xD8 },
     { name = "FUN_8012c478", vram = 0x8012C478, size = 0x58 },
     # [validate_syms] FUN_8012c4c4 fusionada (split incorrecto)
     { name = "FUN_8012c4d0", vram = 0x8012C4D0, size = 0x5C },
@@ -395,13 +393,7 @@ functions = [
     { name = "FUN_8012fd1c", vram = 0x8012FD1C, size = 0xC },
     { name = "FUN_8012fd28", vram = 0x8012FD28, size = 0x128 },
     { name = "FUN_8012fe50", vram = 0x8012FE50, size = 0x50 },
-    { name = "FUN_8012fea0", vram = 0x8012FEA0, size = 0x4C },
-    { name = "FUN_8012feec", vram = 0x8012FEEC, size = 0xC },
-    { name = "FUN_8012fef8", vram = 0x8012FEF8, size = 0x10 },
-    { name = "FUN_8012ff08", vram = 0x8012FF08, size = 0x10 },
-    { name = "FUN_8012ff18", vram = 0x8012FF18, size = 0x10 },
-    { name = "FUN_8012ff28", vram = 0x8012FF28, size = 0xC },
-    { name = "FUN_8012ff34", vram = 0x8012FF34, size = 0xC },
+    { name = "FUN_8012fea0", vram = 0x8012FEA0, size = 0xA0 },
     { name = "FUN_8012ff40", vram = 0x8012FF40, size = 0xC },
     { name = "FUN_8012ff4c", vram = 0x8012FF4C, size = 0xC },
     { name = "FUN_8012ff58", vram = 0x8012FF58, size = 0x68 },

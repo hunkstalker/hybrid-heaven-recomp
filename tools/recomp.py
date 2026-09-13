@@ -96,9 +96,11 @@ def main() -> int:
         print(f"[recomp] N64Recomp falló (rc={rc})")
         return rc
 
-    # 3) copiar al port
+    # 3) copiar al port (limpiando los funcs_*.c previos: el número de ficheros puede bajar)
     if not args.dry_run:
         RECOMP_DIR.mkdir(parents=True, exist_ok=True)
+        for old in RECOMP_DIR.glob("funcs_*.c"):
+            old.unlink()
         for f in list(out_dir.glob("funcs_*.c")) + list(out_dir.glob("funcs.h")) + \
                  list(out_dir.glob("lookup.cpp")) + list(out_dir.glob("recomp_overlays.inl")):
             shutil.copy2(f, RECOMP_DIR / f.name)
