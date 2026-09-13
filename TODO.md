@@ -70,24 +70,31 @@
    modo 1 = bucle de espera infinito). Fix en `lib/N64ModernRuntime/librecomp/src/recomp.cpp`
    (`osGetMemSize_recomp` y `osMemSize` → 4 MB). **Verificado**: modo 0, sin spin de `osGetTime`, 4
    display lists. Detalle: `notes/2026-09-13-arranque-memsize-y-accesorios.md`.
-13. [•] **Loader: sale antes de iterar todos los módulos**. Análisis del loader (`FUN_80003824`, el
-   descompresor Nisitenma/LZKN64): su bucle se controla con contadores en `0x8005D014` (cursor ROM),
-   `0x8005D018` (bytes restantes), `0x8005D01C`/`0x8005D020` (bloque 0x2000). En el port están
-   **congelados** (`ld18=0`, `ld1C=-9`, `ld20=-8`) — no es lentitud. Verificado con gdb/watchpoints:
-   - El loader recibe los tamaños correctos (`0x55DD4` módulo 7, `0xA68`) y `FUN_80003DB4` maneja bien
-     el último bloque parcial (underflow transitorio corregido a 0).
-   - El port llama a `FUN_80003824` 2 veces; el emulador sigue iterando (1302 `SETID` vs 772).
-   - La decisión de qué módulo cargar y su tamaño está en el **caller** `0x80004700-0x80004774`
-     (`a2 = (entry[+0x14] & mask) - entry[+0x0C]`), leyendo el **directorio Nisitenma** en RDRAM
-     (base DMA `0x80089518`). Siguiente: comparar el directorio y los campos `entry[+0xC]`/`[+0x14]`
-     port vs emulador para el módulo que se salta.
-   Artefactos: `work/debug/gdb_ld384.log` (args del loader), `gdb_w518.log` (contadores),
-   `emu_cnt.log`; port con `[RND]` ampliado (`ld14/ld18/ld1C/ld20`).
-14. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
-   device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
-   Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
-   referencia (sin mempak ni rumble) antes de dar por bueno el arranque. Detalle:
-   `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
+13. [x] **Loader: NO era el bloqueo**. Comparado el directorio Nisitenma port↔emulador:
+    - El directorio es **estático** (magic `Nisitenma-Ichigo` en `0x80038FE0`, entradas u32 desde
+      `0x80038FF0`; bit31 = comprimido). Rangos `0x80038F00`/`0x80037C00` y buffer DMA
+      **byte-idénticos** port↔emulador (VI60). El chequeo del loader (nibble alto del header en
+      `0x80089518`) también.
+    - El port **sí carga** el módulo dado por saltado (`id=0x37`→ROM `0x68BF26`, Nisitenma idx54):
+      3.ª llamada a `FUN_80003824` disparada por `FUN_801079B0` (init módulo 7, call site `0x80107A0C`),
+      igual que el emulador (`ra=0x80107A14`).
+    Detalle y trazas: `notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`.
+14. [•] **Gate de tareas RSP (`0x8005CD4C`) — el bloqueo real**. `FUN_80001454` deja de llamar al
+    dispatcher `FUN_80005270` cuando `[0x8008D545]==0 && [0x8005C4B0+0x89C]>=2` (gate en
+    `0x80001820`). En el port el contador queda clavado en 2 (VI60→VI1500; 6 llamadas al dispatcher)
+    mientras el emulador oscila 0/1 (544 llamadas/15 s). El contador lo sube `FUN_80000ed0`
+    (`[msg+8]&0x40`) y lo baja el hilo 17 `FUN_80000bf0` (`0x80000D74`). Al bloquearse, la cola
+    `0x8005C4F0` del port queda con `blocked_on_recv=blocked_on_send=0x80049930` (no es un thread del
+    runtime; el hilo 17 es `0x8005C9D8`) y `__osRunningThread` (`0x80049940`) corrupto
+    (`0x00011BF0` vs `0x80059D80` del emulador) → **estado de hilos/colas corrupto**.
+    Siguiente: identificar quién escribe `0x8005C4F0+0/+4` y `0x80049930/40` (wplog en emulador +
+    watchpoint gdb en port) y decidir si el origen es la convivencia del scheduler del runtime con
+    las rutinas libultra del ROM recompiladas (`FUN_8002Dxxx/0x8002Exxx`).
+15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
+    device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
+    Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
+    referencia (sin mempak ni rumble) antes de dar por bueno el arranque. Detalle:
+    `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
 
 ## Fundaciones pendientes
 

@@ -4,9 +4,11 @@ Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime
 Fase actual: **arranque/carga**. Dos causas raíz ya resueltas: (1) el juego exige **4 MB de RDRAM**
 (`osGetMemSize=0x400000`; fix en `recomp.cpp`) y (2) el port tenía **stubeada la init de libultra**
 (des-stubbing del toolchain, ver **ADR 0002**). El port ya no aborta y su cadena de boot coincide con
-el emulador. **Bloqueo actual**: el loader (`FUN_80003824`) sale antes de iterar todos los módulos
-(772 vs 1302 `SETID`) → el juego queda en `fase=0` y no construye display lists. Detalle:
-`notes/2026-09-13-segundo-gate-libultra.md` y `TODO.md` #13.
+el emulador. **Loader y directorio Nisitenma descartados** (idénticos al emulador; el port sí carga
+idx54 vía `FUN_801079B0`). **Bloqueo actual**: gate de tareas RSP — `[0x8005CD4C]` (tareas pendientes)
+queda clavado en 2 y `FUN_80001454` deja de llamar al dispatcher `FUN_80005270` → `fase=0` y sin
+display lists; el estado de hilos/colas (`0x8005C4F0`, `0x80049930/40`) se corrompe. Detalle:
+`notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md` y `TODO.md` #14.
 
 ## Persistencia y entorno (CRÍTICO)
 

@@ -109,8 +109,13 @@ registrar en la base determinista.
   Hooks de diagnóstico dedicados: `HH_CALLTRACE` (traza de llamadas), `HH_SOFT_LOOKUP`, `HH_DUMP_VI`.
 - **Wiring de render**: ✅ verificado — eventos (`osSetEventMesg` IDs estándar) + routing RSP
   (`submit_rsp_task` → action queue) + `loadUCodeGBI` llegan a RT64, que **procesa display lists**.
-  Bloqueante actual: el **loader sale antes de iterar todos los módulos** → `fase=0` y sin display
-  lists del juego (ver `../TODO.md` #13 y `../notes/2026-09-13-segundo-gate-libultra.md`).
+  **Loader/directorio Nisitenma descartados**: el directorio es estático (`0x80038FF0`, magic
+  `Nisitenma-Ichigo`), idéntico al emulador, y el port carga idx7/idx0/idx54. Bloqueante actual: el
+  **gate de tareas RSP** de `FUN_80001454` (`0x80001820`): con `[0x8008D545]==0` y
+  `[0x8005C4B0+0x89C]>=2` se salta `FUN_80005270`; en el port el contador `0x8005CD4C` queda clavado
+  en 2 y el estado de colas/hilos se corrompe (`0x8005C4F0`, `0x80049930/40`) → `fase=0` y sin
+  display lists del juego (ver `../TODO.md` #14 y
+  `../notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`).
 
 ## 6. Toolchain de recompilación
 
