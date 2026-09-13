@@ -60,3 +60,25 @@
 `HH_TBLTRACE`/`HH_VERBOSE`. Artefactos: `work/debug/{emu_rate_stdout.log,emu_m23_stdout.log,
 emu_norsp_out.log,emu_dense.t*.bin,emu_wpcbb_stdout.log,port_mdl*.log,port_scd.log,port_voice.log,
 port_tim.log}`.
+
+## 5. IMPLEMENTADO (2026-09-13): aspMain del ROM recompilado y corriendo
+
+- **Delimitado**: texto RSP en ROM `0x37130`, tamaño `0xE18` (los words siguientes son tabla de
+  datos), base IMEM **`0x04001080`** (como Goemon: con `0x1000` los `jal` caían en mitad de rutinas
+  y se hacían DMAs basura `dram=0x1118`).
+- **Targets indirectos** (14, tabla de comandos en DMEM): `0x1118 0x12D0 0x11DC 0x1294 0x12EC
+  0x1214 0x1E24 0x1254 0x1470 0x140C 0x187C 0x1328 0x138C 0x1B38`. Coinciden con la lista de
+  `aspMain` de Goemon ⇒ el ucode del juego **es el aspMain estándar** (SGI audio).
+- **Integrado**: `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (generado; no editar),
+  `CMakeLists.txt` (+`-msse4.1` por `rsp_vu_impl.hpp`) y `hh::get_rsp_microcode` devuelve
+  `hh_aspMain` para `M_AUDTASK`. Config reproducible: `config/rsp_hh_aspMain.toml`.
+- **Validado**: la task `boot=800350D0 ucode=80036530 udata=8004D910/800` procesa los comandos
+  reales (`07000000`, `02000440` A_ADPCM…) y hace DMA writes; **0 exits** (antes: 66/72 por
+  `UnhandledJumpTarget`), 53 tasks/30 s.
+- **Gap restante (siguiente tarea)**: el emulador envía **55 audio tasks/s** (`osSpTaskStartGo`
+  0x80026C9C, caller `ra=0x80000B24` = `FUN_80000a5c`/t18) y el mixer `FUN_8002C4D0` invoca
+  `FUN_80020460` ~128-160/s; el port hace ~1,8 tasks/s y ~3,3 mixer/s ⇒ ~30-40x lento. La petición
+  la escribe `FUN_80021EB8` (PCs `0x80021FB4/0x80021FC0`, valor `0x87`) llamada por `FUN_80020F60`
+  (2417 llamadas/15 s desde `FUN_80020460`); en el port `FUN_80021EB8` **nunca** se llama porque la
+  cadencia del driver de audio es demasiado baja. Instrumentar el productor (thread 3 → mq
+  `0x8005C4B8` de t18) para hallar el gate de la cadencia (VI/AI/contador).

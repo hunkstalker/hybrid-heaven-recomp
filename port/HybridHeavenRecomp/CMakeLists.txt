@@ -10,7 +10,8 @@ if(MSVC)
     add_link_options(/SUBSYSTEM:CONSOLE)
 else()
     # Recompiled MIPS code needs x64 baseline instructions.
-    add_compile_options(-O2)
+    # SSSE3 lo requiere la implementacion VU del runtime RSP (rsp_vu_impl.hpp, _mm_shuffle_epi8).
+    add_compile_options(-O2 -msse4.1)
 endif()
 
 # Optionally build a static runtime (recommended for easier distribution).
@@ -62,6 +63,9 @@ add_executable(HybridHeavenRecomp
     # Recompiled functions.
     ${RECOMPILED_FUNCS}
     RecompiledFuncs/lookup.cpp
+
+    # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
+    rsp/hh_aspMain.cpp
 )
 
 target_include_directories(HybridHeavenRecomp PRIVATE

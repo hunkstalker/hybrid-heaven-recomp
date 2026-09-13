@@ -316,10 +316,29 @@ bool hh::reset_audio(uint32_t output_freq) {
     return true;
 }
 
+// Microcodigo de audio del ROM en 0x80036530 (ROM 0x37130), recompilado con RSPRecomp
+// (config `config/rsp_hh_aspMain.toml`; texto 0xE98, base IMEM 0x1000). El motor de audio
+// del juego es el que dispara la progresion del modulo (ver
+// notes/2026-09-13-ucode-audio-gate-transicion.md).
+extern RspExitReason hh_aspMain(uint8_t* rdram, uint32_t ucode_addr);
+
 RspUcodeFunc* hh::get_rsp_microcode(const OSTask* task) {
-    // The audio (aspMain) RSP ucode has not been recompiled yet. tasks without a registered ucode are
-    // completed as no-ops by the runtime, which is enough for the game to keep running (dummy audio).
     uint32_t type = task->t.type;
+    if (type == M_AUDTASK) {
+        if (getenv("HH_VERBOSE") != nullptr) {
+            fprintf(stderr, "[AUD] type=%u flags=%X boot=%08X/%X ucode=%08X/%X udata=%08X/%X stack=%08X/%X out=%08X/%X data=%08X/%X yield=%08X/%X\n",
+                type, task->t.flags,
+                (unsigned)task->t.ucode_boot, task->t.ucode_boot_size,
+                (unsigned)task->t.ucode, task->t.ucode_size,
+                (unsigned)task->t.ucode_data, task->t.ucode_data_size,
+                (unsigned)task->t.dram_stack, task->t.dram_stack_size,
+                (unsigned)task->t.output_buff, (unsigned)task->t.output_buff_size,
+                (unsigned)task->t.data_ptr, task->t.data_size,
+                (unsigned)task->t.yield_data_ptr, task->t.yield_data_size);
+        }
+        return hh_aspMain;
+    }
+    // Tasks sin ucode registrado: el runtime las completa como no-op (dummy).
     hh::log("RSP ucode not registered: type=%" PRIu32 " (0x%08" PRIx32 ")\n", type, type);
     return nullptr;
 }

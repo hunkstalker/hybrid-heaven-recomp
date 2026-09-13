@@ -97,17 +97,17 @@
       el emisor aún no se había bloqueado). Evidencia (300 s): dispatcher **3723** (vs 428 antes),
       `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, sin símbolos faltantes ni asserts.
       Detalle: `notes/2026-09-13-deadlock-sp-race.md` §5.
-    - **Frontera actual (transición `fe00`)**: **causa raíz encontrada** — el gate es el **ucode de
-      audio (RSP)**. Sin RSP-HLE el emulador solo hace 2 cargas de boot y **nunca** el burst de la
-      transición; con él, el mixer `FUN_8002C4D0` invoca el callback `FUN_80020460` (~128/s) que
-      procesa la petición `*(u16*)0x800CBB4C` y llama a `FUN_80022044` (carga con `a1=0x801B6600`).
-      El port no-opera las tasks de audio (`get_rsp_microcode → nullptr`), así que la petición nunca
-      aparece (`0x801B6600=0`). (`0x8004FAEC` era la **pila** de un hilo del ROM: red herring.)
-    - Siguiente: **implementar el ucode de audio** — delimitar el texto RSP en ROM `0x37130`
-      (`task->t.ucode=0x80036530`), generar con `RSPRecomp` (existe en el toolchain; configs de
-      referencia `aspMain` en Zelda64Recomp/goemon64recomp), registrarlo en `hh::get_rsp_microcode`
-      para `type==2` y validar la petición + el burst + `fase`. Detalle/work order:
-      `notes/2026-09-13-ucode-audio-gate-transicion.md`.
+    - **HECHO (2026-09-13)**: **ucode de audio (aspMain) recompilado y corriendo**. Texto en ROM
+      `0x37130` (tamaño `0xE18`, base IMEM `0x04001080`) + 14 targets indirectos; integrado en
+      `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (`config/rsp_hh_aspMain.toml`, `-msse4.1`) y
+      registrado en `hh::get_rsp_microcode` para `M_AUDTASK`. Procesa los comandos reales y **0
+      exits** (antes 66/72). La petición la escribe `FUN_80021EB8` (id `0x87`) llamada por
+      `FUN_80020F60` desde `FUN_80020460`.
+    - **Frontera actual**: cadencia del driver de audio. Emulador: **55 tasks/s** (caller `t18
+      FUN_80000a5c`) y mixer `FUN_80020460` ~128-160/s; port: ~1,8 tasks/s y ~3,3/s ⇒ ~30x lento,
+      por lo que `FUN_80021EB8` nunca corre (requisito para la petición y el burst id 0x19).
+      Siguiente: instrumentar el productor (thread 3 → mq `0x8005C4B8` de t18) y hallar su gate
+      (VI/AI/contador). Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md`.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
