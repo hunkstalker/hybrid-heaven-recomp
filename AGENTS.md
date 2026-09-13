@@ -8,7 +8,8 @@ el emulador. **Loader y directorio Nisitenma descartados** (idénticos al emulad
 idx54 vía `FUN_801079B0`). **Bloqueo actual**: gate de tareas RSP — `[0x8005CD4C]` (tareas pendientes)
 queda clavado en 2 y `FUN_80001454` deja de llamar al dispatcher `FUN_80005270` → `fase=0` y sin
 display lists; el estado de hilos/colas (`0x8005C4F0`, `0x80049930/40`) se corrompe. Detalle:
-`notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md` y `TODO.md` #14.
+`notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md` y `TODO.md` #14. **Para retomar esta tarea,
+leer primero el work order `notes/2026-09-13-workorder-gate-rsp.md`** (autocontenido).
 
 ## Persistencia y entorno (CRÍTICO)
 

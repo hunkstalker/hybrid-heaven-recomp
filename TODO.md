@@ -90,6 +90,8 @@
     Siguiente: identificar quién escribe `0x8005C4F0+0/+4` y `0x80049930/40` (wplog en emulador +
     watchpoint gdb en port) y decidir si el origen es la convivencia del scheduler del runtime con
     las rutinas libultra del ROM recompiladas (`FUN_8002Dxxx/0x8002Exxx`).
+    **Work order autocontenido: `notes/2026-09-13-workorder-gate-rsp.md`** (mecanismo, evidencia,
+    hipótesis y comandos).
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
