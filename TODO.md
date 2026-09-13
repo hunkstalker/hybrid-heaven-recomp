@@ -133,7 +133,10 @@
 
 ## Backlog
 
-- [ ] **Audio**: identificar el microcode custom KCEO (no matchea `aspMain`). **Puede ser el gate del render.**
+- [x] **Audio**: el microcode **es el `aspMain` estándar**; recompilado con `RSPRecomp` e integrado
+  (`config/rsp_hh_aspMain.toml`, `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp`). Era el gate de la
+  progresión (`notes/2026-09-13-ucode-audio-gate-transicion.md`). Queda: crash intermitente por
+  corrupción lógica de RDRAM del driver (comparar estado port vs emulador antes del fallo).
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: Controller Pak → ficheros en disco (+ Rumble).
 - [ ] **Builds**: Windows + Linux + Steam Deck; resolución/widescreen; empaquetado sin ROM.

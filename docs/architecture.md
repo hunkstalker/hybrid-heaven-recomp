@@ -129,14 +129,22 @@ registrar en la base determinista.
   dejaban la completación en el waiter equivocado y el gate quedaba cerrado (dispatcher 9,5/s vs
   36/s). Evidencia (300 s): dispatcher **3723**, `[0x8005CD4C]` oscila 1/2, sin hilos congelados con
   task en vuelo (detalle: `../notes/2026-09-13-deadlock-sp-race.md` §5).
-  **Frontera actual**: el estado del port a VI36000 es **idéntico** al del emulador antes de su
-  transición (`node1C=801BF1CC`, `n18=8012E584`, `fe00=0`); el emulador dispara a t≈63,7 s un burst
-  de 12 loads (id 0x19 = `0x5FBEC6 → 0x801BF1A0`). **Causa raíz**: sin RSP-HLE el emulador no hace el
-  burst ⇒ la transición la dispara el **ucode de audio (RSP)**: el mixer `FUN_8002C4D0` invoca por
-  `jalr` el callback `FUN_80020460`, que procesa `*(u16*)0x800CBB4C` con `FUN_80022044` (carga
-  `0x801B6600`). El port no-opera las tasks de audio (`get_rsp_microcode → nullptr`). Siguiente:
-  recompilar el ucode (ROM `0x37130`, `RSPRecomp`) y registrarlo (ver `../TODO.md` #14 y
-  `../notes/2026-09-13-ucode-audio-gate-transicion.md`).
+  **Resuelto (ucode de audio, 2026-09-13)**: la transición la dispara el ucode de audio (sin
+  RSP-HLE el emulador no hace el burst). El ucode resultó ser el **aspMain estándar** y se recompiló
+  con `RSPRecomp`: texto en ROM `0x37130` (`0xE18`), base IMEM `0x04001080`, 14 targets indirectos;
+  integrado en `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (config reproducible
+  `config/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
+  `hh::get_rsp_microcode` para `M_AUDTASK`. Parches de runtime asociados: `sp_complete` de las tasks
+  gfx en `submit_rsp_task` (el RSP real completa sin esperar al RDP/render), completación sintética
+  en `osSpTaskYield` (modo dirigido) y opción **`HH_SP_SHARED`** (cola SP compartida estilo
+  libultra); `dma_rdram_to_dmem`/`dma_dmem_to_rdram` pasan de `assert` (desactivado por `NDEBUG`) a
+  chequeo real. Con esto el audio corre a **~60 tasks/s con 0 yields** y la petición `0x87` +
+  carga `0x801B6600` (hito del emulador a t≈10,5 s) se repiten.
+  **Frontera actual**: crash intermitente por **corrupción lógica de RDRAM** del propio juego
+  (`FUN_8001FD14` lee un descriptor de buffer basura); ASan limpio y `[BADMQ]`=0 en las APIs ⇒
+  siguiente: comparar el estado del driver (descriptor/buffers AI) port vs emulador antes del fallo
+  y validar los punteros de las DMAs del ucode (ver `../TODO.md` #14 y
+  `../notes/2026-09-13-ucode-audio-gate-transicion.md` §§5-10).
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los
   corrompe (`801BF1CC` → `CCF11B80`).
 
