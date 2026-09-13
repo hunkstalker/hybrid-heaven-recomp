@@ -97,11 +97,19 @@
       el emisor aún no se había bloqueado). Evidencia (300 s): dispatcher **3723** (vs 428 antes),
       `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, sin símbolos faltantes ni asserts.
       Detalle: `notes/2026-09-13-deadlock-sp-race.md` §5.
-    - **Frontera actual (transición `fe00`)**: a VIS18000 (300 s) el port sigue en `fe00=0`, nodo
-      `+0x1C=0x801BF1CC` y solo 10 `[LD384]`, pese a superar el conteo de dispatcher del emulador a
-      t≈63,9 s (~2300). El trigger de la carga id 0x19 → ROM `0x5FBEC6` → `0x801BF1A0` no depende
-      (solo) del ritmo del gate. Siguiente: comparar la secuencia de peticiones del pump
-      (`[SUBM]`/`[LD384]`) y los callbacks del módulo 23 en un run largo de emulador vs port.
+    - **Frontera actual (transición `fe00`)**: con el deadlock resuelto y el mapa task→hilo corregido
+      (audio dirigido a t18), el port sigue en el estado pre-transición a VI36000 (620 s):
+      `node1C=801BF1CC`, `n18=8012E584`, `fe00=0`, **idéntico al emulador antes de su burst**. El
+      emulador transiciona a t≈63,7 s (12 loads seguidos; id 0x19 = `0x5FBEC6 → 0x801BF1A0`), con
+      64 dispatcher/s vs 9–12/s del port, pero el port ya superó el conteo de dispatches del emulador
+      ⇒ no es (solo) ritmo. Divergencia estructural candidata: la estructura de contexto
+      `0x8004FAEC..0x8004FBC0` (hilo actual + code ptrs + mqs) está **a cero en el port** y poblada en
+      el emulador desde t0 (réplicas en `0x80051AEC`/`0x80053AEC`). Detalle:
+      `notes/2026-09-13-audio-ai-y-estructura-pre-transicion.md`.
+    - Siguiente: identificar quién inicializa `0x8004FAEC` en el emulador (wplog en
+      `0x4FAE0..0x4FBC0`; el core wplog segfaultea en la config actual → reconstruir) o el hook del
+      scheduler del ROM que el port no ejecuta; comprobar si el gate de la transición depende de ese
+      contexto.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

@@ -129,12 +129,14 @@ registrar en la base determinista.
   dejaban la completación en el waiter equivocado y el gate quedaba cerrado (dispatcher 9,5/s vs
   36/s). Evidencia (300 s): dispatcher **3723**, `[0x8005CD4C]` oscila 1/2, sin hilos congelados con
   task en vuelo (detalle: `../notes/2026-09-13-deadlock-sp-race.md` §5).
-  **Frontera actual**: la cadena de boot coincide con el emulador (setter `FUN_800058DC` y
-  `obj@0x801D0474` idénticos), pero la transición de progreso `fe00` (id 0x19 → ROM `0x5FBEC6` →
-  `0x801BF1A0`, t≈63,9 s del emulador) no se alcanza ni a VIS18000/300 s (`fe00=0`, nodo
-  `+0x1C=0x801BF1CC`, 10 `[LD384]`) pese a superar el dispatch count del emulador ⇒ el trigger no
-  depende solo del ritmo del gate (ver `../TODO.md` #14
-  y `../notes/2026-09-13-cadena-boot-y-progreso-fe00.md`).
+  **Frontera actual**: el estado del port a VI36000 es **idéntico** al del emulador antes de su
+  transición (`node1C=801BF1CC`, `n18=8012E584`, `fe00=0`); el emulador dispara a t≈63,7 s un burst
+  de 12 loads (id 0x19 = `0x5FBEC6 → 0x801BF1A0`). El port ya supera el conteo de dispatches del
+  emulador (0,15/frame vs 1/frame; 9–12/s vs 64/s) ⇒ el trigger no depende solo del ritmo. Divergencia
+  estructural candidata: la estructura de contexto `0x8004FAEC..0x8004FBC0` (hilo actual, code ptrs,
+  mqs) está a cero en el port y poblada en el emulador (ver `../TODO.md` #14
+  y `../notes/2026-09-13-audio-ai-y-estructura-pre-transicion.md`).
+  **Ojo**: los dumps de `r64dump` ya están en LE nativo (no aplicar `bswap32`).
 
 ## 6. Toolchain de recompilación
 

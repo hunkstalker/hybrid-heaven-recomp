@@ -229,7 +229,32 @@ static uint32_t output_channels = 2;
 constexpr uint32_t bytes_per_sample = input_channels * sizeof(int16_t);
 static std::vector<uint8_t> audio_cvt_buffer;
 
+// HH: sin dispositivo de audio (headless/CI) el AI del N64 debe seguir "reproduciendo": si
+// osAiGetLength() devolviera 0 siempre, el pacing de audio del juego se degrada (nota
+// 2026-09-13-audio-ai-length.md). Cola virtual drenada a tiempo real con la frecuencia del juego.
+static double virtual_frames = 0.0;
+static std::chrono::steady_clock::time_point virtual_clock = std::chrono::steady_clock::now();
+
+static void virtual_ai_drain() {
+    const auto now = std::chrono::steady_clock::now();
+    const double elapsed = std::chrono::duration<double>(now - virtual_clock).count();
+    virtual_clock = now;
+    static const double ai_speed = [] {
+        const char* s = getenv("HH_AI_SPEED");
+        return s ? strtod(s, nullptr) : 1.0;
+    }();
+    virtual_frames -= elapsed * sample_rate * ai_speed;
+    if (virtual_frames < 0.0) {
+        virtual_frames = 0.0;
+    }
+}
+
 void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
+    if (audio_device == 0) {
+        virtual_ai_drain();
+        virtual_frames += static_cast<double>(sample_count) / input_channels;
+        return;
+    }
     const size_t byte_len = sample_count * bytes_per_sample;
     const size_t needed = static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1;
     if (audio_cvt_buffer.size() < needed) {
@@ -249,6 +274,10 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
 }
 
 size_t hh::get_frames_remaining() {
+    if (audio_device == 0) {
+        virtual_ai_drain();
+        return static_cast<size_t>(virtual_frames);
+    }
     return static_cast<size_t>(SDL_GetQueuedAudioSize(audio_device) / (input_channels * sizeof(int16_t)));
 }
 
