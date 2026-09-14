@@ -107,6 +107,7 @@ static void install_crash_handlers() {
 }
 #endif
 
+#ifndef _WIN32
 #include <csignal>
 #include <ucontext.h>
 #include <dlfcn.h>
@@ -130,14 +131,35 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
     fprintf(stderr, "\n");
     _exit(139);
 }
+#else
+#include <windows.h>
+static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
+    const DWORD code = ep && ep->ExceptionRecord ? ep->ExceptionRecord->ExceptionCode : 0;
+    void* addr = (ep && ep->ExceptionRecord) ? ep->ExceptionRecord->ExceptionAddress : nullptr;
+    void* fault = nullptr;
+    if (ep && ep->ExceptionRecord && ep->ExceptionRecord->NumberParameters >= 2) {
+        fault = (void*)ep->ExceptionRecord->ExceptionInformation[1];
+    }
+    CONTEXT* c = ep ? ep->ContextRecord : nullptr;
+    fprintf(stderr, "\n[SEGV] code=%08lX addr=%p rip=%p\n", (unsigned long)code, fault, addr);
+    if (c != nullptr) {
+        fprintf(stderr, "[SEGV] rax=%p rbx=%p rcx=%p rdx=%p rsp=%p rbp=%p rsi=%p rdi=%p\n",
+            (void*)c->Rax, (void*)c->Rbx, (void*)c->Rcx, (void*)c->Rdx,
+            (void*)c->Rsp, (void*)c->Rbp, (void*)c->Rsi, (void*)c->Rdi);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
 
 int main(int argc, char** argv) {
-#if !defined(__SANITIZE_ADDRESS__)
+#if !defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
     struct sigaction hh_sa{};
     hh_sa.sa_sigaction = hh_segv_handler;
     hh_sa.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &hh_sa, nullptr);
     sigaction(SIGBUS, &hh_sa, nullptr);
+#elif !defined(__SANITIZE_ADDRESS__)
+    SetUnhandledExceptionFilter(hh_win_exc_handler);
 #endif
     auto app_folder_path = hh::get_app_folder_path();
 #ifndef _WIN32
