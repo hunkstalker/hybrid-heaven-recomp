@@ -260,15 +260,16 @@ static void hh_record_write(double elapsed, n64_button buttons, float x, float y
 }
 
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
+    static bool cfg_logged = false;
+    if (!cfg_logged && controller_num == 0) {
+        cfg_logged = true;
+        const char* iy = getenv("HH_INVERT_Y");
+        const char* res = getenv("HH_RES");
+        fprintf(stderr, "[CFG] HH_INVERT_Y=%s HH_RES=%s\n", iy ? iy : "(no)", res ? res : "(auto)");
+    }
     n64_button input = 0;
     if (controller_num == 0) {
         input = read_input_button();
-        static n64_button last_input = 0;
-        static unsigned long input_calls = 0;
-        if (getenv("HH_INLOG") != nullptr && (input != last_input || (++input_calls % 512 == 0))) {
-            fprintf(stderr, "[IN] ctrl=%d call=%lu buttons=0x%04X\n", controller_num, input_calls, (unsigned)input);
-            last_input = input;
-        }
     }
 
     float axis_x = 0.0f;
@@ -333,6 +334,19 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
         else if (getenv("HH_RECORD") != nullptr) {
             hh_record_write(hh_elapsed, input, axis_x, axis_y);
+        }
+    }
+
+    if (controller_num == 0 && getenv("HH_INLOG") != nullptr) {
+        static n64_button last_input = 0;
+        static unsigned long input_calls = 0;
+        static unsigned long ax_calls = 0;
+        ++input_calls;
+        bool changed = (input != last_input);
+        if (changed || (++ax_calls % 128 == 0)) {
+            last_input = input;
+            fprintf(stderr, "[IN] ctrl=%d call=%lu buttons=0x%04X x=%.3f y=%.3f (stick fijado a x=%.3f y=%.3f)\n",
+                    controller_num, input_calls, (unsigned)input, axis_x, axis_y, axis_x, axis_y);
         }
     }
 
