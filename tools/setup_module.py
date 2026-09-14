@@ -46,6 +46,7 @@ COMBINED_SYMS = CONFIG / "us_combined.syms.toml"
 MODULE_SOURCES_INC = ROOT / "port/HybridHeavenRecomp/src/main/module_sources.inc"
 MODULE_EXTRAS = {}
 KEEP_SYMS = CONFIG / "keep_syms.txt"
+KEEP_SYMS_FLAT = CONFIG / "keep_syms_flat.txt"
 FLAT_SECTION = {"name": ".text", "rom": 0x1000, "vram": 0x80000400, "size": 0x4E5B40}
 
 # Módulos pre-recompilados: (índice Nisitenma, base RAM determinista, offset en el ROM combinado).
@@ -231,6 +232,11 @@ def gen_keep_syms():
         keep = Path(str(module_syms_path(mod)) + ".keep")
         if keep.exists():
             addrs |= {int(l, 16) for l in keep.read_text().split() if l.strip()}
+    if KEEP_SYMS_FLAT.exists():
+        for line in KEEP_SYMS_FLAT.read_text().splitlines():
+            line = line.split("#", 1)[0].strip()
+            if line:
+                addrs.add(int(line, 16))
     KEEP_SYMS.write_text("\n".join(f"0x{a:08X}" for a in sorted(addrs)) + "\n")
     print(f"[setup] {KEEP_SYMS.name}: {len(addrs)} entradas protegidas")
     return True

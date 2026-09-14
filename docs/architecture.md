@@ -111,6 +111,15 @@ registrar en la base determinista.
     **`osInitialize_stub`** porque ahora se recompila la **versión del ROM** (des-stubbing; ADR 0002).
   - `cont.cpp`: `osContGetReadData` escribe los 4 `OSContPad` (libultra escribe también los ausentes
     con `CONT_NO_RESPONSE_ERROR`; el juego ramifica según eso).
+  - `pak.cpp`: **Controller Pak (PFS) mínimo en RAM** con persistencia (`saves/<nombre>.bin.pak`,
+    magic `HHPK`): `osPfsInitPak`, `osPfsInit` (formato), `osPfsFreeBlocks`, `osPfsAllocateFile`,
+    `osPfsFindFile`, `osPfsDeleteFile`, `osPfsReadWriteFile`, `osPfsFileState`, `osPfsNumFiles`,
+    `osPfsIsPlug`, `osPfsChecker`, `osPfsRepairId`, `osPfsGetLabel`. El juego exige pak para GAME
+    START y el upstream devolvía `PFS_ERR_NOPACK` en todo (TODO #15). Esas 13 entradas se movieron de
+    `ignored_funcs` a `reimplemented_funcs` en `N64Recomp/src/symbol_lists.cpp` (tool reconstruido con
+    `--target N64RecompCLI`). No se emula el formato PFS real de libultra: la semántica de ficheros es
+    propia. `osGbpakInit` sigue devolviendo "no pak".
+  - `recomp.cpp`: `switch_error` imprime a **stderr** (con `printf`/stdout se perdía al abortar).
   - `input.cpp`: `osContInit` fiel a libultra (query SI + espera en `mq` + one-shot). Upstream lo
     simplifica (no bloquea); para HH el orden de arranque depende de ese wait. **Nota**: el mensaje SI
     se entrega síncrono en el runtime, así que el wait no siempre cede; un `osContInit` 100% fiel

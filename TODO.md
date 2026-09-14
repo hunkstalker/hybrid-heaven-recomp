@@ -62,12 +62,13 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: **GEOMETRÍA Y PÍXELES ALCANZADOS** (RT64
-    renderiza logo, pantalla de título con "PRESS START" y attract 3D: `work/debug/port_shot_*.png`;
-    `notes/2026-09-14-geometria-pixeles.md`). Transición y burst completos (`[LD384]=20`,
-    `fe00=0x3C01`, módulos 24/25/99 registrados dinámicamente). Siguiente: **entrar en gameplay**
-    (input para "PRESS START"; fase `0x80037750`), **robustez de cierre** (SEGV del teardown en
-    código de módulo, p.ej. `M25_FUN_801e2d94`) y validar textos/audio/guardado.
+10. [•] **Siguiente: render/juego tras el arranque**: **geometría/píxeles** (título + attract 3D,
+    `port_shot_*.png`) y **menús + GAME START (2026-09-14)**: input headless por env (`HH_PRESS*`),
+    menú principal → GAME START/DIFFICULTY/EXIT → **escenas 3D in-game** tras implementar el
+    **Controller Pak (PFS mínimo)**. Detalle: `notes/2026-09-14-geometria-pixeles.md`,
+    `notes/2026-09-14-input-menus-controller-pak.md`. Frontera: **crash ~1 min tras GAME START en
+    `M25_FUN_801e2cac`** (`$t6=[0x801DAB14]=0x80000000`), confirmar gameplay interactivo y el SEGV
+    del callback `M24_FUN_801cb71c` (`[0x8008D608]=0`) si el menú se queda sin input.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
@@ -115,15 +116,13 @@
       `add_missing_funcs.py`), y pipeline consciente de sección (`validate_syms`, `fix_fallthroughs`,
       `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]` 1..6, `fe00=0x3C01`, 0 funciones
       faltantes en 220 s, 3953 DLs gfx. Detalle: `notes/2026-09-14-registro-dinamico-modulos.md`.
-    - **Frontera actual**: `0x80037750` (fase) sigue 0 y hay crash determinista en módulo25
-      (`M25_FUN_801e2d94`, puntero nulo en `a0+0xE8 → +0x2C`) en runs largos; comparar estado
-      port↔emulador de gameplay y verificar píxeles/geometría en pantalla (RT64 ya procesa DLs).
-15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
-    device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
-    Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
-    referencia (sin mempak ni rumble) antes de dar por bueno el arranque. `osGbpakInit` queda
-    **stubeado a "no pak"** (`GB_PAK_ERR_NOPAK`) en el runtime; validar que el boot no diverge por
-    ello. Detalle: `notes/2026-09-13-arranque-memsize-y-accesorios.md` §5.
+    - **Frontera actual (2026-09-14)**: menús y GAME START atravesados (ver #10); el port renderiza escenas 3D in-game.
+      Pendiente: crash de módulo 25 (`M25_FUN_801e2cac`) y confirmar gameplay interactivo.
+15. [•] **Accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble / device type):
+    **HECHO (2026-09-14)**: GAME START exigía Controller Pak (runtime devolvía NOPACK) → **PFS mínimo en
+    RAM** (`pak.cpp`: init/formato, allocate/find/delete/read/write/fileState/freeBlocks/numFiles/isPlug;
+    persistencia `saves/*.bin.pak`; 13 entradas a `reimplemented_funcs` + `N64RecompCLI` reconstruido).
+    `osGbpakInit` sigue **stubeado a "no pak"**. Pendiente: validar contra el emulador con mempak.
 
 ## Fundaciones pendientes
 

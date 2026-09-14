@@ -1,4 +1,8 @@
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 #ifdef _WIN32
@@ -36,6 +40,102 @@ enum N64Buttons : n64_button {
     CRIGHT_BUTTON = 0x1,
 };
 
+// HH: inyeccion de input opt-in para runs headless (atravesar menus sin SDL/ventana).
+//   HH_PRESS=start | HH_PRESS=a+start | HH_PRESS=0x1000   (mascara o nombres)
+//   HH_PRESS_AT=segundos (inicio, por defecto 0), HH_PRESS_FOR=segundos (duracion, opcional)
+//   HH_PRESS_SEQ="t1:botones,t2:-,..."  (cambios de estado; '-' suelta todo)
+// Botones: a,b,z,start,dup,ddown,dleft,dright,l,r,cup,cdown,cleft,cright. Sin env: sin efecto.
+struct HHPressEntry {
+    double t;
+    n64_button mask;
+};
+
+static n64_button hh_parse_buttons(const char* spec) {
+    n64_button mask = 0;
+    if (spec == nullptr || *spec == '\0' || (*spec == '-' && spec[1] == '\0')) {
+        return 0;
+    }
+    if (spec[0] == '0' && (spec[1] == 'x' || spec[1] == 'X')) {
+        return static_cast<n64_button>(strtoul(spec, nullptr, 16));
+    }
+    std::string names(spec);
+    size_t pos = 0;
+    while (pos <= names.size()) {
+        size_t end = names.find('+', pos);
+        if (end == std::string::npos) end = names.size();
+        std::string name = names.substr(pos, end - pos);
+        if (name == "a") mask |= A_BUTTON;
+        else if (name == "b") mask |= B_BUTTON;
+        else if (name == "z") mask |= Z_BUTTON;
+        else if (name == "start") mask |= START_BUTTON;
+        else if (name == "dup") mask |= DUP_BUTTON;
+        else if (name == "ddown") mask |= DDOWN_BUTTON;
+        else if (name == "dleft") mask |= DLEFT_BUTTON;
+        else if (name == "dright") mask |= DRIGHT_BUTTON;
+        else if (name == "l") mask |= L_BUTTON;
+        else if (name == "r") mask |= R_BUTTON;
+        else if (name == "cup") mask |= CUP_BUTTON;
+        else if (name == "cdown") mask |= CDOWN_BUTTON;
+        else if (name == "cleft") mask |= CLEFT_BUTTON;
+        else if (name == "cright") mask |= CRIGHT_BUTTON;
+        else fprintf(stderr, "[INJ] boton desconocido: %s\n", name.c_str());
+        if (end == names.size()) break;
+        pos = end + 1;
+    }
+    return mask;
+}
+
+static const std::vector<HHPressEntry>& hh_press_entries() {
+    static const std::vector<HHPressEntry> entries = [] {
+        std::vector<HHPressEntry> out;
+        const char* seq = getenv("HH_PRESS_SEQ");
+        if (seq != nullptr && *seq != '\0') {
+            std::string s(seq);
+            size_t pos = 0;
+            while (pos <= s.size()) {
+                size_t comma = s.find(',', pos);
+                if (comma == std::string::npos) comma = s.size();
+                std::string item = s.substr(pos, comma - pos);
+                size_t colon = item.find(':');
+                if (colon != std::string::npos) {
+                    double t = strtod(item.substr(0, colon).c_str(), nullptr);
+                    out.push_back({t, hh_parse_buttons(item.substr(colon + 1).c_str())});
+                }
+                if (comma == s.size()) break;
+                pos = comma + 1;
+            }
+        }
+        else {
+            const char* press = getenv("HH_PRESS");
+            if (press != nullptr && *press != '\0') {
+                const char* at = getenv("HH_PRESS_AT");
+                const char* dur = getenv("HH_PRESS_FOR");
+                double at_s = (at != nullptr) ? strtod(at, nullptr) : 0.0;
+                out.push_back({at_s, hh_parse_buttons(press)});
+                if (dur != nullptr) out.push_back({at_s + strtod(dur, nullptr), 0});
+            }
+        }
+        std::sort(out.begin(), out.end(), [](const HHPressEntry& a, const HHPressEntry& b) { return a.t < b.t; });
+        return out;
+    }();
+    return entries;
+}
+
+static n64_button hh_injected_buttons() {
+    const std::vector<HHPressEntry>& entries = hh_press_entries();
+    if (entries.empty()) {
+        return 0;
+    }
+    static const auto t0 = std::chrono::steady_clock::now();
+    double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    n64_button mask = 0;
+    for (const HHPressEntry& e : entries) {
+        if (e.t <= elapsed) mask = e.mask;
+        else break;
+    }
+    return mask;
+}
+
 static n64_button read_input_button() {
     n64_button input = 0;
 
@@ -61,6 +161,8 @@ static n64_button read_input_button() {
 
     if (mouse_state & SDL_BUTTON_LMASK) input |= A_BUTTON;
     if (mouse_state & SDL_BUTTON_RMASK) input |= B_BUTTON;
+
+    input |= hh_injected_buttons();
 
     return input;
 }

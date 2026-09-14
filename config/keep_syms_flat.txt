@@ -1,0 +1,1 @@
+# Entradas planas protegidas de la fusión del validador (no se generan solas).

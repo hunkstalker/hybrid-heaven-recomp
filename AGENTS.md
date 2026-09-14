@@ -20,9 +20,15 @@ extras por módulo (traza `HH_JALTRACE` + `add_missing_funcs.py`) y pipeline con
 secciones 1..6, `fe00=0x3C01`/`fe02=0x80`, 0 funciones faltantes en 220 s, 3953 DLs gfx a RT64.
 **GEOMETRÍA Y PÍXELES ALCANZADOS (2026-09-14)**: RT64 renderiza el logo, la **pantalla de título**
 ("PRESS START BUTTON" + copyright) y el attract 3D — capturas `work/debug/port_shot_{45,80,120,160}.png`
-y `notes/2026-09-14-geometria-pixeles.md`. Siguiente: **entrar en gameplay** (input para "PRESS
-START"; fase `0x80037750`), robustez de cierre (SEGV del teardown en código de módulo). Detalle
-técnico: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14.
+y `notes/2026-09-14-geometria-pixeles.md`. **MENÚS Y GAME START (2026-09-14)**: input headless por env
+(`HH_PRESS`/`HH_PRESS_AT`/`HH_PRESS_FOR`/`HH_PRESS_SEQ` en `src/game/input.cpp`), menú principal →
+GAME START/DIFFICULTY/EXIT; GAME START exigía **Controller Pak** (runtime devolvía NOPACK) →
+implementado **PFS mínimo en RAM** (`runtime librecomp/src/pak.cpp`, 13 entradas movidas a
+`reimplemented_funcs`, `N64RecompCLI`+recomp). El port ya renderiza **escenas 3D in-game**; detalle y
+capturas en `notes/2026-09-14-input-menus-controller-pak.md`. Frontera: crash ~1 min tras GAME START en
+`M25_FUN_801e2cac` (`$t6=[0x801DAB14]=0x80000000`), confirmar gameplay interactivo y el SEGV del
+callback `M24_FUN_801cb71c` (`[0x8008D608]=0`) si el menú se queda sin input. Detalle
+técnico: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14/#15.
 
 ## Persistencia y entorno (CRÍTICO)
 
