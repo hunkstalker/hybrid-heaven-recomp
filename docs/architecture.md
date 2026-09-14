@@ -169,11 +169,12 @@ registrar en la base determinista.
   intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
   `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
   **Frontera actual (2026-09-14)**: con el registro dinámico de módulos el port **cruza la
-  transición y el burst**: `[LD384]=20`, secciones 1..6 registradas, `fe00=0x3C01`/`fe02=0x80`,
-  0 funciones faltantes en un run de 220 s (`HH_SOFT_LOOKUP`) y 3953 DLs gfx a RT64. Bloqueo
-  siguiente: la fase `0x80037750` sigue 0, hay un crash determinista de estado en módulo25
-  (`M25_FUN_801e2d94`, puntero nulo en `a0+0xE8 → +0x2C`) y falta **verificar geometría/píxeles**
-  en pantalla. Ver `../notes/2026-09-14-registro-dinamico-modulos.md` y `../TODO.md` #10/#14.
+  transición y el burst**, y **renderiza geometría/píxeles reales en RT64** (logo, pantalla de
+  título "PRESS START BUTTON" y attract 3D; capturas en `work/debug/port_shot_*.png`, nota
+  `../notes/2026-09-14-geometria-pixeles.md`). Bloqueo siguiente: **entrar en gameplay** (input para
+  "PRESS START"; `0x80037750` sigue 0 = título/attract) y robustez de cierre (SEGV al teardown en
+  código de módulo, p.ej. `M25_FUN_801e2d94`). Ver `../notes/2026-09-14-registro-dinamico-modulos.md`
+  y `../TODO.md` #10/#14.
   **Ojo con los wplog de MMIO**: vigilar el rango de registros AI (`0x04500000`) con el core wplog
   hace segfault al emulador en el boot (usar RDRAM).
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los

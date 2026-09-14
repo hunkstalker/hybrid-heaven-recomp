@@ -18,9 +18,11 @@ dinámico de módulos** (runtime `load_module_by_source` + loader siempre activo
 extras por módulo (traza `HH_JALTRACE` + `add_missing_funcs.py`) y pipeline consciente de sección
 (`validate_syms`, `fix_fallthroughs`, `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]`
 secciones 1..6, `fe00=0x3C01`/`fe02=0x80`, 0 funciones faltantes en 220 s, 3953 DLs gfx a RT64.
-Frontera: fase `0x80037750` sigue 0, crash de estado en módulo25 (`M25_FUN_801e2d94`) y **verificar
-geometría/píxeles** en pantalla. Detalle: `notes/2026-09-14-registro-dinamico-modulos.md` y
-`notes/2026-09-14-fix-strict-aliasing-transicion.md`; `TODO.md` #10/#14.
+**GEOMETRÍA Y PÍXELES ALCANZADOS (2026-09-14)**: RT64 renderiza el logo, la **pantalla de título**
+("PRESS START BUTTON" + copyright) y el attract 3D — capturas `work/debug/port_shot_{45,80,120,160}.png`
+y `notes/2026-09-14-geometria-pixeles.md`. Siguiente: **entrar en gameplay** (input para "PRESS
+START"; fase `0x80037750`), robustez de cierre (SEGV del teardown en código de módulo). Detalle
+técnico: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14.
 
 ## Persistencia y entorno (CRÍTICO)
 

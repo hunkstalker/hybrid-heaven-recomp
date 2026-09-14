@@ -62,10 +62,12 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: **transición y burst completos**
-    (`[LD384]=20`, `fe00=0x3C01`, módulos 24/25/99 cargados y registrados; 3953 DLs gfx). Falta:
-    fase `0x80037750` > 0, crash de módulo25 (estado de gameplay) y **verificar geometría/píxeles**
-    en pantalla (RT64). Después: textos/audio/guardado.
+10. [•] **Siguiente: render/juego tras el arranque**: **GEOMETRÍA Y PÍXELES ALCANZADOS** (RT64
+    renderiza logo, pantalla de título con "PRESS START" y attract 3D: `work/debug/port_shot_*.png`;
+    `notes/2026-09-14-geometria-pixeles.md`). Transición y burst completos (`[LD384]=20`,
+    `fe00=0x3C01`, módulos 24/25/99 registrados dinámicamente). Siguiente: **entrar en gameplay**
+    (input para "PRESS START"; fase `0x80037750`), **robustez de cierre** (SEGV del teardown en
+    código de módulo, p.ej. `M25_FUN_801e2d94`) y validar textos/audio/guardado.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
