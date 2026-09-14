@@ -191,7 +191,7 @@ index 7ad6c21..e7a68be 100644
  
  extern "C" void osContStartQuery_recomp(uint8_t * rdram, recomp_context * ctx) {
 diff --git a/librecomp/src/overlays.cpp b/librecomp/src/overlays.cpp
-index 20e07d9..4b17ed6 100644
+index 20e07d9..7eed3ec 100644
 --- a/librecomp/src/overlays.cpp
 +++ b/librecomp/src/overlays.cpp
 @@ -1,9 +1,11 @@
@@ -268,7 +268,7 @@ index 20e07d9..4b17ed6 100644
  static void load_special_overlay(const SectionTableEntry& section, int32_t ram) {
      for (size_t function_index = 0; function_index < section.num_funcs; function_index++) {
          const FuncEntry& func = section.funcs[function_index];
-@@ -378,7 +417,409 @@ recomp_func_t* recomp::overlays::get_func_by_section_rom_function_vram(uint32_t
+@@ -378,16 +417,476 @@ recomp_func_t* recomp::overlays::get_func_by_section_rom_function_vram(uint32_t
  // funciones faltantes en un solo run. Solo para depuración de símbolos.
  static void soft_missing_func(uint8_t*, recomp_context*) {}
  
@@ -678,7 +678,14 @@ index 20e07d9..4b17ed6 100644
      auto func_find = func_map.find(addr);
      if (func_find == func_map.end()) {
          fprintf(stderr, "Failed to find function at 0x%08X\n", addr);
-@@ -388,6 +829,59 @@ extern "C" recomp_func_t * get_function(int32_t addr) {
++        // HH: además de stderr, dejarlo en hh_missing.log (CWD) para builds de Windows sin consola.
++        if (FILE* mf = fopen("hh_missing.log", "a")) {
++            fprintf(mf, "Failed to find function at 0x%08X\n", addr);
++            fclose(mf);
++        }
+         if (getenv("HH_SOFT_LOOKUP") != nullptr) {
+             return soft_missing_func;
+         }
          assert(false);
          std::exit(EXIT_FAILURE);
      }

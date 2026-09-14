@@ -73,7 +73,12 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
   (idx8/9/10/12/55) y entra en la primera escena jugable con HUD (`work/debug/port_v3_*.png`).
 - **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
   (p. ej. `set HH_RES=2x`).
-- **Mando Xbox**: eje Y corregido (arriba/abajo); el resto del layout está pendiente de definir.
+- **Mando Xbox**: eje Y por defecto negado; si lo notas al revés, arranca con `set HH_INVERT_Y=1`.
+  El resto del layout está pendiente de definir.
+- **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
+  direcciones `Failed to find function at 0x...`; pásalas y se añaden.
+- Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
+  y `HH_STICK=x,y` (input sintético para pruebas).
 
 ## 4b. Estado anterior (2026-09-10)
 
