@@ -80,6 +80,22 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
   y `HH_STICK=x,y` (input sintético para pruebas).
 
+### Grabar y reproducir una partida (depuración determinista)
+
+```bat
+REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash:
+set HH_RECORD=mi_partida.txt
+Hybrid Heaven Recomp.exe
+
+REM 2) Reproducirla después (sin mando): el port mete exactamente el input grabado
+set HH_RECORD=
+set HH_REPLAY=mi_partida.txt
+Hybrid Heaven Recomp.exe
+```
+
+El replay es **por índice de poll** (una muestra por frame), así que reproduce la sesión píxel a píxel
+(verificado RMSE=0). Envía el `.txt` grabado y se puede reproducir el fallo en el contenedor Linux.
+
 ## 4b. Estado anterior (2026-09-10)
 
 - Boot completo, transición y burst de módulos; **renderiza** logo, pantalla de título, menú y

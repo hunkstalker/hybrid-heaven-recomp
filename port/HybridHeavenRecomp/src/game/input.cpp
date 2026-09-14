@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -196,6 +198,67 @@ void hh::poll_input() {
     }
 }
 
+
+// --- Grabación/reproducción de input (HH_RECORD / HH_REPLAY) -------------------------------
+// Formato de línea: <t> <buttons_hex> <x> <y>  (t = segundos desde el primer poll).
+struct HHRec {
+    double t;
+    uint16_t buttons;
+    float x;
+    float y;
+};
+
+static const std::vector<HHRec>& hh_replay_data() {
+    static const std::vector<HHRec> data = [] {
+        std::vector<HHRec> out;
+        const char* path = getenv("HH_REPLAY");
+        if (path == nullptr || *path == '\0') return out;
+        std::ifstream in(path);
+        std::string line;
+        while (std::getline(in, line)) {
+            std::istringstream ss(line);
+            HHRec r{};
+            unsigned b = 0;
+            if (ss >> r.t >> std::hex >> b >> std::dec >> r.x >> r.y) {
+                r.buttons = static_cast<uint16_t>(b);
+                out.push_back(r);
+            }
+        }
+        fprintf(stderr, "[REPLAY] %zu muestras de %s\n", out.size(), path);
+        return out;
+    }();
+    return data;
+}
+
+static void hh_replay_apply(double elapsed, n64_button& buttons, float& x, float& y) {
+    (void)elapsed;
+    const std::vector<HHRec>& data = hh_replay_data();
+    if (data.empty()) return;
+    // Reproducción por ÍNDICE de poll (no por tiempo): el juego poll-ea una vez por frame, así que
+    // la misma secuencia de muestras produce la misma entrada por frame (determinista).
+    static size_t idx = 0;
+    size_t use = idx < data.size() ? idx : data.size() - 1;
+    idx++;
+    buttons = data[use].buttons;
+    x = data[use].x;
+    y = data[use].y;
+}
+
+static void hh_record_write(double elapsed, n64_button buttons, float x, float y) {
+    static FILE* fp = nullptr;
+    static bool tried = false;
+    if (!tried) {
+        tried = true;
+        const char* path = getenv("HH_RECORD");
+        if (path != nullptr && *path != '\0') fp = fopen(path, "w");
+        if (fp != nullptr) fprintf(stderr, "[RECORD] grabando input en %s\n", path);
+    }
+    if (fp != nullptr) {
+        fprintf(fp, "%.4f %04X %.4f %.4f\n", elapsed, (unsigned)buttons, x, y);
+        fflush(fp);
+    }
+}
+
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     n64_button input = 0;
     if (controller_num == 0) {
@@ -257,6 +320,19 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             if (active && sscanf(st, "%f,%f", &sx, &sy) == 2) {
                 axis_x = sx; axis_y = sy;
             }
+        }
+    }
+
+    // Reproducción/grabación de input (controller 0) para runs deterministas.
+    static const auto hh_in_t0 = std::chrono::steady_clock::now();
+    const double hh_elapsed = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - hh_in_t0).count();
+    if (controller_num == 0) {
+        if (getenv("HH_REPLAY") != nullptr) {
+            hh_replay_apply(hh_elapsed, input, axis_x, axis_y);
+        }
+        else if (getenv("HH_RECORD") != nullptr) {
+            hh_record_write(hh_elapsed, input, axis_x, axis_y);
         }
     }
 
