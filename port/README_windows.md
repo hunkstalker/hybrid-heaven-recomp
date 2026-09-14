@@ -1,12 +1,11 @@
 # Hybrid Heaven Recomp — Build para Windows
 
-Guía para compilar el port en Windows (MSVC / Visual Studio). Los cambios de runtime y la
-generación de funciones se hacen en el contenedor Linux; en Windows solo se compila y se prueban
-`boot.log` / `hh.log`.
+Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace
+en el contenedor Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.log`).
 
 ## Requisitos previos
 
-- **Visual Studio 2022** con el componente **Desktop development with C++** (MSVC + CMake).
+- **Visual Studio 2022 o 2026** con el componente **Desktop development with C++** (MSVC + CMake).
 - **Git** (para clonar/actualizar).
 - La ROM retail: **`baserom.us.z64`** (Hybrid Heaven USA, 16 MB, hash `0x0F6A72F2C36A216DULL`),
   copiada junto al `.exe` generado o en el working directory.
@@ -15,75 +14,74 @@ generación de funciones se hacen en el contenedor Linux; en Windows solo se com
 
 ```
 port/HybridHeavenRecomp/
-├── CMakeLists.txt          ← ya preparado (GLOB funcs_*.c, SDL2 win32, icono, DLLs)
-├── RecompiledFuncs/        ← SET UNIFICADO (341 funcs, funcs_0..6 + lookup.cpp + recomp_overlays.inl) — YA GENERADO
+├── CMakeLists.txt          ← ya preparado (GLOB funcs_*.c, rsp/hh_aspMain.cpp, SDL2 win32, icono, DLLs)
+├── RecompiledFuncs/        ← SET UNIFICADO ACTUAL (funcs_0..N + funcs.h + recomp_overlays.inl + lookup.cpp)
+├── rsp/hh_aspMain.cpp      ← ucode de audio recompilado
 ├── assets/                 ← HybridHeaven.ico, app.rc.in, HybridHeaven.png, icon_bmp.inc
-├── lib/
-│   ├── rt64/               ← repos rt64 (SUBMODULE vendored, sin cambios)
-│   └── N64ModernRuntime/   ← repos N64ModernRuntime (SUBMODULE vendored, CON NUESTROS FIXES)
-└── src/main/*.cpp          ← port (main, support, rt64_render_context, register_overlays)
+├── src/main/*.cpp          ← port (main, support, rt64_render_context, register_overlays, module_sources.inc)
+├── lib/rt64/               ← repo rt64 (vendored, sin cambios)
+└── lib/N64ModernRuntime/   ← repo N64ModernRuntime (vendored, CON NUESTROS FIXES)
 ```
 
-> **IMPORTANTE:** los dos `lib/` son repos anidados versionados en su propio `.git` (gitignored del
-> repo principal). `rt64` va tal cual. `N64ModernRuntime` debe tener los fixes de runtime.
+> **IMPORTANTE:** los dos `lib/` son repos anidados con su propio `.git` (gitignored del repo
+> principal). `rt64` va tal cual en `43373749dac9bbc1b653e6a02aed40a9e1783bed`. `N64ModernRuntime`
+> debe estar en `fd6b0d0eedc922700f67bab8b770d3986187f3e9` + el patch de runtime.
 
-## 1. Aplicar los fixes de runtime a N64ModernRuntime (Windows)
+## 1. Aplicar los fixes de runtime a N64ModernRuntime
 
-El patch `port/windows_runtime_changes.patch` contiene TODOS los cambios de runtime/librecomp que
-necesita el port (fix deadlock VI, endurecimiento de threads, `register_flat_code`, etc.). Se generó
-contra la base upstream `cdf5abb` ("Add CLI options to select games and game modes. (#153)").
-
-Si tu `N64ModernRuntime` está en ese commit base (o más arriba y no tienes esos fixes):
+`port/windows_runtime_changes.patch` contiene TODOS los cambios de runtime/librecomp que necesita el
+port (VI, threads, mesgqueue, registro dinámico de módulos, **Controller Pak (PFS)**, `MEM_*`/`TO_PTR`
+para direcciones no mapeadas, etc.). Base: `fd6b0d0eedc922700f67bab8b770d3986187f3e9`.
 
 ```bat
 cd port\HybridHeavenRecomp\lib\N64ModernRuntime
+git checkout fd6b0d0eedc922700f67bab8b770d3986187f3e9
+git submodule update --init --recursive
 git apply ..\..\..\..\windows_runtime_changes.patch
 ```
 
-> Si no aplica limpio (base distinta), copia los archivos modificados que lista el patch:
-> `librecomp/src/overlays.cpp`, `librecomp/src/recomp.cpp`, `librecomp/include/librecomp/{addresses,overlays}.hpp`,
-> `librecomp/CMakeLists.txt`, `ultramodern/CMakeLists.txt`,
-> `ultramodern/src/{threads,mesgqueue,events}.cpp`,
-> `ultramodern/include/ultramodern/ultramodern.hpp`.
+> Si no aplica limpio (base distinta), copia los archivos modificados que lista el patch
+> (`librecomp/src/*`, `librecomp/include/librecomp/*`, `ultramodern/src/*`, `ultramodern/include/...`).
 
 ## 2. Configurar y compilar
 
+Recomendado: ejecutar `port\build_windows.bat` (clona/actualiza libs, aplica el patch y compila).
+
+Manual:
+
 ```bat
 cd port\HybridHeavenRecomp
-cmake -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --target HybridHeavenRecomp --config Debug
+cmake -B build_win -G "Visual Studio 18 2026" -A x64   REM o "Visual Studio 17 2022"
+cmake --build build_win --target HybridHeavenRecomp --config Debug
 ```
 
-- Exe: `build\bin\Debug\Hybrid Heaven Recomp.exe`.
+- Exe: `build_win\bin\Debug\Hybrid Heaven Recomp.exe`.
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
 - ROM: copia `baserom.us.z64` junto al `.exe`.
 
 ## 3. Ejecutar y capturar logs
 
-```bat
-cd build\bin\Debug
-Hybrid Heaven Recomp.exe
-```
+- **`hh.log`** → `%APPDATA%\HybridHeavenRecomp\hh.log` (setup RT64, validación de ROM, overlays).
+- **`boot.log`** → junto al `.exe` — arranque y cualquier `Failed to find function at 0x...`.
+- Capturas: `PrtScr` o cualquier grabador; RT64 también admite `RT64_*` envs si hace falta.
 
-- **`hh.log`** → `%APPDATA%\HybridHeavenRecomp\hh.log` (setup RT64, ROM validation, overlay register).
-- **`boot.log`** → en el CWD (junto al `.exe`) — orden de arranque: `init_heap → init_saving done →
-  Calling entrypoint → Entrypoint returned`, threads del juego, y **any `Failed to find function at
-  0x...`** (imprime el vram para mapearlo en el syms).
-- Cópialos y pégalos en el chat para iterar.
+## 4. Estado actual esperado (2026-09-14)
 
-## 4. Estado actual esperado (2026-09-10)
+- Boot completo, transición y burst de módulos; **renderiza** logo, pantalla de título, menú y
+  **cutscenes 3D in-engine**.
+- **Menú**: `START` → menú principal → `START` → GAME START/DIFFICULTY/EXIT → `A` entra en la intro
+  (exige **Controller Pak**, ya emulado con PFS en RAM + `saves/*.bin.pak`).
+- **Mando Xbox compatible** (SDL2 GameController):
+  - `A`=A, `B`=B (y C-derecha), `X`=C-izq, `Y`=C-arriba, `LB`=L, `RB`=R, `Back`=Z, `Start`=Start,
+    D-Pad, stick izquierdo (botón = C-abajo) y eje analógico.
+  - Hot-plug soportado (`SDL_CONTROLLERDEVICEADDED/REMOVED`).
+  - Rumble no implementado (no-op).
+- Si sale `Failed to find function at 0xXXXX`: apuntar el vram, añadirlo en el contenedor Linux
+  (`add_missing_funcs.py` / `config/module_extras.json`), regenerar el set y volver a copiar
+  `RecompiledFuncs/` a Windows.
 
-- El boot llega a `Entrypoint returned`, crea los threads del juego y el juego **corre estable**
-  (frames avanzan; verificado en Linux headless).
-- El **scheduler del motor Konami** ya no deadlockea (fix osCreateViManager/osViSetMode).
-- Si sale `Failed to find function at 0xXXXX` → añadir ese vram a
-  `config/us_unified.syms.toml` (nombre `FUN_XXXX`), regenerar el set en el contenedor y
-  volver a copiar a `RecompiledFuncs/`.
+## 5. Problemas conocidos
 
-## Notas
-
-- **N64Recomp** en Windows genera `.lib` (no `.exe`), por eso **no** se regenera en Windows: se usa
-  el set ya generado en Linux. Solo se regenera en el contenedor:
-  `config/RecompiledFuncs_unified` + copiar a `port/HybridHeavenRecomp/RecompiledFuncs/`.
-- `config/game_unified.toml` + `config/us_unified.syms.toml` definen la generación (no se tocan en
-  Windows salvo para añadir funciones en el syms).
+- Frontera actual: cola del módulo 25 (`0x801FF260`, fuera del blob/syms actuales) y confirmación de
+  gameplay interactivo (control/HUD).
+- En Linux headless el input se prueba también con los envs `HH_PRESS*` (útil para automatizar).

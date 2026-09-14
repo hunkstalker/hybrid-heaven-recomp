@@ -1,6 +1,6 @@
 @echo off
 REM =====================================================================
-REM  Hybrid Heaven Recomp - Build para Windows (paso a paso, automático)
+REM  Hybrid Heaven Recomp - Build para Windows (paso a paso, automatico)
 REM  Ejecuta este .bat desde cualquier carpeta; se ancla al directorio del repo.
 REM =====================================================================
 setlocal enabledelayedexpansion
@@ -22,7 +22,7 @@ set "PATCH=%ROOT%\port\windows_runtime_changes.patch"
 
 REM --- Commits exactos ---
 set "RT64_COMMIT=43373749dac9bbc1b653e6a02aed40a9e1783bed"
-set "NMR_BASE=cdf5abb"
+set "NMR_BASE=fd6b0d0eedc922700f67bab8b770d3986187f3e9"
 
 echo.
 echo === Hybrid Heaven Recomp - build Windows ===
@@ -71,18 +71,34 @@ if not exist "%PATCH%" (
     echo        (debes tener el repo principal con port/windows_runtime_changes.patch)
     popd & goto :err
 )
-git apply "%PATCH%"
+git apply --check "%PATCH%" >nul 2>&1
 if errorlevel 1 (
-    echo AVISO: git apply fallo (base distinta). Copia a mano los 11 archivos que lista
-    echo        el patch en librecomp/ y ultramodern/.
+    git apply --reverse --check "%PATCH%" >nul 2>&1
+    if errorlevel 1 (
+        echo AVISO: git apply fallo (base distinta o cambios locales). Aplica a mano los
+        echo        archivos que lista el patch en librecomp/ y ultramodern/.
+    ) else (
+        echo        Patch YA aplicado (se omite).
+    )
+) else (
+    git apply "%PATCH%"
+    if errorlevel 1 ( echo ERROR aplicando el patch & popd & goto :err )
 )
 popd
 
 REM ============ 3) CMake configure ============
+REM Requiere Visual Studio con C++. Se autodetecta VS 2026 y si no VS 2022.
+set "VSGEN="
+cmake -G "Visual Studio 18 2026" --help >nul 2>&1 && set "VSGEN=Visual Studio 18 2026"
+if not defined VSGEN cmake -G "Visual Studio 17 2022" --help >nul 2>&1 && set "VSGEN=Visual Studio 17 2022"
+if not defined VSGEN (
+    echo ERROR: no encuentro Visual Studio 2026 ni 2022 con C++ instalado.
+    goto :err
+)
 echo.
-echo [3/4] Configurando con CMake (Visual Studio 2022 x64) ...
+echo [3/4] Configurando con CMake (%VSGEN% x64) ...
 pushd "%PORT%"
-cmake -B build -G "Visual Studio 17 2022" -A x64
+cmake -B build_win -G "%VSGEN%" -A x64
 if errorlevel 1 ( echo ERROR en cmake configure & popd & goto :err )
 popd
 
@@ -90,13 +106,13 @@ REM ============ 4) Build ============
 echo.
 echo [4/4] Compilando HybridHeavenRecomp (Debug) ...
 pushd "%PORT%"
-cmake --build build --target HybridHeavenRecomp --config Debug
+cmake --build build_win --target HybridHeavenRecomp --config Debug
 if errorlevel 1 ( echo ERROR en el build & popd & goto :err )
 popd
 
 echo.
 echo === LISTO ===
-echo Exe: %PORT%\build\bin\Debug\Hybrid Heaven Recomp.exe
+echo Exe: %PORT%\build_win\bin\Debug\Hybrid Heaven Recomp.exe
 echo.
 echo Falta: copia baserom.us.z64 (16MB USA) junto al .exe y ejecutalo.
 echo Logs: boot.log (junto al exe) y %%APPDATA%%\HybridHeavenRecomp\hh.log
