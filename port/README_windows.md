@@ -67,7 +67,15 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
 - **`boot.log`** → junto al `.exe` — arranque y cualquier `Failed to find function at 0x...`.
 - Capturas: `PrtScr` o cualquier grabador; RT64 también admite `RT64_*` envs si hace falta.
 
-## 4. Estado actual esperado (2026-09-14)
+## 4. Estado actual esperado (2026-09-14, tarde)
+
+- **GAME START funciona**: al pulsar START → GAME START el juego carga los overlays de código
+  (idx8/9/10/12/55) y entra en la primera escena jugable con HUD (`work/debug/port_v3_*.png`).
+- **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
+  (p. ej. `set HH_RES=2x`).
+- **Mando Xbox**: eje Y corregido (arriba/abajo); el resto del layout está pendiente de definir.
+
+## 4b. Estado anterior (2026-09-10)
 
 - Boot completo, transición y burst de módulos; **renderiza** logo, pantalla de título, menú y
   **cutscenes 3D in-engine**.
