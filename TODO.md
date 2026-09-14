@@ -62,15 +62,16 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: **geometría/píxeles** (título + attract 3D,
-    `port_shot_*.png`) y **menús + GAME START (2026-09-14)**: input headless por env (`HH_PRESS*`),
-    menú principal → GAME START/DIFFICULTY/EXIT → **cutscenes 3D in-engine** con Controller Pak
-    (PFS mínimo). **Crash post-GAME START resuelto**: `fix_fallthroughs.py` mezclaba módulos 23/24
-    (base compartida `0x801BF1A0`) y encadenaba `M24_FUN_801cc2c8` al destino equivocado; fix
-    sección-consciente + extra `0x801E4AA4` ⇒ runs 250-300 s sin SEGV ni símbolos faltantes.
-    Detalle: `notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`. Frontera: **gameplay
-    interactivo** (control/HUD; run A-only de 900 s limpio hasta que la intro vuelve al menú,
-    donde muerde el callback) y cierre/callback del menú sin input.
+10. [•] **Siguiente: render/juego tras el arranque**: **geometría/píxeles**, **menús + GAME START**
+    (input headless `HH_PRESS*`: menú → GAME START → **cutscenes 3D** con Controller Pak) y dos
+    crashes resueltos: (1) `fix_fallthroughs.py` mezclaba módulos 23/24 (base `0x801BF1A0`) →
+    `M24_FUN_801cc2c8` al destino equivocado (fix sección-consciente + `0x801E4AA4`); (2) callback
+    del menú `M24_FUN_801cb71c` con `$t5+0x30 = 0` calculaba un puntero fuera del buffer (fix en
+    `MEM_*`/`TO_PTR`: no mapeadas → RDRAM física <8 MB o scratch; verificado 185 s sin SEGV).
+    Detalle: `notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`,
+    `notes/2026-09-14-fix-callback-menu-punteros-no-mapeados.md`. Frontera: **gameplay interactivo**
+    (control/HUD) y **cola del módulo 25** (`0x801FF260`; el emulador también salta ahí pero nuestras
+    syms/blob solo llegan a `0x801FD420`).
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,

@@ -120,6 +120,13 @@ registrar en la base determinista.
     `--target N64RecompCLI`). No se emula el formato PFS real de libultra: la semántica de ficheros es
     propia. `osGbpakInit` sigue devolviendo "no pak".
   - `recomp.cpp`: `switch_error` imprime a **stderr** (con `printf`/stdout se perdía al abortar).
+  - `recomp.h` (macros `MEM_*`) y `ultra64.h` (`TO_PTR`): **traducción de direcciones no mapeadas**.
+    El juego escribe/lee con punteros nulos (p.ej. `M24_FUN_801cb71c` con `[$t5+0x30]==0`;
+    `osSendMesg` con cola 0) y el emulador de referencia lo tolera (la escritura cae en RDRAM física
+    o se ignora). El port calculaba `rdram + (v - 0xFFFFFFFF80000000)`: para direcciones bajas eso da
+    un offset >1 GB → SEGV. Ahora: direcciones mapeadas (KSEG0/KSEG1, incluida la ventana MMIO en
+    `0x20000000+`) usan la fórmula original; las bajas (<8 MB físicos) caen en RDRAM como en mupen;
+    el resto va a un scratch en `0x0FFFFF0` (justo bajo el heap, que ocupa `[16 MB, 1 GB)`).
   - `input.cpp`: `osContInit` fiel a libultra (query SI + espera en `mq` + one-shot). Upstream lo
     simplifica (no bloquea); para HH el orden de arranque depende de ese wait. **Nota**: el mensaje SI
     se entrega síncrono en el runtime, así que el wait no siempre cede; un `osContInit` 100% fiel

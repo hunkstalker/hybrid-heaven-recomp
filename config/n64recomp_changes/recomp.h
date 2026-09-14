@@ -92,24 +92,41 @@ typedef uint64_t gpr;
 #define SUB32(a, b) \
     ((gpr)(int32_t)((a) - (b)))
 
+// HH: traducción a offset dentro del buffer de 1 GB. La fórmula original (restar
+// 0xFFFFFFFF80000000) se mantiene para direcciones mapeadas (KSEG0/KSEG1: RDRAM y ventana MMIO
+// en 0x20000000+). Las direcciones no mapeadas (punteros nulos que el juego escribe y el
+// hardware/emulador toleran, como M24_FUN_801cb71c con [$t5+0x30]==0) se resuelven: las bajas
+// (<8MB físicos) como RDRAM físico (igual que mupen) y el resto a un scratch fuera del heap del
+// runtime ([16MB, 1GB)). Así no se calcula un puntero fuera del buffer (SEGV).
+// Ver notes/2026-09-14-fix-callback-menu-punteros-no-mapeados.md.
+#define MEM_SCRATCH_OFF UINT64_C(0x0FFFFF0)
+static inline uint64_t hh_mem_off(int64_t v) {
+    uint64_t off = (uint64_t)v - UINT64_C(0xFFFFFFFF80000000);
+    if (off < UINT64_C(0x40000000)) return off;
+    uint32_t low = (uint32_t)v & UINT32_C(0x1FFFFFFF);
+    if (low < UINT32_C(0x00800000)) return low;
+    return MEM_SCRATCH_OFF;
+}
+#define MEM_OFF(v) hh_mem_off((int64_t)(v))
+
 #define MEM_W(offset, reg) \
-    (*(int32_t*)(rdram + ((((reg) + (offset))) - 0xFFFFFFFF80000000)))
+    (*(int32_t*)(rdram + MEM_OFF((reg) + (offset))))
 
 #define MEM_H(offset, reg) \
-    (*(int16_t*)(rdram + ((((reg) + (offset)) ^ 2) - 0xFFFFFFFF80000000)))
+    (*(int16_t*)(rdram + MEM_OFF(((reg) + (offset)) ^ 2)))
 
 #define MEM_B(offset, reg) \
-    (*(int8_t*)(rdram + ((((reg) + (offset)) ^ 3) - 0xFFFFFFFF80000000)))
+    (*(int8_t*)(rdram + MEM_OFF(((reg) + (offset)) ^ 3)))
 
 #define MEM_HU(offset, reg) \
-    (*(uint16_t*)(rdram + ((((reg) + (offset)) ^ 2) - 0xFFFFFFFF80000000)))
+    (*(uint16_t*)(rdram + MEM_OFF(((reg) + (offset)) ^ 2)))
 
 #define MEM_BU(offset, reg) \
-    (*(uint8_t*)(rdram + ((((reg) + (offset)) ^ 3) - 0xFFFFFFFF80000000)))
+    (*(uint8_t*)(rdram + MEM_OFF(((reg) + (offset)) ^ 3)))
 
 #define SD(val, offset, reg) { \
-    *(uint32_t*)(rdram + ((((reg) + (offset) + 4)) - 0xFFFFFFFF80000000)) = (uint32_t)((gpr)(val) >> 0); \
-    *(uint32_t*)(rdram + ((((reg) + (offset) + 0)) - 0xFFFFFFFF80000000)) = (uint32_t)((gpr)(val) >> 32); \
+    *(uint32_t*)(rdram + MEM_OFF((reg) + (offset) + 4)) = (uint32_t)((gpr)(val) >> 0); \
+    *(uint32_t*)(rdram + MEM_OFF((reg) + (offset) + 0)) = (uint32_t)((gpr)(val) >> 32); \
 }
 
 static inline uint64_t load_doubleword(uint8_t* rdram, gpr reg, gpr offset) {
