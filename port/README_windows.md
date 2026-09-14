@@ -45,7 +45,9 @@ git apply ..\..\..\..\windows_runtime_changes.patch
 
 ## 2. Configurar y compilar
 
-Recomendado: ejecutar `port\build_windows.bat` (clona/actualiza libs, aplica el patch y compila).
+Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
+`lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas), comprueba el patch
+y compila. Usa `build_windows.bat --force-libs` si quieres clonar/actualizar las libs.
 
 Manual:
 
