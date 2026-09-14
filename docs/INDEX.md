@@ -8,17 +8,17 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 94 | 2026-09-14 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 96 | 2026-09-14 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 105 | 2026-09-14 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 26 | 2026-09-10 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 159 | 2026-09-14 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 166 | 2026-09-14 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Hybrid Heaven: Recompiled — Plan Maestro (documentación detallada)](README.md) | Port a PC por **recompilación estática** (N64 → C → nativo) siguiendo el modelo de proyectos como | 233 | 2026-09-11 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 199 | 2026-09-14 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 207 | 2026-09-14 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 79 | 2026-09-13 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 193 | 2026-09-13 |
 
@@ -29,11 +29,13 @@
 | [ADR 0001 — Modelo de ejecución de módulos de código (`trans`)](adr/0001-modelo-de-modulos.md) | - **Estado**: Aceptado (2026-09-11). Decisión: **A** (con **B** como seguro). | 53 | 2026-09-11 |
 | [ADR 0002 — Generar funciones de init de libultra del ROM (des-stubbing)](adr/0002-des-stub-libultra.md) | - **Estado**: Aceptado (2026-09-13). | 66 | 2026-09-13 |
 | [ADR 0003 — Subsistema VI: libultra del ROM, runtime solo como hardware](adr/0003-vi-libultra-del-rom.md) | - **Estado**: Aceptado (2026-09-13). | 72 | 2026-09-13 |
+| [ADR 0004 — Registro dinámico de módulos de código en bases reutilizadas](adr/0004-registro-dinamico-modulos.md) | - **Estado**: Aceptado (2026-09-14). | 54 | 2026-09-14 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-14 — Registro dinámico de módulos (bases reutilizadas): transición funcional](../notes/2026-09-14-registro-dinamico-modulos.md) | Continúa `notes/2026-09-14-fix-strict-aliasing-transicion.md`. **Por qué era la tarea**: con la | 83 | 2026-09-14 |
 | [2026-09-14 — `-fno-strict-aliasing`: resuelta la transición (`fe00`) y nueva frontera de símbolos](../notes/2026-09-14-fix-strict-aliasing-transicion.md) | Continúa `notes/2026-09-14-cadena-d550-y-registro-0x74.md`. **Hito**: el juego cruza la | 97 | 2026-09-14 |
 | [2026-09-14 — Cadena `d550` → `bd6d` y registro del recurso `0x74` (bloqueo de la transición)](../notes/2026-09-14-cadena-d550-y-registro-0x74.md) | Continúa `notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y el work order | 87 | 2026-09-14 |
 | [Work order — Bloqueo por gate de tareas RSP (`0x8005CD4C`)](../notes/2026-09-13-workorder-gate-rsp.md) | Documento operativo para retomar ESTA tarea en una sesión nueva. Autocontenido. | 194 | 2026-09-13 |

@@ -62,10 +62,10 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: **transición cruzada** (`fe00=0x3C01`, burst
-    `[LD384]=19`, `-fno-strict-aliasing`); siguen faltando símbolos del burst
-    (`0x801BF610`, colisión de secciones). Después: fase >1, geometría/píxeles (RT64),
-    textos/audio/guardado.
+10. [•] **Siguiente: render/juego tras el arranque**: **transición y burst completos**
+    (`[LD384]=20`, `fe00=0x3C01`, módulos 24/25/99 cargados y registrados; 3953 DLs gfx). Falta:
+    fase `0x80037750` > 0, crash de módulo25 (estado de gameplay) y **verificar geometría/píxeles**
+    en pantalla (RT64). Después: textos/audio/guardado.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
@@ -105,10 +105,17 @@
       referencia). Además split `FUN_8001e66c`/`FUN_8001e768`. **Resultado**: `[LD384]=19`, burst del
       loader, callback `80124CEC` instalado y **`fe00=0x3C01`/`fe02=0x80`** (fase avanza). Detalle:
       `notes/2026-09-14-fix-strict-aliasing-transicion.md`.
-    - **Frontera actual**: `Failed to find function at 0x801BF610` — el mismo VRAM aloja módulos
-      distintos según `trans` (las syms globales no distinguen sección; el split colisiona y se
-      revirtió). Pendiente: mapa overlay→RAM por sección (ADR 0001 / TODO #3) o registrar los
-      mid-entries por sección para continuar el burst.
+    - **HECHO (2026-09-14, registro dinámico de módulos)**: el modelo de bases fijas no soportaba la
+      reutilización de VRAM del burst (idx 24 sobre la base de 23, 99 sobre 54, 25 en 0x801E1BE0).
+      Implementado `ModuleSource`/`load_module_by_source` en el runtime (registro de la sección en la
+      base real al pasar por el loader), `register_flat_code` omite módulos, extras por módulo
+      (`module_extras.json` de `HH_JALTRACE` con fases + mid-entries planos con
+      `add_missing_funcs.py`), y pipeline consciente de sección (`validate_syms`, `fix_fallthroughs`,
+      `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]` 1..6, `fe00=0x3C01`, 0 funciones
+      faltantes en 220 s, 3953 DLs gfx. Detalle: `notes/2026-09-14-registro-dinamico-modulos.md`.
+    - **Frontera actual**: `0x80037750` (fase) sigue 0 y hay crash determinista en módulo25
+      (`M25_FUN_801e2d94`, puntero nulo en `a0+0xE8 → +0x2C`) en runs largos; comparar estado
+      port↔emulador de gameplay y verificar píxeles/geometría en pantalla (RT64 ya procesa DLs).
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

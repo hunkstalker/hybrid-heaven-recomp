@@ -36,6 +36,7 @@ RECOMP_DIR = PORT / "RecompiledFuncs"
 ROM = ROOT / "work/roms/us_retail.z64"
 VALIDATOR = ROOT / "tools/analysis/validate_syms.py"
 FIX_FT = ROOT / "tools/analysis/fix_fallthroughs.py"
+KEEP_SYMS = CONFIG_DIR / "keep_syms.txt"
 
 
 def run(cmd, cwd=None, dry=False):
@@ -68,15 +69,16 @@ def main() -> int:
     print(f"salida  : {out_dir.relative_to(ROOT)}")
 
     # 1) validar
+    keep = ["--keep-file", KEEP_SYMS] if KEEP_SYMS.exists() else []
     if not args.no_validate:
-        rc = run([sys.executable, VALIDATOR, syms_path, "--rom", rom], dry=args.dry_run)
+        rc = run([sys.executable, VALIDATOR, syms_path, "--rom", rom, *keep], dry=args.dry_run)
         if rc != 0:
             if args.fix_syms:
                 fixed = syms_path.with_suffix(".fixed.syms.toml")
                 print("[recomp] syms con errores -> intentando --fix")
-                run([sys.executable, VALIDATOR, syms_path, "--rom", rom, "--fix", "--out", fixed],
+                run([sys.executable, VALIDATOR, syms_path, "--rom", rom, "--fix", "--out", fixed, *keep],
                     dry=args.dry_run)
-                rc2 = run([sys.executable, VALIDATOR, fixed, "--rom", rom], dry=args.dry_run)
+                rc2 = run([sys.executable, VALIDATOR, fixed, "--rom", rom, *keep], dry=args.dry_run)
                 if rc2 == 0 and not args.dry_run:
                     shutil.copy2(syms_path, syms_path.with_suffix(".syms.toml.bak"))
                     shutil.copy2(fixed, syms_path)

@@ -10,6 +10,10 @@ Detecta las clases de bug que rompen la recompilación estática:
   3) OVERLAP / tamaño inválido.
   4) SOSPECHA DE DATOS: muchas instrucciones no decodificables.
 
+NOTA (modelo de módulos): el análisis es **por sección**. Varios módulos pueden compartir la misma
+base de VRAM (bases reutilizadas: p.ej. idx 24 sobre la base de idx 23), así que mezclar todas las
+funciones en un mapa global resuelve mal las ramas. Cada sección se valida contra su blob.
+
 Uso:
   python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml \
       [--rom work/roms/us_retail.z64] \
@@ -48,13 +52,16 @@ FUNC_RE = re.compile(
 
 def load_syms(path: Path):
     data = tomllib.loads(path.read_text())
-    funcs = []
+    sections = []
     for sec in data.get("section", []):
+        funcs = []
         for f in sec.get("functions", []):
             funcs.append({"name": f["name"], "vram": f["vram"], "size": f["size"],
                           "rom_base": sec["rom"], "sec_vram": sec["vram"]})
-    funcs.sort(key=lambda f: f["vram"])
-    return funcs
+        funcs.sort(key=lambda f: f["vram"])
+        sections.append({"name": sec.get("name", ""), "rom": sec["rom"],
+                         "vram": sec["vram"], "size": sec.get("size", 0), "funcs": funcs})
+    return sections
 
 
 def _disasm(f, rom):
@@ -76,45 +83,57 @@ def _branch_target(insn):
         return None
 
 
-def validate(funcs, rom):
-    vrams = [f["vram"] for f in funcs]
+def validate(sections, rom, keep=frozenset()):
     delay, cross, badsize, suspect = [], [], [], []
-    data_names = set()
-    cache = {}
-    for f in funcs:
-        insns = _disasm(f, rom)
-        cache[f["name"]] = insns
-        covered = sum(i.size for i in insns)
-        if f["size"] and (f["size"] - covered) > f["size"] * 0.5:
-            suspect.append((f, f["size"] - covered))
-            data_names.add(f["name"])
     jal_targets = set()
-    for f in funcs:
-        for i in cache[f["name"]]:
-            if i.mnemonic in ("jal", "j"):
-                try:
-                    jal_targets.add(int(i.op_str, 16))
-                except ValueError:
-                    pass
-    for idx, f in enumerate(funcs):
-        if f["size"] <= 0 or f["size"] % 4 != 0:
-            badsize.append(f)
-        if f["name"] in data_names:      # disasm no fiable en datos
+    data_names_global = set()
+
+    # Pase 1: targets de jal/j (absolutos) para proteger funciones de las fusiones.
+    for sec in sections:
+        for f in sec["funcs"]:
+            for i in _disasm(f, rom):
+                if i.mnemonic in ("jal", "j"):
+                    try:
+                        jal_targets.add(int(i.op_str, 16))
+                    except ValueError:
+                        pass
+
+    # Pase 2: chequeo por sección (las bases de módulos pueden solapar).
+    for sec in sections:
+        funcs = sec["funcs"]
+        if not funcs:
             continue
-        end = f["vram"] + f["size"]
-        for i in cache[f["name"]]:
-            if i.mnemonic == "jr" and i.op_str == "$ra" and i.address + 4 >= end:
-                delay.append((f, i.address))
-            elif i.mnemonic in BRANCHES:
-                t = _branch_target(i)
-                if t is None:
-                    continue
-                j = _containing(funcs, vrams, t)
-                if (j is not None and j != idx and funcs[j]["name"] not in data_names
-                        and t != funcs[j]["vram"]):
-                    cross.append((f, 0, i.address, funcs[j], t))
+        vrams = [f["vram"] for f in funcs]
+        data_names = set()
+        cache = {}
+        for f in funcs:
+            insns = _disasm(f, rom)
+            cache[f["name"]] = insns
+            covered = sum(i.size for i in insns)
+            if f["size"] and (f["size"] - covered) > f["size"] * 0.5:
+                suspect.append((f, f["size"] - covered))
+                data_names.add(f["name"])
+        for idx, f in enumerate(funcs):
+            if f["size"] <= 0 or f["size"] % 4 != 0:
+                badsize.append(f)
+            if f["name"] in data_names:      # disasm no fiable en datos
+                continue
+            end = f["vram"] + f["size"]
+            for i in cache[f["name"]]:
+                if i.mnemonic == "jr" and i.op_str == "$ra" and i.address + 4 >= end:
+                    delay.append((f, i.address))
+                elif i.mnemonic in BRANCHES:
+                    t = _branch_target(i)
+                    if t is None:
+                        continue
+                    j = _containing(funcs, vrams, t)
+                    if (j is not None and j != idx and funcs[j]["name"] not in data_names
+                            and t != funcs[j]["vram"] and funcs[j]["vram"] not in keep):
+                        cross.append((f, 0, i.address, funcs[j], t))
+        data_names_global |= data_names
+
     return {"delay": delay, "cross": cross, "badsize": badsize,
-            "suspect": suspect, "jal_targets": jal_targets, "data_names": data_names}
+            "suspect": suspect, "jal_targets": jal_targets, "data_names": data_names_global}
 
 
 def _find_cross(funcs, rom, data_names):
@@ -135,58 +154,68 @@ def _find_cross(funcs, rom, data_names):
     return pairs
 
 
-def fix(funcs, rom, report):
-    by = {f["name"]: f for f in funcs}
-    size = {f["name"]: f["size"] for f in funcs}
+def fix(sections, rom, report, keep=frozenset()):
+    """Corrige por sección. Devuelve size/removed keyed por (sec_index, name)."""
+    size = {}
     removed = set()
     jal = report["jal_targets"]
 
-    # 1) delay-slots: +4 si no solapa
-    order = sorted(funcs, key=lambda f: f["vram"])
-    for i, f in enumerate(order):
-        if any(c[0]["name"] == f["name"] for c in report["delay"]):
-            end_next = order[i + 1]["vram"] if i + 1 < len(order) else None
-            ns = size[f["name"]] + 4
-            if end_next is None or f["vram"] + ns <= end_next:
-                size[f["name"]] = ns
+    for sec_idx, sec in enumerate(sections):
+        funcs = sec["funcs"]
+        for f in funcs:
+            size[(sec_idx, f["name"])] = f["size"]
 
-    # 2) ramas cruzadas: fusionar en la de menor vram (si la otra no es jal/j target)
-    stuck = set()
-    for _ in range(500):
-        cur = [dict(f, size=size[f["name"]]) for f in funcs if f["name"] not in removed]
-        cur.sort(key=lambda f: f["vram"])
-        pairs = _find_cross(cur, rom, report["data_names"])
-        if not pairs:
-            break
-        did = False
-        for i, j in pairs:
-            lo, hi = (cur[i], cur[j]) if cur[i]["vram"] < cur[j]["vram"] else (cur[j], cur[i])
-            key = (lo["name"], hi["name"])
-            if key in stuck or hi["vram"] in jal:
-                stuck.add(key)
-                continue
-            lo_end = lo["vram"] + size[lo["name"]]
-            hi_end = hi["vram"] + size[hi["name"]]
-            size[lo["name"]] = max(lo_end, hi_end) - lo["vram"]
-            removed.add(hi["name"])
-            did = True
-            break
-        if not did:
-            break
+        # 1) delay-slots: +4 si no solapa
+        order = sorted(funcs, key=lambda f: f["vram"])
+        for i, f in enumerate(order):
+            if any(c[0]["name"] == f["name"] and c[0]["vram"] == f["vram"] for c in report["delay"]):
+                end_next = order[i + 1]["vram"] if i + 1 < len(order) else None
+                ns = size[(sec_idx, f["name"])] + 4
+                if end_next is None or f["vram"] + ns <= end_next:
+                    size[(sec_idx, f["name"])] = ns
+
+        # 2) ramas cruzadas: fusionar en la de menor vram (si la otra no es jal/j target)
+        stuck = set()
+        for _ in range(500):
+            cur = [dict(f, size=size[(sec_idx, f["name"])]) for f in funcs
+                   if (sec_idx, f["name"]) not in removed]
+            cur.sort(key=lambda f: f["vram"])
+            pairs = _find_cross(cur, rom, report["data_names"])
+            if not pairs:
+                break
+            did = False
+            for i, j in pairs:
+                lo, hi = (cur[i], cur[j]) if cur[i]["vram"] < cur[j]["vram"] else (cur[j], cur[i])
+                key = (lo["name"], hi["name"], lo["vram"], hi["vram"])
+                if key in stuck or hi["vram"] in jal or hi["vram"] in keep:
+                    stuck.add(key)
+                    continue
+                lo_end = lo["vram"] + size[(sec_idx, lo["name"])]
+                hi_end = hi["vram"] + size[(sec_idx, hi["name"])]
+                size[(sec_idx, lo["name"])] = max(lo_end, hi_end) - lo["vram"]
+                removed.add((sec_idx, hi["name"]))
+                did = True
+                break
+            if not did:
+                break
     return {"size": size, "removed": removed, "stuck": stuck}
 
 
 def write_fixed(src: Path, dst: Path, size, removed):
     lines = src.read_text().split("\n")
     out = []
+    sec_idx = -1
     for ln in lines:
+        if ln.strip() == "[[section]]":
+            sec_idx += 1
         m = FUNC_RE.search(ln)
         if m:
             name, vram, sz = m.group(1), int(m.group(2), 16), int(m.group(3), 16)
-            if name in removed:
+            key = (sec_idx, name)
+            if key in removed:
                 out.append(f"    # [validate_syms] {name} fusionada (split incorrecto)")
                 continue
-            ns = size.get(name, sz)
+            ns = size.get(key, sz)
             if ns != sz:
                 ln = ln[:m.start()] + \
                     f'{{ name = "{name}", vram = 0x{vram:08X}, size = 0x{ns:X} }}' + ln[m.end():]
@@ -200,12 +229,28 @@ def main() -> int:
     ap.add_argument("--rom", type=Path, default=Path("work/roms/us_retail.z64"))
     ap.add_argument("--fix", action="store_true")
     ap.add_argument("--out", type=Path)
+    ap.add_argument("--keep", default="",
+                    help="direcciones (hex, separadas por comas) cuyas funciones no se fusionan "
+                         "(entradas indirectas legítimas)")
+    ap.add_argument("--keep-file", type=Path,
+                    help="fichero con direcciones hex (una por línea o separadas por comas)")
     args = ap.parse_args()
 
+    keep = set()
+    if args.keep:
+        keep |= {int(x, 16) for x in args.keep.split(",") if x.strip()}
+    if args.keep_file and args.keep_file.exists():
+        for line in args.keep_file.read_text().split("\n"):
+            line = line.split("#")[0].strip()
+            for tok in line.replace(",", " ").split():
+                if tok:
+                    keep.add(int(tok, 16))
+
     rom = args.rom.read_bytes()
-    funcs = load_syms(args.syms)
-    print(f"syms: {args.syms}  funciones: {len(funcs)}")
-    rep = validate(funcs, rom)
+    sections = load_syms(args.syms)
+    total = sum(len(s["funcs"]) for s in sections)
+    print(f"syms: {args.syms}  secciones: {len(sections)}  funciones: {total}")
+    rep = validate(sections, rom, keep)
 
     if rep["delay"]:
         print(f"\n[ERROR] delay-slot cortado ({len(rep['delay'])}) — size += 4:")
@@ -235,14 +280,14 @@ def main() -> int:
     rc = 1 if (rep["delay"] or rep["cross"]) else 0
 
     if args.fix:
-        res = fix(funcs, rom, rep)
+        res = fix(sections, rom, rep, keep)
         out = args.out or args.syms.with_suffix(".fixed.syms.toml")
         write_fixed(args.syms, out, res["size"], res["removed"])
         print(f"\n[fix] escrito {out}: fusionadas {len(res['removed'])}, "
               f"sin resolver {len(res['stuck'])}")
         if res["stuck"]:
             print("[fix] revisar manualmente: " +
-                  ", ".join(f"{a}+{b}" for a, b in sorted(res["stuck"])[:10]))
+                  ", ".join(f"{a}+{b}" for a, b, _, _ in sorted(res["stuck"])[:10]))
 
     return rc
 

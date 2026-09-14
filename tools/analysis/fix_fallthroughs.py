@@ -48,17 +48,33 @@ def build_addr_map():
                 if 0x80000000 <= a < 0x80800000:
                     addr2name.setdefault(a, name)
     return addr2name
-
 def func_addr(name):
     hm = re.search(r'([0-9A-Fa-f]{8})$', name)
     return int(hm.group(1), 16) if hm else None
+
+
+def section_prefix(name):
+    """Prefijo de sección del símbolo (`M23_` para módulos; '' para la imagen plana).
+
+    Varios módulos comparten base de VRAM: la continuación de un fallthrough debe resolverse
+    DENTRO de la misma sección, no por dirección global (que mezcla módulos)."""
+    m = re.match(r'(M\d+_)', name)
+    return m.group(1) if m else ''
+
 
 def main():
     dry = "--dry-run" in sys.argv
     stubs = load_ignored()
     addr2name = build_addr_map()
-    addrs = sorted(addr2name)
     func_re = re.compile(r'^RECOMP_FUNC\s+void\s+(\w+)\s*\(')
+
+    # Mapa de continuaciones por sección (prefijo).
+    by_prefix = {}
+    for a, name in addr2name.items():
+        by_prefix.setdefault(section_prefix(name), []).append((a, name))
+    for v in by_prefix.values():
+        v.sort()
+    prefix_addrs = {k: [a for a, _ in v] for k, v in by_prefix.items()}
 
     fixed = 0; skipped_noaddr = 0; total_ft = 0
     for fp in sorted(glob.glob(os.path.join(RECOMP_DIR, "funcs_*.c"))):
@@ -87,9 +103,11 @@ def main():
                     a = func_addr(cur)
                     cont = None
                     if a is not None:
-                        j = bisect.bisect_right(addrs, a)
-                        if j < len(addrs):
-                            cont = addr2name[addrs[j]]
+                        pref = section_prefix(cur)
+                        lst = by_prefix.get(pref, [])
+                        j = bisect.bisect_right(prefix_addrs.get(pref, []), a)
+                        if j < len(lst):
+                            cont = lst[j][1]
                     if cont and cont != cur:
                         out.append("    // %s: split fallthrough -> chain to continuation" % MARKER)
                         out.append("    %s(rdram, ctx);" % cont)

@@ -194,21 +194,85 @@ def merge_jump_tables(ents, blob: bytes, vram: int):
     return sorted(starts), override
 
 
+def _plausible_code(blob: bytes, vram: int, addr: int, n: int = 16) -> bool:
+    """Heurística anti-datos: la ventana debe decodificar casi entera y sin patrones de data
+    (`...($zero)` con offset, `mfc0 $zero`, ...)."""
+    off = addr - vram
+    insns = list(MD.disasm(blob[off:off + 4 * n], addr))
+    if len(insns) < 4:
+        return False
+    invalid = 0
+    bad = 0
+    for i in insns:
+        if i.mnemonic.startswith("invalid") or i.mnemonic.startswith("unknown"):
+            invalid += 1
+            continue
+        if "($zero)" in i.op_str:
+            imm = i.op_str.split("(")[0].split(",")[-1].strip()
+            try:
+                if int(imm, 16) != 0:
+                    bad += 1
+            except ValueError:
+                pass
+        if i.mnemonic in ("mfc0", "mfc2", "cfc1", "cfc2") and i.op_str.startswith("$zero"):
+            bad += 1
+    return invalid <= 1 and bad == 0
+
+
+def self_pointer_mid_entries(blob: bytes, vram: int, ents, override):
+    """Direcciones dentro de funciones a las que apunta algún word del propio blob.
+
+    Son candidatas a entradas indirectas (jump-tables, callbacks) que el detector estático no ve;
+    el juego las llama con `jalr` y el port necesita una función recompilada en esa dirección."""
+    end = vram + len(blob)
+    ranges = []
+    for k, a in enumerate(ents):
+        nxt = ents[k + 1] if k + 1 < len(ents) else end
+        ranges.append((a, a + override.get(a, nxt - a)))
+    out = set()
+    for off in range(0, len(blob) - 3, 4):
+        v = struct.unpack_from(">I", blob, off)[0]
+        if not (vram <= v < end) or (v - vram) % 4 != 0:
+            continue
+        for a, hi in ranges:
+            if a < v < hi:
+                if _plausible_code(blob, vram, v):
+                    out.add(v)
+                break
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("blob", type=Path)
     ap.add_argument("--vram", type=lambda s: int(s, 16), default=0x80107830)
     ap.add_argument("--rom", type=lambda s: int(s, 16), default=0x0)
     ap.add_argument("--name", default=".module")
+    ap.add_argument("--prefix", default="",
+                    help="prefijo de los nombres de función (evita colisiones C entre módulos "
+                         "que comparten base de VRAM)")
     ap.add_argument("--extra", default="",
                     help="start(s) extra en hex separadas por comas (evidencia runtime)")
+    ap.add_argument("--self-pointer-mid-entries", action="store_true",
+                    help="añade como entradas los destinos de punteros del blob dentro de funciones "
+                         "(jump-tables/callbacks); escribe <out>.keep con las entradas protegidas")
     ap.add_argument("--out", type=Path, required=True)
     args = ap.parse_args()
 
-    extra = [int(x, 16) for x in args.extra.split(",") if x.strip()]
+    extra = {int(x, 16) for x in args.extra.split(",") if x.strip()}
     blob = args.blob.read_bytes()
     ents = detect_functions(blob, args.vram, extra)
     ents, override = merge_jump_tables(ents, blob, args.vram)
+    if args.self_pointer_mid_entries:
+        mid = self_pointer_mid_entries(blob, args.vram, ents, override)
+        if mid:
+            extra |= mid
+            ents = detect_functions(blob, args.vram, extra)
+            ents, override = merge_jump_tables(ents, blob, args.vram)
+        # Lista de entradas protegidas (manuales + auto) para validate_syms --keep-file.
+        Path(str(args.out) + ".keep").write_text(
+            "\n".join(f"0x{a:08X}" for a in sorted(extra)) + "\n")
+    extra = sorted(extra)
     lines = ["# Módulo: %s — funciones por prólogo+jal+jr-ra; jump-tables fusionadas."
              % args.blob,
              "[[section]]", f'name = "{args.name}"',
@@ -217,7 +281,7 @@ def main() -> int:
     for k, a in enumerate(ents):
         nxt = ents[k + 1] if k + 1 < len(ents) else args.vram + len(blob)
         size = override.get(a, nxt - a)
-        lines.append(f'    {{ name = "FUN_{a:08x}", vram = 0x{a:08X}, size = 0x{size:X} }},')
+        lines.append(f'    {{ name = "{args.prefix}FUN_{a:08x}", vram = 0x{a:08X}, size = 0x{size:X} }},')
     lines.append("]")
     args.out.write_text("\n".join(lines) + "\n")
     print(f"{args.out}: {len(ents)} funciones ({len(override)} con jump-table fusionada)")

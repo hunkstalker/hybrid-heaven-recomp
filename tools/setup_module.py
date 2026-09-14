@@ -43,18 +43,30 @@ DEFAULT_ROM = ROOT / "work/roms/us_retail.z64"
 COMBINED_ROM = SCRATCH / "us_combined.z64"
 FLAT_SYMS = CONFIG / "us_ghidra.syms.toml"
 COMBINED_SYMS = CONFIG / "us_combined.syms.toml"
+MODULE_SOURCES_INC = ROOT / "port/HybridHeavenRecomp/src/main/module_sources.inc"
+MODULE_EXTRAS = {}
+KEEP_SYMS = CONFIG / "keep_syms.txt"
 FLAT_SECTION = {"name": ".text", "rom": 0x1000, "vram": 0x80000400, "size": 0x4E5B40}
 
 # Módulos pre-recompilados: (índice Nisitenma, base RAM determinista, offset en el ROM combinado).
+# `src_rom` = offset del blob comprimido en la ROM retail (lo que el juego pasa al loader
+# `FUN_80003824` como a0); se usa para registrar la sección en su base de runtime (reutilización
+# de bases: p.ej. idx 24 reemplaza a idx 23 en 0x801BF1A0).
 # `extra`: funciones no detectables estáticamente (punteros de función), halladas por evidencia
 # runtime (`Failed to find function at 0x...`). Ver `docs/workflows.md` §5.
 MODULES = [
     {"index": 7,  "vram": 0x80107830, "rom_off": 0x1000000, "name": ".module7",
-     "crc": 0xA9213032, "extra": []},
+     "src_rom": 0x4E69A8, "crc": 0xA9213032, "extra": []},
     {"index": 23, "vram": 0x801BF1A0, "rom_off": 0x3000000, "name": ".module23",
-     "crc": 0x17AE0EEF, "extra": []},
+     "src_rom": 0x5F1190, "crc": 0x17AE0EEF, "extra": [0x801C0C08]},
     {"index": 54, "vram": 0x803837E0, "rom_off": 0x2000000, "name": ".module54",
-     "crc": 0x486A3F0F, "extra": [0x80383D00]},
+     "src_rom": 0x68BF26, "crc": 0x486A3F0F, "extra": [0x80383D00]},
+    {"index": 24, "vram": 0x801BF1A0, "rom_off": 0x4000000, "name": ".module24",
+     "src_rom": 0x5FBEC6, "crc": 0x0E9EA703, "extra": [0x801BF610, 0x801BF61C, 0x801CDBF0, 0x801C2420], "auto_mid": True},
+    {"index": 25, "vram": 0x801E1BE0, "rom_off": 0x5000000, "name": ".module25",
+     "src_rom": 0x60F476, "crc": 0xE0934827, "extra": [], "auto_mid": True},
+    {"index": 99, "vram": 0x8038B7E0, "rom_off": 0x6000000, "name": ".module99",
+     "src_rom": 0x6DCA78, "crc": 0x349278F3, "extra": [], "auto_mid": True},
 ]
 
 
@@ -127,24 +139,46 @@ def build_combined_rom(rom_path: Path):
     return True
 
 
+def load_module_extras():
+    """Extras derivados de la traza de saltos del emulador (config/module_extras.json).
+
+    { "23": ["0x801C0C08", ...], ... } — target de jal/jalr observados dentro del módulo que no
+    son entradas estáticas. Ver tools/analysis/gen_module_extras.py."""
+    path = CONFIG / "module_extras.json"
+    if not path.exists():
+        return {}
+    import json
+    raw = json.loads(path.read_text())
+    return {int(k): [int(x, 16) for x in v] for k, v in raw.items()}
+
+
 def gen_module_syms(mod):
-    extra = ",".join(f"0x{a:X}" for a in mod.get("extra", []))
-    return run([sys.executable, ROOT / "tools/analysis/gen_module_syms.py", blob_path(mod),
-                "--vram", f"0x{mod['vram']:X}", "--rom", f"0x{mod['rom_off']:X}",
-                "--name", mod["name"], "--extra", extra,
-                "--out", module_syms_path(mod)]) == 0
+    extras = set(mod.get("extra", []))
+    extras |= set(MODULE_EXTRAS.get(mod["index"], []))
+    extra = ",".join(f"0x{a:X}" for a in sorted(extras))
+    # Prefijo por módulo: varios módulos comparten base de VRAM, así que los nombres de función
+    # deben ser únicos a nivel de símbolo C (`M24_FUN_...`).
+    cmd = [sys.executable, ROOT / "tools/analysis/gen_module_syms.py", blob_path(mod),
+           "--vram", f"0x{mod['vram']:X}", "--rom", f"0x{mod['rom_off']:X}",
+           "--name", mod["name"], "--prefix", f"M{mod['index']}_",
+           "--extra", extra,
+           "--out", module_syms_path(mod)]
+    if mod.get("auto_mid"):
+        cmd.append("--self-pointer-mid-entries")
+    return run(cmd) == 0
 
 
 def fix_module_syms(mod):
     syms = module_syms_path(mod)
     fixed = syms.with_suffix(".fixed.syms.toml")
     # OJO: rc != 0 si el input tiene ramas cruzadas (esperado); lo que importa es el resultado.
+    keep = ["--keep-file", KEEP_SYMS] if KEEP_SYMS.exists() else []
     run([sys.executable, ROOT / "tools/analysis/validate_syms.py", syms,
-         "--rom", COMBINED_ROM, "--fix", "--out", fixed])
+         "--rom", COMBINED_ROM, "--fix", "--out", fixed, *keep])
     if not fixed.exists():
         return False
     if run([sys.executable, ROOT / "tools/analysis/validate_syms.py", fixed,
-            "--rom", COMBINED_ROM]) != 0:
+            "--rom", COMBINED_ROM, *keep]) != 0:
         return False
     syms.write_bytes(fixed.read_bytes())
     print(f"[setup] módulo idx {mod['index']} validado/corregido -> {syms.name}")
@@ -162,7 +196,6 @@ def overlaps_module(f):
 def merge_syms():
     flat = tomllib.loads(FLAT_SYMS.read_text())["section"][0]
     ff = [f for f in flat["functions"] if not overlaps_module(f)]
-
     def sect(comment, name, rom, vram, size, funcs):
         out = [comment, "[[section]]", f'name = "{name}"', f"rom = 0x{rom:X}",
                f"vram = 0x{vram:08X}", f"size = 0x{size:X}", "", "functions = ["]
@@ -187,6 +220,39 @@ def merge_syms():
     return True
 
 
+def gen_keep_syms():
+    """Direcciones de entradas indirectas legítimas: el validador no las fusiona.
+
+    Las escribe `gen_module_syms.py` en `<syms>.keep` (extras manuales + auto-punteros)."""
+    addrs = set()
+    for mod in MODULES:
+        addrs |= {int(a) for a in mod.get("extra", [])}
+        addrs |= {int(a) for a in MODULE_EXTRAS.get(mod["index"], [])}
+        keep = Path(str(module_syms_path(mod)) + ".keep")
+        if keep.exists():
+            addrs |= {int(l, 16) for l in keep.read_text().split() if l.strip()}
+    KEEP_SYMS.write_text("\n".join(f"0x{a:08X}" for a in sorted(addrs)) + "\n")
+    print(f"[setup] {KEEP_SYMS.name}: {len(addrs)} entradas protegidas")
+    return True
+
+
+def gen_module_sources_inc():
+    """Mapa src_rom (offset ROM retail, a0 del loader) -> índice de sección en recomp_overlays.inl.
+
+    El runtime lo usa para registrar la sección del módulo en la base de RAM que pide el juego
+    (`load_module_by_source`), soportando la reutilización de bases entre módulos (idx 24 sobre
+    la base de idx 23, idx 99 sobre la de idx 54, ...)."""
+    lines = [
+        "// Generado por tools/setup_module.py -- no editar a mano.",
+        "// { src_rom (ROM retail, a0 del loader), rom_addr (seccion en el ROM combinado) }.",
+    ]
+    for i, mod in enumerate(MODULES, start=1):
+        lines.append(f"{{ 0x{mod['src_rom']:08X}u, 0x{mod['rom_off']:08X}u }}, // {mod['name']} (idx {mod['index']})")
+    MODULE_SOURCES_INC.write_text("\n".join(lines) + "\n")
+    print(f"[setup] {MODULE_SOURCES_INC.name}: {len(MODULES)} módulos")
+    return True
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--rom", type=Path, default=DEFAULT_ROM)
@@ -201,12 +267,19 @@ def main() -> int:
         return 1
     if not build_combined_rom(args.rom):
         return 1
+    global MODULE_EXTRAS
+    MODULE_EXTRAS = load_module_extras()
     for mod in MODULES:
         if not gen_module_syms(mod):
             return 1
+    if not gen_keep_syms():
+        return 1
+    for mod in MODULES:
         if not fix_module_syms(mod):
             return 1
     if not merge_syms():
+        return 1
+    if not gen_module_sources_inc():
         return 1
 
     print("\n[setup] listo. Para recompilar el set combinado y construir:")

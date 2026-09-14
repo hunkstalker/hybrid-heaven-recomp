@@ -10,15 +10,17 @@ de tareas RSP reabierto (dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT6
 faltantes). **Resuelto el crash del driver de audio** (`ctx+4` basura: cola virtual de audio sobre
 la ventana del driver → tamaño `s16` negativo en `osAiSetNextBuffer` → `osAiGetLength` envenenado →
 DMAs runaway; fixes en `ai.cpp`/`support.cpp`) y añadidos los targets de ucode `0x144C/0x170C`
-(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). **TRANSICIÓN CRUZADA
-(2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (los `MEM_*` acceden a
-`rdram` con tipos distintos y GCC reordenaba `sw`/`lhu`); fix `-fno-strict-aliasing` en
-`port/HybridHeavenRecomp/CMakeLists.txt` + split `FUN_8001e66c`/`FUN_8001e768` ⇒ `[LD384]=19`
-(burst), callback `80124CEC`, **`fe00=0x3C01`/`fe02=0x80`** (fase avanza). Frontera actual:
-`Failed to find function at 0x801BF610` (el mismo VRAM aloja módulos distintos según `trans`;
-syms globales no distinguen sección: hace falta el mapa overlay→RAM por sección, ADR 0001/TODO #3).
-Detalle: `notes/2026-09-14-fix-strict-aliasing-transicion.md`,
-`notes/2026-09-14-cadena-d550-y-registro-0x74.md` y `TODO.md` #14.
+(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). **TRANSICIÓN Y BURST
+COMPLETOS (2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (fix
+`-fno-strict-aliasing` en `port/HybridHeavenRecomp/CMakeLists.txt`) + el modelo de módulos (el juego
+**reutiliza bases de VRAM**: idx 24 sobre la base de 23, 99 sobre 54). Implementado **registro
+dinámico de módulos** (runtime `load_module_by_source` + loader siempre activo + `module_sources.inc`),
+extras por módulo (traza `HH_JALTRACE` + `add_missing_funcs.py`) y pipeline consciente de sección
+(`validate_syms`, `fix_fallthroughs`, `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]`
+secciones 1..6, `fe00=0x3C01`/`fe02=0x80`, 0 funciones faltantes en 220 s, 3953 DLs gfx a RT64.
+Frontera: fase `0x80037750` sigue 0, crash de estado en módulo25 (`M25_FUN_801e2d94`) y **verificar
+geometría/píxeles** en pantalla. Detalle: `notes/2026-09-14-registro-dinamico-modulos.md` y
+`notes/2026-09-14-fix-strict-aliasing-transicion.md`; `TODO.md` #10/#14.
 
 ## Persistencia y entorno (CRÍTICO)
 

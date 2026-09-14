@@ -87,6 +87,17 @@ registrar en la base determinista.
     recompilado acceden al mismo `rdram` con tipos distintos; sin el flag GCC (`-O2`) reordena
     `sw`/`lhu` del mismo slot (verificado en `FUN_80125814`: leía un id basura). Los ports de
     referencia (Zelda64Recomp/Goemon64Recomp) ya lo compilan así.
+  - **Registro dinámico de módulos (bases de VRAM reutilizadas)**: el juego decodifica módulos
+    distintos en la misma base (idx 24 sobre idx 23, idx 99 sobre idx 54). `overlays.hpp/.cpp` añaden
+    `ModuleSource { src_rom, rom_addr }`, `register_module_sources()` y `load_module_by_source()`;
+    `register_flat_code()` omite las secciones de módulos y el loader (`FUN_80003824`, wrapper
+    siempre activo en `get_function`) registra la sección recompilada en la base real que pide el
+    juego. La tabla `src_rom → rom_addr` la genera `setup_module.py`
+    (`port/.../src/main/module_sources.inc`); los mid-entries salen de `HH_JALTRACE` +
+    `tools/analysis/gen_module_extras.py` y de `add_missing_funcs.py` (planos), protegidos por
+    `config/keep_syms.txt` en el validador. El pipeline es consciente de sección:
+    `validate_syms.py` (por sección + `--keep-file`) y `fix_fallthroughs.py` (continuación por
+    prefijo `M<n>_`).
   - `addresses.hpp`: `mem_size` 512 MB → 1 GB para cubrir accesos a registros de hardware vía `0xA0000000+`.
   - `overlays`: `register_flat_code()` (modelo de imagen plana, ADR 0001) + `init_mmio()`.
   - `recomp.cpp`: `boot_log` (**opt-in** `HH_BOOTLOG=<ruta>`), `do_break` no aborta, `cop0_register_read/write`
@@ -157,15 +168,12 @@ registrar en la base determinista.
   300-420 s sin crash, ~18k audio tasks, iteraciones del mixer estables, 0 `[RSPW] PISA`, voces
   intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
   `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
-  **Frontera actual (2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (los
-  macros `MEM_*` acceden a `rdram` con tipos distintos; GCC reordenaba `sw`/`lhu` del mismo slot y
-  `FUN_80125814` leía un id basura). Fix **`-fno-strict-aliasing`** en
-  `port/HybridHeavenRecomp/CMakeLists.txt` (como los ports de referencia) + split
-  `FUN_8001e66c`/`FUN_8001e768` ⇒ **transición cruzada**: `[LD384]=19` (burst del loader), callback
-  `80124CEC` instalado, `fe00=0x3C01`/`fe02=0x80`. Bloqueo siguiente: `Failed to find function at
-  0x801BF610` (el mismo VRAM aloja módulos distintos según lo que cargue `trans`; las syms globales
-  no distinguen sección → hace falta el mapa overlay→RAM por sección, ADR 0001 / TODO #3). Ver
-  `../notes/2026-09-14-fix-strict-aliasing-transicion.md` y `../TODO.md` #14.
+  **Frontera actual (2026-09-14)**: con el registro dinámico de módulos el port **cruza la
+  transición y el burst**: `[LD384]=20`, secciones 1..6 registradas, `fe00=0x3C01`/`fe02=0x80`,
+  0 funciones faltantes en un run de 220 s (`HH_SOFT_LOOKUP`) y 3953 DLs gfx a RT64. Bloqueo
+  siguiente: la fase `0x80037750` sigue 0, hay un crash determinista de estado en módulo25
+  (`M25_FUN_801e2d94`, puntero nulo en `a0+0xE8 → +0x2C`) y falta **verificar geometría/píxeles**
+  en pantalla. Ver `../notes/2026-09-14-registro-dinamico-modulos.md` y `../TODO.md` #10/#14.
   **Ojo con los wplog de MMIO**: vigilar el rango de registros AI (`0x04500000`) con el core wplog
   hace segfault al emulador en el boot (usar RDRAM).
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los

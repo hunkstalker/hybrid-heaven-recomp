@@ -28,6 +28,6 @@ ignored = [
 # re-checks for id 0 and already-present entries are idempotent through the insert helper.
 [[patches.instruction]]
 vram = 0x8012591C
-func = "FUN_80125814"
+func = "M7_FUN_80125814"
 value = 0x00000000
 
