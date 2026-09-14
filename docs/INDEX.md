@@ -35,6 +35,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-14 — Run largo de cutscenes, símbolos nuevos y callbacks del menú](../notes/2026-09-14-run-largo-cutscenes-y-simbolos.md) | Continuación de `2026-09-14-fix-fallthrough-secciones-y-cutscene.md` (tras el commit `9ff2c05`). | 36 | 2026-09-14 |
 | [2026-09-14 — Registro dinámico de módulos (bases reutilizadas): transición funcional](../notes/2026-09-14-registro-dinamico-modulos.md) | Continúa `notes/2026-09-14-fix-strict-aliasing-transicion.md`. **Por qué era la tarea**: con la | 83 | 2026-09-14 |
 | [2026-09-14 — Gameplay: input inyectado, menús y Controller Pak](../notes/2026-09-14-input-menus-controller-pak.md) | **Objetivo**: entrar en gameplay desde el título (el menú ya renderizaba; el bloqueo era input). | 79 | 2026-09-14 |
 | [2026-09-14 — Geometría y píxeles alcanzados (logo, título y attract en RT64)](../notes/2026-09-14-geometria-pixeles.md) | Cierra el objetivo del work order original ("llegar a geometría/píxeles"). Continúa | 40 | 2026-09-14 |
