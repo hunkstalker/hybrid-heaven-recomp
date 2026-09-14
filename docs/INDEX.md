@@ -8,10 +8,10 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 104 | 2026-09-14 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 107 | 2026-09-14 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 105 | 2026-09-14 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 26 | 2026-09-10 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 167 | 2026-09-14 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 168 | 2026-09-14 |
 
 ## Técnico y guías (vivos)
 
@@ -39,6 +39,7 @@
 | [2026-09-14 — Gameplay: input inyectado, menús y Controller Pak](../notes/2026-09-14-input-menus-controller-pak.md) | **Objetivo**: entrar en gameplay desde el título (el menú ya renderizaba; el bloqueo era input). | 79 | 2026-09-14 |
 | [2026-09-14 — Geometría y píxeles alcanzados (logo, título y attract en RT64)](../notes/2026-09-14-geometria-pixeles.md) | Cierra el objetivo del work order original ("llegar a geometría/píxeles"). Continúa | 40 | 2026-09-14 |
 | [2026-09-14 — `-fno-strict-aliasing`: resuelta la transición (`fe00`) y nueva frontera de símbolos](../notes/2026-09-14-fix-strict-aliasing-transicion.md) | Continúa `notes/2026-09-14-cadena-d550-y-registro-0x74.md`. **Hito**: el juego cruza la | 97 | 2026-09-14 |
+| [2026-09-14 — Fix de fallthroughs entre módulos con base compartida y avance de cutscenes](../notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md) | **Objetivo**: resolver el crash tras GAME START (`M25_FUN_801e2cac`) y seguir hacia gameplay. | 42 | 2026-09-14 |
 | [2026-09-14 — Cadena `d550` → `bd6d` y registro del recurso `0x74` (bloqueo de la transición)](../notes/2026-09-14-cadena-d550-y-registro-0x74.md) | Continúa `notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y el work order | 87 | 2026-09-14 |
 | [Work order — Bloqueo por gate de tareas RSP (`0x8005CD4C`)](../notes/2026-09-13-workorder-gate-rsp.md) | Documento operativo para retomar ESTA tarea en una sesión nueva. Autocontenido. | 194 | 2026-09-13 |
 | [Work order — Evento de módulo `0x7D` y cadena de callbacks del nodo `0x801D0474`](../notes/2026-09-13-workorder-evento-modulo-0x7D.md) | Documento operativo autocontenido para retomar ESTA tarea en una sesión nueva. | 111 | 2026-09-13 |

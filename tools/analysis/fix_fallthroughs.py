@@ -30,24 +30,23 @@ def load_ignored():
     return ign
 
 def build_addr_map():
-    addr2name = {}
-    inl = os.path.join(RECOMP_DIR, "recomp_overlays.inl")
-    if os.path.exists(inl):
-        txt = open(inl, encoding="utf-8", errors="replace").read()
-        for m in re.finditer(r'\.func = (\w+),\s*\.offset = (0x[0-9A-Fa-f]+)', txt):
-            addr2name[VRAM_BASE + int(m.group(2), 16)] = m.group(1)
+    """[(vram, nombre)] de todas las funciones generadas, SIN deduplicar por dirección.
+
+    Importante: los módulos pueden compartir base de VRAM (23/24 en 0x801BF1A0), así que un
+    mapa `addr -> nombre` pierde una de las dos y encadena fallthroughs a la sección equivocada.
+    La dirección se toma del sufijo de 8 hex del nombre (absoluta); el `.inl` no sirve para
+    módulos porque sus offsets son relativos a la sección."""
+    pairs = []
     func_re = re.compile(r'^RECOMP_FUNC\s+void\s+(\w+)\s*\(')
     for fp in glob.glob(os.path.join(RECOMP_DIR, "funcs_*.c")):
         for ln in open(fp, encoding="utf-8", errors="replace"):
             m = func_re.match(ln)
-            if not m: continue
-            name = m.group(1)
-            hm = re.search(r'([0-9A-Fa-f]{8})$', name)
-            if hm:
-                a = int(hm.group(1), 16)
-                if 0x80000000 <= a < 0x80800000:
-                    addr2name.setdefault(a, name)
-    return addr2name
+            if not m:
+                continue
+            a = func_addr(m.group(1))
+            if a is not None and 0x80000000 <= a < 0x80800000:
+                pairs.append((a, m.group(1)))
+    return pairs
 def func_addr(name):
     hm = re.search(r'([0-9A-Fa-f]{8})$', name)
     return int(hm.group(1), 16) if hm else None
@@ -65,12 +64,12 @@ def section_prefix(name):
 def main():
     dry = "--dry-run" in sys.argv
     stubs = load_ignored()
-    addr2name = build_addr_map()
+    pairs = build_addr_map()
     func_re = re.compile(r'^RECOMP_FUNC\s+void\s+(\w+)\s*\(')
 
     # Mapa de continuaciones por sección (prefijo).
     by_prefix = {}
-    for a, name in addr2name.items():
+    for a, name in pairs:
         by_prefix.setdefault(section_prefix(name), []).append((a, name))
     for v in by_prefix.values():
         v.sort()

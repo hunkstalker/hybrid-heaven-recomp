@@ -25,10 +25,13 @@ y `notes/2026-09-14-geometria-pixeles.md`. **MENÚS Y GAME START (2026-09-14)**:
 GAME START/DIFFICULTY/EXIT; GAME START exigía **Controller Pak** (runtime devolvía NOPACK) →
 implementado **PFS mínimo en RAM** (`runtime librecomp/src/pak.cpp`, 13 entradas movidas a
 `reimplemented_funcs`, `N64RecompCLI`+recomp). El port ya renderiza **escenas 3D in-game**; detalle y
-capturas en `notes/2026-09-14-input-menus-controller-pak.md`. Frontera: crash ~1 min tras GAME START en
-`M25_FUN_801e2cac` (`$t6=[0x801DAB14]=0x80000000`), confirmar gameplay interactivo y el SEGV del
-callback `M24_FUN_801cb71c` (`[0x8008D608]=0`) si el menú se queda sin input. Detalle
-técnico: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14/#15.
+capturas en `notes/2026-09-14-input-menus-controller-pak.md`. **CRASH POST-GAME-START RESUELTO
+(2026-09-14)**: `fix_fallthroughs.py` mezclaba módulos con base de VRAM compartida (23/24 en
+`0x801BF1A0`) y encadenaba fallthroughs al destino equivocado (`M25_FUN_801e2cac` leía
+`[0x801DAB14]=0x80000000`); ahora resuelve por sección + extra `0x801E4AA4` ⇒ runs 250-300 s sin SEGV
+ni símbolos faltantes, con **cutscenes 3D in-engine** (`notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`).
+Frontera: **gameplay interactivo** (control/HUD) y cierre (teardown, callback del menú sin input).
+Detalle técnico: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14/#15.
 
 ## Persistencia y entorno (CRÍTICO)
 

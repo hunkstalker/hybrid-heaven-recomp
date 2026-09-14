@@ -64,11 +64,12 @@
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
 10. [•] **Siguiente: render/juego tras el arranque**: **geometría/píxeles** (título + attract 3D,
     `port_shot_*.png`) y **menús + GAME START (2026-09-14)**: input headless por env (`HH_PRESS*`),
-    menú principal → GAME START/DIFFICULTY/EXIT → **escenas 3D in-game** tras implementar el
-    **Controller Pak (PFS mínimo)**. Detalle: `notes/2026-09-14-geometria-pixeles.md`,
-    `notes/2026-09-14-input-menus-controller-pak.md`. Frontera: **crash ~1 min tras GAME START en
-    `M25_FUN_801e2cac`** (`$t6=[0x801DAB14]=0x80000000`), confirmar gameplay interactivo y el SEGV
-    del callback `M24_FUN_801cb71c` (`[0x8008D608]=0`) si el menú se queda sin input.
+    menú principal → GAME START/DIFFICULTY/EXIT → **cutscenes 3D in-engine** con Controller Pak
+    (PFS mínimo). **Crash post-GAME START resuelto**: `fix_fallthroughs.py` mezclaba módulos 23/24
+    (base compartida `0x801BF1A0`) y encadenaba `M24_FUN_801cc2c8` al destino equivocado; fix
+    sección-consciente + extra `0x801E4AA4` ⇒ runs 250-300 s sin SEGV ni símbolos faltantes.
+    Detalle: `notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`. Frontera: **gameplay
+    interactivo** (control/HUD; run largo en curso) y cierre/callback del menú sin input.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
@@ -116,8 +117,8 @@
       `add_missing_funcs.py`), y pipeline consciente de sección (`validate_syms`, `fix_fallthroughs`,
       `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]` 1..6, `fe00=0x3C01`, 0 funciones
       faltantes en 220 s, 3953 DLs gfx. Detalle: `notes/2026-09-14-registro-dinamico-modulos.md`.
-    - **Frontera actual (2026-09-14)**: menús y GAME START atravesados (ver #10); el port renderiza escenas 3D in-game.
-      Pendiente: crash de módulo 25 (`M25_FUN_801e2cac`) y confirmar gameplay interactivo.
+    - **Frontera actual (2026-09-14)**: cutscenes 3D in-engine corriendo limpias (crash de módulo 25
+      resuelto por el fix de fallthroughs sección-consciente). Pendiente: gameplay interactivo.
 15. [•] **Accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble / device type):
     **HECHO (2026-09-14)**: GAME START exigía Controller Pak (runtime devolvía NOPACK) → **PFS mínimo en
     RAM** (`pak.cpp`: init/formato, allocate/find/delete/read/write/fileState/freeBlocks/numFiles/isPlug;
