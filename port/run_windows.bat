@@ -6,8 +6,9 @@ REM  tanto el .exe las hereda (no vale setearlas en otra ventana).
 REM =====================================================================
 setlocal
 
-REM Eje Y del mando: quita/pon segun lo notes invertido.
-set HH_INVERT_Y=1
+REM Eje Y del mando: por DEFECTO ya es correcto (arriba=arriba). Solo si lo notases
+REM invertido, descomenta la siguiente linea para flipearlo.
+REM set HH_INVERT_Y=1
 
 REM Resolucion de render: auto (default) | original | 2x | 3x | 4x ...
 REM set HH_RES=2x
