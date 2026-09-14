@@ -83,6 +83,10 @@ registrar en la base determinista.
 - **Base**: `lib/N64ModernRuntime` es un fork del upstream (`toolchain/src/N64ModernRuntime`). Toda
   divergencia debe estar aquí documentada y justificada; el objetivo es mantenerla **mínima**.
 - **Parches funcionales del port (deliberados):**
+  - `CMakeLists.txt`: **`-fno-strict-aliasing`** en el build no-MSVC. Los macros `MEM_W/H/B` del C
+    recompilado acceden al mismo `rdram` con tipos distintos; sin el flag GCC (`-O2`) reordena
+    `sw`/`lhu` del mismo slot (verificado en `FUN_80125814`: leía un id basura). Los ports de
+    referencia (Zelda64Recomp/Goemon64Recomp) ya lo compilan así.
   - `addresses.hpp`: `mem_size` 512 MB → 1 GB para cubrir accesos a registros de hardware vía `0xA0000000+`.
   - `overlays`: `register_flat_code()` (modelo de imagen plana, ADR 0001) + `init_mmio()`.
   - `recomp.cpp`: `boot_log` (**opt-in** `HH_BOOTLOG=<ruta>`), `do_break` no aborta, `cop0_register_read/write`
@@ -153,11 +157,15 @@ registrar en la base determinista.
   300-420 s sin crash, ~18k audio tasks, iteraciones del mixer estables, 0 `[RSPW] PISA`, voces
   intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
   `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
-  **Frontera actual**: la transición no se dispara porque no llega el evento de módulo `0x7D`
-  (emulador t≈65,2 s) y el callback `801C2050` del nodo `0x801D0474` no se despacha
-  (`[0x801D03C0+0x1C]=0x801BF1CC`, `fe00=0`). Ver `../TODO.md` #14,
-  `../notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y el work order
-  `../notes/2026-09-13-workorder-evento-modulo-0x7D.md`.
+  **Frontera actual (2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (los
+  macros `MEM_*` acceden a `rdram` con tipos distintos; GCC reordenaba `sw`/`lhu` del mismo slot y
+  `FUN_80125814` leía un id basura). Fix **`-fno-strict-aliasing`** en
+  `port/HybridHeavenRecomp/CMakeLists.txt` (como los ports de referencia) + split
+  `FUN_8001e66c`/`FUN_8001e768` ⇒ **transición cruzada**: `[LD384]=19` (burst del loader), callback
+  `80124CEC` instalado, `fe00=0x3C01`/`fe02=0x80`. Bloqueo siguiente: `Failed to find function at
+  0x801BF610` (el mismo VRAM aloja módulos distintos según lo que cargue `trans`; las syms globales
+  no distinguen sección → hace falta el mapa overlay→RAM por sección, ADR 0001 / TODO #3). Ver
+  `../notes/2026-09-14-fix-strict-aliasing-transicion.md` y `../TODO.md` #14.
   **Ojo con los wplog de MMIO**: vigilar el rango de registros AI (`0x04500000`) con el core wplog
   hace segfault al emulador en el boot (usar RDRAM).
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los

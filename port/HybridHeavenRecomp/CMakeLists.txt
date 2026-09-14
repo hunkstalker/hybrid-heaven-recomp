@@ -11,7 +11,10 @@ if(MSVC)
 else()
     # Recompiled MIPS code needs x64 baseline instructions.
     # SSSE3 lo requiere la implementacion VU del runtime RSP (rsp_vu_impl.hpp, _mm_shuffle_epi8).
-    add_compile_options(-O2 -msse4.1)
+    # -fno-strict-aliasing: el C recompilado usa los punteros MEM_W/H/B del mismo rdram con tipos
+    # distintos (sw seguido de lhu del mismo slot); sin esto GCC reordena el load antes del store
+    # y lee basura (los ports de referencia tambien lo ponen).
+    add_compile_options(-O2 -msse4.1 -fno-strict-aliasing)
 endif()
 
 # Optionally build a static runtime (recommended for easier distribution).

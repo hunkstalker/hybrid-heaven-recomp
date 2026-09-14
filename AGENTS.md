@@ -10,11 +10,15 @@ de tareas RSP reabierto (dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT6
 faltantes). **Resuelto el crash del driver de audio** (`ctx+4` basura: cola virtual de audio sobre
 la ventana del driver → tamaño `s16` negativo en `osAiSetNextBuffer` → `osAiGetLength` envenenado →
 DMAs runaway; fixes en `ai.cpp`/`support.cpp`) y añadidos los targets de ucode `0x144C/0x170C`
-(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). Sigue `fase=0`: falta el
-evento de módulo `0x7D` (emulador t≈65,2 s) y el callback `801C2050` del nodo `0x801D0474` no se
-despacha (`+0x1C=0x801BF1CC`, `fe00=0`). Detalle:
-`notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y `TODO.md` #14. **Para retomar, leer el
-work order `notes/2026-09-13-workorder-evento-modulo-0x7D.md`** (autocontenido).
+(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). **TRANSICIÓN CRUZADA
+(2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (los `MEM_*` acceden a
+`rdram` con tipos distintos y GCC reordenaba `sw`/`lhu`); fix `-fno-strict-aliasing` en
+`port/HybridHeavenRecomp/CMakeLists.txt` + split `FUN_8001e66c`/`FUN_8001e768` ⇒ `[LD384]=19`
+(burst), callback `80124CEC`, **`fe00=0x3C01`/`fe02=0x80`** (fase avanza). Frontera actual:
+`Failed to find function at 0x801BF610` (el mismo VRAM aloja módulos distintos según `trans`;
+syms globales no distinguen sección: hace falta el mapa overlay→RAM por sección, ADR 0001/TODO #3).
+Detalle: `notes/2026-09-14-fix-strict-aliasing-transicion.md`,
+`notes/2026-09-14-cadena-d550-y-registro-0x74.md` y `TODO.md` #14.
 
 ## Persistencia y entorno (CRÍTICO)
 

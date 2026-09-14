@@ -5,6 +5,22 @@
 > Estado al escribir: audio estable (300-420 s sin crash); la transición (burst del loader) no se
 > dispara porque el evento `0x7D` no llega y el callback `801C2050` no se despacha.
 
+## ACTUALIZACIÓN 2026-09-14 (ruta A ejecutada)
+
+El bloqueo ya está localizado con precisión; ver **`notes/2026-09-14-cadena-d550-y-registro-0x74.md`**
+(evidencia completa). Resumen:
+
+- El port **sí** instala `801C2050` (t≈108 s) y lo ejecuta cada frame (como el emulador a t≈63 s).
+- El `0x08` se consume y su handler corre; el script se para porque `FUN_8012FE50` tiene el gate
+  `if ([0x8008D550]!=0) return;` y el port tiene **`[0x8008D550]=1`** (el emulador lo resetea).
+- `d550` lo pone `FUN_80125774(a0=0x3000)` desde la cadena `FUN_801267B8 → FUN_801267C0` (id `0x74`)
+  y solo lo resetea `FUN_801257DC` **si `FUN_80125808(0x74)` devuelve ≠0**. En el port devuelve 0.
+- El emulador registra el recurso `0x74` en t=10,49 (`FUN_80004560(0x74)` desde `ra=0x801258BC`,
+  dentro de `FUN_80125814` → `FUN_8001752C` → `FUN_80016EAC` → SETID/SETPTR); la entrada
+  `0074:80265FF8` aparece en el directorio `0x8008DFC0` y **falta en el port**.
+- Siguiente: ver §5 de la nota (instrumentar temporalmente `FUN_80125814` y comparar el directorio
+  de recursos) y validar con `d550=0` → `bd6d=1` → `80124CEC` → `[EVQ] 0x7D` → `[LD384] > 11`.
+
 ## 0. TL;DR
 
 El port ya no crashea por el audio (resuelto) y alcanza los hitos del emulador hasta t≈10,5 s. La

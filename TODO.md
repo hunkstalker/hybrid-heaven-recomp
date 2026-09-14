@@ -62,10 +62,10 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: audio **estable** (300-420 s sin crash, ~60
-    tasks/s); sigue pendiente comprobar geometría/píxeles (RT64) y avanzar la fase más allá de 1.
-    Bloqueo actual: evento de módulo `0x7D` / cadena del nodo `0x801D0474` (ver #14 y work order
-    `notes/2026-09-13-workorder-evento-modulo-0x7D.md`); después validar textos/audio/guardado.
+10. [•] **Siguiente: render/juego tras el arranque**: **transición cruzada** (`fe00=0x3C01`, burst
+    `[LD384]=19`, `-fno-strict-aliasing`); siguen faltando símbolos del burst
+    (`0x801BF610`, colisión de secciones). Después: fase >1, geometría/píxeles (RT64),
+    textos/audio/guardado.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
@@ -98,10 +98,17 @@
       cola virtual a ~1 VI. Además targets de ucode `0x144C/0x170C` (cmd `0x0F/0x0E`, abortaban desde
       t≈13,4 s). **Resultado**: 300-420 s sin crash, ~18k tasks, voces intactas. Detalle:
       `notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md`.
-    - **Frontera actual (transición)**: llegan los eventos de módulo `0x87` (t≈10,5 s) y `0x08`
-      (t≈108 s; emulador 62,9 s) pero no el `0x7D` (emulador t≈65,2 s) que dispara el burst del
-      loader; el callback `801C2050` del nodo `0x801D0474` no se despacha (`+0x1C=0x801BF1CC`,
-      `fe00=0`). **Work order: `notes/2026-09-13-workorder-evento-modulo-0x7D.md`.**
+    - **HECHO (2026-09-14, TRANSICIÓN)**: causa raíz del estancamiento = **strict aliasing**: los
+      macros `MEM_*` acceden a `rdram` con tipos distintos y GCC reordenaba `sw`/`lhu` del mismo slot
+      (`FUN_80125814` leía id basura → `d550` no se reseteaba → `bd6d` nunca → sin `0x7D`). Fix:
+      `-fno-strict-aliasing` en `port/HybridHeavenRecomp/CMakeLists.txt` (como los ports de
+      referencia). Además split `FUN_8001e66c`/`FUN_8001e768`. **Resultado**: `[LD384]=19`, burst del
+      loader, callback `80124CEC` instalado y **`fe00=0x3C01`/`fe02=0x80`** (fase avanza). Detalle:
+      `notes/2026-09-14-fix-strict-aliasing-transicion.md`.
+    - **Frontera actual**: `Failed to find function at 0x801BF610` — el mismo VRAM aloja módulos
+      distintos según `trans` (las syms globales no distinguen sección; el split colisiona y se
+      revirtió). Pendiente: mapa overlay→RAM por sección (ADR 0001 / TODO #3) o registrar los
+      mid-entries por sección para continuar el burst.
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de
