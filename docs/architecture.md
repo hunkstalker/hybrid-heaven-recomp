@@ -131,7 +131,9 @@ registrar en la base determinista.
   task en vuelo (detalle: `../notes/2026-09-13-deadlock-sp-race.md` §5).
   **Resuelto (ucode de audio, 2026-09-13)**: la transición la dispara el ucode de audio (sin
   RSP-HLE el emulador no hace el burst). El ucode resultó ser el **aspMain estándar** y se recompiló
-  con `RSPRecomp`: texto en ROM `0x37130` (`0xE18`), base IMEM `0x04001080`, 14 targets indirectos;
+  con `RSPRecomp`: texto en ROM `0x37130` (`0xE18`), base IMEM `0x04001080`, **16 targets indirectos**
+  (los 14 iniciales + `0x144C`/`0x170C` para los comandos `0x0F`/`0x0E`, que abortaban las tasks
+  desde t≈13,4 s);
   integrado en `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (config reproducible
   `config/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
   `hh::get_rsp_microcode` para `M_AUDTASK`. Parches de runtime asociados: `sp_complete` de las tasks
@@ -140,11 +142,24 @@ registrar en la base determinista.
   libultra); `dma_rdram_to_dmem`/`dma_dmem_to_rdram` pasan de `assert` (desactivado por `NDEBUG`) a
   chequeo real. Con esto el audio corre a **~60 tasks/s con 0 yields** y la petición `0x87` +
   carga `0x801B6600` (hito del emulador a t≈10,5 s) se repiten.
-  **Frontera actual**: crash intermitente por **corrupción lógica de RDRAM** del propio juego
-  (`FUN_8001FD14` lee un descriptor de buffer basura); ASan limpio y `[BADMQ]`=0 en las APIs ⇒
-  siguiente: comparar el estado del driver (descriptor/buffers AI) port vs emulador antes del fallo
-  y validar los punteros de las DMAs del ucode (ver `../TODO.md` #14 y
-  `../notes/2026-09-13-ucode-audio-gate-transicion.md` §§5-10).
+  **Resuelto (corrupción de contextos de audio, 2026-09-13)**: el crash del driver (`FUN_8001FD14`
+  leía `{ptr,size}` basura de `ctx+4`) era una cadena: un burst de ticks hacía superar a la **cola
+  virtual** de audio (headless, `support.cpp`) la ventana que asume el driver
+  (`(0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0` guardado en un `s16`), el tamaño hacía wrap a
+  **negativo (~4 GiB)** y `osAiSetNextBuffer` lo encolaba; `osAiGetLength` quedaba envenenado
+  (~2³⁰ frames) y el juego construía **command lists runaway** cuyos DMAs de `A_SAVEBUFF` pisaban
+  las voces. **Fixes runtime**: `librecomp/src/ai.cpp` ignora byte_counts negativos/absurdos
+  (`>0x200000`) y `src/main/support.cpp` acota la cola virtual a ~1 VI (`sample_rate/60`). Resultado:
+  300-420 s sin crash, ~18k audio tasks, iteraciones del mixer estables, 0 `[RSPW] PISA`, voces
+  intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
+  `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
+  **Frontera actual**: la transición no se dispara porque no llega el evento de módulo `0x7D`
+  (emulador t≈65,2 s) y el callback `801C2050` del nodo `0x801D0474` no se despacha
+  (`[0x801D03C0+0x1C]=0x801BF1CC`, `fe00=0`). Ver `../TODO.md` #14,
+  `../notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y el work order
+  `../notes/2026-09-13-workorder-evento-modulo-0x7D.md`.
+  **Ojo con los wplog de MMIO**: vigilar el rango de registros AI (`0x04500000`) con el core wplog
+  hace segfault al emulador en el boot (usar RDRAM).
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los
   corrompe (`801BF1CC` → `CCF11B80`).
 

@@ -53,8 +53,8 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 | 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
 | 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
 | 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
-| 3. Render (RT64) | en curso | RT64 **procesa DLs** (wiring OK). Arranque corregido en dos tandas: (1) 4 MB de RDRAM, (2) **des-stubbing de la init de libultra** (ADR 0002: `osInitialize`, PI manager, VI, `__osEventStateTab`…). El port **no aborta** y su cadena de boot coincide con el emulador. **Desbloqueado (ADR 0003)**: subsistema VI generado del ROM (`osCreateViManager` + familia `osVi*`), runtime solo hardware (registros MMIO → RT64); `OSViContext` correcto, dispatcher 430/45 s, loader 10 módulos, **1359 DLs** a RT64, 0 símbolos faltantes. **Deadlock SP resuelto** (completaciones dirigidas al hilo emisor; dispatcher 3723/300 s, `[0x8005CD4C]` oscila) y **mapa task→hilo corregido** (audio dirigido a t18). Sigue en `fase=0` con **causa raíz identificada y primer hito hecho**: la transición del emulador (burst a t≈63,7 s, id 0x19) depende del **ucode de audio**; su **aspMain ya está recompilado con `RSPRecomp` e integrado** (`port/HybridHeavenRecomp/rsp/hh_aspMain.cpp`, `config/rsp_hh_aspMain.toml`, registro en `hh::get_rsp_microcode`), corre sin errores y procesa los comandos reales. **Fix del protocolo gfx/audio**: `sp_complete` del gfx en el submit + `HH_SP_SHARED` (cola compartida) ⇒ **~60 tasks/s con 0 yields**; mejor run **6575 tasks / 109,7 s de audio** (el emulador transiciona a ~64 s). Frontera: **corrupción lógica** de los contextos de audio del juego (`ctx+4` pasa basura; el ucode no escribe ahí) que corta los runs a ~9-13 s de audio. Siguiente: comparar `ctx+4`/buffers AI port vs emulador antes del fallo y revisar el modelado del AI. Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md` §11 |
-| 4. Audio | bloqueado | ucode custom KCEO sin identificar |
+| 3. Render (RT64) | en curso | RT64 **procesa DLs** (wiring OK). Arranque corregido en dos tandas: (1) 4 MB de RDRAM, (2) **des-stubbing de la init de libultra** (ADR 0002: `osInitialize`, PI manager, VI, `__osEventStateTab`…). El port **no aborta** y su cadena de boot coincide con el emulador. **Desbloqueado (ADR 0003)**: subsistema VI generado del ROM (`osCreateViManager` + familia `osVi*`), runtime solo hardware (registros MMIO → RT64); `OSViContext` correcto, dispatcher 430/45 s, loader 10 módulos, **1359 DLs** a RT64, 0 símbolos faltantes. **Deadlock SP resuelto** (completaciones dirigidas al hilo emisor; dispatcher 3723/300 s, `[0x8005CD4C]` oscila) y **mapa task→hilo corregido** (audio dirigido a t18). Sigue en `fase=0` con **causa raíz identificada y primer hito hecho**: la transición del emulador (burst a t≈65 s, evento de módulo `0x7D`) depende del **ucode de audio**; su **aspMain ya está recompilado con `RSPRecomp` e integrado** (`port/HybridHeavenRecomp/rsp/hh_aspMain.cpp`, `config/rsp_hh_aspMain.toml`, registro en `hh::get_rsp_microcode`), corre sin errores y procesa los comandos reales (incluidos cmd `0x0E/0x0F`, targets `0x170C/0x144C` añadidos). **Fix del protocolo gfx/audio**: `sp_complete` del gfx en el submit + `HH_SP_SHARED` (cola compartida) ⇒ **~60 tasks/s con 0 yields**. **Resuelta la corrupción de contextos de audio** (cadena: burst de ticks → cola virtual sobre la ventana del driver → tamaño `s16` negativo ~4 GiB en `osAiSetNextBuffer` → `osAiGetLength` envenenado → command lists runaway que DMA sobre las voces): fixes en `ai.cpp` (ignorar byte_counts absurdos) y `support.cpp` (cola virtual acotada a ~1 VI); **300-420 s sin crash, ~18k tasks, voces intactas**. **Frontera actual**: el port encola `0x87` (t≈10,5 s) y `0x08` (t≈108 s; emulador 62,9 s) pero no llega `0x7D` (emulador t≈65,2 s) que dispara el burst del loader; el callback `801C2050` del nodo `0x801D0474` no se despacha (`+0x1C=0x801BF1CC`, `fe00=0`). Detalle: `notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md`; work order: `notes/2026-09-13-workorder-evento-modulo-0x7D.md` |
+| 4. Audio | en curso | ucode **aspMain del ROM** recompilado y corriendo (~60 tasks/s); sin crashes en 420 s. Falta la cadena de eventos de módulo (transición) |
 | 5. Guardado | pendiente | Controller Pak → disco |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
 | 7. Robustez/empaquetado | pendiente | 3 builds (Win/Linux/Deck) |
@@ -66,7 +66,9 @@ Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
 1. **Módulos de código dinámicos (`trans`)**: base del módulo de boot determinista (ADR 0001);
    riesgo residual = bases de módulos posteriores (aún no medibles).
 2. **Símbolos sin decompilación**: límites de Ghidra frágiles → mitigar con validador (TODO A3).
-3. **Microcode de audio custom KCEO**: bloqueante para audio.
+3. **Cadena de eventos de módulo hasta la transición** (`0x7D`): el ucode de audio ya corre
+   (aspMain estándar recompilado); el bloqueo es la programación del motor de audio y los callbacks
+   del nodo `0x801D0474`.
 4. **LZSS 5/7** del `trans`: bloqueante para módulos.
 5. **Efectos framebuffer / cinematografía**: verificar en RT64.
 6. **Rendimiento/multiplataforma**: RDRAM 32-bit BE + 3 backends.
@@ -98,5 +100,6 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Modelo de módulos caracterizado y ADR 0001 aceptado. Foco inmediato: **pipeline
-reproducible + validador de símbolos** (Fase A #3) e **implementar el módulo idx 7** (Fase B #9).
+Ver **`TODO.md`**. Modelo de módulos caracterizado y ADR 0001 aceptado. Foco inmediato: **cadena de
+eventos de módulo / nodo `0x801D0474`** (work order `notes/2026-09-13-workorder-evento-modulo-0x7D.md`)
+para disparar la transición y llegar a geometría/píxeles.

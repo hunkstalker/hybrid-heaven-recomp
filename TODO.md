@@ -62,8 +62,10 @@
    (`config/game_combined.toml`: nop del `bne` en `0x8012591C` de `FUN_80125814`) y split del símbolo
    `FUN_80017608` (+`FUN_8001769c`). **Verificado**: la fase avanza a 1, `fe00/fe02` progresan y el port
    corre 180 s sin errores. Detalle: nota §bloqueo resuelto.
-10. [•] **Siguiente: render/juego tras el arranque**: comprobar geometría/píxeles (RT64) y avanzar la
-   fase más allá de 1; validar textos/audio/guardado.
+10. [•] **Siguiente: render/juego tras el arranque**: audio **estable** (300-420 s sin crash, ~60
+    tasks/s); sigue pendiente comprobar geometría/píxeles (RT64) y avanzar la fase más allá de 1.
+    Bloqueo actual: evento de módulo `0x7D` / cadena del nodo `0x801D0474` (ver #14 y work order
+    `notes/2026-09-13-workorder-evento-modulo-0x7D.md`); después validar textos/audio/guardado.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
@@ -79,41 +81,27 @@
       3.ª llamada a `FUN_80003824` disparada por `FUN_801079B0` (init módulo 7, call site `0x80107A0C`),
       igual que el emulador (`ra=0x80107A14`).
     Detalle y trazas: `notes/2026-09-13-directorio-nisitenma-y-gate-rsp.md`.
-14. [•] **Gate de tareas RSP + contexto VI — el bloqueo real**. `FUN_80001454` deja de llamar al
-    dispatcher `FUN_80005270` cuando `[0x8008D545]==0 && [0x8005C4B0+0x89C]>=2` (gate en
-    `0x80001820`). Cadena diagnosticada:
-    - **Hecho**: `FUN_80030610` era el `osCreateMesgQueue` del ROM (centinela `&__osThreadTail` =
-      `0x80049930`); el runtime de mensajes asumía listas NULL ⇒ sacaba/programaba el centinela como
-      hilo (corrompía `__osRunningThread` y las colas). **Fix**: rename `FUN_80030610` →
-      `osCreateMesgQueue` en las syms. Verificado: colas NULL, `__osRunningThread` válido.
-    - **Resuelto (ADR 0003, opción A)**: el subsistema VI se genera del ROM (`osCreateViManager` y
-      la familia `osVi*`); el runtime lee los registros VI MMIO para RT64. `OSViContext` correcto,
-      dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos faltantes (splits de
-      mid-entries `0x80002364`, `0x800243F0`, `0x8002487C`…). Detalle:
-      `notes/2026-09-13-vi-opcion-a-implementada.md` y ADR 0003.
-    - **Resuelto (2026-09-13, deadlock SP)**: las completaciones SP/DP se entregan al hilo que
-      envió la task (mapa task→thread + **cola de pendientes por (hilo, mq)** en `mesgqueue.cpp`:
-      `do_send` dirigido que no inserta en el ring y `do_recv` que consume la pendiente, incluso si
-      el emisor aún no se había bloqueado). Evidencia (300 s): dispatcher **3723** (vs 428 antes),
-      `[0x8005CD4C]` oscila 1/2, `+0x890/+0x894/+0x158 = 0`, sin símbolos faltantes ni asserts.
-      Detalle: `notes/2026-09-13-deadlock-sp-race.md` §5.
-    - **HECHO (2026-09-13)**: **ucode de audio (aspMain) recompilado y corriendo**. Texto en ROM
-      `0x37130` (tamaño `0xE18`, base IMEM `0x04001080`) + 14 targets indirectos; integrado en
-      `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (`config/rsp_hh_aspMain.toml`, `-msse4.1`) y
-      registrado en `hh::get_rsp_microcode` para `M_AUDTASK`. Procesa los comandos reales y **0
-      exits** (antes 66/72). La petición la escribe `FUN_80021EB8` (id `0x87`) llamada por
-      `FUN_80020F60` desde `FUN_80020460`.
-    - **HECHO (yield)**: se identificó que el atasco de la task ~63 era el protocolo de **yield**
-      gfx/audio (`osSpTaskYield`/`Yielded` estaban stubeados); el fix entrega una completación SP
-      sintética al hilo que hace yield. Resultado: **743 audio tasks** (vs 62), request `0x87`
-      procesada y **carga #11** (`0x5D280 → 0x801B6600 = 0x0020004C`) = hito del emulador a t≈10,5 s.
-    - **Frontera actual**: el descriptor corrupto sale de `s0 = *(ctx+4)` (contextos de audio
-      `0x800C7A50/8A40/9A30`); el ucode **no** escribe ahí (ventana `[RSPW]`: solo buffers AI en
-      `+0x10`). La corrupción es estado del propio juego (llega `a1` basura, incluso direcciones
-      físicas). Siguiente: comparar `ctx+4`/buffers AI port vs emulador justo antes del fallo, y
-      revisar el modelado del AI (registros/counters) que el driver usa para calcular el descriptor.
-      Detalle: `notes/2026-09-13-ucode-audio-gate-transicion.md` §11. **Work order autocontenido
-      para retomar: `notes/2026-09-13-workorder-audio-ai-descriptor.md`.**
+14. [•] **Gate de tareas RSP + contexto VI + audio — el bloqueo real**. `FUN_80001454` deja de
+    llamar al dispatcher `FUN_80005270` cuando `[0x8008D545]==0 && [0x8005C4B0+0x89C]>=2` (gate en
+    `0x80001820`). Cadena resuelta por partes (detalle en `docs/architecture.md` §5 y `notes/`):
+    - `FUN_80030610` era el `osCreateMesgQueue` del ROM (centinela `&__osThreadTail`): rename en las
+      syms. VI del ROM + MMIO (ADR 0003). Deadlock SP: completaciones dirigidas al hilo emisor
+      (`mesgqueue.cpp`; dispatcher 3723/300 s). Detalles:
+      `notes/2026-09-13-vi-opcion-a-implementada.md`, `notes/2026-09-13-deadlock-sp-race.md`.
+    - **ucode de audio (aspMain) recompilado y corriendo** (`config/rsp_hh_aspMain.toml`,
+      `rsp/hh_aspMain.cpp`, `M_AUDTASK`); `osSpTaskYield` con completación sintética ⇒ ~60 tasks/s,
+      0 yields, hito `0x87` + carga `0x801B6600` (t≈10,5 s).
+    - **HECHO (corrupción de contextos de audio)**: cadena burst de ticks → cola virtual sobre la
+      ventana del driver (`s16` del cálculo `(0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0`) → tamaño
+      ~4 GiB en `osAiSetNextBuffer` → `osAiGetLength` envenenado → DMAs runaway sobre las voces →
+      `ctx+4` basura. **Fixes runtime**: `ai.cpp` ignora byte_counts absurdos; `support.cpp` acota la
+      cola virtual a ~1 VI. Además targets de ucode `0x144C/0x170C` (cmd `0x0F/0x0E`, abortaban desde
+      t≈13,4 s). **Resultado**: 300-420 s sin crash, ~18k tasks, voces intactas. Detalle:
+      `notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md`.
+    - **Frontera actual (transición)**: llegan los eventos de módulo `0x87` (t≈10,5 s) y `0x08`
+      (t≈108 s; emulador 62,9 s) pero no el `0x7D` (emulador t≈65,2 s) que dispara el burst del
+      loader; el callback `801C2050` del nodo `0x801D0474` no se despacha (`+0x1C=0x801BF1CC`,
+      `fe00=0`). **Work order: `notes/2026-09-13-workorder-evento-modulo-0x7D.md`.**
 15. [ ] **Auditar accesorios N64 que alteran las entradas de arranque** (Controller Pak / Rumble Pak /
     device type por puerto): el boot ramifica según el estado SI. Ya nos han mordido input y Expansion
     Pak; comprobar bitpattern/`OSContStatus`/`get_connected_device_info` contra el emulador de

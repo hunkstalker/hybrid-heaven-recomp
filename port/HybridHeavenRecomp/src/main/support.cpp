@@ -253,6 +253,19 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     if (audio_device == 0) {
         virtual_ai_drain();
         virtual_frames += static_cast<double>(sample_count) / input_channels;
+        // HH: cota de la cola virtual. El driver de audio del juego calcula el siguiente tamano
+        // como (0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0: si la cola reportada supera la
+        // ventana 0x3E0 palabras, el calculo hace wrap (s16 negativo) y envenena osAiGetLength
+        // (command lists runaway que pisan los contextos de voz). Con la reproduccion virtual
+        // (headless) un burst de ticks puede superar la ventana; se acota a ~1 VI.
+        const double cap = static_cast<double>(sample_rate) / 60.0;
+        if (virtual_frames > cap) {
+            if (getenv("HH_VERBOSE") != nullptr) {
+                static int hh_n = 0;
+                if (hh_n++ < 20) fprintf(stderr, "[AI ] cola virtual acotada: %.0f -> %.0f frames\n", virtual_frames, cap);
+            }
+            virtual_frames = cap;
+        }
         return;
     }
     const size_t byte_len = sample_count * bytes_per_sample;

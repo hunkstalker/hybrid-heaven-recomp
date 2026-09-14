@@ -7,10 +7,14 @@ Fase actual: **arranque/carga**. Dos causas raíz ya resueltas: (1) el juego exi
 el emulador. **Loader y directorio Nisitenma descartados** (idénticos al emulador; el port sí carga
 idx54 vía `FUN_801079B0`). **Resuelto el bloqueo VI (ADR 0003)**: VI libultra del ROM + runtime leyendo registros MMIO; gate
 de tareas RSP reabierto (dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos
-faltantes). Sigue `fase=0`: los callbacks de progreso del módulo 23 (`FUN_801CBDC0`/`FUN_801CBE88`/
-`FUN_801CBE90`, que avanzan `0x801CFE00/02`) no se ejecutan (nodo de boot `+0x1C=0x801BF1CC`).
-Detalle: `notes/2026-09-13-vi-opcion-a-implementada.md` y `TODO.md` #14. **Para retomar, leer el
-work order `notes/2026-09-13-workorder-gate-rsp.md`** (autocontenido).
+faltantes). **Resuelto el crash del driver de audio** (`ctx+4` basura: cola virtual de audio sobre
+la ventana del driver → tamaño `s16` negativo en `osAiSetNextBuffer` → `osAiGetLength` envenenado →
+DMAs runaway; fixes en `ai.cpp`/`support.cpp`) y añadidos los targets de ucode `0x144C/0x170C`
+(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). Sigue `fase=0`: falta el
+evento de módulo `0x7D` (emulador t≈65,2 s) y el callback `801C2050` del nodo `0x801D0474` no se
+despacha (`+0x1C=0x801BF1CC`, `fe00=0`). Detalle:
+`notes/2026-09-13-fix-corrupcion-audio-y-evento-modulo.md` y `TODO.md` #14. **Para retomar, leer el
+work order `notes/2026-09-13-workorder-evento-modulo-0x7D.md`** (autocontenido).
 
 ## Persistencia y entorno (CRÍTICO)
 
