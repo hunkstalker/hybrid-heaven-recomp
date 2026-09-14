@@ -69,7 +69,8 @@
     (base compartida `0x801BF1A0`) y encadenaba `M24_FUN_801cc2c8` al destino equivocado; fix
     sección-consciente + extra `0x801E4AA4` ⇒ runs 250-300 s sin SEGV ni símbolos faltantes.
     Detalle: `notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`. Frontera: **gameplay
-    interactivo** (control/HUD; run largo en curso) y cierre/callback del menú sin input.
+    interactivo** (control/HUD; run A-only de 900 s limpio hasta que la intro vuelve al menú,
+    donde muerde el callback) y cierre/callback del menú sin input.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
