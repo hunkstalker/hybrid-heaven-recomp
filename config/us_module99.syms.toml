@@ -141,9 +141,5 @@ functions = [
     { name = "M99_FUN_8038d7ec", vram = 0x8038D7EC, size = 0xC },
     { name = "M99_FUN_8038d7f8", vram = 0x8038D7F8, size = 0xC },
     { name = "M99_FUN_8038d804", vram = 0x8038D804, size = 0xC },
-    { name = "M99_FUN_8038d810", vram = 0x8038D810, size = 0xE4 },
-    { name = "M99_FUN_8038d8f4", vram = 0x8038D8F4, size = 0x70 },
-    { name = "M99_FUN_8038d964", vram = 0x8038D964, size = 0x90 },
-    { name = "M99_FUN_8038d9f4", vram = 0x8038D9F4, size = 0xA0 },
-    { name = "M99_FUN_8038da94", vram = 0x8038DA94, size = 0x2CC },
+    { name = "M99_FUN_8038d810", vram = 0x8038D810, size = 0x550 },
 ]

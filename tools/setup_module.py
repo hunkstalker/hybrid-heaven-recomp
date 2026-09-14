@@ -68,6 +68,16 @@ MODULES = [
      "src_rom": 0x60F476, "crc": 0xE0934827, "extra": [], "auto_mid": True},
     {"index": 99, "vram": 0x8038B7E0, "rom_off": 0x6000000, "name": ".module99",
      "src_rom": 0x6DCA78, "crc": 0x349278F3, "extra": [], "auto_mid": True},
+    {"index": 8,  "vram": 0x801BF1A0, "rom_off": 0x7000000, "name": ".module8",
+     "src_rom": 0x53C77C, "crc": 0xA5222066, "extra": [], "auto_mid": True, "filter_data": True},
+    {"index": 9,  "vram": 0x801E4AA0, "rom_off": 0x8000000, "name": ".module9",
+     "src_rom": 0x5557F4, "crc": 0xF0872236, "extra": [0x801FF260], "auto_mid": True, "filter_data": True},
+    {"index": 10, "vram": 0x8021B150, "rom_off": 0x9000000, "name": ".module10",
+     "src_rom": 0x57A3B2, "crc": 0x0F984BAB, "extra": [], "auto_mid": True, "filter_data": True},
+    {"index": 12, "vram": 0x802408F0, "rom_off": 0xA000000, "name": ".module12",
+     "src_rom": 0x599670, "crc": 0x49C1F652, "extra": [], "auto_mid": True, "filter_data": True},
+    {"index": 55, "vram": 0x803757E0, "rom_off": 0xB000000, "name": ".module55",
+     "src_rom": 0x68FF2C, "crc": 0x65E2C5AB, "extra": [], "auto_mid": True, "filter_data": True},
 ]
 
 
@@ -166,6 +176,8 @@ def gen_module_syms(mod):
            "--out", module_syms_path(mod)]
     if mod.get("auto_mid"):
         cmd.append("--self-pointer-mid-entries")
+    if mod.get("filter_data"):
+        cmd.append("--filter-data")
     return run(cmd) == 0
 
 

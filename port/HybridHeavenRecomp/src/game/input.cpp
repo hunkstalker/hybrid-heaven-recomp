@@ -234,7 +234,8 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
 
             if (controller_num == 0) {
                 axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
-                axis_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
+                // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
+                axis_y = -controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
             }
         }
     }

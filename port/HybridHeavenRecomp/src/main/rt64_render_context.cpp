@@ -2,6 +2,8 @@
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
+#include <cstdlib>
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
@@ -89,18 +91,25 @@ static void set_application_user_config(RT64::Application* application, const ul
     application->userConfig.graphicsAPI = to_rt64_graphics_api(config.api_option);
     application->userConfig.developerMode = config.developer_mode;
 
-    switch (config.res_option) {
-        case ultramodern::renderer::Resolution::Original:
-            application->userConfig.resolution = RT64::UserConfiguration::Resolution::Original;
-            break;
-        case ultramodern::renderer::Resolution::Original2x:
-            application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
-            application->userConfig.resolutionMultiplier = 2;
-            break;
-        case ultramodern::renderer::Resolution::Auto:
-        default:
-            application->userConfig.resolution = RT64::UserConfiguration::Resolution::WindowIntegerScale;
-            break;
+    // HH: el runtime no persiste GraphicsConfig (useConfigurationFile=false), así que el default
+    // real es Original (240p escalado). Forzamos Auto (escalado entero a la ventana) por defecto,
+    // configurable con HH_RES=original|2x|<n>.
+    const char* res_env = getenv("HH_RES");
+    std::string res = res_env != nullptr ? res_env : "auto";
+    if (res == "original") {
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Original;
+    }
+    else if (!res.empty() && res.back() == 'x') {
+        res.pop_back();
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
+        application->userConfig.resolutionMultiplier = std::max(atoi(res.c_str()), 1);
+    }
+    else if (!res.empty() && res.find_first_not_of("0123456789") == std::string::npos) {
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
+        application->userConfig.resolutionMultiplier = std::max(atoi(res.c_str()), 1);
+    }
+    else {
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::WindowIntegerScale;
     }
 }
 

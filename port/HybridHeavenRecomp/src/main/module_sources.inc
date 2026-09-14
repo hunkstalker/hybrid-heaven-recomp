@@ -6,3 +6,8 @@
 { 0x005FBEC6u, 0x04000000u }, // .module24 (idx 24)
 { 0x0060F476u, 0x05000000u }, // .module25 (idx 25)
 { 0x006DCA78u, 0x06000000u }, // .module99 (idx 99)
+{ 0x0053C77Cu, 0x07000000u }, // .module8 (idx 8)
+{ 0x005557F4u, 0x08000000u }, // .module9 (idx 9)
+{ 0x0057A3B2u, 0x09000000u }, // .module10 (idx 10)
+{ 0x00599670u, 0x0A000000u }, // .module12 (idx 12)
+{ 0x0068FF2Cu, 0x0B000000u }, // .module55 (idx 55)

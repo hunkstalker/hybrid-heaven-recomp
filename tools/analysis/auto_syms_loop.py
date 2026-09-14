@@ -53,14 +53,14 @@ def save_module_extras(d):
         json.dumps({str(k): [f"0x{a:08X}" for a in sorted(v)] for k, v in sorted(d.items())},
                    indent=2) + "\n")
 
-RUN_SECS = 140
-POLL_S = 1.5
+RUN_SECS = 290
+POLL_S = 15.0
 HOLD_S = 0.4
 
 
-def make_press_seq(end_s=135.0):
+def make_press_seq(end_s=270.0):
     items = []
-    t = 55.0
+    t = 60.0
     while t < end_s:
         items.append(f"{t:.1f}:start,{t + HOLD_S:.1f}:-")
         t += POLL_S

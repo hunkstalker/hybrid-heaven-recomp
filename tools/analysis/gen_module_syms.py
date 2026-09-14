@@ -204,7 +204,8 @@ def _plausible_code(blob: bytes, vram: int, addr: int, n: int = 16) -> bool:
     invalid = 0
     bad = 0
     for i in insns:
-        if i.mnemonic.startswith("invalid") or i.mnemonic.startswith("unknown"):
+        if (i.mnemonic.startswith("invalid") or i.mnemonic.startswith("unknown")
+                or i.mnemonic in (".byte", ".word", ".long", ".short", ".dword")):
             invalid += 1
             continue
         if "($zero)" in i.op_str:
@@ -257,6 +258,9 @@ def main() -> int:
                     help="añade como entradas los destinos de punteros del blob dentro de funciones "
                          "(jump-tables/callbacks); escribe <out>.keep con las entradas protegidas")
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--filter-data", action="store_true",
+                    help="descarta entradas detectadas que no parecen codigo (evita decodificar "
+                         "constant pools/datos y fallos de compilacion del C generado)")
     args = ap.parse_args()
 
     extra = {int(x, 16) for x in args.extra.split(",") if x.strip()}
@@ -272,6 +276,12 @@ def main() -> int:
         # Lista de entradas protegidas (manuales + auto) para validate_syms --keep-file.
         Path(str(args.out) + ".keep").write_text(
             "\n".join(f"0x{a:08X}" for a in sorted(extra)) + "\n")
+    if args.filter_data:
+        before = len(ents)
+        ents = [a for a in ents
+                if a == args.vram or a in extra or _plausible_code(blob, args.vram, a)]
+        ents = sorted(ents)
+        print(f"  filtro datos: {before - len(ents)} entradas descartadas")
     extra = sorted(extra)
     lines = ["# Módulo: %s — funciones por prólogo+jal+jr-ra; jump-tables fusionadas."
              % args.blob,
