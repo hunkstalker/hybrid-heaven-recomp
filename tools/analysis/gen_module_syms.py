@@ -204,6 +204,31 @@ def _plausible_code(blob: bytes, vram: int, addr: int, n: int = 16) -> bool:
     invalid = 0
     bad = 0
     for i in insns:
+        if i.mnemonic.startswith("invalid") or i.mnemonic.startswith("unknown"):
+            invalid += 1
+            continue
+        if "($zero)" in i.op_str:
+            imm = i.op_str.split("(")[0].split(",")[-1].strip()
+            try:
+                if int(imm, 16) != 0:
+                    bad += 1
+            except ValueError:
+                pass
+        if i.mnemonic in ("mfc0", "mfc2", "cfc1", "cfc2") and i.op_str.startswith("$zero"):
+            bad += 1
+    return invalid <= 1 and bad == 0
+
+
+def _plausible_code_strict(blob: bytes, vram: int, addr: int, n: int = 16) -> bool:
+    """Como `_plausible_code` pero contando skipdata (.byte/.word) como inválido: para el filtro
+    de datos de módulos nuevos (evita constant pools que rompen el C generado)."""
+    off = addr - vram
+    insns = list(MD.disasm(blob[off:off + 4 * n], addr))
+    if len(insns) < 4:
+        return False
+    invalid = 0
+    bad = 0
+    for i in insns:
         if (i.mnemonic.startswith("invalid") or i.mnemonic.startswith("unknown")
                 or i.mnemonic in (".byte", ".word", ".long", ".short", ".dword")):
             invalid += 1
@@ -267,6 +292,7 @@ def main() -> int:
     blob = args.blob.read_bytes()
     ents = detect_functions(blob, args.vram, extra)
     ents, override = merge_jump_tables(ents, blob, args.vram)
+    mid = set()
     if args.self_pointer_mid_entries:
         mid = self_pointer_mid_entries(blob, args.vram, ents, override)
         if mid:
@@ -278,8 +304,11 @@ def main() -> int:
             "\n".join(f"0x{a:08X}" for a in sorted(extra)) + "\n")
     if args.filter_data:
         before = len(ents)
+        manual = {int(x, 16) for x in args.extra.split(",") if x.strip()}
         ents = [a for a in ents
-                if a == args.vram or a in extra or _plausible_code(blob, args.vram, a)]
+                if a == args.vram or a in manual
+                or (a in extra and a not in mid)
+                or _plausible_code_strict(blob, args.vram, a)]
         ents = sorted(ents)
         print(f"  filtro datos: {before - len(ents)} entradas descartadas")
     extra = sorted(extra)

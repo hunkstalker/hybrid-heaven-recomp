@@ -232,10 +232,30 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
                     | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * CRIGHT_BUTTON);
             }
 
-            if (controller_num == 0) {
+                if (controller_num == 0) {
                 axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
                 // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
-                axis_y = -controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
+                // HH_INVERT_Y=1 invierte el signo (por si el mando lo requiere al revés).
+                float raw_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
+                axis_y = getenv("HH_INVERT_Y") ? raw_y : -raw_y;
+            }
+        }
+    }
+
+    // HH_STICK=x,y inyecta el stick analógico para runs headless (convención N64: +y = arriba).
+    // HH_STICK_AT=<s> retrasa su aplicación (p. ej. hasta estar en gameplay, sin mover menús).
+    if (controller_num == 0) {
+        if (const char* st = getenv("HH_STICK")) {
+            bool active = true;
+            if (const char* at = getenv("HH_STICK_AT")) {
+                static const auto stick_t0 = std::chrono::steady_clock::now();
+                double elapsed = std::chrono::duration<double>(
+                    std::chrono::steady_clock::now() - stick_t0).count();
+                active = elapsed >= strtod(at, nullptr);
+            }
+            float sx = 0.0f, sy = 0.0f;
+            if (active && sscanf(st, "%f,%f", &sx, &sy) == 2) {
+                axis_x = sx; axis_y = sy;
             }
         }
     }
