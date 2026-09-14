@@ -68,10 +68,10 @@
     `M24_FUN_801cc2c8` al destino equivocado (fix sección-consciente + `0x801E4AA4`); (2) callback
     del menú `M24_FUN_801cb71c` con `$t5+0x30 = 0` calculaba un puntero fuera del buffer (fix en
     `MEM_*`/`TO_PTR`: no mapeadas → RDRAM física <8 MB o scratch; verificado 185 s sin SEGV).
-    Detalle: `notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`,
-    `notes/2026-09-14-fix-callback-menu-punteros-no-mapeados.md`. Frontera: **gameplay interactivo**
-    (control/HUD) y **cola del módulo 25** (`0x801FF260`; el emulador también salta ahí pero nuestras
-    syms/blob solo llegan a `0x801FD420`).
+    **GAMEPLAY ALCANZADO (2026-09-14)**: overlays idx8/9/10/12/55 y funciones de IA de combate
+    añadidas; se juega hasta el combate con robots. Herramientas: `HH_STICK/HH_STICK_AT`, `HH_RES`,
+    `HH_RECORD`/`HH_REPLAY` (replay por índice de poll, RMSE=0). Frontera: **crash cuando los robots
+    dañan al jugador** y layout del mando. Detalle: `notes/2026-09-14-combate-overlays-y-replay.md`.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
