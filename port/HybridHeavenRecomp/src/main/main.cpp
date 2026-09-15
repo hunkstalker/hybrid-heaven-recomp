@@ -194,7 +194,7 @@ int main(int argc, char** argv) {
     game_entry.internal_name = "Hybrid Heaven";
     game_entry.display_name = "Hybrid Heaven";
     game_entry.save_type = recomp::SaveType::None;
-    game_entry.on_init_callback = nullptr;
+    game_entry.on_init_callback = hh::on_game_init;
     game_entry.entrypoint_address = get_entrypoint_address();
     game_entry.entrypoint = hh::recomp_entrypoint;
     game_entry.has_compressed_code = false;

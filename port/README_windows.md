@@ -108,13 +108,30 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
   (idx8/9/10/12/55) y entra en la primera escena jugable con HUD (`work/debug/port_v3_*.png`).
 - **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
   (p. ej. `set HH_RES=2x`).
-- **Mando Xbox** (mapeo 2026-09-15): A = salto/acción; **B = agacharse** (Z); **Back/Select = mapa**
-  (B); Start = START; LB = L; RB = apuntar (R); **Y = C-Up** (vista en 1ª persona, también arriba en el
-  stick derecho); **X = B** (menús de combate cuerpo a cuerpo; en exploración abre también el mapa);
-  **stick derecho = botones C** (digital, umbral 0.5); cruceta = D-pad; stick izquierdo = analógico
-  (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). Libres: L3 y R3. Al arrancar
-  el port imprime `[PAD]` con el mapeo activo y `[CFG]` con las envs. `port\run_windows.bat` lanza con
-  las envs en la misma consola.
+- **Mando Xbox** (perfiles por contexto, 2026-09-15): en juego A = salto/acción; **B = agacharse**
+  (Z); **Back/Select = mapa** (B); **X = B** (menús de combate); **Y = C-Up** (1ª persona); Start =
+  START; LB = L; RB = apuntar (R); **stick derecho = botones C** (digital, umbral 0.5); cruceta =
+  D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). En
+  **menús** (pausa/mapa) el B físico pasa a ser **B del N64 (atrás/cancelar)** automáticamente.
+  Libres: L3 y R3. El port imprime `[PAD]` al arrancar y `[PAD] contexto:` al entrar/salir de menús.
+
+### config.ini (mapeo configurable)
+
+Junto al `.exe` (se crea solo en el primer arranque, editable con cualquier editor):
+
+```ini
+[game]            ; exploración/combate
+b = Z             ; B físico = agacharse
+back = B          ; Select = mapa
+x = B             ; X = menús de combate
+y = CUP
+cstick = on       ; stick derecho -> botones C
+[menu]            ; menús del juego (detección automática por el flag de UI 0x802690D0)
+b = B             ; B físico = atrás/cancelar
+```
+
+Valores válidos: `A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE`. El port relee
+`config.ini` en cada arranque (ruta alternativa: `HH_PAD_CONFIG=<fichero>`).
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`

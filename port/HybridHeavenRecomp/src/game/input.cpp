@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -41,6 +42,211 @@ enum N64Buttons : n64_button {
     CLEFT_BUTTON = 0x2,
     CRIGHT_BUTTON = 0x1,
 };
+
+// ===== Perfiles de mando (config.ini) =====
+// La traduccion mando fisico -> botones N64 vive en la capa de plataforma; la logica del juego no
+// se toca. Hay dos contextos: "game" (exploracion/combate) y "menu" (menus del juego: pausa, mapa,
+// combate...). El port detecta el contexto leyendo el flag de UI 0x802690D0 (1 = UI abierta),
+// localizado comparando volcados de RDRAM de gameplay vs menu de pausa (mismo replay por VI).
+static uint8_t* hh_game_rdram = nullptr;
+static constexpr uint32_t HH_MENU_FLAG_ADDR = 0x2690D0;  // guest 0x802690D0
+
+void hh::on_game_init(uint8_t* rdram, recomp_context* ctx) {
+    (void)ctx;
+    hh_game_rdram = rdram;
+}
+
+struct PadProfile {
+    n64_button a = A_BUTTON, b = Z_BUTTON, x = B_BUTTON, y = CUP_BUTTON;
+    n64_button lb = L_BUTTON, rb = R_BUTTON, back = B_BUTTON, start = START_BUTTON;
+    n64_button dup = DUP_BUTTON, ddown = DDOWN_BUTTON, dleft = DLEFT_BUTTON, dright = DRIGHT_BUTTON;
+    bool cstick = true;  // stick derecho -> botones C
+};
+
+static PadProfile hh_pad_game;
+static PadProfile hh_pad_menu = [] { PadProfile p; p.b = B_BUTTON; return p; }();
+
+static const char* hh_pad_button_name(n64_button b) {
+    switch (b) {
+        case A_BUTTON: return "A";
+        case B_BUTTON: return "B";
+        case Z_BUTTON: return "Z";
+        case START_BUTTON: return "START";
+        case L_BUTTON: return "L";
+        case R_BUTTON: return "R";
+        case CUP_BUTTON: return "CUP";
+        case CDOWN_BUTTON: return "CDOWN";
+        case CLEFT_BUTTON: return "CLEFT";
+        case CRIGHT_BUTTON: return "CRIGHT";
+        case DUP_BUTTON: return "DUP";
+        case DDOWN_BUTTON: return "DDOWN";
+        case DLEFT_BUTTON: return "DLEFT";
+        case DRIGHT_BUTTON: return "DRIGHT";
+        default: return "NONE";
+    }
+}
+
+static n64_button hh_pad_button_by_name(const std::string& raw_name, bool& ok) {
+    std::string name = raw_name;
+    for (char& c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    ok = true;
+    if (name.empty() || name == "none" || name == "nada") return 0;
+    if (name == "a") return A_BUTTON;
+    if (name == "b") return B_BUTTON;
+    if (name == "z") return Z_BUTTON;
+    if (name == "start") return START_BUTTON;
+    if (name == "l") return L_BUTTON;
+    if (name == "r") return R_BUTTON;
+    if (name == "cup") return CUP_BUTTON;
+    if (name == "cdown") return CDOWN_BUTTON;
+    if (name == "cleft") return CLEFT_BUTTON;
+    if (name == "cright") return CRIGHT_BUTTON;
+    if (name == "dup") return DUP_BUTTON;
+    if (name == "ddown") return DDOWN_BUTTON;
+    if (name == "dleft") return DLEFT_BUTTON;
+    if (name == "dright") return DRIGHT_BUTTON;
+    ok = false;
+    return 0;
+}
+
+static void hh_pad_set(PadProfile& p, const std::string& key, const std::string& val, bool& ok) {
+    ok = true;
+    if (key == "cstick") {
+        p.cstick = (val == "on" || val == "1" || val == "si" || val == "true");
+        return;
+    }
+    n64_button btn = hh_pad_button_by_name(val, ok);
+    if (!ok) return;
+    if (key == "a") p.a = btn;
+    else if (key == "b") p.b = btn;
+    else if (key == "x") p.x = btn;
+    else if (key == "y") p.y = btn;
+    else if (key == "lb") p.lb = btn;
+    else if (key == "rb") p.rb = btn;
+    else if (key == "back") p.back = btn;
+    else if (key == "start") p.start = btn;
+    else if (key == "dup") p.dup = btn;
+    else if (key == "ddown") p.ddown = btn;
+    else if (key == "dleft") p.dleft = btn;
+    else if (key == "dright") p.dright = btn;
+    else ok = false;
+}
+
+static std::string hh_pad_trim(const std::string& s) {
+    size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos) return std::string();
+    size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, e - b + 1);
+}
+
+static void hh_pad_write_template(FILE* f) {
+    fprintf(f,
+        "# Hybrid Heaven Recomp - mapeo de mando (editable; se relee en cada arranque)\n"
+        "# Valores: A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE\n"
+        "# Contextos: [game] = exploracion/combate, [menu] = menus del juego (pausa/mapa).\n"
+        "# El port detecta el menu automaticamente (flag de UI 0x802690D0).\n"
+        "[game]\n"
+        "a = A\n"
+        "b = Z\n"
+        "x = B\n"
+        "y = CUP\n"
+        "lb = L\n"
+        "rb = R\n"
+        "back = B\n"
+        "start = START\n"
+        "dup = DUP\n"
+        "ddown = DDOWN\n"
+        "dleft = DLEFT\n"
+        "dright = DRIGHT\n"
+        "cstick = on\n"
+        "\n"
+        "[menu]\n"
+        "# En menus el B fisico debe actuar como B del N64 (atras/cancelar).\n"
+        "a = A\n"
+        "b = B\n"
+        "x = B\n"
+        "y = CUP\n"
+        "lb = L\n"
+        "rb = R\n"
+        "back = B\n"
+        "start = START\n"
+        "dup = DUP\n"
+        "ddown = DDOWN\n"
+        "dleft = DLEFT\n"
+        "dright = DRIGHT\n"
+        "cstick = on\n");
+}
+
+static void hh_pad_config_load() {
+    static bool loaded = false;
+    if (loaded) return;
+    loaded = true;
+
+    const char* env = getenv("HH_PAD_CONFIG");
+    std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == nullptr && env == nullptr) {
+        FILE* t = fopen(path.c_str(), "wb");
+        if (t != nullptr) {
+            hh_pad_write_template(t);
+            fclose(t);
+            fprintf(stderr, "[PAD] config.ini no existia: creada plantilla con el mapeo por defecto\n");
+            f = fopen(path.c_str(), "rb");
+        }
+    }
+    if (f != nullptr) {
+        PadProfile* cur = nullptr;
+        char line[512];
+        while (fgets(line, sizeof(line), f) != nullptr) {
+            std::string s(line);
+            size_t cut = s.find_first_of("#;");
+            if (cut != std::string::npos) s = s.substr(0, cut);
+            s = hh_pad_trim(s);
+            if (s.empty()) continue;
+            if (s.front() == '[' && s.back() == ']') {
+                std::string sec = hh_pad_trim(s.substr(1, s.size() - 2));
+                cur = (sec == "menu") ? &hh_pad_menu : ((sec == "game") ? &hh_pad_game : nullptr);
+                continue;
+            }
+            size_t eq = s.find('=');
+            if (eq == std::string::npos || cur == nullptr) continue;
+            std::string key = hh_pad_trim(s.substr(0, eq));
+            std::string val = hh_pad_trim(s.substr(eq + 1));
+            bool ok = false;
+            hh_pad_set(*cur, key, val, ok);
+            if (!ok) fprintf(stderr, "[PAD] config.ini: entrada ignorada '%s=%s'\n", key.c_str(), val.c_str());
+        }
+        fclose(f);
+        fprintf(stderr, "[PAD] config cargada: %s\n", path.c_str());
+    }
+    else {
+        fprintf(stderr, "[PAD] config.ini no encontrada: mapeo por defecto\n");
+    }
+    fprintf(stderr, "[PAD] game: A=%s B=%s X=%s Y=%s LB=%s RB=%s Back=%s Start=%s cstick=%s\n",
+            hh_pad_button_name(hh_pad_game.a), hh_pad_button_name(hh_pad_game.b),
+            hh_pad_button_name(hh_pad_game.x), hh_pad_button_name(hh_pad_game.y),
+            hh_pad_button_name(hh_pad_game.lb), hh_pad_button_name(hh_pad_game.rb),
+            hh_pad_button_name(hh_pad_game.back), hh_pad_button_name(hh_pad_game.start),
+            hh_pad_game.cstick ? "on" : "off");
+    fprintf(stderr, "[PAD] menu: A=%s B=%s X=%s Y=%s LB=%s RB=%s Back=%s Start=%s cstick=%s\n",
+            hh_pad_button_name(hh_pad_menu.a), hh_pad_button_name(hh_pad_menu.b),
+            hh_pad_button_name(hh_pad_menu.x), hh_pad_button_name(hh_pad_menu.y),
+            hh_pad_button_name(hh_pad_menu.lb), hh_pad_button_name(hh_pad_menu.rb),
+            hh_pad_button_name(hh_pad_menu.back), hh_pad_button_name(hh_pad_menu.start),
+            hh_pad_menu.cstick ? "on" : "off");
+}
+
+static const PadProfile& hh_active_profile() {
+    bool menu = (hh_game_rdram != nullptr) && (*(uint32_t*)&hh_game_rdram[HH_MENU_FLAG_ADDR] != 0);
+    static bool last_menu = false;
+    static bool logged = false;
+    if (!logged || menu != last_menu) {
+        logged = true;
+        last_menu = menu;
+        fprintf(stderr, "[PAD] contexto: %s\n", menu ? "menu" : "juego");
+    }
+    return menu ? hh_pad_menu : hh_pad_game;
+}
 
 // HH: inyeccion de input opt-in para runs headless (atravesar menus sin SDL/ventana).
 //   HH_PRESS=start | HH_PRESS=a+start | HH_PRESS=0x1000   (mascara o nombres)
@@ -293,16 +499,18 @@ static void hh_record_write(double elapsed, n64_button buttons, float x, float y
 
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     static bool cfg_logged = false;
+    hh_pad_config_load();
     if (!cfg_logged && controller_num == 0) {
         cfg_logged = true;
         const char* iy = getenv("HH_INVERT_Y");
         const char* res = getenv("HH_RES");
         fprintf(stderr, "[CFG] HH_INVERT_Y=%s HH_RES=%s\n", iy ? iy : "(no)", res ? res : "(auto)");
-        fprintf(stderr, "[PAD] A=salto  B=agacharse(Z)  Back/Select=mapa(B)  Start=START  LB=L  RB=apuntar(R)  Y=C-Up(1a persona)  X=B (menus de combate)  stick-dcho=botones C  cruceta=D-pad\n");
     }
     n64_button input = 0;
     if (controller_num == 0) {
         input = read_input_button();
+        // Lee/registra el contexto (juego/menu) aunque no haya mando conectado (tests headless).
+        hh_active_profile();
     }
 
     float axis_x = 0.0f;
@@ -325,27 +533,25 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
     if (controller != nullptr && controller_num == 0) {
-        // Mapeo moderno (decidido con el usuario 2026-09-15):
-        //   A -> A (salto/accion), B -> Z (agacharse), Back/Select -> B (mapa),
-        //   Start -> START, LB -> L, RB -> R (apuntar), cruceta -> D-pad.
-        //   Los botones C del N64 se emulan con el STICK DERECHO (digital, umbral 0.5).
+        // Mapeo por contexto (config.ini). Por defecto:
+        //   game: A=A, B=Z (agacharse), X=B (menus de combate), Y=CUP (1a persona),
+        //         Back/Select=B (mapa), Start=START, LB=L, RB=R (apuntar), cruceta=D-pad.
+        //   menu: B=B (atras/cancelar); el resto igual.
+        // Los botones C del N64 se emulan con el STICK DERECHO (digital, umbral 0.5).
+        const PadProfile& prof = hh_active_profile();
         input |= n64_button(
-              SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) * A_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * Z_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK) * B_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START) * START_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP) * DUP_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN) * DDOWN_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * DLEFT_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * DRIGHT_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * L_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON
-            // C-Up tambien en Y: es una accion puntual (vista en primera persona) y resulta mas
-            // comoda en boton que "empujando" el stick derecho hacia arriba.
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * CUP_BUTTON
-            // X -> B del N64: en exploracion abre el mapa (duplicado con Select, inofensivo) y en
-            // combate el juego usa ese mismo B para los menus de acciones cuerpo a cuerpo.
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) * B_BUTTON);
+              SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) * prof.a
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * prof.b
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) * prof.x
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * prof.y
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK) * prof.back
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START) * prof.start
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP) * prof.dup
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN) * prof.ddown
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * prof.dleft
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * prof.dright
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * prof.lb
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * prof.rb);
 
         axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
         // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
@@ -355,13 +561,15 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
 
         // Stick derecho -> botones C (SDL: derecha/abajo positivos; N64 +y = arriba).
-        constexpr float C_THRESHOLD = 0.5f;
-        float cx = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX));
-        float cy = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY));
-        if (cx <= -C_THRESHOLD) input |= CLEFT_BUTTON;
-        if (cx >= C_THRESHOLD) input |= CRIGHT_BUTTON;
-        if (cy <= -C_THRESHOLD) input |= CUP_BUTTON;
-        if (cy >= C_THRESHOLD) input |= CDOWN_BUTTON;
+        if (prof.cstick) {
+            constexpr float C_THRESHOLD = 0.5f;
+            float cx = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX));
+            float cy = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY));
+            if (cx <= -C_THRESHOLD) input |= CLEFT_BUTTON;
+            if (cx >= C_THRESHOLD) input |= CRIGHT_BUTTON;
+            if (cy <= -C_THRESHOLD) input |= CUP_BUTTON;
+            if (cy >= C_THRESHOLD) input |= CDOWN_BUTTON;
+        }
     }
 
     // HH_STICK=x,y inyecta el stick analógico para runs headless (convención N64: +y = arriba).

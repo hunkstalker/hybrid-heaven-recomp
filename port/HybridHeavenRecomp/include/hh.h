@@ -22,6 +22,10 @@ namespace hh {
         void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);
     }
 
+    // Callback de init del runtime: guarda la RDRAM para leer el estado de UI (menus) en la capa
+    // de input (perfiles de mando). Ver src/game/input.cpp.
+    void on_game_init(uint8_t* rdram, recomp_context* ctx);
+
     std::filesystem::path get_app_folder_path();
     std::filesystem::path get_rom_path();
 

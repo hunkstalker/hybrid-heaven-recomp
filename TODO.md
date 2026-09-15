@@ -143,7 +143,7 @@
   OK; 30 fps → 21.6k → huecos). El handshake (hilo audio 3 espera EB8; hilo SP 18 publica) compite con
   el frame en el scheduler; `HH_SP_SHARED` no mejora. Mitigación: **Release**. Ideas: completar la task
   sin pasar por el bucle de juego (o amortiguar/resamplear).
-- [ ] **Mando (FUTURO)**: atrás en menús con B físico y mapa solo en Select → el port necesita el contexto menú/gameplay (localizar el estado de UI y enrutar B→Z en juego, B→B en menús).
+- [x] **Mando**: perfiles por contexto (`config.ini` [game]/[menu]) con detección automática por el flag de UI `0x802690D0` (pausa/mapa verificados); B físico=atrás en menús, Select=mapa. 2026-09-15.
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: Controller Pak → ficheros en disco (+ Rumble).
 - [ ] **Builds**: Windows + Linux + Steam Deck; resolución/widescreen; empaquetado sin ROM.
