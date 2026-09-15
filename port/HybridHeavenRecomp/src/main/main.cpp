@@ -142,6 +142,17 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
     }
     CONTEXT* c = ep ? ep->ContextRecord : nullptr;
     fprintf(stderr, "\n[SEGV] code=%08lX addr=%p rip=%p\n", (unsigned long)code, fault, addr);
+    if (addr != nullptr) {
+        HMODULE hm = nullptr;
+        char mod[MAX_PATH] = {0};
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               reinterpret_cast<LPCSTR>(addr), &hm) && hm != nullptr &&
+            GetModuleFileNameA(hm, mod, sizeof(mod)) != 0) {
+            fprintf(stderr, "[SEGV] rip en modulo: %s +0x%llX\n", mod,
+                    (unsigned long long)(reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hm)));
+        }
+    }
     if (c != nullptr) {
         fprintf(stderr, "[SEGV] rax=%p rbx=%p rcx=%p rdx=%p rsp=%p rbp=%p rsi=%p rdi=%p\n",
             (void*)c->Rax, (void*)c->Rbx, (void*)c->Rcx, (void*)c->Rdx,

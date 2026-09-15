@@ -286,12 +286,22 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     // frames. El byte_len correcto es sample_count * sizeof(int16_t); usar bytes_per_sample (=4,
     // bytes por frame) copiaba el doble -> heap corruption al abrir dispositivo real (0xC0000374).
     const size_t byte_len = sample_count * sizeof(int16_t);
-    const size_t needed = static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1;
+    const bool convert = audio_convert.len_ratio > 0.0f;
+    const size_t needed = convert
+        ? static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1
+        : byte_len;
     if (audio_cvt_buffer.size() < needed) {
         audio_cvt_buffer.resize(needed);
     }
 
     std::memcpy(audio_cvt_buffer.data(), audio_data, byte_len);
+
+    if (!convert) {
+        // Sin conversor valido: encolar tal cual (evita usar len_ratio=0).
+        SDL_QueueAudio(audio_device, audio_cvt_buffer.data(), static_cast<Uint32>(byte_len));
+        return;
+    }
+
     audio_convert.buf = audio_cvt_buffer.data();
     audio_convert.len = static_cast<int>(byte_len);
 
@@ -312,6 +322,9 @@ size_t hh::get_frames_remaining() {
 }
 
 void hh::set_frequency(uint32_t freq) {
+    if (freq == 0) {
+        return;
+    }
     sample_rate = freq;
 
     int ret = SDL_BuildAudioCVT(
@@ -322,17 +335,26 @@ void hh::set_frequency(uint32_t freq) {
 
     if (ret < 0) {
         fprintf(stderr, "Error creating SDL audio converter: %s\n", SDL_GetError());
+        // len_ratio invalido -> queue_samples hara cola directa sin convertir.
+        audio_convert.len_ratio = 0.0;
     }
 }
 
 bool hh::reset_audio(uint32_t output_freq) {
+    // HH_NOAUDIO=1 fuerza el camino virtual (sin dispositivo): util para aislar crashes de audio.
+    if (getenv("HH_NOAUDIO") != nullptr) {
+        fprintf(stderr, "HH_NOAUDIO=1: audio virtual (sin dispositivo)\n");
+        audio_device = 0;
+        return true;
+    }
     SDL_AudioSpec spec_desired{};
+    SDL_AudioSpec spec_obtained{};
     spec_desired.freq = static_cast<int>(output_freq);
     spec_desired.format = AUDIO_S16;
     spec_desired.channels = static_cast<Uint8>(output_channels);
     spec_desired.samples = 0x100;
 
-    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, nullptr, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, &spec_obtained, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (audio_device == 0) {
         fprintf(stderr, "No audio device could be found: %s\n", SDL_GetError());
         return false;
@@ -340,8 +362,11 @@ bool hh::reset_audio(uint32_t output_freq) {
 
     SDL_PauseAudioDevice(audio_device, 0);
 
-    output_sample_rate = output_freq;
-    hh::set_frequency(48000);
+    // Usar el formato REAL que concede el dispositivo (no asumir 48k/2ch).
+    output_sample_rate = spec_obtained.freq != 0 ? spec_obtained.freq : output_freq;
+    output_channels = spec_obtained.channels != 0 ? spec_obtained.channels : output_channels;
+    fprintf(stderr, "Audio device: %d Hz, %d ch\n", output_sample_rate, output_channels);
+    hh::set_frequency(sample_rate);
 
     return true;
 }
