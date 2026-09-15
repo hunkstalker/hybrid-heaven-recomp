@@ -108,10 +108,11 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
   (idx8/9/10/12/55) y entra en la primera escena jugable con HUD (`work/debug/port_v3_*.png`).
 - **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
   (p. ej. `set HH_RES=2x`).
-- **Mando Xbox**: el eje Y por defecto **ya es correcto** (arriba = arriba). `HH_INVERT_Y=1` lo
-  flipea (solo si algún día lo notases invertido). `port\run_windows.bat` lanza el `.exe` con las
-  envs en la misma consola; el log `[CFG]` al arrancar confirma que llegaron. Resto del layout
-  pendiente de definir.
+- **Mando Xbox** (mapeo 2026-09-15): A = salto/acción; **B = agacharse** (Z); **Back/Select = mapa**
+  (B); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C** (digital, umbral 0.5);
+  cruceta = D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo
+  invierte). X/Y/click de stick quedan libres. `port\run_windows.bat` lanza con las envs en la misma
+  consola; el log `[CFG]` al arrancar confirma que llegaron.
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`

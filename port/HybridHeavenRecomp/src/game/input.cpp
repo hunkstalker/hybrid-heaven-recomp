@@ -307,36 +307,54 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     float axis_x = 0.0f;
     float axis_y = 0.0f;
 
-    if (SDL_NumJoysticks() > 0) {
-        SDL_GameController* controller = SDL_GameControllerOpen(0);
-        if (controller != nullptr) {
-            if (controller_num == 0) {
-                input |= n64_button(
-                      SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) * A_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * B_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK) * Z_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START) * START_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP) * DUP_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN) * DDOWN_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * DLEFT_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * DRIGHT_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * L_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * CUP_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSTICK) * CDOWN_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) * CLEFT_BUTTON
-                    | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * CRIGHT_BUTTON);
-            }
-
-                if (controller_num == 0) {
-                axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
-                // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
-                // HH_INVERT_Y=1 invierte el signo (por si el mando lo requiere al revés).
-                float raw_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
-                const char* hh_iy = getenv("HH_INVERT_Y");
-                axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
-            }
+    // Handle cacheado: abrir el mando en cada poll filtraba handles (fuga) y ademas era costoso.
+    // Se reintenta abrir como maximo una vez por segundo si no hay mando (hotplug).
+    static SDL_GameController* controller = nullptr;
+    static double controller_next_try = 0.0;
+    if (controller != nullptr && !SDL_GameControllerGetAttached(controller)) {
+        SDL_GameControllerClose(controller);
+        controller = nullptr;
+    }
+    if (controller == nullptr && SDL_NumJoysticks() > 0) {
+        const auto now = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(now.time_since_epoch()).count();
+        if (secs >= controller_next_try) {
+            controller_next_try = secs + 1.0;
+            controller = SDL_GameControllerOpen(0);
         }
+    }
+    if (controller != nullptr && controller_num == 0) {
+        // Mapeo moderno (decidido con el usuario 2026-09-15):
+        //   A -> A (salto/accion), B -> Z (agacharse), Back/Select -> B (mapa),
+        //   Start -> START, LB -> L, RB -> R (apuntar), cruceta -> D-pad.
+        //   Los botones C del N64 se emulan con el STICK DERECHO (digital, umbral 0.5).
+        input |= n64_button(
+              SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) * A_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * Z_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK) * B_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START) * START_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP) * DUP_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN) * DDOWN_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * DLEFT_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * DRIGHT_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * L_BUTTON
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON);
+
+        axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
+        // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
+        // HH_INVERT_Y=1 invierte el signo (por si el mando lo requiere al revés).
+        float raw_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
+        const char* hh_iy = getenv("HH_INVERT_Y");
+        axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
+
+        // Stick derecho -> botones C (SDL: derecha/abajo positivos; N64 +y = arriba).
+        constexpr float C_THRESHOLD = 0.5f;
+        float cx = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX));
+        float cy = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY));
+        if (cx <= -C_THRESHOLD) input |= CLEFT_BUTTON;
+        if (cx >= C_THRESHOLD) input |= CRIGHT_BUTTON;
+        if (cy <= -C_THRESHOLD) input |= CUP_BUTTON;
+        if (cy >= C_THRESHOLD) input |= CDOWN_BUTTON;
     }
 
     // HH_STICK=x,y inyecta el stick analógico para runs headless (convención N64: +y = arriba).
@@ -354,6 +372,22 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             float sx = 0.0f, sy = 0.0f;
             if (active && sscanf(st, "%f,%f", &sx, &sy) == 2) {
                 axis_x = sx; axis_y = sy;
+            }
+        }
+    }
+
+    // HH_CSTICK=x,y inyecta el stick derecho (botones C) para runs headless, con el mismo umbral
+    // digital que el mando (convención N64: +y = arriba).
+    if (controller_num == 0) {
+        const char* cs = getenv("HH_CSTICK");
+        if (cs != nullptr && *cs != '\0') {
+            float cx = 0.0f, cy = 0.0f;
+            if (sscanf(cs, "%f,%f", &cx, &cy) == 2) {
+                constexpr float C_THRESHOLD = 0.5f;
+                if (cx <= -C_THRESHOLD) input |= CLEFT_BUTTON;
+                if (cx >= C_THRESHOLD) input |= CRIGHT_BUTTON;
+                if (cy >= C_THRESHOLD) input |= CUP_BUTTON;
+                if (cy <= -C_THRESHOLD) input |= CDOWN_BUTTON;
             }
         }
     }
