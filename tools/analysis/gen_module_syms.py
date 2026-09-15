@@ -288,7 +288,21 @@ def main() -> int:
                          "constant pools/datos y fallos de compilacion del C generado)")
     args = ap.parse_args()
 
-    extra = {int(x, 16) for x in args.extra.split(",") if x.strip()}
+    # Extras: "0xADDR" (entrada) o "0xADDR:0xSIZE" (ademas acota el tamano de esa funcion; util
+    # cuando un simbolo grueso de Ghidra se come datos y el recompilador acaba stubeandolo).
+    extra = set()
+    manual_size = {}
+    for tok in args.extra.split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if ":" in tok:
+            a_str, s_str = tok.split(":", 1)
+            a = int(a_str, 16)
+            manual_size[a] = int(s_str, 16)
+            extra.add(a)
+        else:
+            extra.add(int(tok, 16))
     blob = args.blob.read_bytes()
     ents = detect_functions(blob, args.vram, extra)
     ents, override = merge_jump_tables(ents, blob, args.vram)
@@ -304,7 +318,7 @@ def main() -> int:
             "\n".join(f"0x{a:08X}" for a in sorted(extra)) + "\n")
     if args.filter_data:
         before = len(ents)
-        manual = {int(x, 16) for x in args.extra.split(",") if x.strip()}
+        manual = set(extra)
         ents = [a for a in ents
                 if a == args.vram or a in manual
                 or (a in extra and a not in mid)
@@ -319,7 +333,7 @@ def main() -> int:
              "functions = ["]
     for k, a in enumerate(ents):
         nxt = ents[k + 1] if k + 1 < len(ents) else args.vram + len(blob)
-        size = override.get(a, nxt - a)
+        size = manual_size.get(a, override.get(a, nxt - a))
         lines.append(f'    {{ name = "{args.prefix}FUN_{a:08x}", vram = 0x{a:08X}, size = 0x{size:X} }},')
     lines.append("]")
     args.out.write_text("\n".join(lines) + "\n")

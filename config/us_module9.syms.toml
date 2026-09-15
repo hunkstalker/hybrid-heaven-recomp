@@ -466,5 +466,5 @@ functions = [
     { name = "M9_FUN_80216188", vram = 0x80216188, size = 0x3C8 },
     { name = "M9_FUN_80216550", vram = 0x80216550, size = 0x8 },
     { name = "M9_FUN_80216558", vram = 0x80216558, size = 0x454 },
-    { name = "M9_FUN_802169ac", vram = 0x802169AC, size = 0x4604 },
+    { name = "M9_FUN_802169ac", vram = 0x802169AC, size = 0x1C0 },
 ]

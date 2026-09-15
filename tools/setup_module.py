@@ -160,13 +160,15 @@ def load_module_extras():
         return {}
     import json
     raw = json.loads(path.read_text())
-    return {int(k): [int(x, 16) for x in v] for k, v in raw.items()}
+    # Se conservan como cadenas para permitir "0xADDR:0xSIZE" (override de tamano de funcion).
+    return {int(k): [x if isinstance(x, str) else f"0x{int(x):X}" for x in v] for k, v in raw.items()}
 
 
 def gen_module_syms(mod):
     extras = set(mod.get("extra", []))
     extras |= set(MODULE_EXTRAS.get(mod["index"], []))
-    extra = ",".join(f"0x{a:X}" for a in sorted(extras))
+    tokens = sorted({(f"0x{a:X}" if isinstance(a, int) else a) for a in extras})
+    extra = ",".join(tokens)
     # Prefijo por módulo: varios módulos comparten base de VRAM, así que los nombres de función
     # deben ser únicos a nivel de símbolo C (`M24_FUN_...`).
     cmd = [sys.executable, ROOT / "tools/analysis/gen_module_syms.py", blob_path(mod),
@@ -237,10 +239,19 @@ def gen_keep_syms():
     """Direcciones de entradas indirectas legítimas: el validador no las fusiona.
 
     Las escribe `gen_module_syms.py` en `<syms>.keep` (extras manuales + auto-punteros)."""
+    def extra_addr(x) -> int:
+        # Acepta 0xADDR, 0xADDR:0xSIZE (override de tamano) o int.
+        if isinstance(x, int):
+            return x
+        x = str(x).strip()
+        if ":" in x:
+            x = x.split(":", 1)[0]
+        return int(x, 16)
+
     addrs = set()
     for mod in MODULES:
-        addrs |= {int(a) for a in mod.get("extra", [])}
-        addrs |= {int(a) for a in MODULE_EXTRAS.get(mod["index"], [])}
+        addrs |= {extra_addr(a) for a in mod.get("extra", [])}
+        addrs |= {extra_addr(a) for a in MODULE_EXTRAS.get(mod["index"], [])}
         keep = Path(str(module_syms_path(mod)) + ".keep")
         if keep.exists():
             addrs |= {int(l, 16) for l in keep.read_text().split() if l.strip()}
