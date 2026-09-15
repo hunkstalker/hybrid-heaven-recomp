@@ -107,6 +107,10 @@ static void install_crash_handlers() {
 }
 #endif
 
+// Simbolos del runtime para los volcados de crash (RSP DMEM y contador de VI).
+extern uint8_t dmem[0x1000];
+extern "C" uint64_t hh_get_vi_count(void);
+
 #ifndef _WIN32
 #include <csignal>
 #include <ucontext.h>
@@ -129,6 +133,25 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
         fprintf(stderr, " %llX", (unsigned long long)sp[i]);
     }
     fprintf(stderr, "\n");
+    // Volcado para analisis offline (junto al ejecutable / CWD).
+    {
+        FILE* f = fopen("hh_crash.log", "a");
+        if (f != nullptr) {
+            fprintf(f, "=== HH crash signal=%d addr=%p rip=%p VI=%llu\n",
+                    sig, info ? info->si_addr : nullptr, rip,
+                    (unsigned long long)hh_get_vi_count());
+            if (di.dli_fname != nullptr) fprintf(f, "[CRASH] modulo: %s +0x%llX\n", di.dli_fname,
+                    (unsigned long long)((char*)rip - (char*)di.dli_fbase));
+            fflush(f); fclose(f);
+        }
+        uint8_t* rdram = hh::get_game_rdram();
+        if (rdram != nullptr) {
+            FILE* d = fopen("hh_crash_rdram.bin", "wb");
+            if (d != nullptr) { fwrite(rdram, 1, 8u * 1024u * 1024u, d); fclose(d); }
+        }
+        FILE* d2 = fopen("hh_crash_dmem.bin", "wb");
+        if (d2 != nullptr) { fwrite(dmem, 1, 0x1000, d2); fclose(d2); }
+    }
     _exit(139);
 }
 #else
@@ -142,21 +165,67 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
     }
     CONTEXT* c = ep ? ep->ContextRecord : nullptr;
     fprintf(stderr, "\n[SEGV] code=%08lX addr=%p rip=%p\n", (unsigned long)code, fault, addr);
-    if (addr != nullptr) {
-        HMODULE hm = nullptr;
-        char mod[MAX_PATH] = {0};
-        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                               reinterpret_cast<LPCSTR>(addr), &hm) && hm != nullptr &&
-            GetModuleFileNameA(hm, mod, sizeof(mod)) != 0) {
-            fprintf(stderr, "[SEGV] rip en modulo: %s +0x%llX\n", mod,
-                    (unsigned long long)(reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hm)));
-        }
+    HMODULE hm = nullptr;
+    char mod[MAX_PATH] = {0};
+    unsigned long long mod_off = 0;
+    if (addr != nullptr &&
+        GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCSTR>(addr), &hm) && hm != nullptr &&
+        GetModuleFileNameA(hm, mod, sizeof(mod)) != 0) {
+        mod_off = (unsigned long long)(reinterpret_cast<uintptr_t>(addr) - reinterpret_cast<uintptr_t>(hm));
+        fprintf(stderr, "[SEGV] rip en modulo: %s +0x%llX\n", mod, mod_off);
     }
     if (c != nullptr) {
         fprintf(stderr, "[SEGV] rax=%p rbx=%p rcx=%p rdx=%p rsp=%p rbp=%p rsi=%p rdi=%p\n",
             (void*)c->Rax, (void*)c->Rbx, (void*)c->Rcx, (void*)c->Rdx,
             (void*)c->Rsp, (void*)c->Rbp, (void*)c->Rsi, (void*)c->Rdi);
+    }
+    fflush(stderr);
+    // Volcado para analisis offline: hh_crash.log + RDRAM (8 MB) + DMEM del RSP (4 KB) en el CWD.
+    static volatile LONG hh_crash_busy = 0;
+    if (InterlockedExchange(&hh_crash_busy, 1) == 0) {
+        FILE* f = fopen("hh_crash.log", "a");
+        if (f != nullptr) {
+            fprintf(f, "=== HH crash code=%08lX fault=%p rip=%p VI=%llu ===\n",
+                    (unsigned long)code, fault, addr, (unsigned long long)hh_get_vi_count());
+            if (mod[0] != 0) fprintf(f, "[CRASH] modulo: %s +0x%llX\n", mod, mod_off);
+            if (c != nullptr) {
+                fprintf(f, "rip=%016llX rsp=%016llX rbp=%016llX\n",
+                        (unsigned long long)c->Rip, (unsigned long long)c->Rsp, (unsigned long long)c->Rbp);
+                fprintf(f, "rax=%016llX rbx=%016llX rcx=%016llX rdx=%016llX\n",
+                        (unsigned long long)c->Rax, (unsigned long long)c->Rbx,
+                        (unsigned long long)c->Rcx, (unsigned long long)c->Rdx);
+                fprintf(f, "rsi=%016llX rdi=%016llX r8=%016llX r9=%016llX r10=%016llX r11=%016llX\n",
+                        (unsigned long long)c->Rsi, (unsigned long long)c->Rdi,
+                        (unsigned long long)c->R8, (unsigned long long)c->R9,
+                        (unsigned long long)c->R10, (unsigned long long)c->R11);
+                fprintf(f, "r12=%016llX r13=%016llX r14=%016llX r15=%016llX\n",
+                        (unsigned long long)c->R12, (unsigned long long)c->R13,
+                        (unsigned long long)c->R14, (unsigned long long)c->R15);
+            }
+            uint8_t* rdram = hh::get_game_rdram();
+            if (rdram != nullptr) {
+                __try {
+                    FILE* d = fopen("hh_crash_rdram.bin", "wb");
+                    if (d != nullptr) {
+                        fwrite(rdram, 1, 8u * 1024u * 1024u, d);
+                        fclose(d);
+                        fprintf(f, "[CRASH] hh_crash_rdram.bin escrito\n");
+                    }
+                } __except (EXCEPTION_EXECUTE_HANDLER) {
+                    fprintf(f, "[CRASH] fallo al volcar RDRAM\n");
+                }
+            } else {
+                fprintf(f, "[CRASH] rdram no disponible (crash durante el arranque?)\n");
+            }
+            __try {
+                FILE* d = fopen("hh_crash_dmem.bin", "wb");
+                if (d != nullptr) { fwrite(dmem, 1, 0x1000, d); fclose(d); }
+            } __except (EXCEPTION_EXECUTE_HANDLER) {}
+            fflush(f);
+            fclose(f);
+        }
     }
     return EXCEPTION_EXECUTE_HANDLER;
 }

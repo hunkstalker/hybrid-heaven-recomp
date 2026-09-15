@@ -56,6 +56,10 @@ void hh::on_game_init(uint8_t* rdram, recomp_context* ctx) {
     hh_game_rdram = rdram;
 }
 
+uint8_t* hh::get_game_rdram() {
+    return hh_game_rdram;
+}
+
 struct PadProfile {
     // Y = C-DOWN: verificado con capturas que la vista en 1a persona es C-Down (C-Up no hace nada).
     // X = NONE: el B del N64 abre el MAPA fuera de combate; hasta identificar el boton del menu de

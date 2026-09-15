@@ -102,6 +102,17 @@ Si el juego cae a 30 fps (habitación con mucha carga), el driver produce 720 fr
 juego: a 30 fps solo son 21.6k frames/s y el dispositivo (43.2k) se queda sin datos. Ese es el motivo
 de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el audio no se corta.
 
+## 3d. Si el port crashea (para depurar)
+
+En el CWD (junto al `.exe`) se escriben solos, en cada crash:
+
+- **`hh_crash.log`** — excepción, dirección, módulo+offset, registros y contador de VI.
+- **`hh_crash_rdram.bin`** — los 8 MB de RDRAM en el momento del crash (estado exacto del juego).
+- **`hh_crash_dmem.bin`** — 4 KB de DMEM del RSP.
+
+Con eso puedo inspeccionar el estado del juego en el crash sin reproducirlo. Si el fallo fue por un
+símbolo ausente, `hh_missing.log` (también junto al `.exe`) lista las `Failed to find function at 0x...`.
+
 ## 4. Estado actual esperado (2026-09-14, tarde)
 
 - **GAME START funciona**: al pulsar START → GAME START el juego carga los overlays de código
