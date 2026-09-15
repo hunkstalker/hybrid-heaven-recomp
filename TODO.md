@@ -5,11 +5,10 @@
 
 ## Ahora — primera divergencia de ejecución (arranque)
 
-> **A3 (wiring de render) CERRADA**: verificado que eventos + routing RSP + `loadUCodeGBI` llegan a
-> RT64 y éste procesa display lists. **A3b–A3h cerradas como fase de diagnóstico**: recompilación y
-> carga son correctas (código/datos idénticos al emulador); el bloqueo es **orden/timing de
-> ejecución** → apunta al **runtime** (scheduling de hilos/mensajes, lock single-CPU), no al juego.
-> Detalle: `notes/2026-09-11-a3-multi-modulo-jumptables.md`.
+> **A3 (wiring de render) CERRADA**: eventos + routing RSP + `loadUCodeGBI` llegan a RT64 y éste
+> procesa display lists. **A3b–A3h**: recompilación/carga correctas (idénticas al emulador); el
+> bloqueo era **orden/timing** → **runtime** (scheduling, lock single-CPU), no el juego. Detalle:
+> `notes/2026-09-11-a3-multi-modulo-jumptables.md`.
 
 1. [x] **Traza de mensajería (escalón 1)**: hecha. El port y el emulador divergen en el **orden de
    arranque de hilos / entrega de eventos** (runtime), no en lógica de juego (ver nota §escalón 1).
@@ -125,7 +124,7 @@
     **HECHO (2026-09-14)**: GAME START exigía Controller Pak (runtime devolvía NOPACK) → **PFS mínimo en
     RAM** (`pak.cpp`: init/formato, allocate/find/delete/read/write/fileState/freeBlocks/numFiles/isPlug;
     persistencia `saves/*.bin.pak`; 13 entradas a `reimplemented_funcs` + `N64RecompCLI` reconstruido).
-    `osGbpakInit` sigue **stubeado a "no pak"**. Pendiente: validar contra el emulador con mempak.
+    `osGbpakInit` sigue stubeado; pendiente: validar con mempak en el emulador.
 
 ## Fundaciones pendientes
 
@@ -139,10 +138,12 @@
 
 ## Backlog
 
-- [x] **Audio**: el microcode **es el `aspMain` estándar**; recompilado con `RSPRecomp` e integrado
-  (`config/rsp_hh_aspMain.toml`, `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp`). Era el gate de la
-  progresión (`notes/2026-09-13-ucode-audio-gate-transicion.md`). Queda: crash intermitente por
-  corrupción lógica de RDRAM del driver (comparar estado port vs emulador antes del fallo).
+- [x] **Audio**: microcode `aspMain` estándar recompilado (`config/rsp_hh_aspMain.toml`). Queda: crash
+  intermitente del driver (comparar estado). **Desacoplar el audio de los fps (FUTURO)**: el driver
+  entrega 720 frames por frame de juego (60 fps → 43.2k frames/s OK; 30 fps → 21.6k → huecos). El
+  handshake (hilo audio 3 espera EB8; hilo SP 18 publica) compite con el frame en el scheduler
+  cooperativo; `HH_SP_SHARED` no mejora (50.3 calls/s, min 29). Mitigación: build **Release**; ideas:
+  completar la task sin pasar por el bucle de juego (o amortiguar/resamplear).
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: Controller Pak → ficheros en disco (+ Rumble).
 - [ ] **Builds**: Windows + Linux + Steam Deck; resolución/widescreen; empaquetado sin ROM.
@@ -166,5 +167,4 @@
 - [x] (histórico) Toolchain/repos/extracción Nisitenma; port + builds; syms Ghidra; fix DMA; game loop; scheduler VI.
 
 ## Documentos de detalle (no duplicar)
-`PROYECTO.md` (estado) · `docs/architecture.md` · `docs/adr/` · `docs/workflows.md` ·
-`notes/2026-09-11-*.md` (modelo módulos, B9, A1, A2, 9d, pipeline).
+`PROYECTO.md` · `docs/architecture.md` · `docs/adr/` · `docs/workflows.md` · `notes/2026-09-11-*.md`.
