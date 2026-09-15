@@ -59,9 +59,13 @@
 
 ## Entorno / git
 
-- `HEAD = 711dbd3` (docs de handoff) + esta sesión: instrumentación y fixes en `src/main/main.cpp` y
-  `lib/N64ModernRuntime` (`threadqueue.cpp`, `pi.cpp`, `recomp.cpp`, `overlays.cpp`, `mesgqueue.cpp`,
-  `threads.cpp`, `scheduling.cpp`); `port/windows_runtime_changes.patch` regenerado.
+- **Commits de la sesión (2026-09-15)**:
+  - main repo: `1e97890` — *fix(mod55): encadenar fallthroughs y registrar mid-entries del objeto
+    del NPC* (incluye `RecompiledFuncs/` regenerado, syms, docs y `tools/analysis/add_mid_entry.py`).
+  - N64ModernRuntime (repo anidado, **detached HEAD** como venía siéndolo): `87acdbb` —
+    *diag(runtime): instrumentacion del cuelgue del NPC y sombra host de scheduling*.
+- `port/windows_runtime_changes.patch` regenerado y cuadrado con el árbol NMR (verificar con
+  `git -C <NMR> diff --ignore-submodules=all` vs el patch).
 - Bats de apoyo: `run_windows.bat`, `run_noaudio.bat`, `run_audlog.bat`, `run_test_*` (regresión),
-  `bisect_build.bat` (build de bisect).
+  `bisect_build.bat` (build de bisect), `run_watch.bat` (watchpoint + grabación de replay).
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).
