@@ -126,6 +126,7 @@ extern "C" int hh_get_thread_ctxs(recomp_context** out, int max);
 extern "C" unsigned long long hh_get_input_polls(void);
 extern "C" uint64_t hh_get_vi_ticks(void);
 extern "C" uint64_t hh_get_pending_ext_msgs(void);
+extern "C" unsigned long long hh_get_audio_calls(void);
 
 static void hh_dump_guest_regs(FILE* f) {
     recomp_context* c = hh_get_current_ctx();
@@ -253,14 +254,21 @@ static void hh_hang_watchdog() {
         using namespace std::chrono_literals;
         const auto start = std::chrono::steady_clock::now();
         unsigned long long last_polls = hh_get_input_polls();
+        unsigned long long last_audio = hh_get_audio_calls();
         auto last_change = start;
+        auto last_audio_change = start;
         bool dumped = false;
         bool forced_done = false;
         while (true) {
             std::this_thread::sleep_for(1s);
             unsigned long long polls = hh_get_input_polls();
+            unsigned long long audio = hh_get_audio_calls();
             unsigned long long vi = hh_get_vi_count();
             auto now = std::chrono::steady_clock::now();
+            if (audio != last_audio) {
+                last_audio = audio;
+                last_audio_change = now;
+            }
             if (force > 0.0 && !forced_done &&
                 std::chrono::duration<double>(now - start).count() >= force) {
                 forced_done = true;
@@ -288,12 +296,17 @@ static void hh_hang_watchdog() {
                 dumped = false;
                 continue;
             }
+            // Dos senales de vida: polls de input y produccion de audio. Si el audio se para
+            // (aunque el bucle siga pidiendo input) tambien volcamos.
             const double stuck = std::chrono::duration<double>(now - last_change).count();
-            if (!dumped && polls > 0 && stuck >= limit) {
+            const double audio_stuck = std::chrono::duration<double>(now - last_audio_change).count();
+            const bool audio_dead = (last_audio > 0) && (audio_stuck >= limit);
+            if (!dumped && last_polls > 0 && (stuck >= limit || audio_dead)) {
                 dumped = true;
                 FILE* f = fopen("hh_hang.log", "a");
                 if (f == nullptr) continue;
-                fprintf(f, "=== HH cuelgue: sin input polls durante %.1fs (VI=%llu) ===\n", stuck, vi);
+                fprintf(f, "=== HH cuelgue: polls parados %.1fs / audio parado %.1fs (VI=%llu) ===\n",
+                        stuck, audio_stuck, vi);
                 fprintf(f, "[HANG] vi_ticks=%llu pending_ext_msgs=%llu (si vi_ticks no sube: hilo VI del runtime parado)\n",
                         (unsigned long long)hh_get_vi_ticks(),
                         (unsigned long long)hh_get_pending_ext_msgs());
@@ -307,7 +320,8 @@ static void hh_hang_watchdog() {
                 hh_dump_rdram_dmem(f, "hh_hang");
                 fflush(f);
                 fclose(f);
-                fprintf(stderr, "[HANG] volcado escrito tras %.1fs sin polls de input (VI=%llu)\n", stuck, vi);
+                fprintf(stderr, "[HANG] volcado escrito (polls %.1fs, audio %.1fs, VI=%llu)\n",
+                        stuck, audio_stuck, vi);
             }
         }
     }).detach();

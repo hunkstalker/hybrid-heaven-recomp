@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
+#include <atomic>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -317,7 +318,14 @@ static void hh_audio_diag_log(size_t sample_count, size_t queued_frames, size_t 
     last_t = now; last_calls = calls; last_samples = samples;
 }
 
+static std::atomic<unsigned long long> hh_audio_calls{0};
+
+extern "C" unsigned long long hh_get_audio_calls() {
+    return hh_audio_calls.load();
+}
+
 void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
+    hh_audio_calls.fetch_add(1, std::memory_order_relaxed);
     if (audio_device == 0) {
         virtual_ai_drain();
         virtual_frames += static_cast<double>(sample_count) / input_channels;
