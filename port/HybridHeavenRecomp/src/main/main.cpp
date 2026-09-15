@@ -135,6 +135,62 @@ static void hh_dump_guest_regs(FILE* f) {
             (uint32_t)c->hi, (uint32_t)c->lo);
 }
 
+// Volcados grandes (RDRAM 8 MB y DMEM 4 KB). En Windows por trozos con SEH para tolerar memoria
+// corrupta; en Linux de una vez.
+static void hh_dump_rdram_dmem(FILE* f) {
+    uint8_t* rdram = hh::get_game_rdram();
+    if (rdram != nullptr) {
+#ifdef _WIN32
+        FILE* d = fopen("hh_crash_rdram.bin", "wb");
+        size_t total = 0;
+        if (d != nullptr) {
+            constexpr size_t kChunk = 256u * 1024u;
+            constexpr size_t kTotal = 8u * 1024u * 1024u;
+            for (size_t off = 0; off < kTotal; off += kChunk) {
+                __try {
+                    fwrite(rdram + off, 1, kChunk, d);
+                    fflush(d);
+                    total += kChunk;
+                } __except (EXCEPTION_EXECUTE_HANDLER) {
+                    fprintf(f, "[CRASH] rdram: fallo en offset 0x%zX\n", off);
+                    break;
+                }
+            }
+            fclose(d);
+            fprintf(f, "[CRASH] hh_crash_rdram.bin escrito: %zu bytes\n", total);
+        }
+#else
+        FILE* d = fopen("hh_crash_rdram.bin", "wb");
+        if (d != nullptr) {
+            fwrite(rdram, 1, 8u * 1024u * 1024u, d);
+            fclose(d);
+            fprintf(f, "[CRASH] hh_crash_rdram.bin escrito\n");
+        }
+#endif
+    } else {
+        fprintf(f, "[CRASH] rdram no disponible (crash durante el arranque?)\n");
+    }
+    FILE* d2 = fopen("hh_crash_dmem.bin", "wb");
+    if (d2 != nullptr) { fwrite(dmem, 1, 0x1000, d2); fclose(d2); }
+}
+
+// Hook que llama el runtime cuando su SEH captura un crash del hilo principal (entrypoint):
+// deja el mismo volcado que los crashes de otros hilos. n64_addr = direccion guest del acceso.
+extern "C" void hh_port_crash_dump(uint32_t n64_addr) {
+    static volatile int busy = 0;
+    if (busy != 0) return;
+    busy = 1;
+    FILE* f = fopen("hh_crash.log", "a");
+    if (f == nullptr) return;
+    fprintf(f, "=== HH crash (entrypoint SEH) n64_addr=0x%08X VI=%llu ===\n",
+            n64_addr, (unsigned long long)hh_get_vi_count());
+    hh_dump_guest_regs(f);
+    fflush(f);
+    hh_dump_rdram_dmem(f);
+    fflush(f);
+    fclose(f);
+}
+
 #ifndef _WIN32
 #include <csignal>
 #include <ucontext.h>
@@ -167,15 +223,10 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
             if (di.dli_fname != nullptr) fprintf(f, "[CRASH] modulo: %s +0x%llX\n", di.dli_fname,
                     (unsigned long long)((char*)rip - (char*)di.dli_fbase));
             hh_dump_guest_regs(f);
-            fflush(f); fclose(f);
+            fflush(f);
+            hh_dump_rdram_dmem(f);
+            fclose(f);
         }
-        uint8_t* rdram = hh::get_game_rdram();
-        if (rdram != nullptr) {
-            FILE* d = fopen("hh_crash_rdram.bin", "wb");
-            if (d != nullptr) { fwrite(rdram, 1, 8u * 1024u * 1024u, d); fclose(d); }
-        }
-        FILE* d2 = fopen("hh_crash_dmem.bin", "wb");
-        if (d2 != nullptr) { fwrite(dmem, 1, 0x1000, d2); fclose(d2); }
     }
     _exit(139);
 }
@@ -230,35 +281,7 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
                         (unsigned long long)c->R14, (unsigned long long)c->R15);
             }
             hh_dump_guest_regs(f);
-            uint8_t* rdram = hh::get_game_rdram();
-            if (rdram != nullptr) {
-                // Volcado por trozos de 256 KB con flush por trozo: si la memoria del juego esta
-                // tocada, se conserva todo lo valido (antes un unico fwrite de 8 MB podia quedar a 0).
-                FILE* d = fopen("hh_crash_rdram.bin", "wb");
-                size_t total = 0;
-                if (d != nullptr) {
-                    constexpr size_t kChunk = 256u * 1024u;
-                    constexpr size_t kTotal = 8u * 1024u * 1024u;
-                    for (size_t off = 0; off < kTotal; off += kChunk) {
-                        __try {
-                            fwrite(rdram + off, 1, kChunk, d);
-                            fflush(d);
-                            total += kChunk;
-                        } __except (EXCEPTION_EXECUTE_HANDLER) {
-                            fprintf(f, "[CRASH] rdram: fallo en offset 0x%zX\n", off);
-                            break;
-                        }
-                    }
-                    fclose(d);
-                    fprintf(f, "[CRASH] hh_crash_rdram.bin escrito: %zu bytes\n", total);
-                }
-            } else {
-                fprintf(f, "[CRASH] rdram no disponible (crash durante el arranque?)\n");
-            }
-            __try {
-                FILE* d = fopen("hh_crash_dmem.bin", "wb");
-                if (d != nullptr) { fwrite(dmem, 1, 0x1000, d); fclose(d); }
-            } __except (EXCEPTION_EXECUTE_HANDLER) {}
+            hh_dump_rdram_dmem(f);
             fflush(f);
             fclose(f);
         }

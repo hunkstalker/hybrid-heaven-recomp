@@ -1239,7 +1239,7 @@ index 43509ba..15a27ee 100644
          if (physical_addr >= recomp::rom_base) {
              // read cart rom
 diff --git a/librecomp/src/recomp.cpp b/librecomp/src/recomp.cpp
-index dea4176..59b48b9 100644
+index dea4176..77902af 100644
 --- a/librecomp/src/recomp.cpp
 +++ b/librecomp/src/recomp.cpp
 @@ -56,14 +56,16 @@ std::mutex current_game_mutex;
@@ -1322,7 +1322,17 @@ index dea4176..59b48b9 100644
  }
  
  std::u8string recomp::current_game_id() {
-@@ -880,7 +896,9 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
+@@ -871,6 +887,9 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
+                     // Convert the host pointer back to the N64 address the recompiled code was accessing.
+                     int64_t n64_addr = (int64_t)(intptr_t)(crash_addr - (uintptr_t)rdram) + 0xFFFFFFFF80000000LL;
+                     boot_log("Crash N64 addr = 0x%08X\n", (uint32_t)n64_addr);
++                    // HH: que el port deje su volcado completo (hh_crash.log + RDRAM + DMEM).
++                    extern "C" void hh_port_crash_dump(uint32_t n64_addr);
++                    hh_port_crash_dump((uint32_t)n64_addr);
+                     std::exit(EXIT_FAILURE);
+                 }
+                 boot_log("Entrypoint returned\n");
+@@ -880,7 +899,9 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
                      // spawns (via osStartThread from a NULL thread_self) cannot run concurrently with
                      // it; they block on the lock until the entrypoint returns and releases it.
                      ultramodern::acquire_game_lock();
