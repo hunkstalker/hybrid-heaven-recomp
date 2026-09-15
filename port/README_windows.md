@@ -122,9 +122,12 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
 
 ## 4c. Audio
 
-El port inicializa el subsistema de audio de SDL. En Windows debe salir en consola
+El port inicializa el subsistema de audio de SDL (y `hh::init_audio()` corre antes de
+`reset_audio()`). En Windows debe salir en consola
 `SDL Audio Driver: wasapi` (o `directsound`) y oirse. Si no hay dispositivo, avisa y sigue sin sonido
 (cola virtual). Para forzar driver: `set SDL_AUDIODRIVER=directsound` (o `wasapi`).
+Nota: `queue_samples` recibe `sample_count` en muestras int16; el byte_len se calcula como
+`sample_count * sizeof(int16_t)` (antes usaba bytes por frame y corrompia el heap al abrir dispositivo).
 
 ## 5. Problemas conocidos
 

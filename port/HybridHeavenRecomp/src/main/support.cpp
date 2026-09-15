@@ -282,7 +282,10 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
         return;
     }
-    const size_t byte_len = sample_count * bytes_per_sample;
+    // HH: el runtime pasa `sample_count` en muestras int16 (byte_count / sizeof(int16_t)), no en
+    // frames. El byte_len correcto es sample_count * sizeof(int16_t); usar bytes_per_sample (=4,
+    // bytes por frame) copiaba el doble -> heap corruption al abrir dispositivo real (0xC0000374).
+    const size_t byte_len = sample_count * sizeof(int16_t);
     const size_t needed = static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1;
     if (audio_cvt_buffer.size() < needed) {
         audio_cvt_buffer.resize(needed);
