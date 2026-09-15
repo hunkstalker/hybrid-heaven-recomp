@@ -207,6 +207,30 @@ static void hh_dump_rdram_dmem(FILE* f, const char* base) {
 
 // Hook que llama el runtime cuando su SEH captura un crash del hilo principal (entrypoint):
 // deja el mismo volcado que los crashes de otros hilos. n64_addr = direccion guest del acceso.
+extern "C" int hh_get_thread_ctxs_tids(recomp_context** out, int* tids, int max);
+extern "C" int hh_get_thread_ctxs_full(recomp_context** out, int* tids, uintptr_t* thrs, int max);
+extern "C" int hh_thread_info(uintptr_t t, uint32_t* out);
+extern "C" int hh_get_callring(recomp_context* c, uint32_t* out, int max);
+
+// HH: pila de un hilo que esta CORRIENDO (busy-loop de codigo guest): palabras que parecen
+// direcciones de codigo (RA guardadas) en [sp, sp+0x400). Ayuda a identificar el bucle culpable.
+static void hh_dump_stack_scan(FILE* f, uint32_t sp) {
+    uint8_t* rdram = hh::get_game_rdram();
+    if (rdram == nullptr) return;
+    fprintf(f, "[HANG]   stack-scan sp=%08X:", sp);
+    int n = 0;
+    for (uint32_t a = sp; a < sp + 0x400 && a + 4 <= 0x80800000u; a += 4) {
+        uint32_t v = *(uint32_t*)(rdram + (a - 0x80000000u));
+        if ((v >= 0x80000400u && v < 0x804E5F40u) || (v >= 0x80100000u && v < 0x80400000u)) {
+            if ((n % 6) == 0) fprintf(f, "\n[HANG]    ");
+            fprintf(f, " +%03X=%08X", a - sp, v);
+            n++;
+            if (n >= 24) break;
+        }
+    }
+    fprintf(f, "\n");
+}
+
 extern "C" void hh_port_crash_dump(uint32_t n64_addr) {
     static volatile int busy = 0;
     if (busy != 0) return;
@@ -223,9 +247,9 @@ extern "C" void hh_port_crash_dump(uint32_t n64_addr) {
 }
 
 // Volcado de los registros de un contexto de hilo de juego (una linea compacta).
-static void hh_dump_ctx_regs(FILE* f, int idx, recomp_context* c) {
-    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X gp=%08X r2=%08X r3=%08X r4=%08X r5=%08X\n",
-            idx, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30, (uint32_t)c->r28,
+static void hh_dump_ctx_regs(FILE* f, int idx, int tid, recomp_context* c) {
+    fprintf(f, "[HANG] ctx%d tid=%d ra=%08X sp=%08X fp=%08X gp=%08X r2=%08X r3=%08X r4=%08X r5=%08X\n",
+            idx, tid, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30, (uint32_t)c->r28,
             (uint32_t)c->r2, (uint32_t)c->r3, (uint32_t)c->r4, (uint32_t)c->r5);
     fprintf(f, "[HANG]   r6=%08X r7=%08X r8=%08X r9=%08X r10=%08X r11=%08X r12=%08X r13=%08X\n",
             (uint32_t)c->r6, (uint32_t)c->r7, (uint32_t)c->r8, (uint32_t)c->r9,
@@ -288,10 +312,11 @@ static void hh_hang_watchdog() {
                             (unsigned long long)polls, (unsigned long long)audio,
                             (unsigned long long)hh_get_pending_ext_msgs());
                     recomp_context* ctxs[32];
-                    int n = hh_get_thread_ctxs(ctxs, 32);
+                    int tids[32];
+                    int n = hh_get_thread_ctxs_tids(ctxs, tids, 32);
                     fprintf(state_file, "[STATE] hilos de juego con contexto: %d\n", n);
                     for (int i = 0; i < n; i++) {
-                        hh_dump_ctx_regs(state_file, i, ctxs[i]);
+                        hh_dump_ctx_regs(state_file, i, tids[i], ctxs[i]);
                     }
                     fflush(state_file);
                     state_bytes += 320 + (long)n * 330;
@@ -309,11 +334,26 @@ static void hh_hang_watchdog() {
                 if (f == nullptr) continue;
                 fprintf(f, "=== HH cuelgue (forzado por HH_HANG_FORCE=%.0f) VI=%llu ===\n", force, vi);
                 recomp_context* ctxs[32];
-                int n = hh_get_thread_ctxs(ctxs, 32);
+                int tids[32];
+                uintptr_t thrs[32];
+                int n = hh_get_thread_ctxs_full(ctxs, tids, thrs, 32);
                 fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
                 for (int i = 0; i < n; i++) {
-                    recomp_context* c = ctxs[i];
-                    hh_dump_ctx_regs(f, i, c);
+                    uint32_t info[4] = {0,0,0,0};
+                    int ok = hh_thread_info(thrs[i], info);
+                    fprintf(f, "[HANG] ctx%d tid=%d (sombra: id=%u state=%u queue=%08X sp=%08X) ctx_sp=%08X\n",
+                            i, tids[i], ok ? info[0] : 0xFFFFFFFFu, ok ? info[1] : 0xFFFFFFFFu,
+                            ok ? info[2] : 0, ok ? info[3] : 0, (uint32_t)ctxs[i]->r29);
+                    if (ok && info[1] == 2) {
+                        hh_dump_stack_scan(f, (uint32_t)ctxs[i]->r29);
+                    }
+                    uint32_t ring[16];
+                    int rn = hh_get_callring(ctxs[i], ring, 16);
+                    if (rn > 0) {
+                        fprintf(f, "[HANG]   ultimas llamadas:");
+                        for (int k = 0; k < rn; k++) fprintf(f, " %08X", ring[k]);
+                        fprintf(f, "\n");
+                    }
                 }
                 fflush(f);
                 hh_dump_rdram_dmem(f, "hh_hang");
@@ -343,10 +383,26 @@ static void hh_hang_watchdog() {
                         (unsigned long long)hh_get_vi_ticks(),
                         (unsigned long long)hh_get_pending_ext_msgs());
                 recomp_context* ctxs[32];
-                int n = hh_get_thread_ctxs(ctxs, 32);
+                int tids[32];
+                uintptr_t thrs[32];
+                int n = hh_get_thread_ctxs_full(ctxs, tids, thrs, 32);
                 fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
                 for (int i = 0; i < n; i++) {
-                    hh_dump_ctx_regs(f, i, ctxs[i]);
+                    uint32_t info[4] = {0,0,0,0};
+                    int ok = hh_thread_info(thrs[i], info);
+                    fprintf(f, "[HANG] ctx%d tid=%d (sombra: id=%u state=%u queue=%08X sp=%08X) ctx_sp=%08X\n",
+                            i, tids[i], ok ? info[0] : 0xFFFFFFFFu, ok ? info[1] : 0xFFFFFFFFu,
+                            ok ? info[2] : 0, ok ? info[3] : 0, (uint32_t)ctxs[i]->r29);
+                    if (ok && info[1] == 2 /*RUNNING*/) {
+                        hh_dump_stack_scan(f, (uint32_t)ctxs[i]->r29);
+                    }
+                    uint32_t ring[16];
+                    int rn = hh_get_callring(ctxs[i], ring, 16);
+                    if (rn > 0) {
+                        fprintf(f, "[HANG]   ultimas llamadas:");
+                        for (int k = 0; k < rn; k++) fprintf(f, " %08X", ring[k]);
+                        fprintf(f, "\n");
+                    }
                 }
                 fflush(f);
                 hh_dump_rdram_dmem(f, "hh_hang");

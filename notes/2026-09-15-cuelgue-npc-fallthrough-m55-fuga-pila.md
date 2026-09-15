@@ -167,3 +167,81 @@ es destino de `LOOKUP` y la cadena del objeto (79798/798e8/79954) sigue registra
 `tools/analysis/add_mid_entry.py` ahora **rechaza** direcciones dentro de un switch fusionado (usa
 `gen_module_syms.merge_jump_tables` con los starts del propio syms). De las 22 entradas de la ronda 9
 solo esas dos eran peligrosas; las otras 20 son seguras.
+
+## Ronda 11: cuelgue al recibir dano del robot (en curso)
+
+Sintoma: el enemigo dispara, el jugador cae, sale el indicador de dano y el juego se cuelga
+(watchdog: `polls` parados 15 s; `VI` sigue subiendo; audio sigue). Logs de la sesion del usuario.
+
+Diagnostico con lo ya volcado (`hh_hang.log` + `hh_hang_rdram_28340_0.bin`; el dump RDRAM va
+**LE** y el offset es `addr - 0x80000000`, calibrado con las instrucciones conocidas):
+
+- La cola principal **0x8005C288** esta **vacia** (`validCount=0`) y su `blocked_on_recv` es el
+  struct del **hilo 5** (main) → el main espera en `osRecvMesg(C288, ..., BLOCK)` y **el productor
+  dejo de postear** (no es una perdida de despertar del runtime).
+- `hh_sched.log`: los hilos guest **16 y 17** se aparcan a t=74.7 y **nunca se vuelven a despertar**;
+  0/1/3/18/19 siguen (helpers del runtime); el main se re-despierta y re-aparca cada frame.
+- `hh_pi.log`: tras el cuelgue quedan solo las lecturas de streaming (~37/s, audio), la carga de
+  juego paro.
+- El mensaje que el main consume es `0x8005C4B0`.
+
+Instrumentacion nueva (env `HH_MQLOG_ALL=1`, `port/run_mqlog.bat`):
+
+- `hh_mq_all.log`: **todos** los `osSendMesg`/`osRecvMesg` (tid guest, cola, mensaje, validCount,
+  cabezas de bloqueados) y cada `osSetEventMesg` (`[EVT] event= mq= msg=`).
+- El volcado del watchdog ahora incluye **`tid=`** en cada `ctxN`.
+- Smoke Linux: la traza confirma que **`tid=19` postea `0x8005C4B0` a `0x8005C288`** (y a la cola
+  externa `0x80091DA0`), a ~130/s; el main la drena a ~60/s.
+- Hipotesis a confirmar con el repro: en la secuencia de dano, `tid=19` deja de postear a C288
+  (p. ej. el juego re-registra el evento VI/AI a otra cola, o el hilo 16/17 que lo alimenta se
+  queda esperando). El `[EVT]` + `[MQA]` del repro lo diran sin ambiguedad.
+
+### Mapa de hilos y colas en el cuelgue (del RDRAM dump, ronda 11)
+
+El dump RDRAM va **LE** y con `offset = addr - 0x80000000` (calibrado con instrucciones conocidas).
+`OSThread` del runtime: `[+0x14]=id`, `[+4]=priority`; `OSMesgQueue`: `[+0]=blockedRecv`,
+`[+4]=blockedSend`, `[+8]=valid`, `[+20]=msg`.
+
+Estado en el cuelgue (todos **bloqueados**, todas las colas **vacías**, ningún emisor bloqueado):
+
+| tid | pri | cola donde espera |
+|---|---|---|
+| 5 (main) | — | `0x8005C288` |
+| 16 | 110 | `0x8005C528` |
+| 17 | 100 | `0x8005C5D0` |
+| 18 | 120 | `0x8005C4B8` |
+| 19 | 130 | `0x8005C560` |
+| 3 | 12 | `0x80091DA0` |
+| 0 | 254 | `0x800CE920` |
+
+Productores normales (medidos en el smoke con `HH_MQLOG_ALL=1`, menús):
+`3→C4B8`, `0→C560`, `18→C598/91EB8/C5D0`, `19→C288/91DA0/C5D0`, `17→C288/C528/C598/CE920`,
+`5→C268/C4F0/CE20/CE920`. Con todos los hilos esperando a un productor que a su vez espera, el
+flujo se rompe por un **mensaje perdido/mal enrutado** (no por cola llena). El `hh_mq_all.log` del
+repro dará el último par send/recv antes del silencio (punto exacto de la pérdida).
+
+## Ronda 12: cuelgue por dano del robot (diagnostico profundo; instrumentacion final)
+
+Con `hh_mq_all.log` + `hh_evt.log` (nuevos, opt-in `HH_MQLOG_ALL=1`, ver `port/run_mqlog.bat`):
+
+- La cadena de frame es: **runtime entrega evento VI -> cola `0x800CE920` msg `0x800CE950`** ->
+  `viMgrMain` (tid 0) lo consume -> `tid 0 -> C560 (0x29A)` -> tid 19 -> `tid 19 -> 91DA0 + C288
+  (0x8005C4B0)` -> tid 3 -> ... -> main (tid 5) -> y vuelta.
+- Al cuelgue (**t~88.3 s** en el run del usuario): la traza de colas se para; `hh_evt.log` muestra que
+  el runtime **sigue entregando el evento VI** (`vi-deliver-ok` continua con `total_vis` creciendo)
+  y no hay deadlock en `osSetEventMesg` (9/9 `enter/acquired/exit`).
+- El dump (RDRAM) muestra **todos los hilos guest bloqueados en sus colas**, sin mensajes pendientes
+  y sin emisores bloqueados. La cola externa del runtime queda con el evento VI sin repartir.
+- **Causa inmediata**: el runtime difiere los mensajes externos (`enqueue_external_message_src`) y
+  solo los inyecta en las colas guest al **entrar** en un `osSendMesg`/`osRecvMesg`
+  (`dequeue_external_messages`). Si en el instante del evento *todos* los hilos están ya dentro de
+  un syscall bloqueante, nadie drena -> el evento VI no llega a `CE920` -> `viMgrMain` no despierta
+  -> toda la cadena se apaga. El camino de inactividad (`run_next_thread_and_wait` espera externos
+  si la running-queue esta vacia) no se activa porque el scheduler esta esperando a un hilo que
+  tiene la CPU y no cede.
+- **Instrumentacion final** (commiteada, `811e02f`): traza de colas y eventos, **callring por hilo**
+  (ultimas 16 llamadas via `get_function`, ya que el port usa lookup para el 100% de las llamadas),
+  **estado real de los hilos** (sombra `hh_sh_*`: id/state/queue/sp) y `sp` vivo del contexto, y
+  **escaneo de la pila** del hilo que esta corriendo, todo en el volcado del watchdog.
+- Siguiente paso: un repro mas con `run_mqlog.bat` -> el volcado dira **que hilo esta en RUNNING**
+  (el que no cede) y sus **ultimas llamadas** (su bucle) -> identificar la funcion culpable.
