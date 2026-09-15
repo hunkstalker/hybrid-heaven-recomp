@@ -298,7 +298,7 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         const char* iy = getenv("HH_INVERT_Y");
         const char* res = getenv("HH_RES");
         fprintf(stderr, "[CFG] HH_INVERT_Y=%s HH_RES=%s\n", iy ? iy : "(no)", res ? res : "(auto)");
-        fprintf(stderr, "[PAD] A=salto  B=agacharse(Z)  Back/Select=mapa(B)  Start=START  LB=L  RB=apuntar(R)  Y=C-Up(1a persona)  stick-dcho=botones C  cruceta=D-pad\n");
+        fprintf(stderr, "[PAD] A=salto  B=agacharse(Z)  Back/Select=mapa(B)  Start=START  LB=L  RB=apuntar(R)  Y=C-Up(1a persona)  X=B (menus de combate)  stick-dcho=botones C  cruceta=D-pad\n");
     }
     n64_button input = 0;
     if (controller_num == 0) {
@@ -342,7 +342,10 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON
             // C-Up tambien en Y: es una accion puntual (vista en primera persona) y resulta mas
             // comoda en boton que "empujando" el stick derecho hacia arriba.
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * CUP_BUTTON);
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * CUP_BUTTON
+            // X -> B del N64: en exploracion abre el mapa (duplicado con Select, inofensivo) y en
+            // combate el juego usa ese mismo B para los menus de acciones cuerpo a cuerpo.
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) * B_BUTTON);
 
         axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
         // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.

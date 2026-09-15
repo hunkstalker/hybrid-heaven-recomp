@@ -138,12 +138,12 @@
 
 ## Backlog
 
-- [x] **Audio**: microcode `aspMain` estándar recompilado (`config/rsp_hh_aspMain.toml`). Queda: crash
-  intermitente del driver (comparar estado). **Desacoplar el audio de los fps (FUTURO)**: el driver
-  entrega 720 frames por frame de juego (60 fps → 43.2k frames/s OK; 30 fps → 21.6k → huecos). El
-  handshake (hilo audio 3 espera EB8; hilo SP 18 publica) compite con el frame en el scheduler
-  cooperativo; `HH_SP_SHARED` no mejora (50.3 calls/s, min 29). Mitigación: build **Release**; ideas:
-  completar la task sin pasar por el bucle de juego (o amortiguar/resamplear).
+- [x] **Audio**: microcode `aspMain` recompilado. Queda: crash intermitente del driver (comparar estado).
+  **Desacoplar el audio de los fps (FUTURO)**: entrega 720 frames por frame de juego (60 fps → 43.2k/s
+  OK; 30 fps → 21.6k → huecos). El handshake (hilo audio 3 espera EB8; hilo SP 18 publica) compite con
+  el frame en el scheduler; `HH_SP_SHARED` no mejora. Mitigación: **Release**. Ideas: completar la task
+  sin pasar por el bucle de juego (o amortiguar/resamplear).
+- [ ] **Mando (FUTURO)**: atrás en menús con B físico y mapa solo en Select → el port necesita el contexto menú/gameplay (localizar el estado de UI y enrutar B→Z en juego, B→B en menús).
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: Controller Pak → ficheros en disco (+ Rumble).
 - [ ] **Builds**: Windows + Linux + Steam Deck; resolución/widescreen; empaquetado sin ROM.

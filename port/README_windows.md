@@ -110,8 +110,9 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
   (p. ej. `set HH_RES=2x`).
 - **Mando Xbox** (mapeo 2026-09-15): A = salto/acción; **B = agacharse** (Z); **Back/Select = mapa**
   (B); Start = START; LB = L; RB = apuntar (R); **Y = C-Up** (vista en 1ª persona, también arriba en el
-  stick derecho); **stick derecho = botones C** (digital, umbral 0.5); cruceta = D-pad; stick izquierdo
-  = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). Libres: X, L3 y R3. Al arrancar
+  stick derecho); **X = B** (menús de combate cuerpo a cuerpo; en exploración abre también el mapa);
+  **stick derecho = botones C** (digital, umbral 0.5); cruceta = D-pad; stick izquierdo = analógico
+  (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). Libres: L3 y R3. Al arrancar
   el port imprime `[PAD]` con el mapeo activo y `[CFG]` con las envs. `port\run_windows.bat` lanza con
   las envs en la misma consola.
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
