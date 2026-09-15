@@ -1,40 +1,9 @@
 # AGENTS.md — arranque de sesión
 
 Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck.
-Fase actual: **arranque/carga**. Dos causas raíz ya resueltas: (1) el juego exige **4 MB de RDRAM**
-(`osGetMemSize=0x400000`; fix en `recomp.cpp`) y (2) el port tenía **stubeada la init de libultra**
-(des-stubbing del toolchain, ver **ADR 0002**). El port ya no aborta y su cadena de boot coincide con
-el emulador. **Loader y directorio Nisitenma descartados** (idénticos al emulador; el port sí carga
-idx54 vía `FUN_801079B0`). **Resuelto el bloqueo VI (ADR 0003)**: VI libultra del ROM + runtime leyendo registros MMIO; gate
-de tareas RSP reabierto (dispatcher 430/45 s, loader 10 módulos, 1359 DLs a RT64, 0 símbolos
-faltantes). **Resuelto el crash del driver de audio** (`ctx+4` basura: cola virtual de audio sobre
-la ventana del driver → tamaño `s16` negativo en `osAiSetNextBuffer` → `osAiGetLength` envenenado →
-DMAs runaway; fixes en `ai.cpp`/`support.cpp`) y añadidos los targets de ucode `0x144C/0x170C`
-(comandos 0x0F/0x0E). Audio estable 300-420 s (~18k tasks, 0 crashes). **TRANSICIÓN Y BURST
-COMPLETOS (2026-09-14)**: el estancamiento era **strict aliasing** del C recompilado (fix
-`-fno-strict-aliasing` en `port/HybridHeavenRecomp/CMakeLists.txt`) + el modelo de módulos (el juego
-**reutiliza bases de VRAM**: idx 24 sobre la base de 23, 99 sobre 54). Implementado **registro
-dinámico de módulos** (runtime `load_module_by_source` + loader siempre activo + `module_sources.inc`),
-extras por módulo (traza `HH_JALTRACE` + `add_missing_funcs.py`) y pipeline consciente de sección
-(`validate_syms`, `fix_fallthroughs`, `keep_syms`). **Resultado**: `[LD384]=20` (burst), `[OVL]`
-secciones 1..6, `fe00=0x3C01`/`fe02=0x80`, 0 funciones faltantes en 220 s, 3953 DLs gfx a RT64.
-**GEOMETRÍA Y PÍXELES ALCANZADOS (2026-09-14)**: RT64 renderiza el logo, la **pantalla de título**
-("PRESS START BUTTON" + copyright) y el attract 3D — capturas `work/debug/port_shot_{45,80,120,160}.png`
-y `notes/2026-09-14-geometria-pixeles.md`. **MENÚS Y GAME START (2026-09-14)**: input headless por env
-(`HH_PRESS`/`HH_PRESS_AT`/`HH_PRESS_FOR`/`HH_PRESS_SEQ` en `src/game/input.cpp`), menú principal →
-GAME START/DIFFICULTY/EXIT; GAME START exigía **Controller Pak** (runtime devolvía NOPACK) →
-implementado **PFS mínimo en RAM** (`runtime librecomp/src/pak.cpp`, 13 entradas movidas a
-`reimplemented_funcs`, `N64RecompCLI`+recomp). El port ya renderiza **escenas 3D in-game**; detalle y
-capturas en `notes/2026-09-14-input-menus-controller-pak.md`. **CRASH POST-GAME-START RESUELTO
-(2026-09-14)**: `fix_fallthroughs.py` mezclaba módulos con base de VRAM compartida (23/24 en
-`0x801BF1A0`) y encadenaba fallthroughs al destino equivocado (`M25_FUN_801e2cac` leía
-`[0x801DAB14]=0x80000000`); ahora resuelve por sección + extra `0x801E4AA4` ⇒ runs 250-300 s sin SEGV
-ni faltantes, con **cutscenes 3D** (`notes/2026-09-14-fix-fallthrough-secciones-y-cutscene.md`).
-**CALLBACK DEL MENÚ RESUELTO (2026-09-14)**: direcciones no mapeadas (punteros nulos tolerados por el
-emulador) calculaban un puntero fuera del buffer → SEGV; fix en `MEM_*` (`recomp.h`) y `TO_PTR`
-(`ultra64.h`); verificado 185 s sin SEGV (`notes/2026-09-14-fix-callback-menu-punteros-no-mapeados.md`).
-Frontera: gameplay interactivo y cola del módulo 25 (`0x801FF260`, fuera del blob/syms actuales).
-Detalle: `notes/2026-09-14-registro-dinamico-modulos.md`, ADR 0004, `TODO.md` #10/#14/#15.
+Fase actual: **gameplay** (menús → GAME START → escenas 3D y combate) con mando Xbox, audio a 43200 Hz y Controller Pak emulado. **Foco inmediato**: validar en Windows el fix del cuelgue del NPC (símbolo `M9_FUN_802169ac` mal acotado → stub `do_break`; commit `fa02e24`) — si persiste, el watchdog deja `hh_hang.log` + `hh_hang_rdram*.bin` y `hh_pi.log` tras ≥20 s congelado. Estado, evidencia e instrumentación: `notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md`.
+
+Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, des-stubbing libultra ADR 0002, VI del ROM ADR 0003); transición/burst (strict aliasing + registro dinámico de módulos); menús, Controller Pak y geometría/píxeles; audio `aspMain` del ROM recompilado; perfiles de mando por contexto (`config.ini`, flag de UI `0x802690D0`); diagnóstico automático de crashes y cuelgues.
 
 ## Persistencia y entorno (CRÍTICO)
 

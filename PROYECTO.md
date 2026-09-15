@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-13**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-15**.
 
 ## 1. Objetivo
 
@@ -25,8 +25,9 @@ del usuario. Sub-objetivo obligatorio: **extraer y traducir todo el texto**. Pla
 ## 3. Arquitectura (resumen)
 
 Stack: **N64Recomp** (MIPS→C) + **N64ModernRuntime** (`ultramodern`+`librecomp`) + **RT64** +
-SDL2. Microcode gfx **F3DEX2 fifo 2.06** (RT64 lo soporta nativo). Audio: microcode custom KCEO
-**sin identificar** (no matchea `aspMain`); bloquea audio real, no el render.
+SDL2. Microcode gfx **F3DEX2 fifo 2.06** (RT64 lo soporta nativo). Audio: **`aspMain` del ROM**
+recompilado con RSPRecomp (`rsp/hh_aspMain.cpp`), reproducción a **43200 Hz** (720 frames/VI) con
+feedback de cola; dispositivo WASAPI vía SDL. Release por defecto (Debug caía a 30 fps).
 
 **Modelo unificado: imagen plana + módulos.** El boot es una imagen de código plana; el juego
 descomprime módulos de código de la ROM a RAM y los ejecuta vía `trans`. → `docs/architecture.md`.
@@ -48,13 +49,20 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
+**Estado actual (2026-09-15)**: se juega en Windows (menús → GAME START → escenas 3D y combate) con
+mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. Foco abierto:
+el **cuelgue al recibir un objeto de un NPC** — causa raíz localizada y arreglada (símbolo
+`M9_FUN_802169ac` mal acotado → stub `do_break`; commit `fa02e24`), **pendiente de validar en
+Windows**. Instrumentación de crash/cuelgue y bats de regresión ya en el repo. Detalle:
+`notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md`.
+
 | Fase | Estado | Nota |
 |---|---|---|
 | 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
 | 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
 | 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
-| 3. Render (RT64) | ✅ arranque/attract | RT64 **procesa DLs** (wiring OK) y renderiza logo/título/attract 3D (capturas `work/debug/port_shot_*.png`); falta el gameplay. Arranque corregido en dos tandas: (1) 4 MB de RDRAM, (2) **des-stubbing de la init de libultra** (ADR 0002: `osInitialize`, PI manager, VI, `__osEventStateTab`…). El port **no aborta** y su cadena de boot coincide con el emulador. **Desbloqueado (ADR 0003)**: subsistema VI generado del ROM (`osCreateViManager` + familia `osVi*`), runtime solo hardware (registros MMIO → RT64); `OSViContext` correcto, dispatcher 430/45 s, loader 10 módulos, **1359 DLs** a RT64, 0 símbolos faltantes. **Deadlock SP resuelto** (completaciones dirigidas al hilo emisor; dispatcher 3723/300 s, `[0x8005CD4C]` oscila) y **mapa task→hilo corregido** (audio dirigido a t18). Sigue en `fase=0` con **causa raíz identificada y primer hito hecho**: la transición del emulador (burst a t≈65 s, evento de módulo `0x7D`) depende del **ucode de audio**; su **aspMain ya está recompilado con `RSPRecomp` e integrado** (`port/HybridHeavenRecomp/rsp/hh_aspMain.cpp`, `config/rsp_hh_aspMain.toml`, registro en `hh::get_rsp_microcode`), corre sin errores y procesa los comandos reales (incluidos cmd `0x0E/0x0F`, targets `0x170C/0x144C` añadidos). **Fix del protocolo gfx/audio**: `sp_complete` del gfx en el submit + `HH_SP_SHARED` (cola compartida) ⇒ **~60 tasks/s con 0 yields**. **Resuelta la corrupción de contextos de audio** (cadena: burst de ticks → cola virtual sobre la ventana del driver → tamaño `s16` negativo ~4 GiB en `osAiSetNextBuffer` → `osAiGetLength` envenenado → command lists runaway que DMA sobre las voces): fixes en `ai.cpp` (ignorar byte_counts absurdos) y `support.cpp` (cola virtual acotada a ~1 VI); **300-420 s sin crash, ~18k tasks, voces intactas**. **Hitos (2026-09-14)**: **geometría y píxeles** — RT64 renderiza logo, título ("PRESS START BUTTON") y attract 3D (`work/debug/port_shot_*.png`); **menús y GAME START** — input headless por env (`HH_PRESS*`), menú principal → GAME START/DIFFICULTY/EXIT y **PFS mínimo de Controller Pak** (`pak.cpp`), con **escenas 3D in-game** (`work/debug/port_pak*.png`). Detalle: `notes/2026-09-14-geometria-pixeles.md`, `notes/2026-09-14-input-menus-controller-pak.md`. **Crash post-GAME START resuelto**: `fix_fallthroughs.py` mezclaba módulos con base compartida (23/24) y encadenaba `M24_FUN_801cc2c8` al destino equivocado; fix sección-consciente + extra `0x801E4AA4` ⇒ runs 250-300 s limpios con cutscenes 3D in-engine. **Callback del menú resuelto**: accesos no mapeados (punteros nulos tolerados por el emulador) → redirección segura en `MEM_*`/`TO_PTR` (`notes/2026-09-14-fix-callback-menu-punteros-no-mapeados.md`). **Frontera**: gameplay interactivo y cola del módulo 25 (`0x801FF260`). |
-| 4. Audio | en curso | ucode **aspMain del ROM** recompilado y corriendo (~60 tasks/s); sin crashes en 420 s. Falta la cadena de eventos de módulo (transición) |
+| 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
+| 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | pendiente | Controller Pak → disco |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
 | 7. Robustez/empaquetado | pendiente | 3 builds (Win/Linux/Deck) |
@@ -66,9 +74,9 @@ Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
 1. **Módulos de código dinámicos (`trans`)**: base del módulo de boot determinista (ADR 0001);
    riesgo residual = bases de módulos posteriores (aún no medibles).
 2. **Símbolos sin decompilación**: límites de Ghidra frágiles → mitigar con validador (TODO A3).
-3. **Cadena de eventos de módulo hasta la transición** (`0x7D`): el ucode de audio ya corre
-   (aspMain estándar recompilado); el bloqueo es la programación del motor de audio y los callbacks
-   del nodo `0x801D0474`.
+3. **Símbolos con fronteras mal acotadas** (datos absorbidos): causan stubs `do_break` silenciosos
+   (caso `M9_FUN_802169ac`, 2026-09-15). Mitigar con `0xADDR:0xSIZE` y revisando avisos
+   *"analysis failed (data absorbed...)"* del recompilador.
 4. **LZSS 5/7** del `trans`: bloqueante para módulos.
 5. **Efectos framebuffer / cinematografía**: verificar en RT64.
 6. **Rendimiento/multiplataforma**: RDRAM 32-bit BE + 3 backends.
@@ -100,6 +108,6 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Modelo de módulos caracterizado y ADR 0001 aceptado. Foco inmediato: **cadena de
-eventos de módulo / nodo `0x801D0474`** (work order `notes/2026-09-13-workorder-evento-modulo-0x7D.md`)
-para disparar la transición y llegar a geometría/píxeles.
+Ver **`TODO.md`**. Foco inmediato: **validar en Windows el fix del cuelgue del NPC** (módulo 9) y, si
+persiste, analizar el volcado del watchdog (`hh_hang.log` + `hh_pi.log`). Después: botón de los menús
+de combate para X, teardown SEGV al cerrar y validación del guardado contra el emulador.
