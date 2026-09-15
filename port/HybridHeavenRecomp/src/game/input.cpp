@@ -57,7 +57,8 @@ void hh::on_game_init(uint8_t* rdram, recomp_context* ctx) {
 }
 
 struct PadProfile {
-    n64_button a = A_BUTTON, b = Z_BUTTON, x = B_BUTTON, y = CUP_BUTTON;
+    // Y = C-DOWN: verificado con capturas que la vista en 1a persona es C-Down (C-Up no hace nada).
+    n64_button a = A_BUTTON, b = Z_BUTTON, x = B_BUTTON, y = CDOWN_BUTTON;
     n64_button lb = L_BUTTON, rb = R_BUTTON, back = B_BUTTON, start = START_BUTTON;
     n64_button dup = DUP_BUTTON, ddown = DDOWN_BUTTON, dleft = DLEFT_BUTTON, dright = DRIGHT_BUTTON;
     bool cstick = true;  // stick derecho -> botones C
@@ -144,12 +145,13 @@ static void hh_pad_write_template(FILE* f) {
         "# Hybrid Heaven Recomp - mapeo de mando (editable; se relee en cada arranque)\n"
         "# Valores: A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE\n"
         "# Contextos: [game] = exploracion/combate, [menu] = menus del juego (pausa/mapa).\n"
+        "# Y = CDOWN es la vista en primera persona (verificado); C-Up no hace nada.\n"
         "# El port detecta el menu automaticamente (flag de UI 0x802690D0).\n"
         "[game]\n"
         "a = A\n"
         "b = Z\n"
         "x = B\n"
-        "y = CUP\n"
+        "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
         "back = B\n"
@@ -165,7 +167,7 @@ static void hh_pad_write_template(FILE* f) {
         "a = A\n"
         "b = B\n"
         "x = B\n"
-        "y = CUP\n"
+        "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
         "back = B\n"
@@ -561,6 +563,7 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
 
         // Stick derecho -> botones C (SDL: derecha/abajo positivos; N64 +y = arriba).
+        // C-Down (vista en 1a persona) se deja SOLO en Y para no activarla sin querer con el stick.
         if (prof.cstick) {
             constexpr float C_THRESHOLD = 0.5f;
             float cx = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX));
@@ -568,7 +571,6 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             if (cx <= -C_THRESHOLD) input |= CLEFT_BUTTON;
             if (cx >= C_THRESHOLD) input |= CRIGHT_BUTTON;
             if (cy <= -C_THRESHOLD) input |= CUP_BUTTON;
-            if (cy >= C_THRESHOLD) input |= CDOWN_BUTTON;
         }
     }
 

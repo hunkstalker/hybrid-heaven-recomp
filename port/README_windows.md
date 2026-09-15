@@ -109,9 +109,9 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
 - **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
   (p. ej. `set HH_RES=2x`).
 - **Mando Xbox** (perfiles por contexto, 2026-09-15): en juego A = salto/acción; **B = agacharse**
-  (Z); **Back/Select = mapa** (B); **X = B** (menús de combate); **Y = C-Up** (1ª persona); Start =
-  START; LB = L; RB = apuntar (R); **stick derecho = botones C** (digital, umbral 0.5); cruceta =
-  D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). En
+  (Z); **Back/Select = mapa** (B); **X = B** (menús de combate); **Y = C-Down** (vista en 1ª persona,
+  verificado con capturas); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C**
+  (digital, umbral 0.5; no emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). En
   **menús** (pausa/mapa) el B físico pasa a ser **B del N64 (atrás/cancelar)** automáticamente.
   Libres: L3 y R3. El port imprime `[PAD]` al arrancar y `[PAD] contexto:` al entrar/salir de menús.
 
@@ -124,7 +124,7 @@ Junto al `.exe` (se crea solo en el primer arranque, editable con cualquier edit
 b = Z             ; B físico = agacharse
 back = B          ; Select = mapa
 x = B             ; X = menús de combate
-y = CUP
+y = CDOWN         ; vista en 1ª persona (verificado)
 cstick = on       ; stick derecho -> botones C
 [menu]            ; menús del juego (detección automática por el flag de UI 0x802690D0)
 b = B             ; B físico = atrás/cancelar
