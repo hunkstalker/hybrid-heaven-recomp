@@ -276,7 +276,10 @@ static bool hh_open_audio_device(uint32_t freq) {
     spec_desired.channels = static_cast<Uint8>(input_channels);
     spec_desired.samples = 0x400;
 
-    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, &spec_obtained, 0);
+    // ALLOW_FREQUENCY_CHANGE: WASAPI suele fijar 48k; SDL abre a la suya y convierte el flujo
+    // internamente (la app sigue enviando datos a sample_rate).
+    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, &spec_obtained,
+                                       SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
     if (audio_device == 0) {
         fprintf(stderr, "No audio device could be found: %s\n", SDL_GetError());
         return false;
@@ -286,6 +289,32 @@ static bool hh_open_audio_device(uint32_t freq) {
     fprintf(stderr, "Audio device: pedido %u Hz; obtenido %d Hz, %d ch\n",
             freq, spec_obtained.freq, spec_obtained.channels);
     return true;
+}
+
+// HH: diagnostico de audio siempre activo (ficheros en el CWD, tamano acotado). Permite ver
+// desde fuera la tasa efectiva de produccion, la cola y el estado del dispositivo.
+static void hh_audio_diag_log(size_t sample_count, size_t queued_frames, size_t reported_frames) {
+    static unsigned long calls = 0;
+    static unsigned long long samples = 0;
+    static double last_t = -1.0;
+    static unsigned long last_calls = 0;
+    static unsigned long long last_samples = 0;
+    calls++;
+    samples += sample_count;
+    static const auto diag_t0 = std::chrono::steady_clock::now();
+    const double now = std::chrono::duration<double>(
+        std::chrono::steady_clock::now() - diag_t0).count();
+    if (last_t < 0.0) { last_t = now; last_calls = 0; last_samples = 0; return; }
+    if (now - last_t < 1.0) return;
+    const double dt = now - last_t;
+    const double fps_eq = (double)(samples - last_samples) / 2.0 / dt;
+    if (FILE* f = fopen("hh_audio.log", "a")) {
+        fprintf(f, "t=%.2f calls/s=%.1f frames/s=%.0f queued=%zu reported=%zu rate=%u dev=%u\n",
+                now, (double)(calls - last_calls) / dt, fps_eq, queued_frames, reported_frames,
+                sample_rate, device_rate);
+        fclose(f);
+    }
+    last_t = now; last_calls = calls; last_samples = samples;
 }
 
 void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
@@ -318,33 +347,23 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
 
-    // HH_AUDIODUMP=<f>: volcar los buffers crudos de audio (diagnostico).
-    if (const char* dump = getenv("HH_AUDIODUMP")) {
-        if (dump != nullptr && *dump != '\0') {
-            static FILE* df = nullptr;
-            static size_t dtotal = 0;
-            if (df == nullptr && dtotal == 0) {
-                df = fopen(dump, "wb");
-                if (df != nullptr) fprintf(stderr, "[AUD] dump acumulativo en %s\n", dump);
-            }
-            if (df != nullptr && dtotal < (8u << 20)) {
-                fwrite(audio_data, 1, byte_len, df);
-                fflush(df);
-                dtotal += byte_len;
-                static FILE* tf = nullptr;
-                if (tf == nullptr) {
-                    std::string tp = std::string(dump) + ".txt";
-                    tf = fopen(tp.c_str(), "w");
-                }
-                if (tf != nullptr) {
-                    static const auto t0 = std::chrono::steady_clock::now();
-                    const double el = std::chrono::duration<double>(
-                        std::chrono::steady_clock::now() - t0).count();
-                    fprintf(tf, "%.4f %zu\n", el, sample_count);
-                    fflush(tf);
-                }
-                if (dtotal >= (8u << 20)) fprintf(stderr, "[AUD] dump completo (%zu bytes)\n", dtotal);
-            }
+    // Dump de audio siempre activo (acotado a 4 MB) en hh_audio_dump.bin del CWD, para poder
+    // analizar la tasa/formato real desde fuera. HH_AUDIODUMP=<f> cambia la ruta.
+    {
+        const char* dump_env = getenv("HH_AUDIODUMP");
+        const char* dump = (dump_env != nullptr && *dump_env != '\0') ? dump_env : "hh_audio_dump.bin";
+        static FILE* df = nullptr;
+        static size_t dtotal = 0;
+        static const char* dpath = nullptr;
+        if (dpath == nullptr) {
+            dpath = dump;
+            df = fopen(dpath, "wb");
+            if (df != nullptr) fprintf(stderr, "[AUD] dump en %s\n", dpath);
+        }
+        if (df != nullptr && dtotal < (4u << 20)) {
+            fwrite(audio_data, 1, byte_len, df);
+            fflush(df);
+            dtotal += byte_len;
         }
     }
 
@@ -374,6 +393,13 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
 
     // SDL convierte internamente al formato real del dispositivo.
     SDL_QueueAudio(audio_device, audio_data, static_cast<Uint32>(byte_len));
+
+    {
+        const size_t queued = static_cast<size_t>(
+            SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame);
+        const size_t cap = 900;
+        hh_audio_diag_log(sample_count, queued, queued < cap ? queued : cap);
+    }
 }
 
 size_t hh::get_frames_remaining() {
@@ -383,8 +409,10 @@ size_t hh::get_frames_remaining() {
     }
     const size_t queued = static_cast<size_t>(
         SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame);
-    // El N64 (y la formula del juego) solo maneja ~1-2 VI de cola.
-    const size_t cap = static_cast<size_t>(sample_rate / 60);
+    // El juego realimenta el tamano del siguiente buffer con osAiGetLength; hay que reportar la
+    // cola real (no ocultarla) para que se autorregule. Limite seguro por debajo del wrap del
+    // juego: len/4 > 0x3E0 (992) -> tamano negativo. Usamos 900.
+    const size_t cap = 900;
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
     if (qlog != nullptr && *qlog != '\0') {

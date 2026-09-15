@@ -93,10 +93,10 @@ index 748558c..9b9a59e 100644
          MEM_B(0, (int64_t)(int32_t)(dram_addr + i + 0x80000000)) = RSP_MEM_B(i, dmem_addr);
      }
 diff --git a/librecomp/src/ai.cpp b/librecomp/src/ai.cpp
-index 0195f2b..1e45e5a 100644
+index 0195f2b..bf4e6b9 100644
 --- a/librecomp/src/ai.cpp
 +++ b/librecomp/src/ai.cpp
-@@ -1,27 +1,71 @@
+@@ -1,27 +1,75 @@
  #include "recomp.h"
  #include <cstdio>
 +#include <chrono>
@@ -133,9 +133,13 @@ index 0195f2b..1e45e5a 100644
 +        uint32_t dacrate = *(uint32_t*)&rdram[0x24500004];
 +        uint32_t freq;
 +        if (dacrate == 0 || dacrate == 0xFFFFFFFFu) {
-+            // Mupen/hardware: con AI_DACRATE sin programar, la frecuencia por defecto es 44100 Hz.
-+            // Este juego no escribe el registro (kseg1 dac=0); asumir 48000 daba audio ~9% rapido.
-+            freq = 44100;
++            // El juego no programa AI_DACRATE y produce 720 frames por VI: a 60 VI/s eso son
++            // 43200 Hz exactos. (Mupen usa 44100 por defecto, que deja un deficit del 2% ->
++            // huecos/petardeo.) Configurable con HH_AI_RATE=<hz>.
++            const char* rate_env = getenv("HH_AI_RATE");
++            freq = (rate_env != nullptr && *rate_env != '\0')
++                       ? (uint32_t)strtoul(rate_env, nullptr, 10) : 43200u;
++            if (freq == 0) freq = 43200u;
 +        }
 +        else {
 +            freq = (uint32_t)((double)VI_NTSC_CLOCK / (double)(dacrate + 1) + 0.5);
