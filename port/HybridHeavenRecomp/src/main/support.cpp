@@ -338,6 +338,22 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
 
     std::memcpy(audio_cvt_buffer.data(), audio_data, byte_len);
 
+    // Referencia (mismo motor Konami): goemon64recomp/Zelda64Recomp intercambian los CANALES
+    // ("to correct for the address xor caused by endianness handling"); las muestras en si ya
+    // estan en orden de host. Sin esto el audio suena a ruido/petardeo.
+    if (input_channels >= 2) {
+        int16_t* samples = reinterpret_cast<int16_t*>(audio_cvt_buffer.data());
+        const size_t frame_count = byte_len / (input_channels * sizeof(int16_t));
+        for (size_t f = 0; f < frame_count; f++) {
+            int16_t* fr = samples + f * input_channels;
+            for (uint32_t c = 1; c < input_channels; c += 2) {
+                int16_t tmp = fr[c - 1];
+                fr[c - 1] = fr[c];
+                fr[c] = tmp;
+            }
+        }
+    }
+
     if (!convert) {
         // Sin conversor valido: encolar tal cual (evita usar len_ratio=0).
         SDL_QueueAudio(audio_device, audio_cvt_buffer.data(), static_cast<Uint32>(byte_len));
