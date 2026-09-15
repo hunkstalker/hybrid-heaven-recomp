@@ -85,13 +85,14 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
 ### Grabar y reproducir una partida (depuración determinista)
 
 ```bat
-REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash:
-set HH_RECORD=mi_partida.txt
+REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash.
+REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build_win\bin\Debug).
+set HH_RECORD=E:\mi_partida.txt
 Hybrid Heaven Recomp.exe
 
 REM 2) Reproducirla después (sin mando): el port mete exactamente el input grabado
 set HH_RECORD=
-set HH_REPLAY=mi_partida.txt
+set HH_REPLAY=E:\mi_partida.txt
 Hybrid Heaven Recomp.exe
 ```
 
