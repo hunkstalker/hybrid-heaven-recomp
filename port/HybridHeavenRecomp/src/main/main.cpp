@@ -1,4 +1,14 @@
 #include <cinttypes>
+#include <chrono>
+#include <atomic>
+#include <thread>
+
+// Necesarios antes de los handlers de crash (pid para nombres de volcado unicos).
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -112,6 +122,8 @@ static void install_crash_handlers() {
 extern uint8_t dmem[0x1000];
 extern "C" uint64_t hh_get_vi_count(void);
 extern "C" recomp_context* hh_get_current_ctx(void);
+extern "C" int hh_get_thread_ctxs(recomp_context** out, int max);
+extern "C" unsigned long long hh_get_input_polls(void);
 
 static void hh_dump_guest_regs(FILE* f) {
     recomp_context* c = hh_get_current_ctx();
@@ -136,12 +148,28 @@ static void hh_dump_guest_regs(FILE* f) {
 }
 
 // Volcados grandes (RDRAM 8 MB y DMEM 4 KB). En Windows por trozos con SEH para tolerar memoria
-// corrupta; en Linux de una vez.
-static void hh_dump_rdram_dmem(FILE* f) {
+// corrupta; en Linux de una vez. `base` = prefijo ("hh_crash" o "hh_hang").
+static unsigned long hh_process_id() {
+#ifdef _WIN32
+    return (unsigned long)GetCurrentProcessId();
+#else
+    return (unsigned long)getpid();
+#endif
+}
+
+static void hh_dump_rdram_dmem(FILE* f, const char* base) {
+    // Nombre unico por volcado: si dos hilos crashean a la vez, el segundo truncaba a 0 el fichero
+    // del primero (fopen "wb") y perdiamos el estado.
+    static std::atomic<unsigned long> hh_dump_seq{0};
+    char path_rdram[192];
+    char path_dmem[192];
+    const unsigned long seq = hh_dump_seq.fetch_add(1);
+    snprintf(path_rdram, sizeof(path_rdram), "%s_rdram_%lu_%lu.bin", base, hh_process_id(), seq);
+    snprintf(path_dmem, sizeof(path_dmem), "%s_dmem_%lu_%lu.bin", base, hh_process_id(), seq);
     uint8_t* rdram = hh::get_game_rdram();
     if (rdram != nullptr) {
 #ifdef _WIN32
-        FILE* d = fopen("hh_crash_rdram.bin", "wb");
+        FILE* d = fopen(path_rdram, "wb");
         size_t total = 0;
         if (d != nullptr) {
             constexpr size_t kChunk = 256u * 1024u;
@@ -157,20 +185,20 @@ static void hh_dump_rdram_dmem(FILE* f) {
                 }
             }
             fclose(d);
-            fprintf(f, "[CRASH] hh_crash_rdram.bin escrito: %zu bytes\n", total);
+            fprintf(f, "[HH] %s escrito: %zu bytes\n", path_rdram, total);
         }
 #else
-        FILE* d = fopen("hh_crash_rdram.bin", "wb");
+        FILE* d = fopen(path_rdram, "wb");
         if (d != nullptr) {
             fwrite(rdram, 1, 8u * 1024u * 1024u, d);
             fclose(d);
-            fprintf(f, "[CRASH] hh_crash_rdram.bin escrito\n");
+            fprintf(f, "[HH] %s escrito\n", path_rdram);
         }
 #endif
     } else {
         fprintf(f, "[CRASH] rdram no disponible (crash durante el arranque?)\n");
     }
-    FILE* d2 = fopen("hh_crash_dmem.bin", "wb");
+    FILE* d2 = fopen(path_dmem, "wb");
     if (d2 != nullptr) { fwrite(dmem, 1, 0x1000, d2); fclose(d2); }
 }
 
@@ -186,9 +214,89 @@ extern "C" void hh_port_crash_dump(uint32_t n64_addr) {
             n64_addr, (unsigned long long)hh_get_vi_count());
     hh_dump_guest_regs(f);
     fflush(f);
-    hh_dump_rdram_dmem(f);
+    hh_dump_rdram_dmem(f, "hh_crash");
     fflush(f);
     fclose(f);
+}
+
+// ===== Watchdog de cuelgue =====
+// Si el juego deja de pedir input (latido real del hilo de juego; el VI es de reloj y avanza
+// aunque el juego este colgado) durante N segundos (HH_HANG_SECS, por defecto 15), vuelca
+// hh_hang.log (contexto MIPS de cada hilo: RA/SP = donde esta bloqueado) y hh_hang_rdram.bin.
+static void hh_hang_watchdog() {
+    const char* env = getenv("HH_HANG_SECS");
+    const double limit = (env != nullptr && *env != '\0') ? strtod(env, nullptr) : 15.0;
+    // HH_HANG_FORCE=<s>: vuelca una vez pasados s segundos aunque no haya cuelgue (prueba del watchdog).
+    const char* fenv = getenv("HH_HANG_FORCE");
+    const double force = (fenv != nullptr && *fenv != '\0') ? strtod(fenv, nullptr) : 0.0;
+    fprintf(stderr, "[HANG] watchdog activo (limite %.0fs%s)\n", limit,
+            force > 0.0 ? ", force-test" : "");
+    std::thread([limit, force] {
+        using namespace std::chrono_literals;
+        const auto start = std::chrono::steady_clock::now();
+        unsigned long long last_polls = hh_get_input_polls();
+        auto last_change = start;
+        bool dumped = false;
+        bool forced_done = false;
+        while (true) {
+            std::this_thread::sleep_for(1s);
+            unsigned long long polls = hh_get_input_polls();
+            unsigned long long vi = hh_get_vi_count();
+            auto now = std::chrono::steady_clock::now();
+            if (force > 0.0 && !forced_done &&
+                std::chrono::duration<double>(now - start).count() >= force) {
+                forced_done = true;
+                dumped = true;
+                FILE* f = fopen("hh_hang.log", "a");
+                if (f == nullptr) continue;
+                fprintf(f, "=== HH cuelgue (forzado por HH_HANG_FORCE=%.0f) VI=%llu ===\n", force, vi);
+                recomp_context* ctxs[32];
+                int n = hh_get_thread_ctxs(ctxs, 32);
+                fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
+                for (int i = 0; i < n; i++) {
+                    recomp_context* c = ctxs[i];
+                    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X r4=%08X r5=%08X r6=%08X r7=%08X r2=%08X\n",
+                            i, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30,
+                            (uint32_t)c->r4, (uint32_t)c->r5, (uint32_t)c->r6, (uint32_t)c->r7,
+                            (uint32_t)c->r2);
+                }
+                fflush(f);
+                hh_dump_rdram_dmem(f, "hh_hang");
+                fflush(f);
+                fclose(f);
+                fprintf(stderr, "[HANG] volcado forzado escrito (VI=%llu)\n", vi);
+                continue;
+            }
+            if (polls != last_polls) {
+                last_polls = polls;
+                last_change = now;
+                dumped = false;
+                continue;
+            }
+            const double stuck = std::chrono::duration<double>(now - last_change).count();
+            if (!dumped && polls > 0 && stuck >= limit) {
+                dumped = true;
+                FILE* f = fopen("hh_hang.log", "a");
+                if (f == nullptr) continue;
+                fprintf(f, "=== HH cuelgue: sin input polls durante %.1fs (VI=%llu) ===\n", stuck, vi);
+                recomp_context* ctxs[32];
+                int n = hh_get_thread_ctxs(ctxs, 32);
+                fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
+                for (int i = 0; i < n; i++) {
+                    recomp_context* c = ctxs[i];
+                    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X r4=%08X r5=%08X r6=%08X r7=%08X r2=%08X\n",
+                            i, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30,
+                            (uint32_t)c->r4, (uint32_t)c->r5, (uint32_t)c->r6, (uint32_t)c->r7,
+                            (uint32_t)c->r2);
+                }
+                fflush(f);
+                hh_dump_rdram_dmem(f, "hh_hang");
+                fflush(f);
+                fclose(f);
+                fprintf(stderr, "[HANG] volcado escrito tras %.1fs sin polls de input (VI=%llu)\n", stuck, vi);
+            }
+        }
+    }).detach();
 }
 
 #ifndef _WIN32
@@ -224,7 +332,7 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
                     (unsigned long long)((char*)rip - (char*)di.dli_fbase));
             hh_dump_guest_regs(f);
             fflush(f);
-            hh_dump_rdram_dmem(f);
+            hh_dump_rdram_dmem(f, "hh_crash");
             fclose(f);
         }
     }
@@ -281,7 +389,7 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
                         (unsigned long long)c->R14, (unsigned long long)c->R15);
             }
             hh_dump_guest_regs(f);
-            hh_dump_rdram_dmem(f);
+            hh_dump_rdram_dmem(f, "hh_crash");
             fflush(f);
             fclose(f);
         }
@@ -408,6 +516,7 @@ int main(int argc, char** argv) {
     recomp::start_game(game_id, "");
     hh::log("start_game issued\n");
 
+    hh_hang_watchdog();
     hh::log("calling recomp::start\n");
     recomp::start(configuration);
     hh::log("recomp::start returned\n");

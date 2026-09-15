@@ -113,6 +113,11 @@ En el CWD (junto al `.exe`) se escriben solos, en cada crash:
 Con eso puedo inspeccionar el estado del juego en el crash sin reproducirlo. Si el fallo fue por un
 símbolo ausente, `hh_missing.log` (también junto al `.exe`) lista las `Failed to find function at 0x...`.
 
+**Cuelgues (ventana congelada)**: si el juego deja de pedir input durante 15 s (`HH_HANG_SECS` para
+cambiarlo), un watchdog escribe `hh_hang.log` (contexto MIPS de cada hilo: argumentos y SP = dónde
+está bloqueado cada uno) y `hh_hang_rdram_<pid>_<n>.bin` (8 MB). Deja la ventana congelada ~20 s
+antes de cerrarla para que dé tiempo al volcado.
+
 ## 4. Estado actual esperado (2026-09-14, tarde)
 
 - **GAME START funciona**: al pulsar START → GAME START el juego carga los overlays de código

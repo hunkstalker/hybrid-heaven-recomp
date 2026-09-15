@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cctype>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -505,8 +506,17 @@ static void hh_record_write(double elapsed, n64_button buttons, float x, float y
     }
 }
 
+static std::atomic<unsigned long long> hh_input_polls{0};
+
+extern "C" unsigned long long hh_get_input_polls() {
+    return hh_input_polls.load();
+}
+
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     static bool cfg_logged = false;
+    if (controller_num == 0) {
+        hh_input_polls.fetch_add(1, std::memory_order_relaxed);
+    }
     hh_pad_config_load();
     if (!cfg_logged && controller_num == 0) {
         cfg_logged = true;
