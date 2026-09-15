@@ -245,3 +245,18 @@ Con `hh_mq_all.log` + `hh_evt.log` (nuevos, opt-in `HH_MQLOG_ALL=1`, ver `port/r
   **escaneo de la pila** del hilo que esta corriendo, todo en el volcado del watchdog.
 - Siguiente paso: un repro mas con `run_mqlog.bat` -> el volcado dira **que hilo esta en RUNNING**
   (el que no cede) y sus **ultimas llamadas** (su bucle) -> identificar la funcion culpable.
+
+### Ronda 12b: callrings + puntero de hilo en el drain
+
+- El ring de llamadas por hilo funciona (todas las llamadas pasan por `get_function`). En el repro:
+  - main (tid 5): bucle `osRecvMesg(C288) -> FUN_8000290C -> FUN_80001BB0` (estado de "caida/dano":
+    NO llama a `FUN_80001454`, que es quien hace el poll de input -> por eso `polls` se congela
+    aunque el juego siga procesando mensajes ~15 s mas).
+  - viMgrMain (ctx3): bloqueado en `CE920` (esperando el evento VI).
+  - tid 3: audio (`osAiGetLength`), tid 16: `osViSwapBuffer`, tid 17/18: tareas SP, tid 19: dev-manager.
+- El `ctx0` (hilo de boot, entry `0x80001124`) es un **contexto colgante** (la lambda del entrypoint
+  lo registra y su scope muere): sus registros son basura de pila; NO usarlo para diagnosticar.
+- La traza de colas se para a t=82.17 (el main recibe el ultimo `C4B0`); el VI sigue entregando
+  (`vi-deliver-ok` continua) y `pending_ext_msgs=0`. Los `drain` (inyeccion de mensajes externos en
+  colas guest) eran lo que mantenia la cadena; ahora la traza registra `drain ... thr=` para
+  identificar sin ambiguedad el hilo que drena (mapeable con `create tid=.. t=..` de `hh_sched.log`).
