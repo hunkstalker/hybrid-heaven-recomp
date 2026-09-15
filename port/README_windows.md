@@ -67,6 +67,12 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
 - **`boot.log`** → junto al `.exe` — arranque y cualquier `Failed to find function at 0x...`.
 - Capturas: `PrtScr` o cualquier grabador; RT64 también admite `RT64_*` envs si hace falta.
 
+## 3b. Grabar una partida (para reproducir el crash)
+
+Doble clic a **`port\run_windows.bat`**: graba tu partida automáticamente en
+`hybrid-heaven-recomp\tests\mi_partida.txt` (no hay que configurar nada). Juega hasta que crashee y
+envía ese `.txt`. El replay en el contenedor es determinista (RMSE=0).
+
 ## 4. Estado actual esperado (2026-09-14, tarde)
 
 - **GAME START funciona**: al pulsar START → GAME START el juego carga los overlays de código
