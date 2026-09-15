@@ -107,9 +107,33 @@ static void install_crash_handlers() {
 }
 #endif
 
-// Simbolos del runtime para los volcados de crash (RSP DMEM y contador de VI).
+// Simbolos del runtime para los volcados de crash (RSP DMEM, contador de VI y contexto MIPS del
+// hilo de juego en ejecucion).
 extern uint8_t dmem[0x1000];
 extern "C" uint64_t hh_get_vi_count(void);
+extern "C" recomp_context* hh_get_current_ctx(void);
+
+static void hh_dump_guest_regs(FILE* f) {
+    recomp_context* c = hh_get_current_ctx();
+    if (c == nullptr) {
+        fprintf(f, "[CRASH] guest ctx no disponible (hilo fuera del juego?)\n");
+        return;
+    }
+    fprintf(f, "[CRASH] guest r31/ra=%08X r29/sp=%08X r30/fp=%08X r28/gp=%08X\n",
+            (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30, (uint32_t)c->r28);
+    fprintf(f, "[CRASH] guest r4=%08X r5=%08X r6=%08X r7=%08X r2=%08X r3=%08X\n",
+            (uint32_t)c->r4, (uint32_t)c->r5, (uint32_t)c->r6, (uint32_t)c->r7,
+            (uint32_t)c->r2, (uint32_t)c->r3);
+    fprintf(f, "[CRASH] guest r8=%08X r9=%08X r10=%08X r11=%08X r12=%08X r13=%08X r14=%08X r15=%08X\n",
+            (uint32_t)c->r8, (uint32_t)c->r9, (uint32_t)c->r10, (uint32_t)c->r11,
+            (uint32_t)c->r12, (uint32_t)c->r13, (uint32_t)c->r14, (uint32_t)c->r15);
+    fprintf(f, "[CRASH] guest r16=%08X r17=%08X r18=%08X r19=%08X r20=%08X r21=%08X r22=%08X r23=%08X\n",
+            (uint32_t)c->r16, (uint32_t)c->r17, (uint32_t)c->r18, (uint32_t)c->r19,
+            (uint32_t)c->r20, (uint32_t)c->r21, (uint32_t)c->r22, (uint32_t)c->r23);
+    fprintf(f, "[CRASH] guest r24=%08X r25=%08X r26=%08X r27=%08X hi=%08X lo=%08X\n",
+            (uint32_t)c->r24, (uint32_t)c->r25, (uint32_t)c->r26, (uint32_t)c->r27,
+            (uint32_t)c->hi, (uint32_t)c->lo);
+}
 
 #ifndef _WIN32
 #include <csignal>
@@ -142,6 +166,7 @@ static void hh_segv_handler(int sig, siginfo_t* info, void* uctx) {
                     (unsigned long long)hh_get_vi_count());
             if (di.dli_fname != nullptr) fprintf(f, "[CRASH] modulo: %s +0x%llX\n", di.dli_fname,
                     (unsigned long long)((char*)rip - (char*)di.dli_fbase));
+            hh_dump_guest_regs(f);
             fflush(f); fclose(f);
         }
         uint8_t* rdram = hh::get_game_rdram();
@@ -204,17 +229,28 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
                         (unsigned long long)c->R12, (unsigned long long)c->R13,
                         (unsigned long long)c->R14, (unsigned long long)c->R15);
             }
+            hh_dump_guest_regs(f);
             uint8_t* rdram = hh::get_game_rdram();
             if (rdram != nullptr) {
-                __try {
-                    FILE* d = fopen("hh_crash_rdram.bin", "wb");
-                    if (d != nullptr) {
-                        fwrite(rdram, 1, 8u * 1024u * 1024u, d);
-                        fclose(d);
-                        fprintf(f, "[CRASH] hh_crash_rdram.bin escrito\n");
+                // Volcado por trozos de 256 KB con flush por trozo: si la memoria del juego esta
+                // tocada, se conserva todo lo valido (antes un unico fwrite de 8 MB podia quedar a 0).
+                FILE* d = fopen("hh_crash_rdram.bin", "wb");
+                size_t total = 0;
+                if (d != nullptr) {
+                    constexpr size_t kChunk = 256u * 1024u;
+                    constexpr size_t kTotal = 8u * 1024u * 1024u;
+                    for (size_t off = 0; off < kTotal; off += kChunk) {
+                        __try {
+                            fwrite(rdram + off, 1, kChunk, d);
+                            fflush(d);
+                            total += kChunk;
+                        } __except (EXCEPTION_EXECUTE_HANDLER) {
+                            fprintf(f, "[CRASH] rdram: fallo en offset 0x%zX\n", off);
+                            break;
+                        }
                     }
-                } __except (EXCEPTION_EXECUTE_HANDLER) {
-                    fprintf(f, "[CRASH] fallo al volcar RDRAM\n");
+                    fclose(d);
+                    fprintf(f, "[CRASH] hh_crash_rdram.bin escrito: %zu bytes\n", total);
                 }
             } else {
                 fprintf(f, "[CRASH] rdram no disponible (crash durante el arranque?)\n");

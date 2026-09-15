@@ -1239,7 +1239,7 @@ index 43509ba..15a27ee 100644
          if (physical_addr >= recomp::rom_base) {
              // read cart rom
 diff --git a/librecomp/src/recomp.cpp b/librecomp/src/recomp.cpp
-index dea4176..5de73b5 100644
+index dea4176..59b48b9 100644
 --- a/librecomp/src/recomp.cpp
 +++ b/librecomp/src/recomp.cpp
 @@ -56,14 +56,16 @@ std::mutex current_game_mutex;
@@ -1286,16 +1286,34 @@ index dea4176..5de73b5 100644
      assert(false);
      exit(EXIT_FAILURE);
  }
-@@ -541,7 +548,7 @@ std::optional<std::u8string> current_game = std::nullopt;
+@@ -540,8 +547,15 @@ std::string current_game_mode_id;
+ std::optional<std::u8string> current_game = std::nullopt;
  std::atomic<GameStatus> game_status = GameStatus::None;
  
++// HH: contexto de registros MIPS del hilo de juego en ejecucion (para volcados de crash).
++static thread_local recomp_context* hh_current_ctx = nullptr;
++
++extern "C" recomp_context* hh_get_current_ctx() {
++    return hh_current_ctx;
++}
++
  void run_thread_function(uint8_t* rdram, uint64_t addr, uint64_t sp, uint64_t arg) {
 -    fprintf(stderr, "[RT] thread addr=0x%llx sp=0x%llx arg=0x%llx rdram=%p\n",
 +    HH_LOG("[RT] thread addr=0x%llx sp=0x%llx arg=0x%llx rdram=%p\n",
          (unsigned long long)addr, (unsigned long long)sp, (unsigned long long)arg, (void*)rdram);
      auto find_it = game_roms.find(current_game.value());
      const recomp::GameEntry& game_entry = find_it->second;
-@@ -600,7 +607,7 @@ void init(uint8_t* rdram, recomp_context* ctx, gpr entrypoint) {
+@@ -557,7 +571,9 @@ void run_thread_function(uint8_t* rdram, uint64_t addr, uint64_t sp, uint64_t ar
+     }
+ 
+     recomp_func_t* func = get_function(addr);
++    hh_current_ctx = &ctx;
+     func(rdram, &ctx);
++    hh_current_ctx = nullptr;
+ }
+ 
+ void init(uint8_t* rdram, recomp_context* ctx, gpr entrypoint) {
+@@ -600,7 +616,7 @@ void init(uint8_t* rdram, recomp_context* ctx, gpr entrypoint) {
      MEM_W(osTvType, 0) = 1; // NTSC
      MEM_W(osRomBase, 0) = 0xB0000000u; // standard rom base
      MEM_W(osResetType, 0) = 0; // cold reset
@@ -1304,6 +1322,16 @@ index dea4176..5de73b5 100644
  }
  
  std::u8string recomp::current_game_id() {
+@@ -880,7 +896,9 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
+                     // spawns (via osStartThread from a NULL thread_self) cannot run concurrently with
+                     // it; they block on the lock until the entrypoint returns and releases it.
+                     ultramodern::acquire_game_lock();
++                    hh_current_ctx = context;
+                     game_entry.entrypoint(rdram, context);
++                    hh_current_ctx = nullptr;
+                     ultramodern::release_game_lock();
+                     boot_log("Entrypoint returned\n");
+                 } catch (ultramodern::thread_terminated& terminated) {
 diff --git a/librecomp/src/rsp.cpp b/librecomp/src/rsp.cpp
 index 1cb3f6a..86b9b90 100644
 --- a/librecomp/src/rsp.cpp

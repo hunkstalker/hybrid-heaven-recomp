@@ -8,6 +8,8 @@ if(MSVC)
     # Required for correct recompiled function callbacks.
     add_compile_options(/EHsc)
     add_link_options(/SUBSYSTEM:CONSOLE)
+    # Mapa de enlazado: permite resolver un crash "exe+0xNNNN" a la funcion recompilada.
+    add_link_options("/MAP:${CMAKE_BINARY_DIR}/HybridHeavenRecomp-$<CONFIG>.map")
 else()
     # Recompiled MIPS code needs x64 baseline instructions.
     # SSSE3 lo requiere la implementacion VU del runtime RSP (rsp_vu_impl.hpp, _mm_shuffle_epi8).
