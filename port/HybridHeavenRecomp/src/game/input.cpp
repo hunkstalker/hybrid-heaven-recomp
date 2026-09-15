@@ -250,8 +250,18 @@ static void hh_record_write(double elapsed, n64_button buttons, float x, float y
     if (!tried) {
         tried = true;
         const char* path = getenv("HH_RECORD");
-        if (path != nullptr && *path != '\0') fp = fopen(path, "w");
-        if (fp != nullptr) fprintf(stderr, "[RECORD] grabando input en %s\n", path);
+        if (path == nullptr || *path == '\0') {
+            fprintf(stderr, "[RECORD] HH_RECORD vacio: no se graba\n");
+        }
+        else {
+            fp = fopen(path, "w");
+            if (fp != nullptr) {
+                fprintf(stderr, "[RECORD] grabando input en '%s'\n", path);
+            }
+            else {
+                fprintf(stderr, "[RECORD] ERROR: no se pudo abrir '%s' (ruta invalida o sin permiso)\n", path);
+            }
+        }
     }
     if (fp != nullptr) {
         fprintf(fp, "%.4f %04X %.4f %.4f\n", elapsed, (unsigned)buttons, x, y);
