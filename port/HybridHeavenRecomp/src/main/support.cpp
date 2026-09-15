@@ -305,11 +305,33 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
                     audio_convert.len_ratio, (int)convert);
         }
     }
-    const size_t needed = convert
-        ? static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1
-        : byte_len;
+    // El buffer debe caber SIEMPRE la entrada (byte_len) y, si hay conversion, la salida.
+    // Antes, con len_ratio < 1 (dispositivo a menos Hz que el juego) el buffer quedaba MAS
+    // pequeno que byte_len y el memcpy desbordaba el heap (crash en ntdll).
+    size_t needed = byte_len;
+    if (convert) {
+        const size_t conv_needed = static_cast<size_t>(byte_len * audio_convert.len_ratio) + 32;
+        if (conv_needed > needed) {
+            needed = conv_needed;
+        }
+    }
     if (audio_cvt_buffer.size() < needed) {
         audio_cvt_buffer.resize(needed);
+    }
+
+    // Backpressure: si ya hay mas de ~2 s encolados, descartar (evita crecimientos enormes).
+    {
+        const Uint32 queued = SDL_GetQueuedAudioSize(audio_device);
+        const Uint32 limit = output_sample_rate * output_channels * sizeof(int16_t) * 2u;
+        if (queued > limit) {
+            if (getenv("HH_AUDIOLOG") != nullptr) {
+                static int hh_drop_n = 0;
+                if (hh_drop_n++ < 10) {
+                    fprintf(stderr, "[AUD] cola llena (%u bytes): se descarta buffer\n", queued);
+                }
+            }
+            return;
+        }
     }
 
     std::memcpy(audio_cvt_buffer.data(), audio_data, byte_len);
