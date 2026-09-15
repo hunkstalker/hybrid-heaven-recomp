@@ -1539,7 +1539,7 @@ index eba6524..0bb75ed 100644
  void wait_for_external_message_timed(RDRAM_ARG1, u32 millis);
  
 diff --git a/ultramodern/src/events.cpp b/ultramodern/src/events.cpp
-index 2e47068..ae2a042 100644
+index 2e47068..87879ec 100644
 --- a/ultramodern/src/events.cpp
 +++ b/ultramodern/src/events.cpp
 @@ -26,8 +26,13 @@ void ultramodern::events::set_callbacks(const ultramodern::events::callbacks_t&
@@ -1565,7 +1565,7 @@ index 2e47068..ae2a042 100644
  
      switch (event_id) {
          case OS_EVENT_SP:
-@@ -176,19 +181,47 @@ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_,
+@@ -176,19 +181,50 @@ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_,
              events_context.vi_event.mq = mq_;
              break;
      }
@@ -1590,6 +1590,9 @@ index 2e47068..ae2a042 100644
  
  uint64_t total_vis = 0;
  
++// HH: contador de VI (frames de juego) expuesto para el replay determinista de input.
++extern "C" uint64_t hh_get_vi_count(void) { return total_vis; }
++
 +// ADR 0003: el OSViContext y los registros VI los mantiene libultra del ROM
 +// (viMgrMain -> __osViSwapContext). El runtime solo lee el bloque de registros MMIO
 +// (KSEG1 0x04400000) para alimentar ViRegs/RT64. Devuelve false mientras el ROM no los
@@ -1621,7 +1624,7 @@ index 2e47068..ae2a042 100644
  
  extern std::atomic_bool exited;
  extern moodycamel::LightweightSemaphore graphics_shutdown_ready;
-@@ -202,8 +235,6 @@ void vi_thread_func() {
+@@ -202,8 +238,6 @@ void vi_thread_func() {
      ultramodern::set_native_thread_priority(ultramodern::ThreadPriority::Critical);
      using namespace std::chrono_literals;
  
@@ -1630,7 +1633,7 @@ index 2e47068..ae2a042 100644
      while (!exited) {
          // Determine the next VI time (more accurate than adding 16ms each VI interrupt)
          auto next = ultramodern::get_start() + (total_vis * 1000000us) / (60 * ultramodern::get_speed_multiplier());
-@@ -242,39 +273,144 @@ void vi_thread_func() {
+@@ -242,39 +276,144 @@ void vi_thread_func() {
          // Doing this before the VI update is equivalent to updating the screen after the previous frame's scanout finished.
          events_context.action_queue.enqueue(ScreenUpdateAction{ events_context.vi.regs });
  
@@ -1794,7 +1797,7 @@ index 2e47068..ae2a042 100644
                  ultramodern::enqueue_external_message_src(events_context.ai.mq, events_context.ai.msg, false, ultramodern::EventMessageSource::Ai);
              }
          }
-@@ -285,16 +421,32 @@ void vi_thread_func() {
+@@ -285,16 +424,32 @@ void vi_thread_func() {
      }
  }
  
@@ -1831,7 +1834,7 @@ index 2e47068..ae2a042 100644
  }
  
  void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_ready) {
-@@ -312,6 +464,19 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+@@ -312,6 +467,19 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
          if (task == nullptr) {
              return;
          }
@@ -1851,7 +1854,7 @@ index 2e47068..ae2a042 100644
  
          // Execute the RSP task. Tasks without a registered ucode (p. ej. audio, M_AUDTASK=2) se
          // tratan como no-op: se completa igualmente para que el juego avance (audio dummy).
-@@ -320,12 +485,13 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+@@ -320,12 +488,13 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
              uint32_t t = static_cast<uint32_t>(task->t.type);
              if (t < 64 && !warned[t]) {
                  warned[t] = true;
@@ -1868,7 +1871,7 @@ index 2e47068..ae2a042 100644
      }
  }
  
-@@ -399,7 +565,6 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+@@ -399,7 +568,6 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
                  // start another graphics task until the RDP is also complete. Games usually preserve the RSP inputs until the RDP
                  // is finished as well, so sending this early shouldn't be an issue in most cases.
                  // If this causes issues then the logic can be replaced with responding to yield requests.
@@ -1876,7 +1879,7 @@ index 2e47068..ae2a042 100644
                  ultramodern::measure_input_latency();
  
                  PTR(u64) displaylist = task_action->task.t.data_ptr;
-@@ -409,7 +574,7 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+@@ -409,7 +577,7 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
                  renderer_context->send_dl(&task_action->task);
                  [[maybe_unused]] auto renderer_end = std::chrono::high_resolution_clock::now();
  
@@ -1885,7 +1888,7 @@ index 2e47068..ae2a042 100644
                  // TODO hook the parsed event up to the actual parsing point when a callback is added to RT64.
                  ultramodern::extensions::on_displaylist_parsed(displaylist);
                  ultramodern::extensions::on_displaylist_completed(displaylist);
-@@ -490,77 +655,9 @@ void set_dummy_vi(bool odd) {
+@@ -490,77 +658,9 @@ void set_dummy_vi(bool odd) {
      }
  }
  
@@ -1966,7 +1969,7 @@ index 2e47068..ae2a042 100644
  
  extern "C" void osViRepeatLine(uint8_t active) {
      std::lock_guard lock{ events_context.message_mutex };
-@@ -585,25 +682,33 @@ extern "C" void osViSetYScale(float scale) {
+@@ -585,25 +685,33 @@ extern "C" void osViSetYScale(float scale) {
      }
  }
  

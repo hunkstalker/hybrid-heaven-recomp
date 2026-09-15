@@ -43,6 +43,20 @@ git apply ..\..\..\..\windows_runtime_changes.patch
 > Si no aplica limpio (base distinta), copia los archivos modificados que lista el patch
 > (`librecomp/src/*`, `librecomp/include/librecomp/*`, `ultramodern/src/*`, `ultramodern/include/...`).
 
+## 1b. Reparar el runtime si algo falla al compilar
+
+`windows_runtime_changes.patch` lleva TODOS los cambios de runtime (incluye `hh_get_vi_count`,
+`hh_missing.log`, Controller Pak, overlays, etc.). Si el runtime se ha revertido (p. ej. con
+`--force-libs`) el link fallara con simbolos indefinidos. Reparacion:
+
+```bat
+cd port\HybridHeavenRecomp\lib\N64ModernRuntime
+git -c safe.directory=* checkout -f fd6b0d0eedc922700f67bab8b770d3986187f3e9
+git -c safe.directory=* apply ..\..\..\..\port\windows_runtime_changes.patch
+```
+
+Luego recompila con `port\build_windows.bat` y lanza con `run_windows.bat`.
+
 ## 2. Configurar y compilar
 
 Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
