@@ -298,6 +298,7 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         const char* iy = getenv("HH_INVERT_Y");
         const char* res = getenv("HH_RES");
         fprintf(stderr, "[CFG] HH_INVERT_Y=%s HH_RES=%s\n", iy ? iy : "(no)", res ? res : "(auto)");
+        fprintf(stderr, "[PAD] A=salto  B=agacharse(Z)  Back/Select=mapa(B)  Start=START  LB=L  RB=apuntar(R)  Y=C-Up(1a persona)  stick-dcho=botones C  cruceta=D-pad\n");
     }
     n64_button input = 0;
     if (controller_num == 0) {
@@ -338,7 +339,10 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * DLEFT_BUTTON
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * DRIGHT_BUTTON
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * L_BUTTON
-            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON);
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * R_BUTTON
+            // C-Up tambien en Y: es una accion puntual (vista en primera persona) y resulta mas
+            // comoda en boton que "empujando" el stick derecho hacia arriba.
+            | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * CUP_BUTTON);
 
         axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
         // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
