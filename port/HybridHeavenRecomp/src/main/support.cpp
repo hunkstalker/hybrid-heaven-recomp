@@ -367,7 +367,7 @@ size_t hh::get_frames_remaining() {
     const size_t cap = static_cast<size_t>(sample_rate / 60);
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
-    if (qlog != nullptr && *qlog != ' ') {
+    if (qlog != nullptr && *qlog != '\0') {
         static unsigned long qn = 0;
         if ((qn++ & 0x3F) == 0) {
             fprintf(stderr, "[AUDQ] queued=%zu reported=%zu cap=%zu\n", queued, reported, cap);
