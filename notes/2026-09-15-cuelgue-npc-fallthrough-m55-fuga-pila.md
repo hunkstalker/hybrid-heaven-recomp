@@ -260,3 +260,27 @@ Con `hh_mq_all.log` + `hh_evt.log` (nuevos, opt-in `HH_MQLOG_ALL=1`, ver `port/r
   (`vi-deliver-ok` continua) y `pending_ext_msgs=0`. Los `drain` (inyeccion de mensajes externos en
   colas guest) eran lo que mantenia la cadena; ahora la traza registra `drain ... thr=` para
   identificar sin ambiguedad el hilo que drena (mapeable con `create tid=.. t=..` de `hh_sched.log`).
+
+### Ronda 12c: NO hay deadlock de mensajes — livelock por completacion de displaylist
+
+Con la traza `drain ... thr=` (ronda 12b) y el analisis de mensajes por tipo:
+
+- Mensajes de la cola principal C288 y su **tipo** (primer halfword del struct):
+  `0x8005C4B0` = **tipo 3** (de tid 19): *marca el flag* `*(u16*)0x80037748`; `0x8005C3A0/A2/A4`
+  = **tipo 2** (ignorado). **No llegan mensajes de tipo 1**, que son los que ejecutan el frame
+  (`FUN_80001454`, el que hace el poll de input) en el dispatch del bucle principal:
+  `type==1 -> FUN_8000290C(); if (flag==0) FUN_80001454(); else FUN_80001BB0(no-op)`.
+- Con el flag marcado, cada mensaje hace `290C -> 1BB0` y **nunca el frame** => el juego se queda
+  en el estado de "caida/dano" (imagen congelada, `polls` parados) aunque la cadena de mensajes
+  sigue viva (la traza continua hasta el cierre, t=92.9).
+- **Quien deja de enviar a t=68.764 son los hilos 16 y 17** (el pipeline de render: `osSpTaskLoad/
+  osSpTaskStartGo/osViSwapBuffer`, ring del volcado) — quedan bloqueados en C528/C4F0 esperando
+  una **completacion de displaylist**.
+- La via es `osExQueueDisplaylistEvent(mq, msg, displaylist, tipo)` + `dispatch_displaylist_events`
+  (extensions.cpp): si RT64 nunca reporta `SUBMITTED/PARSED/COMPLETED` para esa displaylist, el
+  mensaje queda en `pending_events` para siempre y el hilo que lo espera no despierta.
+- Instrumentacion: `hh_dl.log` con `queue`/`hit` (registro y casado) y `cb-submitted/parsed/
+  completed` (lo que reporta RT64).
+
+Pendiente: un repro mas -> ver que displaylist del efecto de dano no recibe su evento y por que
+(no enviada, no parseada, o completada con otro puntero).
