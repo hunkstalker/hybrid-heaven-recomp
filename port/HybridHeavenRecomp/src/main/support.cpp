@@ -397,7 +397,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     {
         const size_t queued = static_cast<size_t>(
             SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame);
-        const size_t cap = 900;
+        const size_t cap = static_cast<size_t>(sample_rate / 60);
         hh_audio_diag_log(sample_count, queued, queued < cap ? queued : cap);
     }
 }
@@ -409,10 +409,11 @@ size_t hh::get_frames_remaining() {
     }
     const size_t queued = static_cast<size_t>(
         SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame);
-    // El juego realimenta el tamano del siguiente buffer con osAiGetLength; hay que reportar la
-    // cola real (no ocultarla) para que se autorregule. Limite seguro por debajo del wrap del
-    // juego: len/4 > 0x3E0 (992) -> tamano negativo. Usamos 900.
-    const size_t cap = 900;
+    // Emulacion de hardware: el AI solo tiene UN buffer en vuelo (720-800 frames). El juego
+    // decide si producir el siguiente con osAiGetLength: si reportamos la cola real de SDL
+    // (varios buffers) cree que hay un backlog enorme y se frena (producia ~45 buffers/s en vez
+    // de 60 -> huecos). Reportar como maximo un VI de frames replica el hardware.
+    const size_t cap = static_cast<size_t>(sample_rate / 60);
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
     if (qlog != nullptr && *qlog != '\0') {
@@ -459,6 +460,27 @@ bool hh::reset_audio(uint32_t output_freq) {
 // notes/2026-09-13-ucode-audio-gate-transicion.md).
 extern RspExitReason hh_aspMain(uint8_t* rdram, uint32_t ucode_addr);
 
+// Diagnostico: cuanto tarda la task de audio (RSP recompilado, en CPU). Si supera ~16.7 ms el
+// driver del juego solo produce un buffer por VI de cada dos (audio a tirones). Se vuelca al
+// fichero hh_rsp.log (CWD) cada 60 tasks para poder verlo tambien en la maquina del usuario.
+static RspExitReason hh_aspMain_timed(uint8_t* rdram, uint32_t ucode_addr) {
+    const auto t0 = std::chrono::steady_clock::now();
+    RspExitReason r = hh_aspMain(rdram, ucode_addr);
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    static double acc = 0.0, mx = 0.0;
+    static int n = 0;
+    acc += ms; if (ms > mx) mx = ms; n++;
+    if (n >= 60) {
+        static FILE* f = fopen("hh_rsp.log", "w");
+        if (f != nullptr) {
+            fprintf(f, "audio tasks=%d avg=%.1fms max=%.1fms (limite 16.7ms)\n", n, acc / n, mx);
+            fflush(f);
+        }
+        acc = 0.0; mx = 0.0; n = 0;
+    }
+    return r;
+}
+
 RspUcodeFunc* hh::get_rsp_microcode(const OSTask* task) {
     uint32_t type = task->t.type;
     if (type == M_AUDTASK) {
@@ -475,7 +497,7 @@ RspUcodeFunc* hh::get_rsp_microcode(const OSTask* task) {
                 (unsigned)task->t.data_ptr, task->t.data_size,
                 (unsigned)task->t.yield_data_ptr, task->t.yield_data_size);
         }
-        return hh_aspMain;
+        return hh_aspMain_timed;
     }
     // Tasks sin ucode registrado: el runtime las completa como no-op (dummy).
     hh::log("RSP ucode not registered: type=%" PRIu32 " (0x%08" PRIx32 ")\n", type, type);

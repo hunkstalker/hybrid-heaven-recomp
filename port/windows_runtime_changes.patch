@@ -2074,7 +2074,7 @@ index 23228c7..8bb2631 100644
  
      return 0;
 diff --git a/ultramodern/src/mesgqueue.cpp b/ultramodern/src/mesgqueue.cpp
-index 40faaf2..a53846d 100644
+index 40faaf2..c7c6946 100644
 --- a/ultramodern/src/mesgqueue.cpp
 +++ b/ultramodern/src/mesgqueue.cpp
 @@ -1,5 +1,10 @@
@@ -2332,16 +2332,17 @@ index 40faaf2..a53846d 100644
      mq->first = (mq->first + 1) % mq->msgCount;
      mq->validCount--;
  
-@@ -182,7 +319,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+@@ -182,8 +319,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
  extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags) {
      OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
      bool jam = false;
 -    fprintf(stderr, "[MQ] osSendMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg, flags);
+-    
 +    HH_LOG("[MQ] osSendMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg, flags);
-     
      // Don't directly send to the message queue if this isn't a game thread to avoid contention.
      if (!ultramodern::is_game_thread()) {
-@@ -194,7 +331,7 @@ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+         ultramodern::enqueue_external_message(mq_, msg, jam, false);
+@@ -194,7 +330,7 @@ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
      dequeue_external_messages(PASS_RDRAM1);
  
      // Try to send the message.
@@ -2350,7 +2351,7 @@ index 40faaf2..a53846d 100644
      
      // Check the queue to see if this thread should swap execution to another.
      ultramodern::check_running_queue(PASS_RDRAM1);
-@@ -216,7 +353,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+@@ -216,7 +352,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
      dequeue_external_messages(PASS_RDRAM1);
  
      // Try to send the message.
@@ -2359,7 +2360,7 @@ index 40faaf2..a53846d 100644
      
      // Check the queue to see if this thread should swap execution to another.
      ultramodern::check_running_queue(PASS_RDRAM1);
-@@ -226,7 +363,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+@@ -226,7 +362,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
  
  extern "C" s32 osRecvMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, s32 flags) {
      OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);

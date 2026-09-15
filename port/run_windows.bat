@@ -19,7 +19,9 @@ REM set HH_RES=2x
 if /i "%~1"=="noaudio" set HH_NOAUDIO=1
 if /i "%~1"=="audlog"  set HH_AUDIOLOG=1
 
-cd /d "%~dp0HybridHeavenRecomp\build_win\bin\Debug"
+set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Release"
+if not exist "%HHBIN%\Hybrid Heaven Recomp.exe" set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Debug"
+cd /d "%HHBIN%"
 echo === Hybrid Heaven Recomp ===
 echo HH_INPUTLOG=%HH_INPUTLOG%  HH_NOAUDIO=%HH_NOAUDIO%  HH_AUDIOLOG=%HH_AUDIOLOG%  HH_INVERT_Y=%HH_INVERT_Y%
 "Hybrid Heaven Recomp.exe" %2 %3

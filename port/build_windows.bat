@@ -4,7 +4,8 @@ REM  Hybrid Heaven Recomp - Build para Windows
 REM  Si lib\rt64 y lib\N64ModernRuntime ya existen, NO hace git (evita
 REM  cuelgues sobre unidades montadas) y compila directamente.
 REM  Uso:
-REM    build_windows.bat                 -> usar libs existentes (recomendado)
+REM    build_windows.bat                 -> Release (recomendado: 3-5x mas rapido)
+REM    build_windows.bat --debug         -> Debug (solo para diagnosticar crashes)
 REM    build_windows.bat --force-libs    -> clonar/actualizar libs antes
 REM =====================================================================
 setlocal enabledelayedexpansion
@@ -12,7 +13,10 @@ chcp 65001 >nul
 set "GIT_TERMINAL_PROMPT=0"
 
 set "FORCE_LIBS=0"
+set "BUILDCFG=Release"
 if /i "%~1"=="--force-libs" set "FORCE_LIBS=1"
+if /i "%~1"=="--debug" set "BUILDCFG=Debug"
+if /i "%~2"=="--debug" set "BUILDCFG=Debug"
 
 REM --- Detectar la raiz del repo (busca 'port\HybridHeavenRecomp' hacia arriba) ---
 set "ROOT="
@@ -137,15 +141,17 @@ popd
 
 REM ============ 4) Build ============
 echo.
-echo [4/4] Compilando HybridHeavenRecomp (Debug) ...
+echo [4/4] Compilando HybridHeavenRecomp (%BUILDCFG%) ...
+echo       (Release es 3-5x mas rapido que Debug: sin optimizar el juego cae a 30fps
+echo        y el hilo de audio solo produce la mitad de buffers -> petardeo)
 pushd "%PORT%"
-cmake --build build_win --target HybridHeavenRecomp --config Debug
+cmake --build build_win --target HybridHeavenRecomp --config %BUILDCFG%
 if errorlevel 1 goto :err
 popd
 
 echo.
 echo === LISTO ===
-echo Exe: %PORT%\build_win\bin\Debug\Hybrid Heaven Recomp.exe
+echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
 echo Copia baserom.us.z64 junto al .exe y ejecutalo.
 echo.
 pause

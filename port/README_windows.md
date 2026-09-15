@@ -61,17 +61,19 @@ Luego recompila con `port\build_windows.bat` y lanza con `run_windows.bat`.
 
 Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
 `lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas), comprueba el patch
-y compila. Usa `build_windows.bat --force-libs` si quieres clonar/actualizar las libs.
+y compila en **Release** (la build Debug sin optimizar hace que el juego caiga a 30 fps y que el hilo
+de audio solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si
+quieres clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
 Manual:
 
 ```bat
 cd port\HybridHeavenRecomp
 cmake -B build_win -G "Visual Studio 18 2026" -A x64   REM o "Visual Studio 17 2022"
-cmake --build build_win --target HybridHeavenRecomp --config Debug
+cmake --build build_win --target HybridHeavenRecomp --config Release
 ```
 
-- Exe: `build_win\bin\Debug\Hybrid Heaven Recomp.exe`.
+- Exe: `build_win\bin\Release\Hybrid Heaven Recomp.exe` (con `--debug`: `build_win\bin\Debug\...`).
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
 - ROM: copia `baserom.us.z64` junto al `.exe`.
 
@@ -84,8 +86,21 @@ cmake --build build_win --target HybridHeavenRecomp --config Debug
 ## 3b. Grabar una partida (para reproducir el crash)
 
 Doble clic a **`port\run_windows.bat`**: graba tu partida automáticamente en
-`hybrid-heaven-recomp\tests\mi_partida.txt` (no hay que configurar nada). Juega hasta que crashee y
+`hybrid-heaven-recomp\tests\mi_partida.txt` (no hay que configurar nada; hoy va comentado en
+`run_windows.bat`, descomenta la línea `HH_RECORD` si la quieres). Juega hasta que crashee y
 envía ese `.txt`. El replay en el contenedor es determinista (RMSE=0).
+
+## 3c. Diagnóstico de audio (si suena a tirones)
+
+El port escribe solo en su carpeta de trabajo (junto al .exe):
+
+- **`hh_audio.log`** — una línea por segundo: `calls/s`, `frames/s`, cola pendiente, tasa del juego y
+  del dispositivo. Lo correcto es ~60 calls/s y ~43.2k frames/s (720 frames por VI a 60 Hz).
+- **`hh_rsp.log`** — duración media/máxima de la task de audio del RSP (debe ser < 16.7 ms).
+
+Si el juego cae a 30 fps (habitación con mucha carga), el driver produce 720 frames por frame de
+juego: a 30 fps solo son 21.6k frames/s y el dispositivo (43.2k) se queda sin datos. Ese es el motivo
+de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el audio no se corta.
 
 ## 4. Estado actual esperado (2026-09-14, tarde)
 
@@ -106,7 +121,7 @@ envía ese `.txt`. El replay en el contenedor es determinista (RMSE=0).
 
 ```bat
 REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash.
-REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build_win\bin\Debug).
+REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build_win\bin\Release).
 set HH_RECORD=E:\mi_partida.txt
 Hybrid Heaven Recomp.exe
 
