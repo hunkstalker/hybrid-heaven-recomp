@@ -285,8 +285,24 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     // HH: el runtime pasa `sample_count` en muestras int16 (byte_count / sizeof(int16_t)), no en
     // frames. El byte_len correcto es sample_count * sizeof(int16_t); usar bytes_per_sample (=4,
     // bytes por frame) copiaba el doble -> heap corruption al abrir dispositivo real (0xC0000374).
+    // Límites de seguridad: evita allocaciones absurdas (wrap del juego) que corrompen el heap.
+    constexpr size_t hh_max_samples = 1u << 18;  // 262144 muestras (~1 MB)
+    if (sample_count == 0 || sample_count > hh_max_samples) {
+        if (getenv("HH_AUDIOLOG") != nullptr) {
+            fprintf(stderr, "[AUD] queue_samples ignorado: count=%zu\n", sample_count);
+        }
+        return;
+    }
     const size_t byte_len = sample_count * sizeof(int16_t);
-    const bool convert = audio_convert.len_ratio > 0.0f;
+    const bool convert = audio_convert.len_ratio > 0.0f && audio_convert.len_ratio <= 64.0f;
+    if (getenv("HH_AUDIOLOG") != nullptr) {
+        static int hh_aud_n = 0;
+        if (hh_aud_n++ < 40) {
+            fprintf(stderr, "[AUD] count=%zu bytes=%zu rate=%u out=%u ratio=%.3f conv=%d\n",
+                    sample_count, byte_len, sample_rate, output_sample_rate,
+                    audio_convert.len_ratio, (int)convert);
+        }
+    }
     const size_t needed = convert
         ? static_cast<size_t>(byte_len * audio_convert.len_ratio) + 1
         : byte_len;
@@ -322,7 +338,9 @@ size_t hh::get_frames_remaining() {
 }
 
 void hh::set_frequency(uint32_t freq) {
-    if (freq == 0) {
+    // Rangos sanos: valores absurdos (wrap del juego) romperian el CVT.
+    if (freq < 4000 || freq > 192000) {
+        fprintf(stderr, "[AUD] set_frequency ignorado: %u Hz\n", freq);
         return;
     }
     sample_rate = freq;
