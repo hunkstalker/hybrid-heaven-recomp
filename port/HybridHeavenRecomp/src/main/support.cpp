@@ -233,16 +233,12 @@ void hh::update_gfx(ultramodern::gfx_callbacks_t::gfx_data_t gfx_data) {
     hh::poll_input();
 }
 
-static SDL_AudioCVT audio_convert;
 static SDL_AudioDeviceID audio_device = 0;
-static bool audio_cvt_needed = false;   // SDL_BuildAudioCVT: 1 = hay conversion, 0 = no hace falta
 
-static uint32_t sample_rate = 48000;
-static uint32_t output_sample_rate = 48000;
-constexpr uint32_t input_channels = 2;
-static uint32_t output_channels = 2;
-constexpr uint32_t bytes_per_sample = input_channels * sizeof(int16_t);
-static std::vector<uint8_t> audio_cvt_buffer;
+static uint32_t sample_rate = 44100;   // tasa del juego (44100 por defecto si el juego no la fija)
+static uint32_t device_rate = 0;       // tasa con la que se abrio el dispositivo
+constexpr uint32_t input_channels = 2; // el AI del N64 es estereo S16
+constexpr uint32_t bytes_per_frame = input_channels * sizeof(int16_t);
 
 // HH: sin dispositivo de audio (headless/CI) el AI del N64 debe seguir "reproduciendo": si
 // osAiGetLength() devolviera 0 siempre, el pacing de audio del juego se degrada (nota
@@ -264,6 +260,34 @@ static void virtual_ai_drain() {
     }
 }
 
+// Abre (o reabre) el dispositivo a la tasa del juego. SDL_QueueAudio admite datos en el formato
+// pedido y SDL los convierte internamente al formato real del dispositivo, asi que NO usamos
+// SDL_AudioCVT (en algunos SDL2.dll len_ratio salia basura y el audio petardeaba).
+static bool hh_open_audio_device(uint32_t freq) {
+    if (audio_device != 0) {
+        SDL_CloseAudioDevice(audio_device);
+        audio_device = 0;
+        device_rate = 0;
+    }
+    SDL_AudioSpec spec_desired{};
+    SDL_AudioSpec spec_obtained{};
+    spec_desired.freq = static_cast<int>(freq);
+    spec_desired.format = AUDIO_S16;
+    spec_desired.channels = static_cast<Uint8>(input_channels);
+    spec_desired.samples = 0x400;
+
+    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, &spec_obtained, 0);
+    if (audio_device == 0) {
+        fprintf(stderr, "No audio device could be found: %s\n", SDL_GetError());
+        return false;
+    }
+    device_rate = freq;
+    SDL_PauseAudioDevice(audio_device, 0);
+    fprintf(stderr, "Audio device: pedido %u Hz; obtenido %d Hz, %d ch\n",
+            freq, spec_obtained.freq, spec_obtained.channels);
+    return true;
+}
+
 void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     if (audio_device == 0) {
         virtual_ai_drain();
@@ -283,10 +307,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
         return;
     }
-    // HH: el runtime pasa `sample_count` en muestras int16 (byte_count / sizeof(int16_t)), no en
-    // frames. El byte_len correcto es sample_count * sizeof(int16_t); usar bytes_per_sample (=4,
-    // bytes por frame) copiaba el doble -> heap corruption al abrir dispositivo real (0xC0000374).
-    // Límites de seguridad: evita allocaciones absurdas (wrap del juego) que corrompen el heap.
+    // El runtime pasa `sample_count` en muestras int16 (byte_count / sizeof(int16_t)).
     constexpr size_t hh_max_samples = 1u << 18;  // 262144 muestras (~1 MB)
     if (sample_count == 0 || sample_count > hh_max_samples) {
         const char* hh_audlog = getenv("HH_AUDIOLOG");
@@ -296,7 +317,8 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         return;
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
-    // HH_AUDIODUMP=<f>: volcar el primer buffer crudo de audio (diagnostico de endianness).
+
+    // HH_AUDIODUMP=<f>: volcar los buffers crudos de audio (diagnostico).
     if (const char* dump = getenv("HH_AUDIODUMP")) {
         if (dump != nullptr && *dump != '\0') {
             static FILE* df = nullptr;
@@ -305,12 +327,10 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
                 df = fopen(dump, "wb");
                 if (df != nullptr) fprintf(stderr, "[AUD] dump acumulativo en %s\n", dump);
             }
-            // 16 MB basta para analizar; luego se deja de escribir.
             if (df != nullptr && dtotal < (8u << 20)) {
                 fwrite(audio_data, 1, byte_len, df);
                 fflush(df);
                 dtotal += byte_len;
-                // log de tiempos/tamanos para medir la tasa efectiva
                 static FILE* tf = nullptr;
                 if (tf == nullptr) {
                     std::string tp = std::string(dump) + ".txt";
@@ -327,37 +347,22 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
             }
         }
     }
-    const bool convert = audio_cvt_needed && audio_convert.len_ratio > 0.0f
-                         && audio_convert.len_ratio <= 64.0f;
+
     const char* hh_audlog = getenv("HH_AUDIOLOG");
     if (hh_audlog != nullptr && *hh_audlog != '\0') {
         static int hh_aud_n = 0;
         if (hh_aud_n++ < 40) {
-            fprintf(stderr, "[AUD] count=%zu bytes=%zu rate=%u out=%u ratio=%.3f conv=%d\n",
-                    sample_count, byte_len, sample_rate, output_sample_rate,
-                    audio_convert.len_ratio, (int)convert);
+            fprintf(stderr, "[AUD] count=%zu bytes=%zu rate=%u device=%u\n",
+                    sample_count, byte_len, sample_rate, device_rate);
         }
-    }
-    // El buffer debe caber SIEMPRE la entrada (byte_len) y, si hay conversion, la salida.
-    // Antes, con len_ratio < 1 (dispositivo a menos Hz que el juego) el buffer quedaba MAS
-    // pequeno que byte_len y el memcpy desbordaba el heap (crash en ntdll).
-    size_t needed = byte_len;
-    if (convert) {
-        const size_t conv_needed = static_cast<size_t>(byte_len * audio_convert.len_ratio) + 32;
-        if (conv_needed > needed) {
-            needed = conv_needed;
-        }
-    }
-    if (audio_cvt_buffer.size() < needed) {
-        audio_cvt_buffer.resize(needed);
     }
 
-    // Backpressure: si ya hay mas de ~2 s encolados, descartar (evita crecimientos enormes).
+    // Backpressure: si ya hay mas de ~1 s encolados, descartar (evita crecimientos enormes).
     {
         const Uint32 queued = SDL_GetQueuedAudioSize(audio_device);
-        const Uint32 limit = output_sample_rate * output_channels * sizeof(int16_t) * 2u;
+        const Uint32 limit = sample_rate * bytes_per_frame;
         if (queued > limit) {
-            if (getenv("HH_AUDIOLOG") != nullptr) {
+            if (hh_audlog != nullptr && *hh_audlog != '\0') {
                 static int hh_drop_n = 0;
                 if (hh_drop_n++ < 10) {
                     fprintf(stderr, "[AUD] cola llena (%u bytes): se descarta buffer\n", queued);
@@ -367,39 +372,8 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
     }
 
-    std::memcpy(audio_cvt_buffer.data(), audio_data, byte_len);
-
-    // Referencia (mismo motor Konami): goemon64recomp/Zelda64Recomp intercambian los CANALES
-    // ("to correct for the address xor caused by endianness handling"); las muestras en si ya
-    // estan en orden de host. Sin esto el audio suena a ruido/petardeo.
-    if (input_channels >= 2) {
-        int16_t* samples = reinterpret_cast<int16_t*>(audio_cvt_buffer.data());
-        const size_t frame_count = byte_len / (input_channels * sizeof(int16_t));
-        for (size_t f = 0; f < frame_count; f++) {
-            int16_t* fr = samples + f * input_channels;
-            for (uint32_t c = 1; c < input_channels; c += 2) {
-                int16_t tmp = fr[c - 1];
-                fr[c - 1] = fr[c];
-                fr[c] = tmp;
-            }
-        }
-    }
-
-    if (!convert) {
-        // Sin conversor valido: encolar tal cual (evita usar len_ratio=0).
-        SDL_QueueAudio(audio_device, audio_cvt_buffer.data(), static_cast<Uint32>(byte_len));
-        return;
-    }
-
-    audio_convert.buf = audio_cvt_buffer.data();
-    audio_convert.len = static_cast<int>(byte_len);
-
-    if (SDL_ConvertAudio(&audio_convert) < 0) {
-        fprintf(stderr, "Error using SDL audio converter: %s\n", SDL_GetError());
-        return;
-    }
-
-    SDL_QueueAudio(audio_device, audio_convert.buf, audio_convert.len_cvt);
+    // SDL convierte internamente al formato real del dispositivo.
+    SDL_QueueAudio(audio_device, audio_data, static_cast<Uint32>(byte_len));
 }
 
 size_t hh::get_frames_remaining() {
@@ -408,9 +382,8 @@ size_t hh::get_frames_remaining() {
         return static_cast<size_t>(virtual_frames);
     }
     const size_t queued = static_cast<size_t>(
-        SDL_GetQueuedAudioSize(audio_device) / (input_channels * sizeof(int16_t)));
-    // El N64 (y la formula del juego) solo maneja ~1-2 VI de cola: si reportamos mas, el juego
-    // calcula un tamano negativo (wrap) y descarta audio. Se acota como en la via virtual.
+        SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame);
+    // El N64 (y la formula del juego) solo maneja ~1-2 VI de cola.
     const size_t cap = static_cast<size_t>(sample_rate / 60);
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
@@ -424,29 +397,18 @@ size_t hh::get_frames_remaining() {
 }
 
 void hh::set_frequency(uint32_t freq) {
-    // Rangos sanos: valores absurdos (wrap del juego) romperian el CVT.
     if (freq < 4000 || freq > 192000) {
         fprintf(stderr, "[AUD] set_frequency ignorado: %u Hz\n", freq);
         return;
     }
-    sample_rate = freq;
-
-    int ret = SDL_BuildAudioCVT(
-        &audio_convert,
-        AUDIO_S16, static_cast<Uint8>(input_channels), static_cast<int>(sample_rate),
-        AUDIO_S16, static_cast<Uint8>(output_channels), static_cast<int>(output_sample_rate)
-    );
-
-    // SDL: ret==0 => NO hace falta conversion (mismas tasa/formato); len_ratio puede quedar a 0.
-    // Usar ret (no len_ratio) para decidir si convertir.
-    audio_cvt_needed = (ret > 0);
-
-    if (ret < 0) {
-        fprintf(stderr, "Error creating SDL audio converter: %s\n", SDL_GetError());
-        audio_cvt_needed = false;
+    if (freq == sample_rate) {
+        return;
     }
-    fprintf(stderr, "[AUD] CVT: ret=%d needed=%d ratio=%.4f (%u -> %u Hz)\n",
-            ret, (int)audio_cvt_needed, audio_convert.len_ratio, sample_rate, output_sample_rate);
+    sample_rate = freq;
+    // Si el dispositivo ya estaba abierto con otra tasa, reabrir a la nueva.
+    if (audio_device != 0 && device_rate != freq) {
+        hh_open_audio_device(freq);
+    }
 }
 
 bool hh::reset_audio(uint32_t output_freq) {
@@ -457,28 +419,10 @@ bool hh::reset_audio(uint32_t output_freq) {
         audio_device = 0;
         return true;
     }
-    SDL_AudioSpec spec_desired{};
-    SDL_AudioSpec spec_obtained{};
-    spec_desired.freq = static_cast<int>(output_freq);
-    spec_desired.format = AUDIO_S16;
-    spec_desired.channels = static_cast<Uint8>(output_channels);
-    spec_desired.samples = 0x100;
-
-    audio_device = SDL_OpenAudioDevice(nullptr, false, &spec_desired, &spec_obtained, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
-    if (audio_device == 0) {
-        fprintf(stderr, "No audio device could be found: %s\n", SDL_GetError());
-        return false;
+    if (output_freq >= 4000 && output_freq <= 192000) {
+        sample_rate = output_freq;
     }
-
-    SDL_PauseAudioDevice(audio_device, 0);
-
-    // Usar el formato REAL que concede el dispositivo (no asumir 48k/2ch).
-    output_sample_rate = spec_obtained.freq != 0 ? spec_obtained.freq : output_freq;
-    output_channels = spec_obtained.channels != 0 ? spec_obtained.channels : output_channels;
-    fprintf(stderr, "Audio device: %d Hz, %d ch\n", output_sample_rate, output_channels);
-    hh::set_frequency(sample_rate);
-
-    return true;
+    return hh_open_audio_device(sample_rate);
 }
 
 // Microcodigo de audio del ROM en 0x80036530 (ROM 0x37130), recompilado con RSPRecomp
