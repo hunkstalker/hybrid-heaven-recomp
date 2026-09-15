@@ -284,3 +284,20 @@ Con la traza `drain ... thr=` (ronda 12b) y el analisis de mensajes por tipo:
 
 Pendiente: un repro mas -> ver que displaylist del efecto de dano no recibe su evento y por que
 (no enviada, no parseada, o completada con otro puntero).
+
+### Ronda 12e: el dispatch del bucle principal se rompe por `s0` machacado
+
+`hh_disp.log` del repro (tgt=80001454 frame vs tgt=80001BB0 no-op, con s0=r16 y el valor leido):
+
+- Fase sana: 3488 llamadas al **frame** `tgt=80001454 s0=80037748 flag=0000` (los input polls
+  avanzan).
+- De golpe: 1280 llamadas al **no-op** `tgt=80001BB0 s0=00001E82 flag=0000`.
+- **`s0` (registro callee-saved, r16) quedo con basura `0x1E82`** y ya no se restaura: el check
+  `lhu 0x0($s0)` lee memoria no mapeada (0x1E82) -> distinto de cero -> el frame no se llama nunca
+  mas -> sin poll de input -> imagen congelada (el resto del motor sigue).
+- El valor 0x1E82 no aparece como inmediato en la ROM (posible contador/campo cargado de memoria).
+- El clobber ocurre alrededor de la ultima llamada al frame: el frame en si no usa r16 (0 usos) y
+  `FUN_8000290C` lo salva/restaura, asi que el sospechoso principal es el camino de la cola
+  (osRecvMesg/drains) o un simbolo partido. Instrumentacion: el DISP log ya cubre tambien
+  `0x800266B0` (recv) y `0x8000290C` (work) -> el proximo volcado mostrara la llamada tras la cual
+  `s0` cambia.
