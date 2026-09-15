@@ -1,65 +1,14 @@
 diff --git a/librecomp/src/overlays.cpp b/librecomp/src/overlays.cpp
-index 2f74a90..22f367f 100644
+index 22f367f..253fbd1 100644
 --- a/librecomp/src/overlays.cpp
 +++ b/librecomp/src/overlays.cpp
-@@ -848,13 +848,34 @@ static void hh_wrap_FUN_80000ed0(uint8_t* rdram, recomp_context* ctx) {
- // HH: declaraciones para el registro de llamadas (diagnostico de pila).
- extern "C" int hh_watch_active;
- extern "C" recomp_context* hh_get_current_ctx(void);
-+extern "C" uint8_t* hh_get_rdram_base(void);
- extern "C" void hh_ring_record(uint32_t target, uint32_t sp);
- extern "C" void hh_ring2_record(uint32_t target, uint32_t sp);
- extern "C" void hh_callring_record(uint32_t addr);
-+extern "C" recomp_context* hh_get_current_ctx(void);
-+extern "C" uint8_t* hh_get_rdram_base(void);
- 
- extern "C" recomp_func_t * get_function(int32_t addr) {
-     hh_calltrace((uint32_t)addr);
-     hh_callring_record((uint32_t)addr);
-+    // HH: vigilancia del dispatch del bucle principal (livelock del dano): registra, en cada
-+    // llamada al frame (0x80001454) o al no-op (0x80001BB0), el registro s0 (r16) y el valor de
-+    // memoria que consulta el branch (lhu 0x0(s0)). Gated por HH_MQLOG_ALL.
-+    if (((uint32_t)addr == 0x80001454u || (uint32_t)addr == 0x80001BB0u) && getenv("HH_MQLOG_ALL") != nullptr) {
-+        recomp_context* hc = hh_get_current_ctx();
-+        uint32_t s0 = hc != nullptr ? (uint32_t)hc->r16 : 0;
-+        uint32_t flag = 0;
-+        uint8_t* rdram_base = hh_get_rdram_base();
-+        if (rdram_base != nullptr && s0 >= 0x80000000u && s0 + 2 <= 0x80800000u) {
-+            flag = *(uint16_t*)(rdram_base + (s0 - 0x80000000u));
-+        }
-+        static FILE* df = nullptr;
-+        if (df == nullptr) df = fopen("hh_disp.log", "w");
-+        if (df != nullptr) {
-+            fprintf(df, "[DISP] tgt=%08X s0=%08X flag=%04X\n", (unsigned)addr, s0, flag);
-+            fflush(df);
-+        }
-+    }
-     // HH: registrar (target, sp) de cada llamada para diagnosticar hundimientos de pila.
-     if (hh_watch_active) {
-         recomp_context* hh_c = hh_get_current_ctx();
-diff --git a/ultramodern/src/events.cpp b/ultramodern/src/events.cpp
-index e19976f..fdaf579 100644
---- a/ultramodern/src/events.cpp
-+++ b/ultramodern/src/events.cpp
-@@ -160,6 +160,9 @@ ultramodern::renderer::ViRegs* ultramodern::renderer::get_vi_regs() {
- // lo trunque el logger de colas. Sirve para cazar el cuelgue por dano (el hilo VI deja de entregar).
- extern uint64_t total_vis;
- 
-+// HH: base de RDRAM para diagnosticos fuera de este TU (p. ej. el dispatch del bucle principal).
-+extern "C" uint8_t* hh_get_rdram_base(void) { return events_context.rdram; }
-+
- extern "C" void hh_evt_log(const char* what, int event_id, PTR(OSMesgQueue) mq_, OSMesg msg, unsigned long long vi, int tid) {
-     if (getenv("HH_MQLOG_ALL") == nullptr) return;
-     static FILE* f = nullptr;
-diff --git a/ultramodern/src/mesgqueue.cpp b/ultramodern/src/mesgqueue.cpp
-index e844177..2244d9d 100644
---- a/ultramodern/src/mesgqueue.cpp
-+++ b/ultramodern/src/mesgqueue.cpp
-@@ -354,6 +354,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
-     // HH: completación dirigida pendiente para este hilo (la entrega el do_send dirigido).
-     if (take_pending_completion(PASS_RDRAM ultramodern::this_thread(), mq_, msg_)) {
-         hh_mqlog(PASS_RDRAM "recv-pend", mq_, NULLPTR, 0);
-+        hh_mqa_log(PASS_RDRAM "recv-pend", mq_, msg_ != NULLPTR ? *TO_PTR(OSMesg, msg_) : 0, 0);
-         return true;
-     }
-     if (!block) {
+@@ -861,7 +861,8 @@ extern "C" recomp_func_t * get_function(int32_t addr) {
+     // HH: vigilancia del dispatch del bucle principal (livelock del dano): registra, en cada
+     // llamada al frame (0x80001454) o al no-op (0x80001BB0), el registro s0 (r16) y el valor de
+     // memoria que consulta el branch (lhu 0x0(s0)). Gated por HH_MQLOG_ALL.
+-    if (((uint32_t)addr == 0x80001454u || (uint32_t)addr == 0x80001BB0u) && getenv("HH_MQLOG_ALL") != nullptr) {
++    if (((uint32_t)addr == 0x80001454u || (uint32_t)addr == 0x80001BB0u ||
++         (uint32_t)addr == 0x8000290Cu || (uint32_t)addr == 0x800266B0u) && getenv("HH_MQLOG_ALL") != nullptr) {
+         recomp_context* hc = hh_get_current_ctx();
+         uint32_t s0 = hc != nullptr ? (uint32_t)hc->r16 : 0;
+         uint32_t flag = 0;
