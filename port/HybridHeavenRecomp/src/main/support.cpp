@@ -159,6 +159,19 @@ std::string hh::get_game_thread_name(const OSThread* t) {
     return name;
 }
 
+// HH: inicializa SOLO el subsistema de audio. Debe llamarse ANTES de hh::reset_audio(), que en
+// main corre antes de recomp::start (y create_gfx se ejecuta dentro de recomp::start).
+void hh::init_audio() {
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        fprintf(stderr, "Aviso: audio SDL no inicializado (%s); el juego correra sin sonido\n",
+                SDL_GetError());
+    }
+    else {
+        fprintf(stdout, "SDL Audio Driver: %s\n", SDL_GetCurrentAudioDriver());
+        fflush(stdout);
+    }
+}
+
 ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
     hh::log("create_gfx: initializing SDL\n");
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
@@ -169,16 +182,6 @@ ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
         std::exit(EXIT_FAILURE);
     }
 
-    // HH: el audio va en un subsistema aparte. Sin esto SDL_OpenAudioDevice fallaba con
-    // "Audio subsystem is not initialized" y el juego salia sin sonido (cola virtual).
-    // Si no hay dispositivo, se avisa y se continua (headless/CI siguen funcionando).
-    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
-        fprintf(stderr, "Aviso: audio SDL no inicializado (%s); el juego correra sin sonido\n",
-                SDL_GetError());
-    }
-    else {
-        fprintf(stdout, "SDL Audio Driver: %s\n", SDL_GetCurrentAudioDriver());
-    }
 
     fprintf(stdout, "SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver());
     hh::log("create_gfx: SDL driver = %s\n", SDL_GetCurrentVideoDriver());

@@ -36,6 +36,7 @@ namespace hh {
     void update_gfx(ultramodern::gfx_callbacks_t::gfx_data_t gfx_data);
 
     // Audio callbacks.
+    void init_audio();                // inicializa SDL_INIT_AUDIO antes de reset_audio
     bool reset_audio(uint32_t output_freq);
     void queue_samples(int16_t* audio_data, size_t sample_count);
     size_t get_frames_remaining();

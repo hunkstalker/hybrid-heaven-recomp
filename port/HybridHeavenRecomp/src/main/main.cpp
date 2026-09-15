@@ -258,6 +258,7 @@ int main(int argc, char** argv) {
     configuration.error_handling_callbacks = error_callbacks;
     configuration.threads_callbacks = threads_callbacks;
 
+    hh::init_audio();
     hh::reset_audio(48000);
     hh::log("audio reset done\n");
 

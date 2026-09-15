@@ -6,9 +6,11 @@ REM  crash. No hace falta configurar nada.
 REM =====================================================================
 setlocal
 
-REM Log de entrada (botones + ejes) y grabacion con ruta absoluta:
+REM Log de entrada (botones + ejes):
 set HH_INPUTLOG=1
-set HH_RECORD=%~dp0..\tests\mi_partida.txt
+
+REM Grabar la partida (descomenta SOLO si te pido una grabacion; el fichero crece mucho):
+REM set HH_RECORD=%~dp0..\tests\mi_partida.txt
 
 REM Eje Y: el default ya es correcto. Descomenta solo si lo notases invertido:
 REM set HH_INVERT_Y=1
