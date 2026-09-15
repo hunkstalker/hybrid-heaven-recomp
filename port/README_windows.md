@@ -120,6 +120,12 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
   (`add_missing_funcs.py` / `config/module_extras.json`), regenerar el set y volver a copiar
   `RecompiledFuncs/` a Windows.
 
+## 4c. Audio
+
+El port inicializa el subsistema de audio de SDL. En Windows debe salir en consola
+`SDL Audio Driver: wasapi` (o `directsound`) y oirse. Si no hay dispositivo, avisa y sigue sin sonido
+(cola virtual). Para forzar driver: `set SDL_AUDIODRIVER=directsound` (o `wasapi`).
+
 ## 5. Problemas conocidos
 
 - Frontera actual: cola del módulo 25 (`0x801FF260`, fuera del blob/syms actuales) y confirmación de

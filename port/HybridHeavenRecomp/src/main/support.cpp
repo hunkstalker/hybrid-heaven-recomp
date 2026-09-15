@@ -169,6 +169,17 @@ ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
         std::exit(EXIT_FAILURE);
     }
 
+    // HH: el audio va en un subsistema aparte. Sin esto SDL_OpenAudioDevice fallaba con
+    // "Audio subsystem is not initialized" y el juego salia sin sonido (cola virtual).
+    // Si no hay dispositivo, se avisa y se continua (headless/CI siguen funcionando).
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        fprintf(stderr, "Aviso: audio SDL no inicializado (%s); el juego correra sin sonido\n",
+                SDL_GetError());
+    }
+    else {
+        fprintf(stdout, "SDL Audio Driver: %s\n", SDL_GetCurrentAudioDriver());
+    }
+
     fprintf(stdout, "SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver());
     hh::log("create_gfx: SDL driver = %s\n", SDL_GetCurrentVideoDriver());
 
