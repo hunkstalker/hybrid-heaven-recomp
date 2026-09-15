@@ -421,7 +421,12 @@ size_t hh::get_frames_remaining() {
     // decide si producir el siguiente con osAiGetLength: si reportamos la cola real de SDL
     // (varios buffers) cree que hay un backlog enorme y se frena (producia ~45 buffers/s en vez
     // de 60 -> huecos). Reportar como maximo un VI de frames replica el hardware.
-    const size_t cap = static_cast<size_t>(sample_rate / 60);
+    // HH_AI_QUEUE_REPORT=full restaura el comportamiento anterior (cola real sin cap) para
+    // pruebas de regresion sin recompilar.
+    const char* qrep = getenv("HH_AI_QUEUE_REPORT");
+    const size_t cap = (qrep != nullptr && strcmp(qrep, "full") == 0)
+                           ? static_cast<size_t>(-1)
+                           : static_cast<size_t>(sample_rate / 60);
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
     if (qlog != nullptr && *qlog != '\0') {
