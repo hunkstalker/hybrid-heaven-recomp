@@ -58,7 +58,9 @@ void hh::on_game_init(uint8_t* rdram, recomp_context* ctx) {
 
 struct PadProfile {
     // Y = C-DOWN: verificado con capturas que la vista en 1a persona es C-Down (C-Up no hace nada).
-    n64_button a = A_BUTTON, b = Z_BUTTON, x = B_BUTTON, y = CDOWN_BUTTON;
+    // X = NONE: el B del N64 abre el MAPA fuera de combate; hasta identificar el boton del menu de
+    // combate cuerpo a cuerpo, X queda libre (config.ini: x = CLEFT / CRIGHT / ...).
+    n64_button a = A_BUTTON, b = Z_BUTTON, x = 0, y = CDOWN_BUTTON;
     n64_button lb = L_BUTTON, rb = R_BUTTON, back = B_BUTTON, start = START_BUTTON;
     n64_button dup = DUP_BUTTON, ddown = DDOWN_BUTTON, dleft = DLEFT_BUTTON, dright = DRIGHT_BUTTON;
     bool cstick = true;  // stick derecho -> botones C
@@ -150,7 +152,7 @@ static void hh_pad_write_template(FILE* f) {
         "[game]\n"
         "a = A\n"
         "b = Z\n"
-        "x = B\n"
+        "x = NONE\n"
         "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
@@ -166,7 +168,7 @@ static void hh_pad_write_template(FILE* f) {
         "# En menus el B fisico debe actuar como B del N64 (atras/cancelar).\n"
         "a = A\n"
         "b = B\n"
-        "x = B\n"
+        "x = NONE\n"
         "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
