@@ -203,10 +203,14 @@ void hh::poll_input() {
 // Formato de línea: <t> <buttons_hex> <x> <y>  (t = segundos desde el primer poll).
 struct HHRec {
     double t;
+    uint64_t vis;   // contador VI (frames de juego); 0 si el fichero es formato antiguo
     uint16_t buttons;
     float x;
     float y;
 };
+
+extern "C" uint64_t hh_get_vi_count(void);
+static bool hh_replay_has_vis = false;
 
 static const std::vector<HHRec>& hh_replay_data() {
     static const std::vector<HHRec> data = [] {
@@ -219,9 +223,21 @@ static const std::vector<HHRec>& hh_replay_data() {
             std::istringstream ss(line);
             HHRec r{};
             unsigned b = 0;
-            if (ss >> r.t >> std::hex >> b >> std::dec >> r.x >> r.y) {
+            uint64_t vis = 0;
+            // Formato nuevo: <t> <vis> <buttons_hex> <x> <y>. Antiguo: <t> <buttons_hex> <x> <y>.
+            if (ss >> r.t >> vis >> std::hex >> b >> std::dec >> r.x >> r.y) {
+                r.vis = vis;
                 r.buttons = static_cast<uint16_t>(b);
+                hh_replay_has_vis = true;
                 out.push_back(r);
+            }
+            else {
+                std::istringstream ss2(line);
+                if (ss2 >> r.t >> std::hex >> b >> std::dec >> r.x >> r.y) {
+                    r.vis = 0;
+                    r.buttons = static_cast<uint16_t>(b);
+                    out.push_back(r);
+                }
             }
         }
         fprintf(stderr, "[REPLAY] %zu muestras de %s\n", out.size(), path);
@@ -237,8 +253,13 @@ static void hh_replay_apply(double elapsed, n64_button& buttons, float& x, float
     // Reproducción por ÍNDICE de poll (no por tiempo): el juego poll-ea una vez por frame, así que
     // la misma secuencia de muestras produce la misma entrada por frame (determinista).
     static size_t idx = 0;
+    // Alineado por VI (frames). Si el fichero no trae contador, se estima vis=t*60.
+    uint64_t cur = hh_get_vi_count();
+    auto sample_vis = [&](const HHRec& r) -> uint64_t {
+        return hh_replay_has_vis ? r.vis : (uint64_t)(r.t * 60.0 + 0.5);
+    };
+    while (idx + 1 < data.size() && sample_vis(data[idx + 1]) <= cur) idx++;
     size_t use = idx < data.size() ? idx : data.size() - 1;
-    idx++;
     buttons = data[use].buttons;
     x = data[use].x;
     y = data[use].y;
@@ -264,7 +285,8 @@ static void hh_record_write(double elapsed, n64_button buttons, float x, float y
         }
     }
     if (fp != nullptr) {
-        fprintf(fp, "%.4f %04X %.4f %.4f\n", elapsed, (unsigned)buttons, x, y);
+        fprintf(fp, "%.4f %llu %04X %.4f %.4f\n", elapsed,
+                (unsigned long long)hh_get_vi_count(), (unsigned)buttons, x, y);
         fflush(fp);
     }
 }
