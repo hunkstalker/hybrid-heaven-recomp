@@ -248,15 +248,23 @@ static void hh_hang_watchdog() {
     // HH_HANG_FORCE=<s>: vuelca una vez pasados s segundos aunque no haya cuelgue (prueba del watchdog).
     const char* fenv = getenv("HH_HANG_FORCE");
     const double force = (fenv != nullptr && *fenv != '\0') ? strtod(fenv, nullptr) : 0.0;
-    fprintf(stderr, "[HANG] watchdog activo (limite %.0fs%s)\n", limit,
-            force > 0.0 ? ", force-test" : "");
-    std::thread([limit, force] {
+    // HH_STATE_SECS=<s>: snapshot periodico del estado de todos los hilos a hh_state.log (0 = off).
+    // Sirve para cuelgues en los que el juego sigue pidiendo input/produciendo audio y el watchdog
+    // clasico no dispara: el snapshot muestra donde esta cada hilo en el momento del atasco.
+    const char* senv = getenv("HH_STATE_SECS");
+    const double state_secs = (senv != nullptr && *senv != '\0') ? strtod(senv, nullptr) : 5.0;
+    fprintf(stderr, "[HANG] watchdog activo (limite %.0fs%s); snapshots cada %.0fs\n", limit,
+            force > 0.0 ? ", force-test" : "", state_secs);
+    std::thread([limit, force, state_secs] {
         using namespace std::chrono_literals;
         const auto start = std::chrono::steady_clock::now();
         unsigned long long last_polls = hh_get_input_polls();
         unsigned long long last_audio = hh_get_audio_calls();
         auto last_change = start;
         auto last_audio_change = start;
+        auto last_state = start;
+        FILE* state_file = nullptr;
+        long state_bytes = 0;
         bool dumped = false;
         bool forced_done = false;
         while (true) {
@@ -265,6 +273,30 @@ static void hh_hang_watchdog() {
             unsigned long long audio = hh_get_audio_calls();
             unsigned long long vi = hh_get_vi_count();
             auto now = std::chrono::steady_clock::now();
+            if (state_secs > 0.0 &&
+                std::chrono::duration<double>(now - last_state).count() >= state_secs) {
+                last_state = now;
+                if (state_file == nullptr) {
+                    state_file = fopen("hh_state.log", "w");
+                    if (state_file != nullptr) fprintf(stderr, "[HANG] hh_state.log abierto\n");
+                }
+                if (state_file != nullptr && state_bytes < (8L * 1024 * 1024)) {
+                    const double t = std::chrono::duration<double>(now - start).count();
+                    fprintf(state_file,
+                            "=== HH estado t=%.1f VI=%llu vi_ticks=%llu polls=%llu audio=%llu pending_ext=%llu ===\n",
+                            t, (unsigned long long)vi, (unsigned long long)hh_get_vi_ticks(),
+                            (unsigned long long)polls, (unsigned long long)audio,
+                            (unsigned long long)hh_get_pending_ext_msgs());
+                    recomp_context* ctxs[32];
+                    int n = hh_get_thread_ctxs(ctxs, 32);
+                    fprintf(state_file, "[STATE] hilos de juego con contexto: %d\n", n);
+                    for (int i = 0; i < n; i++) {
+                        hh_dump_ctx_regs(state_file, i, ctxs[i]);
+                    }
+                    fflush(state_file);
+                    state_bytes += 320 + (long)n * 330;
+                }
+            }
             if (audio != last_audio) {
                 last_audio = audio;
                 last_audio_change = now;
@@ -393,6 +425,15 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
             (void*)c->Rax, (void*)c->Rbx, (void*)c->Rcx, (void*)c->Rdx,
             (void*)c->Rsp, (void*)c->Rbp, (void*)c->Rsi, (void*)c->Rdi);
     }
+    // HH: pila host del hilo que crashea (traducir con el .map: exe+0x...). Ayuda cuando el
+    // fallo esta en codigo del runtime/RT64 y no hay contexto guest.
+    void* hh_bt[48];
+    USHORT hh_nbt = CaptureStackBackTrace(0, 48, hh_bt, nullptr);
+    for (USHORT i = 0; i < hh_nbt; i++) {
+        unsigned long long off = (hm != nullptr) ? (unsigned long long)((uintptr_t)hh_bt[i] - (uintptr_t)hm) : 0;
+        fprintf(stderr, "[SEGV] bt[%02u] %p%s+0x%llX\n", (unsigned)i, hh_bt[i],
+                (hm != nullptr) ? " (exe)" : "", off);
+    }
     fflush(stderr);
     // Volcado para analisis offline: hh_crash.log + RDRAM (8 MB) + DMEM del RSP (4 KB) en el CWD.
     static volatile LONG hh_crash_busy = 0;
@@ -417,6 +458,12 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
                         (unsigned long long)c->R14, (unsigned long long)c->R15);
             }
             hh_dump_guest_regs(f);
+            // HH: pila host (traducir con el .map: exe+0x...).
+            fprintf(f, "[CRASH] host backtrace (%u frames):\n", (unsigned)hh_nbt);
+            for (USHORT i = 0; i < hh_nbt; i++) {
+                unsigned long long off = (hm != nullptr) ? (unsigned long long)((uintptr_t)hh_bt[i] - (uintptr_t)hm) : 0;
+                fprintf(f, "  bt[%02u] %p (exe+0x%llX)\n", (unsigned)i, hh_bt[i], off);
+            }
             hh_dump_rdram_dmem(f, "hh_crash");
             fflush(f);
             fclose(f);
@@ -532,6 +579,11 @@ int main(int argc, char** argv) {
     configuration.events_callbacks = events_callbacks;
     configuration.error_handling_callbacks = error_callbacks;
     configuration.threads_callbacks = threads_callbacks;
+    // HH: las lecturas PI del loader son sincronas (osEPiStartDma + osRecvMesg sobre una cola de
+    // msgCount=1). Con requeue_pi=false, una completacion que llegue con la cola llena se DESCARTA
+    // y el hilo que la espera queda colgado (hh_hang.log: ctx2 en osRecvMesg de 0x8005C268, cola
+    // vacia). Reencolar garantiza la entrega: la drena el propio hilo bloqueado en osRecvMesg.
+    configuration.message_queue_control.requeue_pi = true;
 
     hh::init_audio();
     hh::reset_audio(48000);

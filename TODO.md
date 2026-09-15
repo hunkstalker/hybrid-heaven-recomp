@@ -3,21 +3,25 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — VALIDAR el fix del módulo 9 (cuelgue del NPC)
+## Ahora — Post-fix del objeto del NPC: caja de ítem y teardown
 
-> Contexto y evidencia completos: `notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md`.
-> El cuelgue **no era regresión** (el build sin audio `e23e64c` también se cuelga con 3×
-> `do_break` en `0x802169AC`). Causa: símbolo `M9_FUN_802169ac` con tamaño 0x4604 (arrastraba datos)
-> → stub `do_break`; fix `fa02e24` (0x1C0 + override `0xADDR:0xSIZE` en el pipeline).
+> **Entrega del objeto del NPC: ARREGLADA y validada en Windows (2026-09-15).** Causas: fallthrough
+> sin encadenar en módulo 55 (fuga `0x48`/frame + animación saltada) y mid-entries sin registrar
+> (`0x80379954`, `0x803798E8`); se registraron además las 22 entradas válidas del módulo 55.
+> Módulo 55 = overlay de la secuencia de objeto del NPC (`docs/architecture.md` §2.2).
+> Detalle completo y método: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
 
-1. [•] **Validar en Windows**: `build_windows.bat` (Release) y repetir la entrega del objeto del NPC.
-   Si se congela, **esperar ≥20 s** (watchdog por polls o por audio) y leer `hh_hang.log`, `hh_pi.log`
-   y `hh_crash*` si hubo. Confirmar que la petición DMA del flujo sale como `region=rom` y completa.
-2. [ ] **Si persiste el cuelgue**: analizar el volcado (registros `r4..r7/sp` por hilo) y `hh_pi.log`;
-   el `.map` del build (`build_win/HybridHeavenRecomp-Release.map`) traduce `exe+0xNNNN`.
-3. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
+1. [•] **Probar abrir cajas/obtener ítems** (usuario, en curso): si crashea con
+   `Failed to find function at 0x...`, registrar SOLO esa dirección editando a mano
+   `us_moduleNN.syms.toml` + `us_combined.syms.toml` y `tools/recomp.py ... --force` (ver nota,
+   "Ronda 9"; **no** usar `setup_module.py`: cascado de `auto_mid` → datos como código).
+2. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
+   mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
+   arreglar (orden de deinit/destructores estáticos).
+3. [ ] **Limpieza de instrumentación** (tras estabilizar): silenciar `hh_sched.log`/`hh_mq.log`/`hh_ovl.log`
+   tras un env, y decidir si se quedan `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*` y el watchpoint.
+4. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
-4. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`).
 
 ## Hecho (resumen; detalle en `notes/`)
 

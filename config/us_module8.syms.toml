@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module8_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module8_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module8"
 rom = 0x7000000
@@ -82,7 +82,6 @@ functions = [
     { name = "M8_FUN_801c3c78", vram = 0x801C3C78, size = 0xA8 },
     { name = "M8_FUN_801c3d20", vram = 0x801C3D20, size = 0x70 },
     { name = "M8_FUN_801c3d90", vram = 0x801C3D90, size = 0x38 },
-    # [validate_syms] M8_FUN_801c3dbc fusionada (split incorrecto)
     { name = "M8_FUN_801c3dc8", vram = 0x801C3DC8, size = 0x290 },
     { name = "M8_FUN_801c4058", vram = 0x801C4058, size = 0x144 },
     { name = "M8_FUN_801c419c", vram = 0x801C419C, size = 0x140 },
@@ -154,8 +153,6 @@ functions = [
     { name = "M8_FUN_801cd420", vram = 0x801CD420, size = 0xD8 },
     { name = "M8_FUN_801cd4f8", vram = 0x801CD4F8, size = 0x8 },
     { name = "M8_FUN_801cd500", vram = 0x801CD500, size = 0xE0 },
-    # [validate_syms] M8_FUN_801cd5b4 fusionada (split incorrecto)
-    # [validate_syms] M8_FUN_801cd5c4 fusionada (split incorrecto)
     { name = "M8_FUN_801cd5e0", vram = 0x801CD5E0, size = 0x88 },
     { name = "M8_FUN_801cd668", vram = 0x801CD668, size = 0xC0 },
     { name = "M8_FUN_801cd728", vram = 0x801CD728, size = 0x88 },
@@ -169,7 +166,6 @@ functions = [
     { name = "M8_FUN_801cdf5c", vram = 0x801CDF5C, size = 0x18C },
     { name = "M8_FUN_801ce0e8", vram = 0x801CE0E8, size = 0x88 },
     { name = "M8_FUN_801ce170", vram = 0x801CE170, size = 0x58 },
-    # [validate_syms] M8_FUN_801ce1ac fusionada (split incorrecto)
     { name = "M8_FUN_801ce1c8", vram = 0x801CE1C8, size = 0x168 },
     { name = "M8_FUN_801ce330", vram = 0x801CE330, size = 0xC8 },
     { name = "M8_FUN_801ce3f8", vram = 0x801CE3F8, size = 0xDC },
@@ -388,7 +384,6 @@ functions = [
     { name = "M8_FUN_801db6b8", vram = 0x801DB6B8, size = 0x8 },
     { name = "M8_FUN_801db6c0", vram = 0x801DB6C0, size = 0x8C },
     { name = "M8_FUN_801db74c", vram = 0x801DB74C, size = 0x3C },
-    # [validate_syms] M8_FUN_801db768 fusionada (split incorrecto)
     { name = "M8_FUN_801db788", vram = 0x801DB788, size = 0xE0 },
     { name = "M8_FUN_801db868", vram = 0x801DB868, size = 0x62C },
     { name = "M8_FUN_801dbe94", vram = 0x801DBE94, size = 0x50 },

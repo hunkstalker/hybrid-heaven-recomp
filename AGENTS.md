@@ -5,6 +5,11 @@ Fase actual: **gameplay** (menús → GAME START → escenas 3D y combate) con m
 
 Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, des-stubbing libultra ADR 0002, VI del ROM ADR 0003); transición/burst (strict aliasing + registro dinámico de módulos); menús, Controller Pak y geometría/píxeles; audio `aspMain` del ROM recompilado; perfiles de mando por contexto (`config.ini`, flag de UI `0x802690D0`); diagnóstico automático de crashes y cuelgues.
 
+## Retomada rápida
+
+`RETOMAR.md` (raíz): estado sintetizado, **tarea actual y pasos exactos**, instrumentación de
+diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la nota de handoff.
+
 ## Persistencia y entorno (CRÍTICO)
 
 - **Todo artefacto persistente debe vivir bajo `/app`** (idealmente en `hybrid-heaven-recomp/`, p. ej.

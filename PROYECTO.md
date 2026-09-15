@@ -50,11 +50,13 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 ## 5. Estado de avance
 
 **Estado actual (2026-09-15)**: se juega en Windows (menús → GAME START → escenas 3D y combate) con
-mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. Foco abierto:
-el **cuelgue al recibir un objeto de un NPC** — causa raíz localizada y arreglada (símbolo
-`M9_FUN_802169ac` mal acotado → stub `do_break`; commit `fa02e24`), **pendiente de validar en
-Windows**. Instrumentación de crash/cuelgue y bats de regresión ya en el repo. Detalle:
-`notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md`.
+mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. La **entrega
+del objeto del NPC está arreglada y validada** (dos causas raíz: fallthrough sin encadenar en el
+módulo 55 — fuga de pila `0x48`/frame + animación saltada — y mid-entries sin registrar
+`0x80379954`/`0x803798E8`; el módulo 55 es el overlay de la secuencia de objeto, ver
+`docs/architecture.md` §2.2). Regresión de las escaleras por partir un switch fusionado: detectada y
+corregida. Instrumentación de crash/cuelgue y bats de regresión en el repo. Detalle:
+`notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
 
 | Fase | Estado | Nota |
 |---|---|---|

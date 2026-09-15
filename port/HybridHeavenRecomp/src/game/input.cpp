@@ -389,6 +389,16 @@ static float controller_axis_to_float(Sint16 value) {
 }
 
 void hh::poll_input() {
+    // HH: cierre de prueba para validar el teardown sin interaccion (HH_AUTOQUIT=<segundos>).
+    static const char* autquit = std::getenv("HH_AUTOQUIT");
+    if (autquit != nullptr) {
+        static const Uint32 t0 = SDL_GetTicks();
+        Uint32 limite = (Uint32)std::atoi(autquit) * 1000u;
+        if (SDL_GetTicks() - t0 >= limite) {
+            std::fprintf(stderr, "[HH] HH_AUTOQUIT=%s -> ultramodern::quit()\n", autquit);
+            ultramodern::quit();
+        }
+    }
     SDL_Event event{};
     while (SDL_PollEvent(&event)) {
         switch (event.type) {

@@ -46,6 +46,16 @@ registrar en la base determinista.
 - Detalle: `../notes/2026-09-11-modelo-modulos-trans.md` y
   `../notes/2026-09-11-a3-multi-modulo-jumptables.md`.
 
+### 2.2 Rol conocido de los módulos (evidencia runtime)
+
+Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga con su instante, y
+`port/HybridHeavenRecomp/RecompiledFuncs/recomp_overlays.inl` mapea sección → módulo Nisitenma.
+
+| idx | sección port | base RAM | rol conocido | evidencia |
+|---|---|---|---|---|
+| 55 | 11 | `0x803757E0` | **Secuencia de obtención de objeto del NPC**: animación de escala/posición del objeto, contador de fase global `0x8039764C` y caja de texto asociada. La zona contigua `0x80379970` pertenece a la IA de combate/interacciones. | `hh_ovl.log`: carga bajo demanda (`src ROM 0x68FF2C`) a `t≈13 s` en la repro, justo al iniciar la interacción con el NPC. Cadena `M55_FUN_80379690 → 80379798 → 803798D8 → 80379904 → 80379954` con floats `10.0/225.0/80.0` y `lh -0x764C($8039)` (contador de fase). Todos los `Failed to find function` del bug del NPC cayeron aquí: `0x80380010`, `0x80379954`, `0x803798E8`. Ver `../notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`. |
+
+
 ## 3. Mapa de memoria (a confirmar en runtime cuando aplique)
 
 | Región | Detalle |

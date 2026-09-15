@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module99_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module99_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module99"
 rom = 0x6000000

@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module9_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module9_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module9"
 rom = 0x8000000
@@ -113,7 +113,6 @@ functions = [
     { name = "M9_FUN_801f5210", vram = 0x801F5210, size = 0x20 },
     { name = "M9_FUN_801f5230", vram = 0x801F5230, size = 0x64 },
     { name = "M9_FUN_801f5294", vram = 0x801F5294, size = 0xD8 },
-    # [validate_syms] M9_FUN_801f5310 fusionada (split incorrecto)
     { name = "M9_FUN_801f536c", vram = 0x801F536C, size = 0x8 },
     { name = "M9_FUN_801f5374", vram = 0x801F5374, size = 0x50 },
     { name = "M9_FUN_801f53c4", vram = 0x801F53C4, size = 0x1C },
@@ -280,11 +279,10 @@ functions = [
     { name = "M9_FUN_801fd3a8", vram = 0x801FD3A8, size = 0x44 },
     { name = "M9_FUN_801fd3ec", vram = 0x801FD3EC, size = 0xA4 },
     { name = "M9_FUN_801fd490", vram = 0x801FD490, size = 0x64 },
-    { name = "M9_FUN_801fd4f4", vram = 0x801FD4F4, size = 0xC8 },
+    { name = "M9_FUN_801fd4f4", vram = 0x801FD4F4, size = 0x68 },
     { name = "M9_FUN_801fd55c", vram = 0x801FD55C, size = 0x18 },
     { name = "M9_FUN_801fd574", vram = 0x801FD574, size = 0x24 },
-    { name = "M9_FUN_801fd598", vram = 0x801FD598, size = 0x18 },
-    # [validate_syms] M9_FUN_801fd5b0 fusionada (split incorrecto)
+    { name = "M9_FUN_801fd598", vram = 0x801FD598, size = 0x24 },
     { name = "M9_FUN_801fd5bc", vram = 0x801FD5BC, size = 0x80 },
     { name = "M9_FUN_801fd63c", vram = 0x801FD63C, size = 0x8 },
     { name = "M9_FUN_801fd644", vram = 0x801FD644, size = 0x48 },
@@ -321,8 +319,6 @@ functions = [
     { name = "M9_FUN_801ff260", vram = 0x801FF260, size = 0xE8 },
     { name = "M9_FUN_801ff348", vram = 0x801FF348, size = 0x88 },
     { name = "M9_FUN_801ff3d0", vram = 0x801FF3D0, size = 0x68 },
-    # [validate_syms] M9_FUN_801ff3e8 fusionada (split incorrecto)
-    # [validate_syms] M9_FUN_801ff404 fusionada (split incorrecto)
     { name = "M9_FUN_801ff438", vram = 0x801FF438, size = 0x90 },
     { name = "M9_FUN_801ff4c8", vram = 0x801FF4C8, size = 0x64 },
     { name = "M9_FUN_801ff52c", vram = 0x801FF52C, size = 0x5C },
@@ -388,7 +384,6 @@ functions = [
     { name = "M9_FUN_802033f8", vram = 0x802033F8, size = 0x434 },
     { name = "M9_FUN_8020382c", vram = 0x8020382C, size = 0x120 },
     { name = "M9_FUN_8020394c", vram = 0x8020394C, size = 0x64 },
-    # [validate_syms] M9_FUN_80203994 fusionada (split incorrecto)
     { name = "M9_FUN_802039b0", vram = 0x802039B0, size = 0x1D6C },
     { name = "M9_FUN_8020571c", vram = 0x8020571C, size = 0x4 },
     { name = "M9_FUN_80205720", vram = 0x80205720, size = 0x5C },
@@ -437,7 +432,6 @@ functions = [
     { name = "M9_FUN_8020d358", vram = 0x8020D358, size = 0x284 },
     { name = "M9_FUN_8020d5dc", vram = 0x8020D5DC, size = 0x11E4 },
     { name = "M9_FUN_8020e7c0", vram = 0x8020E7C0, size = 0x54 },
-    # [validate_syms] M9_FUN_8020e7dc fusionada (split incorrecto)
     { name = "M9_FUN_8020e814", vram = 0x8020E814, size = 0x8 },
     { name = "M9_FUN_8020e81c", vram = 0x8020E81C, size = 0x284 },
     { name = "M9_FUN_8020eaa0", vram = 0x8020EAA0, size = 0x3C },

@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module23_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module23_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module23"
 rom = 0x3000000
@@ -139,7 +139,6 @@ functions = [
     { name = "M23_FUN_801c5ad4", vram = 0x801C5AD4, size = 0x5C },
     { name = "M23_FUN_801c5b30", vram = 0x801C5B30, size = 0x8 },
     { name = "M23_FUN_801c5b38", vram = 0x801C5B38, size = 0x38 },
-    # [validate_syms] M23_FUN_801c5b64 fusionada (split incorrecto)
     { name = "M23_FUN_801c5b70", vram = 0x801C5B70, size = 0x54 },
     { name = "M23_FUN_801c5bc4", vram = 0x801C5BC4, size = 0x54 },
     { name = "M23_FUN_801c5c18", vram = 0x801C5C18, size = 0x58 },

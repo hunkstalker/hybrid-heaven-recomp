@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module7_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module7_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module7"
 rom = 0x1000000
@@ -33,17 +33,11 @@ functions = [
     { name = "M7_FUN_80108634", vram = 0x80108634, size = 0x30 },
     { name = "M7_FUN_80108664", vram = 0x80108664, size = 0xC },
     { name = "M7_FUN_80108670", vram = 0x80108670, size = 0x54 },
-    # [validate_syms] M7_FUN_801086a8 fusionada (split incorrecto)
     { name = "M7_FUN_801086c4", vram = 0x801086C4, size = 0x54 },
-    # [validate_syms] M7_FUN_801086fc fusionada (split incorrecto)
     { name = "M7_FUN_80108718", vram = 0x80108718, size = 0x54 },
-    # [validate_syms] M7_FUN_80108750 fusionada (split incorrecto)
     { name = "M7_FUN_8010876c", vram = 0x8010876C, size = 0x54 },
-    # [validate_syms] M7_FUN_801087a4 fusionada (split incorrecto)
     { name = "M7_FUN_801087c0", vram = 0x801087C0, size = 0x54 },
-    # [validate_syms] M7_FUN_801087f8 fusionada (split incorrecto)
     { name = "M7_FUN_80108814", vram = 0x80108814, size = 0x54 },
-    # [validate_syms] M7_FUN_8010884c fusionada (split incorrecto)
     { name = "M7_FUN_80108868", vram = 0x80108868, size = 0xCF8 },
     { name = "M7_FUN_80109560", vram = 0x80109560, size = 0xC4C },
     { name = "M7_FUN_8010a1ac", vram = 0x8010A1AC, size = 0x4F4 },
@@ -143,8 +137,6 @@ functions = [
     { name = "M7_FUN_80119c1c", vram = 0x80119C1C, size = 0x4 },
     { name = "M7_FUN_80119c20", vram = 0x80119C20, size = 0x118 },
     { name = "M7_FUN_80119d38", vram = 0x80119D38, size = 0xEC },
-    # [validate_syms] M7_FUN_80119d68 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_80119e18 fusionada (split incorrecto)
     { name = "M7_FUN_80119e24", vram = 0x80119E24, size = 0x178 },
     { name = "M7_FUN_80119f9c", vram = 0x80119F9C, size = 0xD0 },
     { name = "M7_FUN_8011a06c", vram = 0x8011A06C, size = 0x84 },
@@ -152,7 +144,6 @@ functions = [
     { name = "M7_FUN_8011a148", vram = 0x8011A148, size = 0x70 },
     { name = "M7_FUN_8011a1b8", vram = 0x8011A1B8, size = 0x120 },
     { name = "M7_FUN_8011a2d8", vram = 0x8011A2D8, size = 0x70 },
-    # [validate_syms] M7_FUN_8011a33c fusionada (split incorrecto)
     { name = "M7_FUN_8011a348", vram = 0x8011A348, size = 0x8C },
     { name = "M7_FUN_8011a3d4", vram = 0x8011A3D4, size = 0x1D0 },
     { name = "M7_FUN_8011a5a4", vram = 0x8011A5A4, size = 0x180 },
@@ -168,7 +159,6 @@ functions = [
     { name = "M7_FUN_8011aaf8", vram = 0x8011AAF8, size = 0x75C },
     { name = "M7_FUN_8011b254", vram = 0x8011B254, size = 0xC },
     { name = "M7_FUN_8011b260", vram = 0x8011B260, size = 0x84 },
-    # [validate_syms] M7_FUN_8011b2a0 fusionada (split incorrecto)
     { name = "M7_FUN_8011b2e4", vram = 0x8011B2E4, size = 0xF4 },
     { name = "M7_FUN_8011b3d8", vram = 0x8011B3D8, size = 0x9C },
     { name = "M7_FUN_8011b474", vram = 0x8011B474, size = 0x9C },
@@ -217,7 +207,6 @@ functions = [
     { name = "M7_FUN_801256c4", vram = 0x801256C4, size = 0x8 },
     { name = "M7_FUN_801256cc", vram = 0x801256CC, size = 0xA8 },
     { name = "M7_FUN_80125774", vram = 0x80125774, size = 0x68 },
-    # [validate_syms] M7_FUN_80125798 fusionada (split incorrecto)
     { name = "M7_FUN_801257dc", vram = 0x801257DC, size = 0x2C },
     { name = "M7_FUN_80125808", vram = 0x80125808, size = 0xC },
     { name = "M7_FUN_80125814", vram = 0x80125814, size = 0x154 },
@@ -226,9 +215,7 @@ functions = [
     { name = "M7_FUN_801262d4", vram = 0x801262D4, size = 0x8C },
     { name = "M7_FUN_80126360", vram = 0x80126360, size = 0xC },
     { name = "M7_FUN_8012636c", vram = 0x8012636C, size = 0x168 },
-    # [validate_syms] M7_FUN_8012642c fusionada (split incorrecto)
     { name = "M7_FUN_801264d4", vram = 0x801264D4, size = 0x9C },
-    # [validate_syms] M7_FUN_80126534 fusionada (split incorrecto)
     { name = "M7_FUN_80126570", vram = 0x80126570, size = 0x148 },
     { name = "M7_FUN_801266b8", vram = 0x801266B8, size = 0x8C },
     { name = "M7_FUN_80126744", vram = 0x80126744, size = 0x50 },
@@ -238,7 +225,6 @@ functions = [
     { name = "M7_FUN_80126820", vram = 0x80126820, size = 0xC },
     { name = "M7_FUN_8012682c", vram = 0x8012682C, size = 0x54 },
     { name = "M7_FUN_80126880", vram = 0x80126880, size = 0x4C },
-    # [validate_syms] M7_FUN_801268b8 fusionada (split incorrecto)
     { name = "M7_FUN_801268cc", vram = 0x801268CC, size = 0x28 },
     { name = "M7_FUN_801268f4", vram = 0x801268F4, size = 0x30 },
     { name = "M7_FUN_80126924", vram = 0x80126924, size = 0xC },
@@ -330,27 +316,22 @@ functions = [
     { name = "M7_FUN_8012c398", vram = 0x8012C398, size = 0x8 },
     { name = "M7_FUN_8012c3a0", vram = 0x8012C3A0, size = 0xD8 },
     { name = "M7_FUN_8012c478", vram = 0x8012C478, size = 0x58 },
-    # [validate_syms] M7_FUN_8012c4c4 fusionada (split incorrecto)
     { name = "M7_FUN_8012c4d0", vram = 0x8012C4D0, size = 0x5C },
     { name = "M7_FUN_8012c52c", vram = 0x8012C52C, size = 0xC4 },
     { name = "M7_FUN_8012c5f0", vram = 0x8012C5F0, size = 0xC4 },
     { name = "M7_FUN_8012c6b4", vram = 0x8012C6B4, size = 0x68 },
     { name = "M7_FUN_8012c71c", vram = 0x8012C71C, size = 0x5C },
-    # [validate_syms] M7_FUN_8012c750 fusionada (split incorrecto)
     { name = "M7_FUN_8012c778", vram = 0x8012C778, size = 0xC },
     { name = "M7_FUN_8012c784", vram = 0x8012C784, size = 0x118 },
-    # [validate_syms] M7_FUN_8012c81c fusionada (split incorrecto)
     { name = "M7_FUN_8012c89c", vram = 0x8012C89C, size = 0x8C },
     { name = "M7_FUN_8012c928", vram = 0x8012C928, size = 0x54 },
     { name = "M7_FUN_8012c97c", vram = 0x8012C97C, size = 0x10 },
     { name = "M7_FUN_8012c98c", vram = 0x8012C98C, size = 0x34 },
     { name = "M7_FUN_8012c9c0", vram = 0x8012C9C0, size = 0xF8 },
-    # [validate_syms] M7_FUN_8012ca48 fusionada (split incorrecto)
     { name = "M7_FUN_8012cab8", vram = 0x8012CAB8, size = 0x8C },
     { name = "M7_FUN_8012cb44", vram = 0x8012CB44, size = 0x8 },
     { name = "M7_FUN_8012cb4c", vram = 0x8012CB4C, size = 0x1DC },
     { name = "M7_FUN_8012cd28", vram = 0x8012CD28, size = 0xE8 },
-    # [validate_syms] M7_FUN_8012cdb4 fusionada (split incorrecto)
     { name = "M7_FUN_8012ce10", vram = 0x8012CE10, size = 0x8C },
     { name = "M7_FUN_8012ce9c", vram = 0x8012CE9C, size = 0x74 },
     { name = "M7_FUN_8012cf10", vram = 0x8012CF10, size = 0x7C },
@@ -377,12 +358,9 @@ functions = [
     { name = "M7_FUN_8012e654", vram = 0x8012E654, size = 0x68 },
     { name = "M7_FUN_8012e6bc", vram = 0x8012E6BC, size = 0xB8 },
     { name = "M7_FUN_8012e774", vram = 0x8012E774, size = 0xA8 },
-    # [validate_syms] M7_FUN_8012e7d0 fusionada (split incorrecto)
     { name = "M7_FUN_8012e81c", vram = 0x8012E81C, size = 0x10 },
     { name = "M7_FUN_8012e82c", vram = 0x8012E82C, size = 0xAE0 },
     { name = "M7_FUN_8012f30c", vram = 0x8012F30C, size = 0x7C },
-    # [validate_syms] M7_FUN_8012f334 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8012f370 fusionada (split incorrecto)
     { name = "M7_FUN_8012f388", vram = 0x8012F388, size = 0x94 },
     { name = "M7_FUN_8012f41c", vram = 0x8012F41C, size = 0x74 },
     { name = "M7_FUN_8012f490", vram = 0x8012F490, size = 0x3EC },
@@ -412,8 +390,6 @@ functions = [
     { name = "M7_FUN_801302cc", vram = 0x801302CC, size = 0x40 },
     { name = "M7_FUN_8013030c", vram = 0x8013030C, size = 0x4 },
     { name = "M7_FUN_80130310", vram = 0x80130310, size = 0xC8 },
-    # [validate_syms] M7_FUN_80130354 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_801303a8 fusionada (split incorrecto)
     { name = "M7_FUN_801303d8", vram = 0x801303D8, size = 0x238 },
     { name = "M7_FUN_80130610", vram = 0x80130610, size = 0x60 },
     { name = "M7_FUN_80130670", vram = 0x80130670, size = 0x60 },
@@ -492,7 +468,6 @@ functions = [
     { name = "M7_FUN_8013557c", vram = 0x8013557C, size = 0x5C },
     { name = "M7_FUN_801355d8", vram = 0x801355D8, size = 0xA0 },
     { name = "M7_FUN_80135678", vram = 0x80135678, size = 0x1A4 },
-    # [validate_syms] M7_FUN_801357f4 fusionada (split incorrecto)
     { name = "M7_FUN_8013581c", vram = 0x8013581C, size = 0xE0 },
     { name = "M7_FUN_801358fc", vram = 0x801358FC, size = 0x78 },
     { name = "M7_FUN_80135974", vram = 0x80135974, size = 0xC },
@@ -583,9 +558,7 @@ functions = [
     { name = "M7_FUN_8013b12c", vram = 0x8013B12C, size = 0x4 },
     { name = "M7_FUN_8013b130", vram = 0x8013B130, size = 0x28 },
     { name = "M7_FUN_8013b158", vram = 0x8013B158, size = 0x44 },
-    # [validate_syms] M7_FUN_8013b17c fusionada (split incorrecto)
     { name = "M7_FUN_8013b19c", vram = 0x8013B19C, size = 0x6C },
-    # [validate_syms] M7_FUN_8013b1e0 fusionada (split incorrecto)
     { name = "M7_FUN_8013b208", vram = 0x8013B208, size = 0x60 },
     { name = "M7_FUN_8013b268", vram = 0x8013B268, size = 0x308 },
     { name = "M7_FUN_8013b570", vram = 0x8013B570, size = 0x44 },
@@ -619,14 +592,12 @@ functions = [
     { name = "M7_FUN_8013ccf0", vram = 0x8013CCF0, size = 0x14 },
     { name = "M7_FUN_8013cd04", vram = 0x8013CD04, size = 0x398 },
     { name = "M7_FUN_8013d09c", vram = 0x8013D09C, size = 0x98 },
-    # [validate_syms] M7_FUN_8013d0ec fusionada (split incorrecto)
     { name = "M7_FUN_8013d134", vram = 0x8013D134, size = 0xC },
     { name = "M7_FUN_8013d140", vram = 0x8013D140, size = 0x20 },
     { name = "M7_FUN_8013d160", vram = 0x8013D160, size = 0xC },
     { name = "M7_FUN_8013d16c", vram = 0x8013D16C, size = 0xFC },
     { name = "M7_FUN_8013d268", vram = 0x8013D268, size = 0x28 },
     { name = "M7_FUN_8013d290", vram = 0x8013D290, size = 0x28 },
-    # [validate_syms] M7_FUN_8013d2a4 fusionada (split incorrecto)
     { name = "M7_FUN_8013d2b8", vram = 0x8013D2B8, size = 0x44 },
     { name = "M7_FUN_8013d2fc", vram = 0x8013D2FC, size = 0x24 },
     { name = "M7_FUN_8013d320", vram = 0x8013D320, size = 0x28 },
@@ -648,9 +619,7 @@ functions = [
     { name = "M7_FUN_8013dc38", vram = 0x8013DC38, size = 0x28 },
     { name = "M7_FUN_8013dc60", vram = 0x8013DC60, size = 0x910 },
     { name = "M7_FUN_8013e570", vram = 0x8013E570, size = 0x54 },
-    # [validate_syms] M7_FUN_8013e5ac fusionada (split incorrecto)
     { name = "M7_FUN_8013e5c4", vram = 0x8013E5C4, size = 0x58 },
-    # [validate_syms] M7_FUN_8013e604 fusionada (split incorrecto)
     { name = "M7_FUN_8013e61c", vram = 0x8013E61C, size = 0x4 },
     { name = "M7_FUN_8013e620", vram = 0x8013E620, size = 0xE0 },
     { name = "M7_FUN_8013e700", vram = 0x8013E700, size = 0x70 },
@@ -687,7 +656,6 @@ functions = [
     { name = "M7_FUN_80141124", vram = 0x80141124, size = 0x38 },
     { name = "M7_FUN_8014115c", vram = 0x8014115C, size = 0x3C },
     { name = "M7_FUN_80141198", vram = 0x80141198, size = 0x38 },
-    # [validate_syms] M7_FUN_801411c4 fusionada (split incorrecto)
     { name = "M7_FUN_801411d0", vram = 0x801411D0, size = 0x8 },
     { name = "M7_FUN_801411d8", vram = 0x801411D8, size = 0x90 },
     { name = "M7_FUN_80141268", vram = 0x80141268, size = 0x8 },
@@ -785,7 +753,6 @@ functions = [
     { name = "M7_FUN_80147450", vram = 0x80147450, size = 0xEC },
     { name = "M7_FUN_8014753c", vram = 0x8014753C, size = 0x5C },
     { name = "M7_FUN_80147598", vram = 0x80147598, size = 0x30 },
-    # [validate_syms] M7_FUN_801475bc fusionada (split incorrecto)
     { name = "M7_FUN_801475c8", vram = 0x801475C8, size = 0x118 },
     { name = "M7_FUN_801476e0", vram = 0x801476E0, size = 0x54 },
     { name = "M7_FUN_80147734", vram = 0x80147734, size = 0x34 },
@@ -825,7 +792,6 @@ functions = [
     { name = "M7_FUN_801486a8", vram = 0x801486A8, size = 0xC0 },
     { name = "M7_FUN_80148768", vram = 0x80148768, size = 0x4C },
     { name = "M7_FUN_801487b4", vram = 0x801487B4, size = 0x3C },
-    # [validate_syms] M7_FUN_801487e4 fusionada (split incorrecto)
     { name = "M7_FUN_801487f0", vram = 0x801487F0, size = 0x28 },
     { name = "M7_FUN_80148818", vram = 0x80148818, size = 0x8 },
     { name = "M7_FUN_80148820", vram = 0x80148820, size = 0x138 },
@@ -892,28 +858,11 @@ functions = [
     { name = "M7_FUN_8014b4a0", vram = 0x8014B4A0, size = 0x78 },
     { name = "M7_FUN_8014b518", vram = 0x8014B518, size = 0x50 },
     { name = "M7_FUN_8014b568", vram = 0x8014B568, size = 0x80 },
-    # [validate_syms] M7_FUN_8014b5c4 fusionada (split incorrecto)
     { name = "M7_FUN_8014b5e8", vram = 0x8014B5E8, size = 0x88 },
-    # [validate_syms] M7_FUN_8014b610 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b628 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b640 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b658 fusionada (split incorrecto)
     { name = "M7_FUN_8014b670", vram = 0x8014B670, size = 0x88 },
-    # [validate_syms] M7_FUN_8014b698 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b6b0 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b6c8 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b6e0 fusionada (split incorrecto)
     { name = "M7_FUN_8014b6f8", vram = 0x8014B6F8, size = 0x1C },
     { name = "M7_FUN_8014b714", vram = 0x8014B714, size = 0xB8 },
-    # [validate_syms] M7_FUN_8014b748 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b76c fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b790 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b7b4 fusionada (split incorrecto)
     { name = "M7_FUN_8014b7cc", vram = 0x8014B7CC, size = 0x110 },
-    # [validate_syms] M7_FUN_8014b81c fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b854 fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b88c fusionada (split incorrecto)
-    # [validate_syms] M7_FUN_8014b8c4 fusionada (split incorrecto)
     { name = "M7_FUN_8014b8dc", vram = 0x8014B8DC, size = 0x120 },
     { name = "M7_FUN_8014b9fc", vram = 0x8014B9FC, size = 0x154 },
     { name = "M7_FUN_8014bb50", vram = 0x8014BB50, size = 0xC8 },

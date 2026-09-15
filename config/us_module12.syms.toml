@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module12_be.bin — funciones por prólogo+jal+jr-ra; jump-tables fusionadas.
+# Módulo: /app/hybrid-heaven-recomp/work/scratch/module12_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module12"
 rom = 0xA000000
@@ -81,7 +81,6 @@ functions = [
     { name = "M12_FUN_80242fc0", vram = 0x80242FC0, size = 0x8 },
     { name = "M12_FUN_80242fc8", vram = 0x80242FC8, size = 0x8 },
     { name = "M12_FUN_80242fd0", vram = 0x80242FD0, size = 0xA0 },
-    # [validate_syms] M12_FUN_80243064 fusionada (split incorrecto)
     { name = "M12_FUN_80243070", vram = 0x80243070, size = 0x9C },
     { name = "M12_FUN_8024310c", vram = 0x8024310C, size = 0xB8 },
     { name = "M12_FUN_802431c4", vram = 0x802431C4, size = 0x268 },

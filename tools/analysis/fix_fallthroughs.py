@@ -92,11 +92,24 @@ def main():
                 real = [l for l in code if l not in PROLOGUE]
                 is_ft = False
                 if real and cur not in stubs and MARKER not in "\n".join(body):
-                    last = real[-1]
-                    has_ret = any("return;" in l for l in real)
+                    # La decision debe mirar solo la ULTIMA sentencia real: una funcion puede
+                    # tener ramas con `return` (p. ej. LOOKUP + return) y aun asi caer al final
+                    # hacia la funcion contigua (caso M55_FUN_80379690 -> 0x803796E4: fuga 0x48).
+                    stmts = list(real)
+                    while stmts and stmts[-1] in ("}", "{"):
+                        stmts.pop()
+                    last = stmts[-1] if stmts else ""
                     term_goto = last.startswith("goto ")
+                    term_ret = last == "return;"
                     tail_call = bool(re.match(r'\w+\(rdram, ctx\);$', last))
-                    is_ft = not has_ret and not term_goto and not tail_call
+                    # Direccion de la ultima instruccion emitida (ultimo comentario // 0xADDR:)
+                    last_addr = None
+                    for l in reversed(body):
+                        am = re.match(r'\s*// 0x([0-9A-Fa-f]{8}):', l)
+                        if am:
+                            last_addr = int(am.group(1), 16)
+                            break
+                    is_ft = bool(stmts) and not term_ret and not term_goto and not tail_call
                 if is_ft:
                     total_ft += 1
                     a = func_addr(cur)
@@ -107,7 +120,7 @@ def main():
                         j = bisect.bisect_right(prefix_addrs.get(pref, []), a)
                         if j < len(lst):
                             cont = lst[j][1]
-                    if cont and cont != cur:
+                    if cont and cont != cur and last_addr is not None and func_addr(cont) == last_addr + 4:
                         out.append("    // %s: split fallthrough -> chain to continuation" % MARKER)
                         out.append("    %s(rdram, ctx);" % cont)
                         fixed += 1; changed = True

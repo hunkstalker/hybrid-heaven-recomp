@@ -100,19 +100,29 @@ nombre base y por tiempo (`triage.csv` ya marca `txt=yes/no`). Así se ata overl
 ## 5. Completar símbolos faltantes (evidencia runtime)
 
 La detección estática es poco fiable (jump-tables). La fuente fiable son los `Failed to find
-function`. Bucle determinista:
+function at 0x...`: el runtime **aborta** al encontrarlos (deja la dirección en consola y en
+`hh_missing.log`). Bucle recomendado:
 
 ```sh
-# 1) run con soft-lookup (loguea faltantes y sigue con stub)
-cd port/HybridHeavenRecomp/build_dbg && HH_SOFT_LOOKUP=1 timeout 90 "./Hybrid Heaven Recomp" > /tmp/hh_soft.log 2>&1
-# 2) añadir faltantes a la syms correspondiente (flat o módulo)
-python3 tools/analysis/add_missing_funcs.py --syms config/us_ghidra.syms.toml --log /tmp/hh_soft.log
-# 3) re-merge + recomp + build (ver §1) y repetir hasta 0 faltantes
+# 1) registrar la direccion (una sola orden; rechaza delay slots y switches fusionados)
+python3 tools/analysis/add_mid_entry.py 0x80379954
+# 2) recompilar (--force: el validador fusiona splits legitimas de epilogos compartidos)
+python3 tools/recomp.py --config config/game_combined.toml --force
+# 3) build (ver §1) y probar
 ```
 
+- `add_mid_entry.py` edita **solo lo mínimo**: parte el símbolo contenedor en
+  `config/us_moduleNN.syms.toml` y `config/us_combined.syms.toml`, y anota la dirección en
+  `keep_syms.txt` + `module_extras.json`. **No** usar `setup_module.py` para esto: su detección
+  automática (`auto_mid`) puede cascar y meter **datos como código** (rompe el build con
+  `0 = cop0_register_read`). Ver `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+- **Nunca** partir dentro de un rango de jump-table fusionada: el switch pierde sus casos como
+  etiquetas locales y pasa a `LOOKUP` (regresión real: crash de las escaleras con
+  `0x8037C50C/0x8037C530` → `0x8037C8E4`). La herramienta lo detecta y rechaza.
+- `HH_SOFT_LOOKUP=1` (solo para depurar símbolos) permite seguir con stub no-op; los stubs falsean
+  la lógica del juego, no usar para validar.
 - `tools/analysis/fix_function_bounds.py <syms> --rom <rom> --report-only`: asesor CFG (propone
   inicios; **no** auto-aplicar: sobre-parte).
-- `HH_SOFT_LOOKUP=1` es solo para depurar símbolos (los stubs no-op falsean la lógica del juego).
 
 ## 6. Oráculo con emulador (comparar port vs juego real)
 
