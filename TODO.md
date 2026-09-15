@@ -69,9 +69,9 @@
     del menú `M24_FUN_801cb71c` con `$t5+0x30 = 0` calculaba un puntero fuera del buffer (fix en
     `MEM_*`/`TO_PTR`: no mapeadas → RDRAM física <8 MB o scratch; verificado 185 s sin SEGV).
     **GAMEPLAY ALCANZADO (2026-09-14)**: overlays idx8/9/10/12/55 y funciones de IA de combate
-    añadidas; se juega hasta el combate con robots. Herramientas: `HH_STICK/HH_STICK_AT`, `HH_RES`,
-    `HH_RECORD`/`HH_REPLAY` (replay por índice de poll, RMSE=0). Frontera: **crash cuando los robots
-    dañan al jugador** y layout del mando. Detalle: `notes/2026-09-14-combate-overlays-y-replay.md`.
+    añadidas; se juega hasta el combate con robots. `HH_STICK/HH_STICK_AT`, `HH_RES`, `HH_RECORD`/
+    `HH_REPLAY` (alineado por VI; RMSE=0 en la misma máquina). Daño enemigo: `0x80379970` + 17
+    entradas del módulo 55 resueltas. Frontera: layout del mando y más mid-entries si aparecen.
 11. [ ] **Validar en Windows (MSVC)** el estado actual (módulos 7/23/54 + audio no-op + apagado).
 12. [x] **CAUSA RAÍZ del estancamiento total — Expansion Pak (memsize)**: el port arrancaba como
    máquina de **8 MB** y el juego exige **4 MB** (`osGetMemSize() == 0x400000` en `FUN_80001078`; si no,
