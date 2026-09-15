@@ -288,14 +288,16 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     // Límites de seguridad: evita allocaciones absurdas (wrap del juego) que corrompen el heap.
     constexpr size_t hh_max_samples = 1u << 18;  // 262144 muestras (~1 MB)
     if (sample_count == 0 || sample_count > hh_max_samples) {
-        if (getenv("HH_AUDIOLOG") != nullptr) {
+        const char* hh_audlog = getenv("HH_AUDIOLOG");
+        if (hh_audlog != nullptr && *hh_audlog != '\0') {
             fprintf(stderr, "[AUD] queue_samples ignorado: count=%zu\n", sample_count);
         }
         return;
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
     const bool convert = audio_convert.len_ratio > 0.0f && audio_convert.len_ratio <= 64.0f;
-    if (getenv("HH_AUDIOLOG") != nullptr) {
+    const char* hh_audlog = getenv("HH_AUDIOLOG");
+    if (hh_audlog != nullptr && *hh_audlog != '\0') {
         static int hh_aud_n = 0;
         if (hh_aud_n++ < 40) {
             fprintf(stderr, "[AUD] count=%zu bytes=%zu rate=%u out=%u ratio=%.3f conv=%d\n",
@@ -360,7 +362,8 @@ void hh::set_frequency(uint32_t freq) {
 
 bool hh::reset_audio(uint32_t output_freq) {
     // HH_NOAUDIO=1 fuerza el camino virtual (sin dispositivo): util para aislar crashes de audio.
-    if (getenv("HH_NOAUDIO") != nullptr) {
+    const char* hh_noaudio = getenv("HH_NOAUDIO");
+    if (hh_noaudio != nullptr && *hh_noaudio != '\0') {
         fprintf(stderr, "HH_NOAUDIO=1: audio virtual (sin dispositivo)\n");
         audio_device = 0;
         return true;

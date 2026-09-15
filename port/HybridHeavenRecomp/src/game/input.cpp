@@ -333,7 +333,8 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
                 // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
                 // HH_INVERT_Y=1 invierte el signo (por si el mando lo requiere al revés).
                 float raw_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
-                axis_y = getenv("HH_INVERT_Y") ? raw_y : -raw_y;
+                const char* hh_iy = getenv("HH_INVERT_Y");
+                axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
             }
         }
     }
@@ -341,7 +342,8 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     // HH_STICK=x,y inyecta el stick analógico para runs headless (convención N64: +y = arriba).
     // HH_STICK_AT=<s> retrasa su aplicación (p. ej. hasta estar en gameplay, sin mover menús).
     if (controller_num == 0) {
-        if (const char* st = getenv("HH_STICK")) {
+        const char* st = getenv("HH_STICK");
+            if (st != nullptr && *st != '\0') {
             bool active = true;
             if (const char* at = getenv("HH_STICK_AT")) {
                 static const auto stick_t0 = std::chrono::steady_clock::now();
@@ -361,15 +363,15 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     const double hh_elapsed = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - hh_in_t0).count();
     if (controller_num == 0) {
-        if (getenv("HH_REPLAY") != nullptr) {
+        if (getenv("HH_REPLAY") != nullptr && *getenv("HH_REPLAY") != '\0') {
             hh_replay_apply(hh_elapsed, input, axis_x, axis_y);
         }
-        else if (getenv("HH_RECORD") != nullptr) {
+        else if (getenv("HH_RECORD") != nullptr && *getenv("HH_RECORD") != '\0') {
             hh_record_write(hh_elapsed, input, axis_x, axis_y);
         }
     }
 
-    if (controller_num == 0 && getenv("HH_INLOG") != nullptr) {
+    if (controller_num == 0 && getenv("HH_INLOG") != nullptr && *getenv("HH_INLOG") != '\0') {
         static n64_button last_input = 0;
         static unsigned long input_calls = 0;
         static unsigned long ax_calls = 0;
