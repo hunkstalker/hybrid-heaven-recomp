@@ -235,6 +235,7 @@ void hh::update_gfx(ultramodern::gfx_callbacks_t::gfx_data_t gfx_data) {
 
 static SDL_AudioCVT audio_convert;
 static SDL_AudioDeviceID audio_device = 0;
+static bool audio_cvt_needed = false;   // SDL_BuildAudioCVT: 1 = hay conversion, 0 = no hace falta
 
 static uint32_t sample_rate = 48000;
 static uint32_t output_sample_rate = 48000;
@@ -295,7 +296,8 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         return;
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
-    const bool convert = audio_convert.len_ratio > 0.0f && audio_convert.len_ratio <= 64.0f;
+    const bool convert = audio_cvt_needed && audio_convert.len_ratio > 0.0f
+                         && audio_convert.len_ratio <= 64.0f;
     const char* hh_audlog = getenv("HH_AUDIOLOG");
     if (hh_audlog != nullptr && *hh_audlog != '\0') {
         static int hh_aud_n = 0;
@@ -375,11 +377,16 @@ void hh::set_frequency(uint32_t freq) {
         AUDIO_S16, static_cast<Uint8>(output_channels), static_cast<int>(output_sample_rate)
     );
 
+    // SDL: ret==0 => NO hace falta conversion (mismas tasa/formato); len_ratio puede quedar a 0.
+    // Usar ret (no len_ratio) para decidir si convertir.
+    audio_cvt_needed = (ret > 0);
+
     if (ret < 0) {
         fprintf(stderr, "Error creating SDL audio converter: %s\n", SDL_GetError());
-        // len_ratio invalido -> queue_samples hara cola directa sin convertir.
-        audio_convert.len_ratio = 0.0;
+        audio_cvt_needed = false;
     }
+    fprintf(stderr, "[AUD] CVT: ret=%d needed=%d ratio=%.4f (%u -> %u Hz)\n",
+            ret, (int)audio_cvt_needed, audio_convert.len_ratio, sample_rate, output_sample_rate);
 }
 
 bool hh::reset_audio(uint32_t output_freq) {
