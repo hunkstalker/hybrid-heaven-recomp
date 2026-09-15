@@ -360,7 +360,20 @@ size_t hh::get_frames_remaining() {
         virtual_ai_drain();
         return static_cast<size_t>(virtual_frames);
     }
-    return static_cast<size_t>(SDL_GetQueuedAudioSize(audio_device) / (input_channels * sizeof(int16_t)));
+    const size_t queued = static_cast<size_t>(
+        SDL_GetQueuedAudioSize(audio_device) / (input_channels * sizeof(int16_t)));
+    // El N64 (y la formula del juego) solo maneja ~1-2 VI de cola: si reportamos mas, el juego
+    // calcula un tamano negativo (wrap) y descarta audio. Se acota como en la via virtual.
+    const size_t cap = static_cast<size_t>(sample_rate / 60);
+    const size_t reported = queued < cap ? queued : cap;
+    const char* qlog = getenv("HH_AUDIOLOG");
+    if (qlog != nullptr && *qlog != ' ') {
+        static unsigned long qn = 0;
+        if ((qn++ & 0x3F) == 0) {
+            fprintf(stderr, "[AUDQ] queued=%zu reported=%zu cap=%zu\n", queued, reported, cap);
+        }
+    }
+    return reported;
 }
 
 void hh::set_frequency(uint32_t freq) {
