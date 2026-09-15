@@ -93,10 +93,10 @@ index 748558c..9b9a59e 100644
          MEM_B(0, (int64_t)(int32_t)(dram_addr + i + 0x80000000)) = RSP_MEM_B(i, dmem_addr);
      }
 diff --git a/librecomp/src/ai.cpp b/librecomp/src/ai.cpp
-index 0195f2b..83239c6 100644
+index 0195f2b..1e45e5a 100644
 --- a/librecomp/src/ai.cpp
 +++ b/librecomp/src/ai.cpp
-@@ -1,27 +1,49 @@
+@@ -1,27 +1,71 @@
  #include "recomp.h"
  #include <cstdio>
 +#include <chrono>
@@ -124,6 +124,28 @@ index 0195f2b..83239c6 100644
  extern "C" void osAiSetNextBuffer_recomp(uint8_t* rdram, recomp_context* ctx) {
 -    ultramodern::queue_audio_buffer(rdram, ctx->r4, ctx->r5);
 +    uint32_t bytes = ctx->r5;
++    // HH: el driver de audio de este juego programa AI_DACRATE por MMIO (no usa osAiSetFrequency).
++    // El puerto ignora ese registro y se queda en 48 kHz por defecto -> desajuste de tasa
++    // (audio a tirones/ralentizado). Leer el registro del area MMIO (0xA4500004 -> offset
++    // 0x24500004) y adaptar la frecuencia si cambio. VI_NTSC_CLOCK ~ 48681812 Hz.
++    {
++        static uint32_t hh_last_freq = 0xFFFFFFFFu;
++        uint32_t dacrate = *(uint32_t*)&rdram[0x24500004];
++        uint32_t freq;
++        if (dacrate == 0 || dacrate == 0xFFFFFFFFu) {
++            // Mupen/hardware: con AI_DACRATE sin programar, la frecuencia por defecto es 44100 Hz.
++            // Este juego no escribe el registro (kseg1 dac=0); asumir 48000 daba audio ~9% rapido.
++            freq = 44100;
++        }
++        else {
++            freq = (uint32_t)((double)VI_NTSC_CLOCK / (double)(dacrate + 1) + 0.5);
++        }
++        if (freq != hh_last_freq && freq >= 4000 && freq <= 192000) {
++            hh_last_freq = freq;
++            fprintf(stderr, "[AI ] AI rate: dacrate=%u -> %u Hz\n", dacrate, freq);
++            ultramodern::set_audio_frequency(freq);
++        }
++    }
 +    // HH: el driver de audio calcula el tamano con (0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0
 +    // y lo guarda en un s16. Si la cola virtual supera esa ventana (bursts de ticks), el resultado
 +    // hace wrap y se convierte en un byte_count negativo (~4 GiB) que envenenaria la cola de audio

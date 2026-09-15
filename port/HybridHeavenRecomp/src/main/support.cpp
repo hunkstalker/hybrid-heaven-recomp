@@ -296,6 +296,37 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         return;
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
+    // HH_AUDIODUMP=<f>: volcar el primer buffer crudo de audio (diagnostico de endianness).
+    if (const char* dump = getenv("HH_AUDIODUMP")) {
+        if (dump != nullptr && *dump != '\0') {
+            static FILE* df = nullptr;
+            static size_t dtotal = 0;
+            if (df == nullptr && dtotal == 0) {
+                df = fopen(dump, "wb");
+                if (df != nullptr) fprintf(stderr, "[AUD] dump acumulativo en %s\n", dump);
+            }
+            // 16 MB basta para analizar; luego se deja de escribir.
+            if (df != nullptr && dtotal < (8u << 20)) {
+                fwrite(audio_data, 1, byte_len, df);
+                fflush(df);
+                dtotal += byte_len;
+                // log de tiempos/tamanos para medir la tasa efectiva
+                static FILE* tf = nullptr;
+                if (tf == nullptr) {
+                    std::string tp = std::string(dump) + ".txt";
+                    tf = fopen(tp.c_str(), "w");
+                }
+                if (tf != nullptr) {
+                    static const auto t0 = std::chrono::steady_clock::now();
+                    const double el = std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - t0).count();
+                    fprintf(tf, "%.4f %zu\n", el, sample_count);
+                    fflush(tf);
+                }
+                if (dtotal >= (8u << 20)) fprintf(stderr, "[AUD] dump completo (%zu bytes)\n", dtotal);
+            }
+        }
+    }
     const bool convert = audio_cvt_needed && audio_convert.len_ratio > 0.0f
                          && audio_convert.len_ratio <= 64.0f;
     const char* hh_audlog = getenv("HH_AUDIOLOG");
