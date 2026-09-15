@@ -266,6 +266,41 @@ static void hh_dump_ctx_regs(FILE* f, int idx, int tid, recomp_context* c) {
 // Si el juego deja de pedir input (latido real del hilo de juego; el VI es de reloj y avanza
 // aunque el juego este colgado) durante N segundos (HH_HANG_SECS, por defecto 15), vuelca
 // hh_hang.log (contexto MIPS de cada hilo: RA/SP = donde esta bloqueado) y hh_hang_rdram.bin.
+// HH: diagnostico del livelock del dano: vigila el flag 0x80037748/0x8003774C y permite
+// forzarlo (HH_TEST_FLAG=<segundos>) para reproducir el estado localmente.
+static void hh_flag_watch() {
+    static uint16_t prev48 = 0xFFFF, prev4c = 0xFFFF;
+    static bool init = false;
+    uint8_t* rdram = hh::get_game_rdram();
+    if (rdram == nullptr) return;
+    uint16_t f48 = *(uint16_t*)(rdram + 0x37748);
+    uint16_t f4c = *(uint16_t*)(rdram + 0x3774c);
+    if (!init) { prev48 = f48; prev4c = f4c; init = true; }
+    const char* env = getenv("HH_TEST_FLAG");
+    if (env != nullptr && *env != '\0') {
+        static bool done = false;
+        if (!done && std::chrono::duration<double>(std::chrono::steady_clock::now() - std::chrono::steady_clock::time_point{}).count() > 0) {
+            static auto t0 = std::chrono::steady_clock::now();
+            if (std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() >= strtod(env, nullptr)) {
+                done = true;
+                *(uint16_t*)(rdram + 0x37748) = 1;
+                *(uint16_t*)(rdram + 0x3774c) = 0;
+                fprintf(stderr, "[FLAG] forzado flag 0x80037748=1\n");
+                f48 = 1;
+            }
+        }
+    }
+    if (f48 != prev48 || f4c != prev4c) {
+        FILE* f = fopen("hh_flag.log", "a");
+        if (f != nullptr) {
+            fprintf(f, "[FLAG] 0x80037748: %04X -> %04X   0x8003774C: %04X -> %04X (VI=%llu)\n",
+                    prev48, f48, prev4c, f4c, (unsigned long long)hh_get_vi_count());
+            fclose(f);
+        }
+        prev48 = f48; prev4c = f4c;
+    }
+}
+
 static void hh_hang_watchdog() {
     const char* env = getenv("HH_HANG_SECS");
     const double limit = (env != nullptr && *env != '\0') ? strtod(env, nullptr) : 15.0;
@@ -293,6 +328,7 @@ static void hh_hang_watchdog() {
         bool forced_done = false;
         while (true) {
             std::this_thread::sleep_for(1s);
+            hh_flag_watch();
             unsigned long long polls = hh_get_input_polls();
             unsigned long long audio = hh_get_audio_calls();
             unsigned long long vi = hh_get_vi_count();
@@ -344,6 +380,7 @@ static void hh_hang_watchdog() {
                     fprintf(f, "[HANG] ctx%d tid=%d (sombra: id=%u state=%u queue=%08X sp=%08X) ctx_sp=%08X\n",
                             i, tids[i], ok ? info[0] : 0xFFFFFFFFu, ok ? info[1] : 0xFFFFFFFFu,
                             ok ? info[2] : 0, ok ? info[3] : 0, (uint32_t)ctxs[i]->r29);
+                    hh_dump_ctx_regs(f, i, tids[i], ctxs[i]);
                     if (ok && info[1] == 2) {
                         hh_dump_stack_scan(f, (uint32_t)ctxs[i]->r29);
                     }
@@ -393,6 +430,7 @@ static void hh_hang_watchdog() {
                     fprintf(f, "[HANG] ctx%d tid=%d (sombra: id=%u state=%u queue=%08X sp=%08X) ctx_sp=%08X\n",
                             i, tids[i], ok ? info[0] : 0xFFFFFFFFu, ok ? info[1] : 0xFFFFFFFFu,
                             ok ? info[2] : 0, ok ? info[3] : 0, (uint32_t)ctxs[i]->r29);
+                    hh_dump_ctx_regs(f, i, tids[i], ctxs[i]);
                     if (ok && info[1] == 2 /*RUNNING*/) {
                         hh_dump_stack_scan(f, (uint32_t)ctxs[i]->r29);
                     }
