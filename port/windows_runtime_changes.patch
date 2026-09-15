@@ -1215,10 +1215,10 @@ index 0be1513..a3fb0e2 100644
 +    _return<s32>(ctx, GB_PAK_ERR_NOPAK);
  }
 diff --git a/librecomp/src/pi.cpp b/librecomp/src/pi.cpp
-index 43509ba..15a27ee 100644
+index 43509ba..f3a1a42 100644
 --- a/librecomp/src/pi.cpp
 +++ b/librecomp/src/pi.cpp
-@@ -2,6 +2,8 @@
+@@ -2,9 +2,12 @@
  #include <fstream>
  #include <array>
  #include <cstring>
@@ -1227,10 +1227,39 @@ index 43509ba..15a27ee 100644
  #include <string>
  #include <mutex>
  #include "recomp.h"
-@@ -269,6 +271,10 @@ void ultramodern::join_saving_thread() {
++#include <cstdarg>
+ #include "librecomp/addresses.hpp"
+ #include "librecomp/game.hpp"
+ #include "librecomp/files.hpp"
+@@ -266,9 +269,35 @@ void ultramodern::join_saving_thread() {
+     }
+ }
+ 
++// HH: log siempre-activo del camino PI (hh_pi.log, acotado) para diagnosticar cuelgues tipo
++// "el juego espera una completacion de DMA que no llega".
++static void hh_pi_log(const char* fmt, ...) {
++    static FILE* f = nullptr;
++    static long total = 0;
++    if (f == nullptr) {
++        f = fopen("hh_pi.log", "w");
++        if (f == nullptr) return;
++    }
++    if (total > (256 * 1024)) return;
++    va_list args;
++    va_start(args, fmt);
++    total += vfprintf(f, fmt, args);
++    va_end(args);
++    fflush(f);
++}
++
  void do_dma(RDRAM_ARG PTR(OSMesgQueue) mq, gpr rdram_address, uint32_t physical_addr, uint32_t size, uint32_t direction) {
      // TODO asynchronous transfer
      // TODO implement unaligned DMA correctly
++    const char* region = (physical_addr >= recomp::rom_base) ? "rom"
++                       : (physical_addr >= recomp::sram_base) ? "sram" : "DESCONOCIDA";
++    hh_pi_log("[PI] dir=%u dev=%08X phys=%08X dram=%08X size=%X mq=%08X region=%s\n",
++              direction, physical_addr, physical_addr, (uint32_t)rdram_address, size,
++              (uint32_t)mq, region);
 +    if (getenv("HH_PILOG") != nullptr) {
 +        fprintf(stderr, "[PI] do_dma mq=%p dram=0x%08X phys=0x%08X size=0x%X dir=%u\n",
 +                (void*)mq, (uint32_t)rdram_address, physical_addr, size, direction);
@@ -1650,7 +1679,7 @@ index eba6524..0bb75ed 100644
  void wait_for_external_message_timed(RDRAM_ARG1, u32 millis);
  
 diff --git a/ultramodern/src/events.cpp b/ultramodern/src/events.cpp
-index 2e47068..87879ec 100644
+index 2e47068..1e2465d 100644
 --- a/ultramodern/src/events.cpp
 +++ b/ultramodern/src/events.cpp
 @@ -26,8 +26,13 @@ void ultramodern::events::set_callbacks(const ultramodern::events::callbacks_t&
@@ -1676,7 +1705,7 @@ index 2e47068..87879ec 100644
  
      switch (event_id) {
          case OS_EVENT_SP:
-@@ -176,19 +181,50 @@ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_,
+@@ -176,19 +181,54 @@ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_,
              events_context.vi_event.mq = mq_;
              break;
      }
@@ -1701,6 +1730,10 @@ index 2e47068..87879ec 100644
  
  uint64_t total_vis = 0;
  
++// HH: latido del hilo de VI del runtime (para el watchdog de cuelgue del port).
++static std::atomic<uint64_t> hh_vi_ticks{0};
++extern "C" uint64_t hh_get_vi_ticks() { return hh_vi_ticks.load(); }
++
 +// HH: contador de VI (frames de juego) expuesto para el replay determinista de input.
 +extern "C" uint64_t hh_get_vi_count(void) { return total_vis; }
 +
@@ -1735,16 +1768,18 @@ index 2e47068..87879ec 100644
  
  extern std::atomic_bool exited;
  extern moodycamel::LightweightSemaphore graphics_shutdown_ready;
-@@ -202,8 +238,6 @@ void vi_thread_func() {
+@@ -202,9 +242,8 @@ void vi_thread_func() {
      ultramodern::set_native_thread_priority(ultramodern::ThreadPriority::Critical);
      using namespace std::chrono_literals;
  
 -    int remaining_retraces = 1;
 -
      while (!exited) {
++        hh_vi_ticks.fetch_add(1, std::memory_order_relaxed);
          // Determine the next VI time (more accurate than adding 16ms each VI interrupt)
          auto next = ultramodern::get_start() + (total_vis * 1000000us) / (60 * ultramodern::get_speed_multiplier());
-@@ -242,39 +276,144 @@ void vi_thread_func() {
+         //if (next > std::chrono::high_resolution_clock::now()) {
+@@ -242,39 +281,144 @@ void vi_thread_func() {
          // Doing this before the VI update is equivalent to updating the screen after the previous frame's scanout finished.
          events_context.action_queue.enqueue(ScreenUpdateAction{ events_context.vi.regs });
  
@@ -1908,7 +1943,7 @@ index 2e47068..87879ec 100644
                  ultramodern::enqueue_external_message_src(events_context.ai.mq, events_context.ai.msg, false, ultramodern::EventMessageSource::Ai);
              }
          }
-@@ -285,16 +424,32 @@ void vi_thread_func() {
+@@ -285,16 +429,32 @@ void vi_thread_func() {
      }
  }
  
@@ -1945,7 +1980,7 @@ index 2e47068..87879ec 100644
  }
  
  void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_ready) {
-@@ -312,6 +467,19 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+@@ -312,6 +472,19 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
          if (task == nullptr) {
              return;
          }
@@ -1965,7 +2000,7 @@ index 2e47068..87879ec 100644
  
          // Execute the RSP task. Tasks without a registered ucode (p. ej. audio, M_AUDTASK=2) se
          // tratan como no-op: se completa igualmente para que el juego avance (audio dummy).
-@@ -320,12 +488,13 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+@@ -320,12 +493,13 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
              uint32_t t = static_cast<uint32_t>(task->t.type);
              if (t < 64 && !warned[t]) {
                  warned[t] = true;
@@ -1982,7 +2017,7 @@ index 2e47068..87879ec 100644
      }
  }
  
-@@ -399,7 +568,6 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+@@ -399,7 +573,6 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
                  // start another graphics task until the RDP is also complete. Games usually preserve the RSP inputs until the RDP
                  // is finished as well, so sending this early shouldn't be an issue in most cases.
                  // If this causes issues then the logic can be replaced with responding to yield requests.
@@ -1990,7 +2025,7 @@ index 2e47068..87879ec 100644
                  ultramodern::measure_input_latency();
  
                  PTR(u64) displaylist = task_action->task.t.data_ptr;
-@@ -409,7 +577,7 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+@@ -409,7 +582,7 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
                  renderer_context->send_dl(&task_action->task);
                  [[maybe_unused]] auto renderer_end = std::chrono::high_resolution_clock::now();
  
@@ -1999,7 +2034,7 @@ index 2e47068..87879ec 100644
                  // TODO hook the parsed event up to the actual parsing point when a callback is added to RT64.
                  ultramodern::extensions::on_displaylist_parsed(displaylist);
                  ultramodern::extensions::on_displaylist_completed(displaylist);
-@@ -490,77 +658,9 @@ void set_dummy_vi(bool odd) {
+@@ -490,77 +663,9 @@ void set_dummy_vi(bool odd) {
      }
  }
  
@@ -2080,7 +2115,7 @@ index 2e47068..87879ec 100644
  
  extern "C" void osViRepeatLine(uint8_t active) {
      std::lock_guard lock{ events_context.message_mutex };
-@@ -585,25 +685,33 @@ extern "C" void osViSetYScale(float scale) {
+@@ -585,25 +690,33 @@ extern "C" void osViSetYScale(float scale) {
      }
  }
  
@@ -2159,7 +2194,7 @@ index 23228c7..8bb2631 100644
  
      return 0;
 diff --git a/ultramodern/src/mesgqueue.cpp b/ultramodern/src/mesgqueue.cpp
-index 40faaf2..c7c6946 100644
+index 40faaf2..c120cd1 100644
 --- a/ultramodern/src/mesgqueue.cpp
 +++ b/ultramodern/src/mesgqueue.cpp
 @@ -1,5 +1,10 @@
@@ -2215,7 +2250,7 @@ index 40faaf2..c7c6946 100644
  
  void ultramodern::set_message_queue_control(const ultramodern::MessageQueueControl& mqc) {
      requeue_enabled.reset();
-@@ -29,19 +62,42 @@ void ultramodern::set_message_queue_control(const ultramodern::MessageQueueContr
+@@ -29,19 +62,47 @@ void ultramodern::set_message_queue_control(const ultramodern::MessageQueueContr
      requeue_enabled.set(static_cast<int>(EventMessageSource::Dp), mqc.requeue_dp);
  }
  
@@ -2225,6 +2260,11 @@ index 40faaf2..c7c6946 100644
 +        static int hh_n = 0;
 +        if (hh_n++ < 30) fprintf(stderr, "[BADMQ] %s mq=%08X\n", where, v);
 +    }
++}
++
++// HH: mensajes externos pendientes de repartir (diagnostico del watchdog de cuelgue).
++extern "C" uint64_t hh_get_pending_ext_msgs() {
++    return (uint64_t)external_messages.size_approx();
 +}
 +
  void ultramodern::enqueue_external_message_src(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, EventMessageSource src) {
@@ -2261,7 +2301,7 @@ index 40faaf2..c7c6946 100644
              requeued_messages.push_back(to_send);
          }
      }
-@@ -56,7 +112,7 @@ void ultramodern::wait_for_external_message(RDRAM_ARG1) {
+@@ -56,7 +117,7 @@ void ultramodern::wait_for_external_message(RDRAM_ARG1) {
      ultramodern::release_game_lock();
      external_messages.wait_dequeue(to_send);
      ultramodern::acquire_game_lock();
@@ -2270,7 +2310,7 @@ index 40faaf2..c7c6946 100644
          external_messages.enqueue(to_send);
      }
  }
-@@ -66,7 +122,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
+@@ -66,7 +127,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
      ultramodern::release_game_lock();
      if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {
          ultramodern::acquire_game_lock();
@@ -2279,7 +2319,7 @@ index 40faaf2..c7c6946 100644
              external_messages.enqueue(to_send);
          }
      }
-@@ -76,7 +132,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
+@@ -76,7 +137,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
  }
  
  extern "C" void osCreateMesgQueue(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg, s32 count) {
@@ -2288,7 +2328,7 @@ index 40faaf2..c7c6946 100644
      OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
      mq->blocked_on_recv = NULLPTR;
      mq->blocked_on_send = NULLPTR;
-@@ -98,8 +154,41 @@ s32 MQ_IS_FULL(OSMesgQueue* mq) {
+@@ -98,8 +159,41 @@ s32 MQ_IS_FULL(OSMesgQueue* mq) {
      return MQ_GET_COUNT(mq) >= mq->msgCount;
  }
  
@@ -2331,7 +2371,7 @@ index 40faaf2..c7c6946 100644
      if (!block) {
          // If non-blocking, fail if the queue is full.
          if (MQ_IS_FULL(mq)) {
-@@ -115,6 +204,25 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+@@ -115,6 +209,25 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
          }
      }
      
@@ -2357,7 +2397,7 @@ index 40faaf2..c7c6946 100644
      if (jam) {
          // Jams insert at the head of the message queue's buffer.
          mq->first = (mq->first + mq->msgCount - 1) % mq->msgCount;
-@@ -139,6 +247,10 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+@@ -139,6 +252,10 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
  
  bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
      OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
@@ -2368,7 +2408,7 @@ index 40faaf2..c7c6946 100644
      if (!block) {
          // If non-blocking, fail if the queue is empty
          if (MQ_IS_EMPTY(mq)) {
-@@ -155,10 +267,26 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+@@ -155,10 +272,26 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
              if (!MQ_IS_EMPTY(mq)) {
                  break;
              }
@@ -2399,7 +2439,7 @@ index 40faaf2..c7c6946 100644
              ultramodern::run_next_thread_and_wait(PASS_RDRAM1);
          }
      }
-@@ -166,7 +294,16 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+@@ -166,7 +299,16 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
      if (msg_ != NULLPTR) {
          *TO_PTR(OSMesg, msg_) = TO_PTR(OSMesg, mq->msg)[mq->first];
      }
@@ -2417,7 +2457,7 @@ index 40faaf2..c7c6946 100644
      mq->first = (mq->first + 1) % mq->msgCount;
      mq->validCount--;
  
-@@ -182,8 +319,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+@@ -182,8 +324,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
  extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags) {
      OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
      bool jam = false;
@@ -2427,7 +2467,7 @@ index 40faaf2..c7c6946 100644
      // Don't directly send to the message queue if this isn't a game thread to avoid contention.
      if (!ultramodern::is_game_thread()) {
          ultramodern::enqueue_external_message(mq_, msg, jam, false);
-@@ -194,7 +330,7 @@ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+@@ -194,7 +335,7 @@ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
      dequeue_external_messages(PASS_RDRAM1);
  
      // Try to send the message.
@@ -2436,7 +2476,7 @@ index 40faaf2..c7c6946 100644
      
      // Check the queue to see if this thread should swap execution to another.
      ultramodern::check_running_queue(PASS_RDRAM1);
-@@ -216,7 +352,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+@@ -216,7 +357,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
      dequeue_external_messages(PASS_RDRAM1);
  
      // Try to send the message.
@@ -2445,7 +2485,7 @@ index 40faaf2..c7c6946 100644
      
      // Check the queue to see if this thread should swap execution to another.
      ultramodern::check_running_queue(PASS_RDRAM1);
-@@ -226,7 +362,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+@@ -226,7 +367,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
  
  extern "C" s32 osRecvMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, s32 flags) {
      OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);

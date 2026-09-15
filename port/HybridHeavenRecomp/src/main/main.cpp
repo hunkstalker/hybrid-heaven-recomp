@@ -124,6 +124,8 @@ extern "C" uint64_t hh_get_vi_count(void);
 extern "C" recomp_context* hh_get_current_ctx(void);
 extern "C" int hh_get_thread_ctxs(recomp_context** out, int max);
 extern "C" unsigned long long hh_get_input_polls(void);
+extern "C" uint64_t hh_get_vi_ticks(void);
+extern "C" uint64_t hh_get_pending_ext_msgs(void);
 
 static void hh_dump_guest_regs(FILE* f) {
     recomp_context* c = hh_get_current_ctx();
@@ -219,6 +221,22 @@ extern "C" void hh_port_crash_dump(uint32_t n64_addr) {
     fclose(f);
 }
 
+// Volcado de los registros de un contexto de hilo de juego (una linea compacta).
+static void hh_dump_ctx_regs(FILE* f, int idx, recomp_context* c) {
+    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X gp=%08X r2=%08X r3=%08X r4=%08X r5=%08X\n",
+            idx, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30, (uint32_t)c->r28,
+            (uint32_t)c->r2, (uint32_t)c->r3, (uint32_t)c->r4, (uint32_t)c->r5);
+    fprintf(f, "[HANG]   r6=%08X r7=%08X r8=%08X r9=%08X r10=%08X r11=%08X r12=%08X r13=%08X\n",
+            (uint32_t)c->r6, (uint32_t)c->r7, (uint32_t)c->r8, (uint32_t)c->r9,
+            (uint32_t)c->r10, (uint32_t)c->r11, (uint32_t)c->r12, (uint32_t)c->r13);
+    fprintf(f, "[HANG]   r14=%08X r15=%08X r16=%08X r17=%08X r18=%08X r19=%08X r20=%08X r21=%08X\n",
+            (uint32_t)c->r14, (uint32_t)c->r15, (uint32_t)c->r16, (uint32_t)c->r17,
+            (uint32_t)c->r18, (uint32_t)c->r19, (uint32_t)c->r20, (uint32_t)c->r21);
+    fprintf(f, "[HANG]   r22=%08X r23=%08X r24=%08X r25=%08X r26=%08X r27=%08X hi=%08X lo=%08X\n",
+            (uint32_t)c->r22, (uint32_t)c->r23, (uint32_t)c->r24, (uint32_t)c->r25,
+            (uint32_t)c->r26, (uint32_t)c->r27, (uint32_t)c->hi, (uint32_t)c->lo);
+}
+
 // ===== Watchdog de cuelgue =====
 // Si el juego deja de pedir input (latido real del hilo de juego; el VI es de reloj y avanza
 // aunque el juego este colgado) durante N segundos (HH_HANG_SECS, por defecto 15), vuelca
@@ -255,10 +273,7 @@ static void hh_hang_watchdog() {
                 fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
                 for (int i = 0; i < n; i++) {
                     recomp_context* c = ctxs[i];
-                    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X r4=%08X r5=%08X r6=%08X r7=%08X r2=%08X\n",
-                            i, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30,
-                            (uint32_t)c->r4, (uint32_t)c->r5, (uint32_t)c->r6, (uint32_t)c->r7,
-                            (uint32_t)c->r2);
+                    hh_dump_ctx_regs(f, i, c);
                 }
                 fflush(f);
                 hh_dump_rdram_dmem(f, "hh_hang");
@@ -279,15 +294,14 @@ static void hh_hang_watchdog() {
                 FILE* f = fopen("hh_hang.log", "a");
                 if (f == nullptr) continue;
                 fprintf(f, "=== HH cuelgue: sin input polls durante %.1fs (VI=%llu) ===\n", stuck, vi);
+                fprintf(f, "[HANG] vi_ticks=%llu pending_ext_msgs=%llu (si vi_ticks no sube: hilo VI del runtime parado)\n",
+                        (unsigned long long)hh_get_vi_ticks(),
+                        (unsigned long long)hh_get_pending_ext_msgs());
                 recomp_context* ctxs[32];
                 int n = hh_get_thread_ctxs(ctxs, 32);
                 fprintf(f, "[HANG] hilos de juego con contexto: %d\n", n);
                 for (int i = 0; i < n; i++) {
-                    recomp_context* c = ctxs[i];
-                    fprintf(f, "[HANG] ctx%d ra=%08X sp=%08X fp=%08X r4=%08X r5=%08X r6=%08X r7=%08X r2=%08X\n",
-                            i, (uint32_t)c->r31, (uint32_t)c->r29, (uint32_t)c->r30,
-                            (uint32_t)c->r4, (uint32_t)c->r5, (uint32_t)c->r6, (uint32_t)c->r7,
-                            (uint32_t)c->r2);
+                    hh_dump_ctx_regs(f, i, ctxs[i]);
                 }
                 fflush(f);
                 hh_dump_rdram_dmem(f, "hh_hang");
