@@ -62,6 +62,21 @@
 - [ ] **Interfaces de sub-objetivos** (texto/traducción, audio, guardado): contrato y punto de hook.
 - [ ] **Automatizar el inventario de módulos** (medir bases de forma desatendida vía loader).
 
+## Higiene del repo (candidatos de limpieza)
+
+> Inventario y criterios: `notes/2026-09-16-limpieza-repo-inventario.md`. Ya hecho: purga de `.vs/`
+> de toda la historia (`.git` 284→24 MB) y borrado de `port/petardeo)` + `tools/analysis/xshot`.
+
+- [ ] Decidir sacar del repo las **capturas con copyright** (`Referencias screenshots/`, 4,7 MB).
+- [ ] **Archivar** (`tools/archive/`) los scripts de una sola vez de `tools/analysis/` (62 `.java`
+  de Ghidra + helpers de diagnóstico), conservando los vivos de `docs/workflows.md` §6.
+- [ ] Revisar **variantes de `config/`** obsoletas (`game*.toml`, `us_*.syms.toml` no activas) y
+  archivar las que no se usen (activa: `game_combined.toml`).
+- [ ] Decidir el **`work/` rastreado** (3 scripts de captura) y `port/bisect_*` (bisect del NPC ya
+  concluido).
+- [ ] **NO borrar** `config/*.syms.toml.keep` (los usa `gen_module_syms`/`setup_module`) ni
+  `keep_syms*.txt`/`module_extras.json` ni `config/n64recomp_changes/*`.
+
 ## Backlog
 
 - [ ] **Audio (FUTURO)**: desacoplar de los fps. Hoy entrega 720 frames por frame de juego (60 fps →
