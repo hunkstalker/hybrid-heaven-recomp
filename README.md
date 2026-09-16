@@ -28,9 +28,9 @@ usuario y la procesa** para extraer los datos.
 
 - **Compilar NO requiere la ROM.**
 - **Ejecutar sí**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
-  `0x0F6A72F2C36A216DULL`) como `rom/baserom.us.z64` (junto al ejecutable o en el directorio de
-  trabajo) o `baserom.us.z64` junto al `.exe`/CWD. Nunca se distribuye la ROM ni una compilación con
-  datos de ella.
+  `0x0F6A72F2C36A216DULL`) en la carpeta `rom/` junto al ejecutable (`rom/baserom.us.z64`); como
+  salvaguarda también se acepta `baserom.us.z64` junto al `.exe`. Nunca se distribuye la ROM ni una
+  compilación con datos de ella.
 - **No hace falta compilar para jugar**: descarga el `.zip` (Windows) o `.tar.gz` (Linux) de
   *Releases*.
 

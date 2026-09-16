@@ -8,8 +8,8 @@ en el entorno Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.lo
 - **Visual Studio 2022 o 2026** con el componente **Desktop development with C++** (MSVC + CMake).
 - **Git** (para clonar/actualizar).
 - La ROM retail: **`baserom.us.z64`** (Hybrid Heaven USA, 16 MB, hash `0x0F6A72F2C36A216DULL`).
-  El `.exe` la busca al arrancar en `rom\baserom.us.z64` (junto al `.exe` o en el working
-  directory) o como `baserom.us.z64` en esas mismas rutas. **Compilar no necesita la ROM.**
+  El `.exe` la busca al arrancar en la carpeta `rom\` junto al `.exe` (`rom\baserom.us.z64`); como
+  salvaguarda también acepta `baserom.us.z64` junto al `.exe`. **Compilar no necesita la ROM.**
 
 ## Estructura que debe existir en `port/HybridHeavenRecomp/`
 
@@ -71,7 +71,7 @@ cmake --build build_win --target HybridHeavenRecomp --config Release
 
 - Exe: `build_win\bin\Release\Hybrid Heaven Recomp.exe` (con `--debug`: `build_win\bin\Debug\...`).
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
-- ROM: al ejecutar, el `.exe` busca `rom\baserom.us.z64` (o `baserom.us.z64` junto al `.exe`/CWD).
+- ROM: al ejecutar, el `.exe` busca `rom\baserom.us.z64` (o `baserom.us.z64` junto al `.exe`).
 
 ## 3. Ejecutar y capturar logs
 

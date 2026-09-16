@@ -9,11 +9,12 @@
 #             N64Recomp para compilar.
 #   runtime : solo ejecucion (GUI X11 o headless Xvfb+lavapipe).
 #
-# La ROM NO se distribuye: monta `baserom.us.z64` en /work (ver README).
+# La ROM NO se distribuye: monta tu carpeta `rom/` en /work/rom (el binario busca
+# `rom/baserom.us.z64` junto a si mismo). Ver README.
 #
 #   docker build --target runtime -t hybrid-heaven-recomp .
-#   docker run --rm -v "$PWD/baserom.us.z64:/work/baserom.us.z64:ro" hybrid-heaven-recomp
-#   HH_HEADLESS=1 docker run --rm -v "$PWD/baserom.us.z64:/work/baserom.us.z64:ro" -e HH_HEADLESS=1 hybrid-heaven-recomp
+#   docker run --rm -v "$PWD/rom:/work/rom:ro" hybrid-heaven-recomp
+#   HH_HEADLESS=1 docker run --rm -v "$PWD/rom:/work/rom:ro" -e HH_HEADLESS=1 hybrid-heaven-recomp
 
 FROM debian:bookworm-slim AS deps
 ENV DEBIAN_FRONTEND=noninteractive
@@ -46,10 +47,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libx11-6 libxext6 libxrandr2 libxtst6 \
         xvfb xauth ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=build /out/hybrid-heaven-recomp /usr/local/bin/hybrid-heaven-recomp
+COPY --from=build /out/hybrid-heaven-recomp /work/hybrid-heaven-recomp
 COPY docker/entrypoint.sh /usr/local/bin/hh-entrypoint
 COPY CREDITS.md /usr/local/share/doc/hybrid-heaven-recomp/CREDITOS.md
 COPY LICENSE /usr/local/share/doc/hybrid-heaven-recomp/LICENSE
-RUN chmod +x /usr/local/bin/hh-entrypoint && mkdir -p /work
+RUN chmod +x /work/hybrid-heaven-recomp /usr/local/bin/hh-entrypoint && mkdir -p /work/rom
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/hh-entrypoint"]

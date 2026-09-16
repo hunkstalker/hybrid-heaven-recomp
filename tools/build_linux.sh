@@ -9,7 +9,8 @@
 #
 # URL/SHA del runtime: port/runtime.lock (env NMR_URL / NMR_COMMIT los sobreescriben).
 # No necesita ROM ni toolchain/Ghidra: el C recompilado (RecompiledFuncs/) esta versionado.
-# La ROM solo hace falta para EJECUTAR (baserom.us.z64 junto al binario o en el working directory).
+# La ROM solo hace falta para EJECUTAR: ponla en la carpeta rom/ junto al binario
+# (rom/baserom.us.z64); tambien se acepta baserom.us.z64 junto al binario como salvaguarda.
 #
 # Uso:
 #   tools/build_linux.sh [--force-libs] [--debug] [--build-dir DIR]
@@ -147,4 +148,4 @@ cmake --build "$PORT/$BUILD_DIR" --target HybridHeavenRecomp -j "$JOBS"
 echo
 echo "=== LISTO ==="
 echo "Binario: $PORT/$BUILD_DIR/Hybrid Heaven Recomp"
-echo "Para jugar: copia baserom.us.z64 junto al binario (o al directorio desde el que lo lances)."
+echo "Para jugar: pon la ROM en la carpeta rom/ junto al binario ($PORT/$BUILD_DIR/rom/baserom.us.z64)."

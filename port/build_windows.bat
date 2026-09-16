@@ -155,7 +155,8 @@ popd
 echo.
 echo === LISTO ===
 echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
-echo Copia baserom.us.z64 junto al .exe y ejecutalo.
+echo Pon la ROM en la carpeta rom junto al .exe: build_win\bin\%BUILDCFG%\rom\baserom.us.z64
+echo (tambien se acepta baserom.us.z64 junto al .exe como salvaguarda).
 echo.
 if not defined CI pause
 goto :eof

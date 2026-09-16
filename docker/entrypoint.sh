@@ -1,15 +1,16 @@
 #!/bin/sh
 # Entrypoint del contenedor de ejecucion.
 #
-#   - CWD = /work (monta ahi baserom.us.z64; el port busca la ROM junto al
-#     binario o en el working directory).
+#   - CWD = /work; ahi vive el binario y la carpeta rom/ (el port busca la ROM en
+#     rom/ junto al binario).
 #   - HH_HEADLESS=1 -> Xvfb + lavapipe (sin GPU ni display; para CI/smoke).
-#   - En host Linux con GPU: --device /dev/dri -e DISPLAY -v /tmp/.X11-unix.
+#   - En host Linux con GPU: pasa el dispositivo /dev/dri, DISPLAY y monta el socket
+#     X11 del sistema (consulta la documentacion de Docker para tu SO).
 set -eu
 
 cd /work
 
-BIN="/usr/local/bin/hybrid-heaven-recomp"
+BIN="/work/hybrid-heaven-recomp"
 
 if [ "${HH_HEADLESS:-0}" = "1" ]; then
     export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"

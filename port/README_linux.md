@@ -1,9 +1,9 @@
 # Hybrid Heaven Recomp — Linux
 
 Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu
-copia de Hybrid Heaven (USA) — `NHVE`, 16 MB, hash `0x0F6A72F2C36A216DULL` — como
-`rom/baserom.us.z64` (junto al binario o en el directorio de trabajo) o `baserom.us.z64` junto al
-binario/CWD.
+copia de Hybrid Heaven (USA) — `NHVE`, 16 MB, hash `0x0F6A72F2C36A216DULL` — en la carpeta `rom/`
+junto al binario (`rom/baserom.us.z64`); como salvaguarda también acepta `baserom.us.z64` junto al
+binario.
 
 ## Ejecutar (nativo)
 
@@ -42,17 +42,21 @@ instala las dependencias con `pacman` (arriba). Para el mando, usa el perfil por
 
 ## Ejecutar con Docker
 
+La ROM se monta en `rom/` junto al binario (`/work/rom/baserom.us.z64`):
+
 ```sh
-docker run --rm -v "$PWD/baserom.us.z64:/work/baserom.us.z64:ro" \
+mkdir -p rom && cp tu_copia.z64 rom/baserom.us.z64
+docker run --rm -v "$PWD/rom:/work/rom:ro" \
   ghcr.io/hunkstalker/hybrid-heaven-recomp:latest
 ```
 
-Con GPU y display (host Linux):
+Con GPU y display (host Linux), añade el dispositivo Vulkan, `DISPLAY` y el **socket X11 del
+sistema** (normalmente `.X11-unix`; consulta la documentación de Docker para tu SO):
 
 ```sh
 docker run --rm --device /dev/dri \
-  -e DISPLAY -v work/debug/.X11-unix:work/debug/.X11-unix \
-  -v "$PWD/baserom.us.z64:/work/baserom.us.z64:ro" \
+  -e DISPLAY -v "$X11_SOCKET:.X11-unix:rw" \
+  -v "$PWD/rom:/work/rom:ro" \
   ghcr.io/hunkstalker/hybrid-heaven-recomp:latest
 ```
 
