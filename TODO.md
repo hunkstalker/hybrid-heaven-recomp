@@ -5,6 +5,16 @@
 
 ## Ahora — Cajas de ítem, teardown y limpieza
 
+> **TAREA ACTUAL (aprobada, pendiente de ejecutar)**: el **plan consolidado** de la nota
+> `notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md` — 8 bloques: 1) rutas y
+> referencias (sin `/app`, `/tmp`, equipo ni "opencode"), 2) **icono**: publicar solo
+> `assets/HybridHeaven.ico`, 3) **ROM**: `rom/` oficial + salvaguarda junto al `.exe` y adaptación de
+> Docker, 4) arreglos funcionales (rutas de config/tools/runtime), 5) **pipeline de compilación**:
+> `port/build_windows.local.bat` ignorado + pin al SHA publicado (`725a5a8`) + traza del runtime
+> usado, 6) lo que no se toca, 7) verificación, 8) **identidad de commits 8.B**: aplicar
+> `Denis Anfruns Millán <daanfruns@gmail.com>` a **todo** el historial (author y committer) con
+> force-push y actualización de `port/runtime.lock`/referencias.
+
 > **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
 > `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no
 > se levantaba por un fallthrough ausente al final de `M55_FUN_8037a6f4` (fuga `0x38`/frame +

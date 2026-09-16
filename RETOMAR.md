@@ -39,7 +39,7 @@
   accesorio. Como `saves/` solo se crea al escribir, ninguna operación de escritura/alocación llegó a
   ejecutarse. **Volcado activo por defecto** (`hh_pak.log` junto al exe: llamadas PFS con args,
   retorno, estado y los `OSPfs` del juego) + **autotest de la API PFS** (en Linux: `OK (0 fallos)`).
-  Ojo: el `.pak` va al **directorio de config** del runtime (lo imprime el log), no junto al exe.
+  El `.pak` se guarda en `saves/` **junto al ejecutable** (portada portable; lo imprime el log).
   Detalle: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 - Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
   módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
@@ -55,26 +55,24 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-1. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). No hay que publicar nada: se
-   compila en la carpeta compartida y el pin de `runtime.lock` (`4e1ee0a`, pak nuevo + volcado) existe
-   en el `.git` local. Si el checkout fallara, el script **aborta** en vez de compilar otro runtime.
-   El árbol trae: objeto del NPC, láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática
-   (`M9_FUN_80203830`) y **primer CaC** (`M10_FUN_8021d8d0`).
-2. Ejecutar `port\run_windows.bat` y jugar:
-   (a) el **combate cuerpo a cuerpo** que crasheaba;
-   (b) **GAME START** (partida nueva) y luego el **guardado en cápsula**. Con el fix de
-      `osPfsFindFile` (devolvía 10 en vez de 5, y el wrapper del juego lo tomaba por éxito dejando el
-      `file_no` basura), el juego debe **crear su fichero** (`AllocateFile size=13568`) y guardar.
-      No hay que tocar envs (`HH_PAK_NEWPACK` está desactivado por defecto).
-3. Enviarme (o dejarme en la carpeta compartida) **el final de**
-   `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log`: debe verse `osPfsAllocateFile` y el
-   guardado completando. El `.pak` queda en `saves\` **junto al .exe** (portada portable; lo imprime
-   el log).
-4. Si crashea con `Failed to find function at 0x...`: pasarme la dirección (misma vía:
-   `add_mid_entry.py` + `recomp --force`; ahora con edición mínima y guardián
-   `check_syms_overrides.py`).
-5. Después: teardown SEGV al cerrar, limpieza de instrumentación y mando de menús de combate
-   (ver `TODO.md`).
+> **Tarea actual**: ejecutar el **plan consolidado** (aprobado) de la nota
+> **`notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md`** — 8 bloques:
+> 1) rutas y referencias, 2) icono, 3) ROM + Docker, 4) arreglos funcionales, 5) pipeline de
+> compilación, 6) lo que no se toca, 7) verificación, 8) identidad de los commits (**8.B**: aplicar
+> `Denis Anfruns Millán <daanfruns@gmail.com>` a **todo** el historial, author y committer, con
+> force-push y actualización de `port/runtime.lock`/referencias).
+
+1. Ejecutar el plan por bloques **1 → 7**, documentando antes de cada commit (nota + ADR de rutas).
+2. Bloque **8.B** en el orden de la cadena de referencias: N64Recomp → N64ModernRuntime
+   (actualizar el puntero del submódulo) → main (actualizar `runtime.lock`) → force-push en los 3
+   repos (lo hace el usuario).
+3. En paralelo, la prueba de juego pendiente: `port\build_windows.bat` + `port\run_windows.bat` →
+   GAME START → cápsula; en `hh_pak.log` debe verse `osPfsAllocateFile ... size=13568` y el guardado
+   completar (`.pak` en `saves\` junto al `.exe`).
+4. Al validar el guardado: publicar el fork del runtime + `origin main`, y **subir el pin** de
+   `runtime.lock` al SHA publicado.
+5. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
+   `add_mid_entry.py` + `recomp --force`, con el guardián `check_syms_overrides.py`).
 
 
 ## Cómo leer los logs
