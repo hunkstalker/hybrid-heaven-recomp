@@ -70,3 +70,18 @@ Pendiente en bloques siguientes: los scripts (`tools/analysis/*`, `work/*.sh`) y
   `port_vi*.bin` en `work/debug/` (relativo) en vez de una ruta absoluta (commit propio).
 
 Verificado: build Linux incremental del port OK tras los cambios.
+
+## Bloque 5 — Pipeline de compilación
+
+- **`port/build_windows.local.bat`** (nuevo, **ignorado** en git): compila `lib/` tal cual, sin tocar
+  git, avisa si faltan `lib/rt64` o `lib/N64ModernRuntime` e imprime ruta + commit del runtime local.
+  Su contenido queda documentado en `port/README_windows.md` §2b para poder recrearlo.
+- `.gitignore`: añadida la línea `port/build_windows.local.bat`.
+- `port/runtime.lock`: `NMR_COMMIT` vuelve al SHA **publicado**
+  `725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d` y el comentario explica que el pin solo se mueve tras
+  publicar (para probar local, el `.bat` local).
+- `port/build_windows.bat`: imprime **siempre** la ruta + commit del runtime y si omitió git/revisó
+  git, además del pin (`NMR_URL`@`NMR_COMMIT`). Mantiene el aborto si el commit fijado no existe.
+- `TODO.md`: anotado el punto del `.bat` local y el pin.
+- CI/Release: el flujo "build once, promote" de ADR 0005 no requiere cambios de código; queda
+  pendiente publicar los commits de runtime, dejar el CI verde y etiquetar (`v*`).

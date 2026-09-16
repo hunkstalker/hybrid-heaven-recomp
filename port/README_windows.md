@@ -61,6 +61,11 @@ Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `li
 solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si quieres
 clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
+`build_windows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
+omitió git). El pin de `port\runtime.lock` solo apunta a commits **publicados** en el fork: si
+necesitas probar commits locales del runtime sin publicarlos, usa **`port\build_windows.local.bat`**,
+que compila `lib\` tal cual (sin fetch/checkout) e imprime el commit local que usa.
+
 Manual:
 
 ```bat
@@ -72,6 +77,55 @@ cmake --build build_win --target HybridHeavenRecomp --config Release
 - Exe: `build_win\bin\Release\Hybrid Heaven Recomp.exe` (con `--debug`: `build_win\bin\Debug\...`).
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
 - ROM: al ejecutar, el `.exe` busca `rom\baserom.us.z64` (o `baserom.us.z64` junto al `.exe`).
+
+### 2b. Build local del mantenedor (`build_windows.local.bat`, no versionado)
+
+`port\build_windows.local.bat` está en `.gitignore` (es una comodidad local, no forma parte del
+proyecto reproducible). Compila `lib\` **tal cual** está en disco (sin git), avisa si falta `lib\` e
+imprime la ruta y el commit del runtime local. Contenido de referencia para recrearlo:
+
+```bat
+@echo off
+setlocal enabledelayedexpansion
+chcp 65001 >nul
+
+set "BUILDCFG=Release"
+if /i "%~1"=="--debug" set "BUILDCFG=Debug"
+
+REM Detectar la raiz del repo (busca 'port\HybridHeavenRecomp' hacia arriba)
+set "ROOT="
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'port\HybridHeavenRecomp'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
+if "%ROOT%"=="NONE" ( echo ERROR: no encuentro 'port\HybridHeavenRecomp' hacia arriba. & goto :err )
+set "PORT=%ROOT%\port\HybridHeavenRecomp"
+set "RT64=%PORT%\lib\rt64"
+set "NMR=%PORT%\lib\N64ModernRuntime"
+
+if not exist "%RT64%\CMakeLists.txt" ( echo ERROR: falta lib\rt64 ^(usa build_windows.bat --force-libs^). & goto :err )
+if not exist "%NMR%\CMakeLists.txt" ( echo ERROR: falta lib\N64ModernRuntime ^(usa build_windows.bat --force-libs^). & goto :err )
+
+set "NMR_SHA=desconocido (no es repo git)"
+if exist "%NMR%\.git" for /f "usebackq delims=" %%s in (`git -c safe.directory=* -C "%NMR%" rev-parse --short HEAD 2^>nul`) do set "NMR_SHA=%%s"
+echo Runtime: %NMR% @ %NMR_SHA%  (arbol local, sin git)
+
+set "VSGEN="
+cmake -G "Visual Studio 18 2026" --help >nul 2>&1 && set "VSGEN=Visual Studio 18 2026"
+if not defined VSGEN cmake -G "Visual Studio 17 2022" --help >nul 2>&1 && set "VSGEN=Visual Studio 17 2022"
+if not defined VSGEN ( echo ERROR: no encuentro VS 2026/2022 con C++. & goto :err )
+
+pushd "%PORT%"
+cmake -B build_win -G "%VSGEN%" -A x64 || goto :err
+cmake --build build_win --target HybridHeavenRecomp --config %BUILDCFG% || goto :err
+popd
+echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
+echo Runtime usado: %NMR% @ %NMR_SHA%
+if not defined CI pause
+goto :eof
+
+:err
+popd 2>nul
+if not defined CI pause
+exit /b 1
+```
 
 ## 3. Ejecutar y capturar logs
 
