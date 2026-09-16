@@ -62,9 +62,10 @@
    (`M9_FUN_80203830`) y **primer CaC** (`M10_FUN_8021d8d0`).
 2. Ejecutar `port\run_windows.bat` y jugar:
    (a) el **combate cuerpo a cuerpo** que crasheaba;
-   (b) **GAME START** (partida nueva) y luego el **guardado en cápsula**. Con el fix del pak virgen
-      (`PFS_ERR_NEW_PACK`), el juego debe **crear su fichero** (`AllocateFile size=13568`) y guardar.
-      Si el arranque/menús se comportara raro, `set HH_PAK_NEWPACK=0` lo revierte sin recompilar.
+   (b) **GAME START** (partida nueva) y luego el **guardado en cápsula**. Con el fix de
+      `osPfsFindFile` (devolvía 10 en vez de 5, y el wrapper del juego lo tomaba por éxito dejando el
+      `file_no` basura), el juego debe **crear su fichero** (`AllocateFile size=13568`) y guardar.
+      No hay que tocar envs (`HH_PAK_NEWPACK` está desactivado por defecto).
 3. Enviarme (o dejarme en la carpeta compartida) **el final de**
    `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log`: debe verse `osPfsAllocateFile` y el
    guardado completando. El `.pak` vive en el directorio de config del runtime
