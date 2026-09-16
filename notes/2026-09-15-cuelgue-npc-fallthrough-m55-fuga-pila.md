@@ -301,3 +301,23 @@ Pendiente: un repro mas -> ver que displaylist del efecto de dano no recibe su e
   (osRecvMesg/drains) o un simbolo partido. Instrumentacion: el DISP log ya cubre tambien
   `0x800266B0` (recv) y `0x8000290C` (work) -> el proximo volcado mostrara la llamada tras la cual
   `s0` cambia.
+
+### Ronda 13: causa raiz del cuelgue por dano = `s0` (r16) sin preservar + fix quirurgico
+
+- El bucle principal (`FUN_800011B0`) guarda en **s0 (r16)** el puntero de estado `0x80037748` y lo
+  consulta tras cada ciclo (`lhu 0x0(s0)`): si vale 0 ejecuta el frame (`FUN_80001454`, con el poll
+  de input); si no, un no-op.
+- En el repro del dano, `s0` pasa por valores legitimos (0x80249B80, etc., del dispatcher
+  `FUN_80026fe8`, simbolo sobredimensionado: 0x5B4 con **un solo prologo** y **dos `jr $ra`** pero
+  7 returns generados) y acaba con **un valor que ya no es puntero valido (p.ej. 0x1E82)**; a partir
+  de ahi el check lee memoria invalida, el frame deja de llamarse y se pierden los input polls
+  (imagen congelada, motor vivo). Confirmado con `hh_disp.log` (`tgt=80001BB0 s0=00001E82`) y con
+  los registros del volcado (ctx2 `r16=00001E82`).
+- El runtime NUNCA escribe registros callee-saved (verificado por grep), asi que el clobber viene
+  del codigo recompilado de esa zona (cadena del frame).
+- **Fix quirurgico (HH_S0FIX=1, activo en `run_mqlog.bat`)**: al entrar en el `osRecvMesg` del bucle
+  principal, si `r16` ya no es un puntero valido de RDRAM **y** el hilo venia manteniendo
+  `0x80037748`, se restaura ese valor (nunca se toca un valor legitimo; otros hilos no se ven
+  afectados: verificado en smoke). Log: `hh_s0fix.log`.
+- Pendiente: validacion en Windows (el dano no debe congelar) y, si funciona, decidir si el fix se
+  queda siempre activo y/o se corrige ademas el simbolo `FUN_80026fe8`.
