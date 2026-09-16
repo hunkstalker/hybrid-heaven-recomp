@@ -37,7 +37,7 @@ RUN sh /src/tools/build_linux.sh --libs-only
 COPY . .
 RUN sh tools/build_linux.sh --build-dir build_docker \
     && mkdir -p /out \
-    && cp "port/HybridHeavenRecomp/build_docker/Hybrid Heaven Recomp" "/out/Hybrid Heaven Recomp"
+    && cp "port/HybridHeavenRecomp/build_docker/Hybrid Heaven Recomp" /out/hybrid-heaven-recomp
 
 FROM debian:bookworm-slim AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
@@ -46,7 +46,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libx11-6 libxext6 libxrandr2 libxtst6 \
         xvfb xauth ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=build "/out/Hybrid Heaven Recomp" "/usr/local/bin/Hybrid Heaven Recomp"
+COPY --from=build /out/hybrid-heaven-recomp /usr/local/bin/hybrid-heaven-recomp
 COPY docker/entrypoint.sh /usr/local/bin/hh-entrypoint
 COPY CREDITS.md /usr/local/share/doc/hybrid-heaven-recomp/CREDITOS.md
 RUN chmod +x /usr/local/bin/hh-entrypoint && mkdir -p /work
