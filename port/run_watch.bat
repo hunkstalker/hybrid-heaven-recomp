@@ -7,7 +7,7 @@ REM  Cambia HH_WATCH_ADDR si hiciera falta.
 REM =====================================================================
 setlocal
 
-set HH_WATCH_ADDR=0x8024A9AC
+set HH_WATCH_ADDR=0x8024AA1C
 set HH_WATCH_SIZE=4
 REM set HH_WATCH_ADDR=0x80059D80
 
