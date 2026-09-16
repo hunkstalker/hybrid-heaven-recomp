@@ -116,8 +116,8 @@ if(WIN32)
         _CRT_SECURE_NO_WARNINGS
     )
 
-    # Embed the app icon into the .exe as a Windows resource (opcional: el icono del
-    # juego es un asset derivado de la ROM y no se versiona; aporta uno propio si quieres).
+    # Embed the app icon into the .exe as a Windows resource (assets/HybridHeaven.ico,
+    # versionado en el repo). Si falta, se compila sin icono embebido.
     set(APP_ICON "${PROJECT_SOURCE_DIR}/assets/HybridHeaven.ico")
     if(EXISTS "${APP_ICON}")
         enable_language(RC)

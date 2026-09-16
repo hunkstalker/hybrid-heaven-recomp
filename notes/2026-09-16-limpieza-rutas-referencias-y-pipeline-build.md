@@ -29,3 +29,12 @@ Hecho:
 
 Pendiente en bloques siguientes: los scripts (`tools/analysis/*`, `work/*.sh`) y el runtime
 (`events.cpp`) llevan raíz derivada del propio fichero / rutas relativas (Bloque 4).
+
+## Bloque 2 — Icono
+
+- `.gitignore`: se quita **solo** la línea de `assets/HybridHeaven.ico`; el `.ico` pasa a versionarse
+  (verificado idéntico byte a byte al original de publicación). El icono de ventana (`.bmp`/
+  `icon_bmp.inc`) sigue sin versionar y es opcional.
+- `src/main/icon.cpp` y el comentario de `CMakeLists.txt` (Windows): aclarado que el `.ico` sí se
+  versiona/embebe como recurso y que el `.bmp` de ventana es opcional.
+- `Referencias screenshots/` ya estaba ignorada.

@@ -10,9 +10,9 @@ rom/
 *.v64
 baserom.*
 
-# Assets del juego (imagenes derivadas) y capturas de referencia
+# Assets del juego (imagenes derivadas) y capturas de referencia.
+# El icono de aplicacion (assets/HybridHeaven.ico) SI se versiona (lo embebe el .exe).
 port/HybridHeavenRecomp/assets/HybridHeaven.bmp
-port/HybridHeavenRecomp/assets/HybridHeaven.ico
 port/HybridHeavenRecomp/assets/HybridHeaven.png
 port/HybridHeavenRecomp/assets/icon_bmp.inc
 Referencias screenshots/

@@ -14,8 +14,9 @@
 #if __has_include("../../assets/icon_bmp.inc")
 #include "../../assets/icon_bmp.inc"
 #else
-// Sin assets versionados (las imagenes del juego son derivadas de la ROM): el port
-// compila sin icono de ventana. Ver README/ADR 0005.
+// El icono de aplicacion (assets/HybridHeaven.ico) si se versiona y CMake lo embebe como
+// recurso del .exe en Windows. El icono de VENTANA usa un .bmp opcional (icon_bmp.inc) que
+// no se versiona (imagen derivada): sin el, el port compila y arranca sin icono de ventana.
 static const uint8_t kHybridHeavenIconBmp[] = { 0 };
 static const uint32_t kHybridHeavenIconBmpSize = 0;
 #endif
