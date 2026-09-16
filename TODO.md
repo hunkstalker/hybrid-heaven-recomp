@@ -28,16 +28,15 @@
    (edición mínima + overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de
    `recomp.py`; aborta si se pierde un override). Ver
    `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-2. [•] **Guardado en cápsula (Controller Pak)**: el juego abría DATA SAVE con el panel de slots
-   **vacío**, aceptaba "Saving current play data here" y terminaba en "Could not save". El volcado
-   (`hh_pak.log`, activo por defecto) mostró que **nunca llamaba a `osPfsAllocateFile`**: usaba un
-   `file_no` basura (`file_no=237 WRITE -> 5`) porque el fichero no existía y el pak se declaraba
-   "ya formateado". Causa: el juego elige la operación *crear ficheros* (dispatcher `FUN_800183D0`
-   op 2 → allocate **0x3500** = 53 páginas = 4 slots) sólo si `osPfsInitPak` devuelve
-   `PFS_ERR_NEW_PACK`. **Fix** (runtime `4e1ee0a`): pak virgen → `PFS_ERR_NEW_PACK` (+ campos
-   `OSPfs` como libultra); `HH_PAK_NEWPACK=0` lo revierte sin recompilar. Autotest PFS: `OK`.
-   **Pendiente**: validar en Windows (recompilar + GAME START o cápsula; el log debe mostrar
-   `AllocateFile size=13568` y guardar). Detalle:
+2. [•] **Guardado en cápsula (Controller Pak)**: el panel de slots salía vacío y "Saving current
+   play data here" acababa en "Could not save". **Causa raíz** (desensamblando la libultra del ROM):
+   `osPfsFindFile` devuelve **5** con `*file_no = -1` cuando no hay fichero, no 10; el wrapper del
+   juego (`FUN_80002DBC`) trata **>=6 como éxito sin rellenar el file_no** → usaba un `file_no` basura
+   (95/233/237) y el juego nunca creaba su fichero. **Fix** (runtime `ff70e20`): FindFile→5 con
+   `*file_no=-1`, DeleteFile→5, AllocateFile sin espacio→9. Intento previo de "pak nuevo"
+   (`PFS_ERR_NEW_PACK`) descartado y dejado opt-in (`HH_PAK_NEWPACK=1`) porque colgaba GAME START.
+   En Linux: `osPfsInitPak -> 0` y `osPfsFindFile -> 5`. **Pendiente**: validar en Windows (recompilar
+   + GAME START + cápsula; el log debe mostrar `AllocateFile size=13568` y guardar). Detalle:
    `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y

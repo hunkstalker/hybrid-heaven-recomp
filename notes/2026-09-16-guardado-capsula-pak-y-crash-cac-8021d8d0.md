@@ -133,7 +133,7 @@ Volcado final de `hh_pak.log` en la cápsula (lo esencial):
 
 ```
 osPfsInitPak ch=0 -> 0
-osPfsFindFile co=4134 game=4E485645 ("NHVE") -> 10   (NO_FILE)
+osPfsFindFile co=4134 game=4E485645 ("NHVE") -> 10   (nuestro NO_FILE mal: debe ser 5)
 osPfsReadWriteFile file_no=237 WRITE off=256 size=3328 -> 5   (INVALID: file_no basura)
 osMotorInit ch=0 -> 1 (NOPACK)
 ```
@@ -141,32 +141,38 @@ osMotorInit ch=0 -> 1 (NOPACK)
 **Nunca aparece `osPfsAllocateFile`**: el juego da por hecho que su fichero existe y escribe con un
 `file_no` no inicializado porque `osPfsFindFile` falló.
 
-## 6. Causa raíz y fix: el pak virgen debe ser "nuevo" (`PFS_ERR_NEW_PACK`)
+## 6. Causa raíz y fix: `osPfsFindFile` debe devolver **5** con `*file_no = -1`
 
-El dispatcher del juego **`FUN_800183D0`** (comando en los bits altos de `a0`, tabla `0x8005CD60`)
-tiene la **operación 2 = crear los ficheros de guardado**: `M7_FUN_801414B0(1)` → `FUN_80002EF0` →
-`osPfsAllocateFile` con **`size = 0x3500`** (13568 B = **53 páginas** = el fichero que contiene los
-4 slots; encaja con la nota antigua "53 páginas, 4 slots"). Esa operación se elige según el estado
-que devuelve `FUN_80002BE0`, que a su vez mapea el retorno de `osPfsInitPak`: **0 = mempak OK,
-2 = `PFS_ERR_NEW_PACK`**.
+**Desensamblando la libultra del propio ROM** (`osPfsFindFile`, 0x8002EE40):
 
-Como nuestro pak se declaraba "ya formateado" (`0`), el juego asumía que el fichero existía y se
-saltaba la creación (y así salía todo lo de arriba).
+```
+0x8002EFC8: addiu $t9, $zero, -1    ; *file_no = -1
+0x8002EFCC: addiu $v0, $zero, 0x5   ; return 5  (= fin del bucle de busqueda, no encontrado)
+```
 
-**Fix** (runtime `4e1ee0a`):
-- `PakState.formatted`: `false` mientras el `.pak` no exista con nuestro magic ni se haya escrito;
-  pasa a `true` en `pak_save()` y al cargar un `.pak` válido.
-- `osPfsInitPak` devuelve **`PFS_ERR_NEW_PACK (2)`** si el pak es virgen (`HH_PAK_NEWPACK=0` lo
-  desactiva para volver al comportamiento anterior).
-- `pak_init_fields` rellena campos como libultra (`status = PFS_INITIALIZED`, `version = 2`,
-  `dir_size = 16`, `inode_start_page = 2`).
-- Autotest: acepta `NEW_PACK` en el primer init y comprueba que tras escribir el segundo init da 0 →
-  **`[selftest] fin: OK (0 fallos)`** (Linux). En el arranque de Linux ya se ve
-  `osPfsInitPak ch=0 -> 2` (`formatted=0`).
+Es decir: **no existe `PFS_ERR_NO_FILE`=10 aquí**; esta libultra devuelve **5** cuando no encuentra el
+fichero y deja `*file_no = -1`. Nosotros devolvíamos **10**.
+
+Y ese 10 caía en el peor sitio: el wrapper del juego **`FUN_80002DBC`** mapea los errores de PFS a su
+propio enum (`0→0, 1→1, 2→2, 3→9, 4→8, 5→3`) y **cualquier valor ≥6 lo trata como ÉXITO (0) sin
+rellenar el `file_no` de salida** (`sltiu $at,$v0,0x6` + `beq`). Con 10, el juego creía que el
+fichero existía y leía/escribía con un `file_no` basura (los 95/233/237 del log) → `PFS_ERR_INVALID`
+→ "Could not save". Con **5**, el wrapper devuelve 3 (no-cero) y el juego detecta que no hay fichero
+(y puede crear el suyo con el dispatcher op 2 → `AllocateFile` de 0x3500).
+
+**Fix** (runtime `ff70e20`):
+- `osPfsFindFile`: no encontrado → `*file_no = -1` y retorno **5**.
+- `osPfsDeleteFile`: no encontrado → **5** (el ROM lo propaga de FindFile).
+- `osPfsAllocateFile`: sin espacio → **9** (data full, como el ROM).
+
+### 6.1 Intento descartado: pak virgen → `PFS_ERR_NEW_PACK` (runtime `4e1ee0a`)
+
+Antes de desensamblar probé que un pak virgen devolviera `PFS_ERR_NEW_PACK` (el dispatcher
+`FUN_800183D0` op 2 = crear ficheros → `M7_FUN_801414B0` → `osPfsAllocateFile` size **0x3500** =
+53 páginas = los 4 slots). **No funcionó**: con ese estado el juego se quedaba en bucle de detección
+y crasheaba en GAME START (`[HANG]` + SEGV en `FUN_80002dbc`) porque **no tiene función de formateo
+en el ROM** (no existe `osPfsInit`) — un pak real de fábrica ya viene formateado y devuelve 0. Se
+dejó **opt-in** (`HH_PAK_NEWPACK=1`) y se revirtió el valor por defecto. También se rellenan campos
+`OSPfs` como libultra (`status=PFS_INITIALIZED`, `version=2`, `dir_size=16`, `inode_start_page=2`).
 
 ## 7. Siguiente paso
-
-- **Windows**: recompilar y **empezar partida (GAME START)** (o ir a una cápsula) y mirar el final de
-  `hh_pak.log`: debe aparecer `osPfsAllocateFile ... size=13568` (la creación) y luego el guardado en
-  la cápsula debe completar. Si el arranque/menús se comportara raro por el estado "pak nuevo",
-  `set HH_PAK_NEWPACK=0` revierte sin recompilar.
