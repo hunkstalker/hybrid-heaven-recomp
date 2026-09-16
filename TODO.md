@@ -3,13 +3,12 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — Guardado, teardown y limpieza
+## Ahora — Combate CaC (bloqueante), teardown y limpieza
 
-> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO Y PUBLICADO (2026-09-16)** —
-> bloques 1→7 y 8.B (identidad reescrita). `force-push` hechos: runtime `feae2d5`, N64Recomp
-> `cab94d9`, main `0d283d5`; `port/runtime.lock` apunta a SHAs publicados. **Build Linux y Windows
-> OK** y **CI en verde**. Detalle:
-> `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
+> **Sesión 2026-09-16 (B en menús + CaC)**: **B físico = atrás en menús VALIDADO** y mid-entry
+> `M55_FUN_8037948C` (crash al iniciar CaC). **BLOQUEANTE**: corrupción de estado al entrar en CaC
+> (objeto `0x8024A990`, lista de broadcast recorrida fuera de rango); runtime con mitigaciones
+> **locales**. Detalle: `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
 
 > **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
 > `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no

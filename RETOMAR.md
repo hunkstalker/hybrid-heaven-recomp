@@ -4,70 +4,47 @@
 > (estado) y la nota más reciente en `notes/`.
 > Actualizar o borrar este archivo cuando cambie la tarea.
 
-## Estado en 3 líneas
+## Estado en 4 líneas
 
-- Se **juega** en Windows: menús → GAME START → escenas 3D y combate, con mando Xbox (`config.ini`),
-  audio a 43200 Hz y Controller Pak emulado.
-- **Cuelgue por daño del robot: ARREGLADO y validado (2026-09-16)**, en dos capas:
-  1. `s0` (r16) machacado por la cadena del frame → el dispatch frame/no-op del bucle principal se
-     rompía: fix runtime `HH_S0FIX` (incondicional; repara en la entrada del work, log en
-     `hh_s0fix.log`). Validado con auto-test (`HH_TEST_S0BUG`) y por el usuario.
-  2. Ya caído, el personaje **no se levantaba** (y la pila fugaba `0x38`/frame): **fallthrough
-     ausente al final de `M55_FUN_8037a6f4`** — la `beq` final (0x8037A880) cae a `0x8037A884`
-     (delay slot) y a la continuación `0x8037A888`, que desemboca en el epílogo compartido
-     `0x8037A94C`/`0x8037A950` (`sp += 0x38`). El port salía por `;}` (fuga + lógica de caída
-     saltada). Corregido en `tools/analysis/fix_fallthroughs.py` (nueva regla: rama condicional
-     como última instrucción ⇒ encadenar a la contigua si `cont == last_addr+4`). Detalle:
-     `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`.
-- También arreglados y validados antes: **objeto del NPC** (fallthrough M55 `M55_FUN_80379690` →
-  `0x803796E4` + mid-entries; syms reconstruidos a mano) y **regresión de las escaleras** (partir un
-  switch fusionado; revertida). **Módulo 55 = overlay de la secuencia de objeto del NPC**
-  (`docs/architecture.md` §2.2). Si hay que recompilar: `tools/recomp.py ... --force`.
-  Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
-- **Crash de la cinemática de puerta: ARREGLADO (2026-09-16; pendiente de validar en Windows)**:
-  `M9_FUN_80203830` era una frontera real de función (su contenedor `M9_FUN_8020382c` empezaba en un
-  `nop` que es el delay slot del `jr $ra` anterior). Ojo: la primera pasada de `add_mid_entry.py`
-  **revirtió** el fix del cuelgue del NPC (recalculaba todos los tamaños y borraba el override
-  `M9_FUN_802169AC:0x1C0`); ya corregido (edición mínima + overrides) y protegido por
-  `tools/analysis/check_syms_overrides.py` (paso 1b de `recomp.py`).
-  Detalle: `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-- **Primer combate cuerpo a cuerpo (CaC): ARREGLADO (2026-09-16; pendiente de validar en Windows)**:
-  `M10_FUN_8021d8d0` era frontera real de función (su contenedor arrancaba con tres `nop`s) y cae en
-  `M10_FUN_8021d8d8`. Igual que la cinemática de puerta (`M9_FUN_80203830`).
-- **Guardado en cápsula: VALIDADO en Windows (2026-09-16)**: causa raíz `osPfsFindFile`→10 (debe ser
-  **5** con `*file_no=-1`); el juego muestra la **UI de slots** y escribe el `.pak` en `saves\` junto al
-  `.exe`. Instrumentación activa por defecto (`hh_pak.log`: PFS con args/retorno/estado) + autotest de
-  la API PFS (en Linux: `OK (0 fallos)`). Detalle:
-  `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
-  `notes/2026-09-16-guardado-capsula-validado.md`.
-- Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
-  módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
-  rápida es `python3 tools/analysis/add_mid_entry.py 0xADDR` seguido de
-  `tools/recomp.py --config config/game_combined.toml --force`. La herramienta **rechaza** delay
-  slots y direcciones dentro de switches fusionados (romperlos causa regresiones como el crash de
-  las escaleras del 2026-09-15: ver nota, "Ronda 10").
-- **Build/CI**: receta Linux (`tools/build_linux.sh`) + `Dockerfile` (Debian/glibc) + workflows
-  `ci`/`release` + devcontainer (ADR 0005). Pendiente: validar los workflows en GitHub tras el push
-  y el `.zip`/`.tar.gz` de un tag `v*`.
-- **Teardown**: el cierre ordenado no se reproduce en Linux (rc=0) con el camino actual; hay hook de
-  prueba `HH_AUTOQUIT=<segundos>` (solo si se define el env).
+- Se **juega** en Windows (menús → GAME START → escenas 3D y combate, mando Xbox, audio 43200 Hz,
+  Controller Pak emulado). Fixes previos validados: **guardado en cápsula**, cuelgue por daño del
+  robot, objeto del NPC y regresión de las escaleras (ver `TODO.md` → "Hecho" y `notes/`).
+- **Sesión actual**: **B físico = atrás en menús** (VALIDADO por el usuario) y **mid-entry
+  `M55_FUN_8037948C`** (crash al iniciar CaC). Detalle:
+  `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
+- **BLOQUEANTE**: al entrar en **combate cuerpo a cuerpo** el juego **corrompe estructuras**
+  (objeto `0x8024A990` con callback basura `0xFFFF84CD`→bit23 perdido; lista de broadcast
+  `[struct+0x888]` recorrida fuera de rango). No es un símbolo ausente. El runtime tiene
+  mitigaciones **locales** (no publicadas) que evitan el crash pero el combate se atasca.
+- **Runtime (fork) con cambios LOCALES sin push** (`e9a178f`, `efc5f17`, `0806e19`), por encima del
+  pin publicado `feae2d5`. En Windows usar **`port\build_windows.local.bat`** (no `--force-libs`,
+  que resetea `lib\` al pin y perdería las mitigaciones).
 
 ## TU TAREA AHORA (pasos exactos)
 
-> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO Y PUBLICADO (2026-09-16)** —
-> bloques 1→7 y **8.B** (identidad reescrita, `force-push` hechos: runtime `feae2d5`, N64Recomp
-> `cab94d9`, main `0d283d5`). Build **Linux y Windows OK**, **CI en verde**. Detalle:
-> `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
+> Contexto completo de esta sesión: `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
+> Notas del bloqueo: `notes/2026-09-16-crash-combate-centinela-ff7f84cd.md` y
+> `notes/2026-09-16-combate-corrupcion-estado-8024a990.md`.
 
-1. **[opcional, usuario]** Smoke de arranque con la ROM en `rom\` junto al `.exe` (y en Docker:
-   `HH_HEADLESS=1` con `rom/` montado en `/work/rom`): comprobar que encuentra la ROM y que no hay
-   `Failed to find function`.
-2. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
-   `add_mid_entry.py` + `recomp --force`, con el guardián `check_syms_overrides.py`).
-3. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
-4. Pendientes varios: teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de
-   combate para **X** (ver `TODO.md`).
-
+1. **[usuario] Validar en Windows** con `port\build_windows.local.bat` + `port\run_windows.bat`:
+   - **B en menús**: en el menú principal el B físico debe ir atrás (en juego sigue = agacharse).
+   - **`0x8037948C`**: iniciar combate y aguantar sin el `Failed to find function`.
+2. **[BLOQUEANTE] Corrupción al entrar en CaC**. Ya acotada pero sin causa raíz:
+   - El objeto `0x8024A990` acaba con `+0x1C=0xFFFF84CD` (bit23 perdido → `0xFF7F84CD`) y el
+     dispatcher `FUN_80005270` intenta llamarlo. El **emulador** tiene `+0x1C=0x80135320` válido.
+   - La escritura que corrompe **no pasa por `MEM_*`**: `do_send` escribe el mensaje directo en
+     RDRAM. La "lista de colas" de `FUN_80000774`→`FUN_80000a0c` (`[struct+0x888]`) se recorre fuera
+     de rango (nodos con floats → terminador pisado).
+   - Vías: (a) **comparar con el emulador en el mismo frame** (alinear por VI y diff de RDRAM);
+     (b) cazar el **wild write** con watchpoints sobre la estructura (el `struct` es dinámico).
+3. **Decidir publicación del runtime**: las mitigaciones son locales; publicarlas requiere push al
+   fork (orden N64Recomp → NMR → main) + subir el pin de `port/runtime.lock`.
+4. **Pendientes varios**: teardown SEGV al cerrar, limpieza de instrumentación y botón **X** de los
+   menús de combate (`TODO.md`).
+5. Si crashea con `Failed to find function at 0x...` (dirección **válida**): `python3
+   tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config config/game_combined.toml
+   --force` (el guardián `check_syms_overrides.py` aborta si se pierde un override; la herramienta
+   rechaza delay slots y switches fusionados).
 
 ## Cómo leer los logs
 
@@ -77,29 +54,23 @@
   `recv-block`, `recv-ok` con `tid`, `sender`, `valid` y `blockedHead`.
 - `hh_state.log`: si `polls` se congela con `audio` subiendo, hay hilo(s) de juego aparcados.
 - `hh_pi.log`: `tid=` por DMA; `mq=8005C268` es la cola del helper síncrono del loader.
-- `hh_stub.log`: si aparece un `vram`, un símbolo mal acotado quedó en stub (vacío desde el fix M9).
 - `hh_ovl.log`: qué overlay/módulo se carga y cuándo.
 - `hh_crash.log`: crash con registros host/guest y **backtrace host** (`bt[i] exe+0x...`); mapear con
   `build_win/HybridHeavenRecomp-Release.map`.
+- `hh_badlookup.log` (nuevo): al fallar un lookup, volcado del objeto del llamante (`s0`) y dónde
+  aparece el valor malo.
+- `hh_watch.log` (watchpoint, `run_watch.bat`): accesos a un rango; ahora incluye `val=` y admite
+  `HH_WATCH_SIZE`. **Ojo**: no ve las escrituras directas del runtime (p. ej. `do_send`).
 
 ## Entorno / git
 
-- **Commits de la sesión (2026-09-15)**:
-  - main repo: `1e97890` — *fix(mod55): encadenar fallthroughs y registrar mid-entries del objeto
-    del NPC* (incluye `RecompiledFuncs/` regenerado, syms, docs y `tools/analysis/add_mid_entry.py`).
-  - N64ModernRuntime (repo anidado, **detached HEAD** como venía siéndolo): `6bd6d0c` —
-    *diag(runtime): instrumentacion del cuelgue del NPC y sombra host de scheduling*.
-- **Commits de la ronda 15 (2026-09-16)** (main repo): *fix(recomp): encadenar fallthrough
-  M55_FUN_8037a6f4->8037a884 (fuga 0x38/frame en la caida)* y
-  *docs: ronda 15 (fix de la caida validado; heuristica de ramas condicionales)*.
-- **Runtime y tool: FORKS propios** (rama `hybrid-heaven`), con `main` = upstream:
-  - `hunkstalker/N64ModernRuntime` (23 commits del runtime) y `hunkstalker/N64Recomp`
-    (`recomp.h` con `MEM_*` seguro + `symbol_lists.cpp`), que se compila dentro del port.
-  - Los scripts clonan por **URL+SHA fijados en `port/runtime.lock`** (no hay patch).
-  - Los cambios del runtime se hacen en el árbol local (`lib/N64ModernRuntime`) y se **pushean al
-    fork**; luego se actualiza el SHA en `port/runtime.lock`.
-  - Copias de trabajo/publicación en `https://github.com/hunkstalker/N64ModernRuntime` y `https://github.com/hunkstalker/N64Recomp`.
-- Bats de apoyo (solo los recurrentes): `build_windows.bat`, `run_windows.bat` (admite
-  `noaudio`/`audlog`), `run_mqlog.bat` (traza + s0fix) y `run_watch.bat` (watchpoint + ring + replay).
-  Política: un bat puntual se borra tras usarse.
+- **Repo principal**: `git push origin main` es fast-forward (publica el fix del B y el mid-entry).
+  No he hecho push.
+- **Fork del runtime** (rama `hybrid-heaven`, con `main` = upstream): commits locales de esta sesión
+  `e9a178f`, `efc5f17`, `0806e19` **sin push**. `port/runtime.lock` sigue en `feae2d5`.
+  Flujo: editar `lib/N64ModernRuntime` → commit → push al fork → actualizar el SHA del lock.
+  `N64Recomp` es submódulo (fork propio) del runtime.
+- Bats: `build_windows.bat` (clona/actualiza por lock), **`build_windows.local.bat`** (compila `lib\`
+  tal cual, sin git; no versionado), `run_windows.bat` (admite `noaudio`/`audlog`), `run_mqlog.bat`
+  (traza + s0fix) y `run_watch.bat` (watchpoint; ahora en `0x8024A9A8` tamaño `0x80`).
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).

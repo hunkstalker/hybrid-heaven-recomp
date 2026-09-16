@@ -62,7 +62,10 @@ cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, el personaje que no se l
 nueva regla de ramas condicionales en `fix_fallthroughs.py`). Instrumentación de crash/cuelgue y
 bats de regresión en el repo. La **partida avanza** (menús, escenas 3D, NPC); los
 `Failed to find function at 0x…` se resuelven con **mid-entries** (`add_mid_entry.py` +
-`recomp --force`; p. ej. `M55_FUN_80378c48` en un menú). **Build reproducible**: receta Linux +
+`recomp --force`; p. ej. `M55_FUN_80378c48` en un menú). En la sesión actual se arregló el **B físico
+= atrás en menús** (VALIDADO) y el mid-entry `M55_FUN_8037948C`; **bloqueante**: al entrar en CaC el
+juego **corrompe estructuras** (objeto `0x8024A990` y lista de broadcast) — no es un símbolo ausente
+(`notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`). **Build reproducible**: receta Linux +
 Docker (Debian/glibc) + CI y Releases en GitHub (`docs/adr/0005-build-reproducible-y-artefactos.md`).
 Además, **limpieza de rutas/referencias y pipeline de compilación** ejecutada (2026-09-16): solo
 rutas relativas al repo, icono versionado, ROM en `rom/` junto al ejecutable + salvaguarda,
@@ -124,8 +127,7 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Foco inmediato: **validar el guardado en cápsula en Windows** (el fix ya está en el
-runtime local) y, al validarlo, publicar el fork + `origin main` + pin; en paralelo, lanzar los
-`force-push` del bloque 8.B (identidad de commits). Después: seguir la partida (cajas de ítem, menús
-de combate), teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de combate
-para X.
+Ver **`TODO.md`**. Foco inmediato: **desbloquear el combate cuerpo a cuerpo** (corrupción de estado al
+entrar; ver `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`) y validar en Windows el B en
+menús y el mid-entry `0x8037948C`. Después: decidir la publicación de las mitigaciones de runtime,
+teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de combate para X.
