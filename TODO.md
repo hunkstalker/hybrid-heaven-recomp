@@ -38,7 +38,7 @@
    play data here" acababa en "Could not save". **Causa raíz** (desensamblando la libultra del ROM):
    `osPfsFindFile` devuelve **5** con `*file_no = -1` cuando no hay fichero, no 10; el wrapper del
    juego (`FUN_80002DBC`) trata **>=6 como éxito sin rellenar el file_no** → usaba un `file_no` basura
-   (95/233/237) y el juego nunca creaba su fichero. **Fix** (runtime `ff70e20`): FindFile→5 con
+   (95/233/237) y el juego nunca creaba su fichero. **Fix** (runtime `0619945`): FindFile→5 con
    `*file_no=-1`, DeleteFile→5, AllocateFile sin espacio→9. Intento previo de "pak nuevo"
    (`PFS_ERR_NEW_PACK`) descartado y dejado opt-in (`HH_PAK_NEWPACK=1`) porque colgaba GAME START.
    En Linux: `osPfsInitPak -> 0` y `osPfsFindFile -> 5`. **Pendiente**: validar en Windows (recompilar
@@ -53,7 +53,7 @@
 5. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
 6. [ ] **Pipeline de compilación**: `port/runtime.lock` debe apuntar a un commit **publicado** del
-   fork (`725a5a8`); tras publicar los commits de runtime locales (fork + `origin main` + pin) subir
+   fork (`c976c89`); tras publicar los commits de runtime locales (fork + `origin main` + pin) subir
    el SHA. Para probar commits locales sin publicar: `port/build_windows.local.bat` (no versionado,
    contenido en `port/README_windows.md` §2b). `build_windows.bat` imprime siempre el runtime usado.
 

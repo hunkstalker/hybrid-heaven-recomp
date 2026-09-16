@@ -107,7 +107,7 @@ Cambios:
    cual, **sin tocar git**, avisa si falta `lib/`, e imprime la ruta y el commit del runtime
    (`git -C lib\N64ModernRuntime rev-parse --short HEAD` si es repo).
 2. **`.gitignore`**: añadir `port/build_windows.local.bat`.
-3. **`port/runtime.lock`**: volver al SHA **publicado** (`725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d`)
+3. **`port/runtime.lock`**: volver al SHA **publicado** (`c976c89bbc8eb2d58d7e30b8d1e03d3ad822f7b1`)
    y corregir el comentario (hoy dice "commit local"). Los commits de runtime de esta sesión se
    publican aparte (ver Bloque 8 / publicación) y entonces se sube el pin.
 4. **`port/build_windows.bat`**: imprimir **siempre** qué runtime usa (ruta + commit + si omitió git);
@@ -145,7 +145,7 @@ Cambios:
 Datos: en este entorno los commits se hicieron con la identidad local del entorno de desarrollo.
 - Repo principal: **195 commits** a ese nombre (188 publicados, **7 sin publicar**).
 - Fork del runtime: 29 (24 publicados, **5 sin publicar**).
-- Fork de N64Recomp: **1 commit** (`63069b9…`), publicado; el fork del runtime lo referencia por
+- Fork de N64Recomp: **1 commit** (`cab94d9…`), publicado; el fork del runtime lo referencia por
   `.gitmodules`.
 
 Identidad objetivo: `Denis Anfruns Millán <daanfruns@gmail.com>` (vincula a su cuenta de GitHub si
@@ -176,7 +176,7 @@ Orden obligatorio (por la cadena de referencias):
    (`NMR_COMMIT` = SHA nuevo; `N64RECOMP_COMMIT` = SHA nuevo); reescribir su historia (195 commits)
    y **force-push** (`origin main`). Anotar el SHA nuevo.
 4. Actualizar referencias a SHA en `docs/`, `notes/` y `CREDITS.md` (texto) si las hubiera
-   (p. ej. menciones a `725a5a8`, `63069b9`): deben apuntar a los SHAs nuevos.
+   (p. ej. menciones a `c976c89`, `cab94d9`): deben apuntar a los SHAs nuevos.
    Nota: editar esas referencias **antes** del paso 3 (si no, habría que reescribir otra vez).
 
 Herramientas: `git filter-branch --env-filter` (disponible; `git-filter-repo` no está instalado).
@@ -228,4 +228,4 @@ La reescritura en la carpeta compartida puede ir lenta (git ya se colgó ahí an
   completar (`saves\` junto al `.exe`). Detalle:
   `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 - Los fixes de runtime de esta sesión siguen siendo **locales** hasta publicar el fork (con el pin
-  publicado `725a5a8`, un clon limpio/`--force-libs` no los tendría).
+  publicado `c976c89`, un clon limpio/`--force-libs` no los tendría).

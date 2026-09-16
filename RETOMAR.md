@@ -90,7 +90,7 @@
 - **Commits de la sesión (2026-09-15)**:
   - main repo: `1e97890` — *fix(mod55): encadenar fallthroughs y registrar mid-entries del objeto
     del NPC* (incluye `RecompiledFuncs/` regenerado, syms, docs y `tools/analysis/add_mid_entry.py`).
-  - N64ModernRuntime (repo anidado, **detached HEAD** como venía siéndolo): `87acdbb` —
+  - N64ModernRuntime (repo anidado, **detached HEAD** como venía siéndolo): `6bd6d0c` —
     *diag(runtime): instrumentacion del cuelgue del NPC y sombra host de scheduling*.
 - **Commits de la ronda 15 (2026-09-16)** (main repo): *fix(recomp): encadenar fallthrough
   M55_FUN_8037a6f4->8037a884 (fuga 0x38/frame en la caida)* y
