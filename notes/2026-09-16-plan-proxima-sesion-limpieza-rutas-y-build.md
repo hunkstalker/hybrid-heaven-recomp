@@ -6,9 +6,10 @@ apuntar al arrancar. Se ejecuta por bloques, **documentando antes de cada commit
 ## Reglas fijas del usuario
 
 1. **Sin referencias a su equipo** (ni usuarios ni rutas de su PC).
-2. **Sin referencias a nada fuera de la carpeta del repo** (nada de `/app/...`, `/tmp/...`, etc.).
-3. **`AGENTS.md`** sin referencias a su equipo ni al contenedor; debe dejar claro que **lo importante
-   vive dentro del repo, bien clasificado** (no en carpetas temporales del sistema).
+2. **Sin referencias a nada fuera de la carpeta del repo** (ni rutas absolutas del sistema ni
+   temporales).
+3. **`AGENTS.md`** sin referencias a su equipo ni al entorno de desarrollo; debe dejar claro que
+   **lo importante vive dentro del repo, bien clasificado** (no en carpetas temporales del sistema).
 4. Si algo es importante para el proyecto → **dentro del repo**, en su carpeta.
 
 ## Decisiones ya tomadas
@@ -18,10 +19,9 @@ apuntar al arrancar. Se ejecuta por bloques, **documentando antes de cada commit
   compilador; idéntico byte a byte a `HybridHeavenV2.ico`). Nada más (ni `.bmp`, ni `.png`, ni
   `icon_bmp.inc`).
 - **ROM**: ubicación oficial **`rom/` junto al ejecutable**; **una** salvaguarda: junto al `.exe`
-  (opción **A**). Docker: binario y `rom/` bajo `/app` (imagen: `/app/hybrid-heaven-recomp` +
-  `/app/rom/baserom.us.z64`).
-- **`.opencode/` fuera del repo** (hoy hay 1 fichero versionado) y su línea en `.dockerignore`.
-  **Cero cadenas "opencode"** en lo publicado.
+  (opción **A**). Docker: imagen con el binario y `rom/` en la raíz de trabajo.
+- **Tooling local fuera del repo** (hoy hay 1 fichero versionado) y su línea en `.dockerignore`.
+  **Cero cadenas del nombre de ese tooling** en lo publicado.
 - **Goemon**: se eliminan las menciones a sus ficheros; donde era el origen de nombres/algoritmo, se
   usa una frase neutra sin nombres.
 - **Forks**: se mencionan por **URL pública** (`hunkstalker/N64ModernRuntime`, `hunkstalker/N64Recomp`).
@@ -33,22 +33,22 @@ apuntar al arrancar. Se ejecuta por bloques, **documentando antes de cada commit
 
 ## Bloque 1 — Rutas y referencias (todo lo publicado)
 
-- Regla: rutas relativas al repo; nada de `/app`, `/tmp`, `C:\`, `E:\`, "hunk", "opencode".
+- Regla: rutas relativas al repo; nada de rutas absolutas del sistema, temporales, de unidad
+  Windows ni identidades locales.
 - Ficheros con rutas fuera del repo (a limpiar):
   - `PROYECTO.md` → quitar toda referencia a la ROM (no debe mencionarla).
   - `RETOMAR.md`, `docs/workflows.md`, `tools/README.md`, `work/README_captura.md`,
     `work/cap_loop.sh`, `work/play.sh`, `AGENTS.md`.
-  - `config/` (13): cabeceras de `config/us_module*.syms.toml` (`# Módulo: /app/...`) y
+  - `config/` (13): cabeceras de `config/us_module*.syms.toml` (`# Módulo: ...`) y
     `config/rsp_hh_aspMain.toml` (rutas absolutas).
   - `notes/` (15 ficheros) + `notes/archive/` (2).
 - Sustituciones:
-  - `/app/hybrid-heaven-recomp/...` → ruta relativa.
-  - `/tmp/opencode/...` → `work/debug/...`.
+  - Rutas absolutas → ruta relativa al repo.
+  - Rutas temporales del entorno → `work/debug/`.
   - Menciones a ROMs → lenguaje neutro ("la ROM que aporta el usuario, en `rom/baserom.us.z64`").
-  - Menciones a las copias de los forks en `/app/N64ModernRuntime` y `/app/N64Recomp` → por URL
-    pública del fork.
-  - Menciones a `/app/goemon-sourcecode`, `goemon-baserom.us.z64` → eliminadas o frase neutra.
-  - Identidad `opencode-hh <opencode@local>` en notas → redacción neutra ("los commits de los forks
+  - Menciones a las copias locales de los forks → por URL pública del fork.
+  - Menciones a ficheros del proyecto de referencia (mismo motor Konami) → eliminadas o frase neutra.
+  - Identidad local del entorno de desarrollo en notas → redacción neutra ("los commits de los forks
     se hicieron desde el entorno de desarrollo").
   - Palabra "contenedor" narrativa (RETOMAR/TODO/notas) → "entorno de desarrollo" (en `docker/` se
     queda: habla de la imagen Docker del proyecto, que sí se publica).
@@ -58,8 +58,8 @@ apuntar al arrancar. Se ejecuta por bloques, **documentando antes de cada commit
   el repo"*.
 - `docs/documentation.md`: línea neutra: los datos generados (manifiestos, listas de funciones) se
   generan localmente y **no** se versionan.
-- `.dockerignore`: quitar `.opencode`. Borrar `.opencode/` del repo
-  (`git rm -r .opencode`).
+- `.dockerignore`: quitar la entrada del tooling local. Borrar esa carpeta del repo
+  (`git rm -r <carpeta>`).
 
 ## Bloque 2 — Icono
 
@@ -77,22 +77,22 @@ apuntar al arrancar. Se ejecuta por bloques, **documentando antes de cada commit
 - Mensajes: `tools/build_linux.sh`, `port/build_windows.bat`, `port/run_windows.bat`,
   `README.md`/`port/README_*.md` y `docker/entrypoint.sh` → "pon la ROM en la carpeta `rom` junto al
   ejecutable".
-- Docker (imagen de ejecución): mover el binario a `/app/hybrid-heaven-recomp` y la ROM a
-  `/app/rom/baserom.us.z64`; actualizar `docker/Dockerfile.runtime`, `Dockerfile`,
+- Docker (imagen de ejecución): mover el binario y la ROM a rutas relativas bajo la raíz de trabajo
+  de la imagen (`rom/baserom.us.z64`); actualizar `docker/Dockerfile.runtime`, `Dockerfile`,
   `docker/entrypoint.sh`, `docker-compose.yml` y `port/README_linux.md`.
 
 ## Bloque 4 — Arreglos funcionales (para terceros; **sin variables de entorno**)
 
 - `config/rsp_hh_aspMain.toml`: rutas relativas.
-- `port/HybridHeavenRecomp/src/main/main.cpp`: `/tmp/hh_crash.log` → `hh_crash.log` (junto al exe,
-  como el resto de logs).
+- `port/HybridHeavenRecomp/src/main/main.cpp`: el volcado de crash pasa de una ruta temporal del
+  sistema a `hh_crash.log` (junto al `.exe`, como el resto de logs).
 - `config/merge_loop.py`: derivar la raíz del repo desde la ubicación del propio fichero.
 - `tools/analysis/*` (`analyze_rom.py`, `detect_lzkn64.py`, `emu_ref.sh`, `fbdecode.py`,
   `gen_ghidra_syms.py`, `scan_lzkn64_strict.py`, `test_lzkn64.py`, `ghidra_scripts/*`) y
   `tools/README.md`: raíz derivada del propio script; ejemplos relativos.
 - `work/cap_loop.sh`, `work/play.sh`: igual.
-- Runtime (fork): `ultramodern/src/events.cpp` escribe un volcado en `/app/...` → ruta relativa
-  `work/debug/` (sin `/app`, sin env). Commit en el fork (se publica con lo demás).
+- Runtime (fork): `ultramodern/src/events.cpp` volcaba a una ruta absoluta → ruta relativa
+  `work/debug/` (sin rutas absolutas, sin env). Commit en el fork (se publica con lo demás).
 
 ## Bloque 5 — Pipeline de compilación (detalle)
 
@@ -123,25 +123,26 @@ Cambios:
 
 ## Bloque 6 — Lo que NO se toca
 
-- `/app/goemon-sourcecode` y `goemon-baserom.us.z64` (fuera del repo; no se tocan).
-- `/app/gen_os_syms.py`: no es importante (no se usa en el repo; hay equivalentes en
+- El proyecto de referencia (mismo motor Konami) y su ROM (fuera del repo; no se tocan).
+- La herramienta local de símbolos: no es importante (no se usa en el repo; hay equivalentes en
   `tools/analysis/`). No se mueve.
 - Manifiestos y `notes/reference/*` (locales, ignorados): se quedan como están.
 - ROMs (las aporta el usuario) y copias de los forks (fuera del repo).
 
 ## Bloque 7 — Verificación
 
-- `git grep` sin `/app`, `/tmp`, `C:\`, `E:\`, `hunk`, `opencode` en ficheros publicados.
+- `git grep` sin rutas absolutas, temporales, unidades Windows ni identidades locales en ficheros
+  publicados.
 - `python3 tools/analysis/docs_index.py --check` OK.
 - Compilación Linux (`tools/build_linux.sh --build-dir build_dbg`) OK.
 - Icono embebido en Windows (comprobar que el `.exe` lleva recurso).
-- Docker: arranque headless con la ROM montada en `/app/rom` (smoke local).
+- Docker: arranque headless con la ROM montada en `rom` (smoke local).
 - Al final, nota fechada + **ADR nuevo** (política de rutas relativas y contenido externo) +
   `docs/INDEX.md`, `TODO.md`, `RETOMAR.md`, `PROYECTO.md`.
 
 ## Bloque 8 — Identidad de los commits
 
-Datos: en este entorno la identidad local es `opencode-hh <opencode@local>`.
+Datos: en este entorno los commits se hicieron con la identidad local del entorno de desarrollo.
 - Repo principal: **195 commits** a ese nombre (188 publicados, **7 sin publicar**).
 - Fork del runtime: 29 (24 publicados, **5 sin publicar**).
 - Fork de N64Recomp: **1 commit** (`63069b9…`), publicado; el fork del runtime lo referencia por

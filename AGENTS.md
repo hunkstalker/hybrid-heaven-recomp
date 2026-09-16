@@ -12,18 +12,16 @@ diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la 
 
 ## Persistencia y entorno (CRÍTICO)
 
-- **Todo artefacto persistente debe vivir bajo `/app`** (idealmente en `hybrid-heaven-recomp/`, p. ej.
-  `work/debug/`). **`/tmp` no persiste entre sesiones** y además contaminaba al usuario: no usar `/tmp`
-  para logs, trazas, dumps ni scripts. Si una herramienta externa escribe a `/tmp`, copiar el resultado
-  al proyecto al terminar.
-- El entorno Linux puede resetearse a una **Alpine mínima** sin toolchain. Es **todo reinstalable** con
-  `apk`:
-  - Build: `apk add build-base cmake ninja python3 gdb py3-numpy`
-  - Runtime del port: `apk add sdl2 gtk+3.0 vulkan-loader mesa-vulkan-swrast xvfb xauth libx11 libxtst imagemagick`
-  - Dev del build: `apk add sdl2-dev vulkan-loader-dev mesa-dev libx11-dev gtk+3.0-dev`
-  - Tras reinstalar, reconfigurar CMake en `build_dbg` (`cmake .`) por si cambian rutas.
-- Los artefactos ya construidos (`work/*.so`, `work/r64dump`, binario del port, `toolchain/`) sobreviven
-  en `/app` y no hay que regenerarlos.
+- **Lo importante vive dentro del repo, bien clasificado**: código, herramientas (`tools/`), documentación
+  (`docs/`, `notes/`) y artefactos de desarrollo en sus carpetas. Lo temporal puede quedar fuera, pero
+  **lo que deba conservarse se guarda en el repo**; no dejar logs, trazas, dumps ni scripts en carpetas
+  temporales del sistema (se pierden entre sesiones). Si una herramienta externa escribe fuera del repo,
+  copiar el resultado al proyecto al terminar.
+- Las dependencias de desarrollo son **reinstalables** con el gestor de paquetes de la distribución
+  (build, runtime del port y librerías de desarrollo). Si el entorno se recrea, reinstalar lo que falte
+  y reconfigurar CMake en el build dir por si cambian rutas.
+- Los artefactos ya construidos (`work/`, `toolchain/`, el binario del port) no se versionan y no hace
+  falta regenerarlos salvo cambio.
 
 ## Lee esto (y solo esto) al empezar
 

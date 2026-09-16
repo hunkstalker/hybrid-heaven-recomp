@@ -20,7 +20,7 @@ absolutos). Cadena correcta verificada: `M24_FUN_801cc2c8 → M24_FUN_801cc2cc`.
 
 ## Miss de cola por split de módulo: `0x801E4AA4`
 
-- Añadido `0x801E4AA0` como extra de módulo 25 dividió el contenedor; su `b 0x801E4AA4` (epílogo
+- Añadido `0x801E4AA0` como extra de módulo 25 dividió el entorno de desarrollo; su `b 0x801E4AA4` (epílogo
   compartido: `lw $ra,0x1C($sp); addiu $sp; jr $ra`) pasó a ser un `LOOKUP_FUNC(0x801E4AA4)` →
   miss. Con `HH_SOFT_LOOKUP=1` el stub no restauraba `$ra`/`$sp` → corrupción de pila → SEGV en
   `M24_FUN_801c0464`.

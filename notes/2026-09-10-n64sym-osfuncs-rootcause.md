@@ -36,12 +36,12 @@ ayudan a identificarlas**. La herramienta es [`n64sym`](https://github.com/shygo
   `libultra`, `libleo`, `libnos`).
 - Uso: `n64sym <rom>.z64 -s -f default -o out.txt`.
 
-**Construcción en el contenedor:**
+**Construcción en el entorno de desarrollo:**
 ```sh
 git clone --depth 1 https://github.com/shygoo/n64sym.git
 apk add --no-cache make g++    # + limites.h fix en n64sym.cpp / n64sig.cpp (PATH_MAX)
 cd n64sym && make
-./bin/n64sym /app/hybrid-heaven-recomp/work/roms/us_retail.z64 -s -f default -o /tmp/hh_syms.txt
+./bin/n64sym work/roms/us_retail.z64 -s -f default -o work/debug/hh_syms.txt
 ```
 
 > **Fix de build (Linux/musl):** `PATH_MAX` no estaba declarado → añadir `#include <limits.h>` en
@@ -115,11 +115,11 @@ a funciones de juego. **FALSO**: el desensamblador usaba el offset de ROM equivo
 ## 4. Por qué la syms solo mapea 11 os funcs
 
 La syms se construyó por **byte-matching con Goemon** (método del handoff §3), que resultó poco
-fiable (la ROM `mnsg.z64` de Goemon tiene otra base de offset, y el matching por bytes dio vrams
+fiable (la ROM `la ROM del proyecto de referencia` de Goemon tiene otra base de offset, y el matching por bytes dio vrams
 que no son los os funcs en todos los casos — de hecho el matching dejó la mayoría de os funcs sin
 nombre, quedando como `FUN_xxx`).
 
-- Goemon64RecompSyms se generó desde el **decomp** de Goemon (mnsg), donde los os funcs YA tienen
+- el proyecto de referencia se generó desde el **decomp** de Goemon, donde los os funcs YA tienen
   su nombre correcto. Por eso Goemon funciona.
 - HH no tiene decomp → la syms quedó con los os funcs como `FUN_xxx` → el recompilador los compila
   como código de juego.
@@ -162,7 +162,7 @@ Y para el mecanismo de tareas/VI: `osSpTaskLoad`, `osSpTaskStartGo`, `osCreateVi
 ## 7. Estado / archivos
 
 - `notes/reference/n64sym_osfuncs_us_retail.txt` — lista de 147 os funcs (salida de n64sym).
-- `n64sym` compilado en `/tmp/n64sym` (bin `bin/n64sym`); firmas integradas OK.
+- `n64sym` compilado en `work/debug/n64sym` (bin `bin/n64sym`); firmas integradas OK.
 - El repo sigue en baseline conocido-bueno (boot OK, thread 5 bloqueado). `funcs_6.c` modificado
   (preexistente, diff NAN_CHECK, no de esta sesión).
 

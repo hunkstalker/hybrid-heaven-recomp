@@ -9,7 +9,7 @@
 ```sh
 cd port/HybridHeavenRecomp/build_dbg
 DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
-  timeout 45 "./Hybrid Heaven Recomp" >/tmp/hh.log 2>&1 ; echo $?   # 139 (SIGSEGV), SIEMPRE
+  timeout 45 "./Hybrid Heaven Recomp" >work/debug/hh.log 2>&1 ; echo $?   # 139 (SIGSEGV), SIEMPRE
 ```
 
 Crash determinista en `FUN_80003824` (funcs_1.c:3621, vram 0x80003D04):
@@ -58,7 +58,7 @@ En gdb, en el punto de crash:
 
 - El mapeo correcto es `rom_off = vram - 0x7FFFF400` (la ROM retail tiene header de 0xC00).
   (La nota de `n64sym` que decía `rom_off = vram - 0x7FFFF400` es correcta.)
-- Disasemblar con capstone (disponible en el contenedor):
+- Disasemblar con capstone (disponible en el entorno de desarrollo):
 ```sh
 python3 - <<'EOF'
 import capstone
@@ -93,7 +93,7 @@ EOF
 
 - Build_dbg compila (gcc) y **el boot avanza**: el game-loop (thread 5) corre y el descompresor
   procesa 512 bloques antes del crash (determinista). No deadlock.
-- **Pendiente**: validación en Windows (no puedo ejecutarlo en el contenedor). El lock debe
+- **Pendiente**: validación en Windows (no puedo ejecutarlo fuera de Windows). El lock debe
   re-validarse en el build MSVC.
 
 ## 4. Estado / próximos pasos

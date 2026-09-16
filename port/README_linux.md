@@ -51,7 +51,7 @@ Con GPU y display (host Linux):
 
 ```sh
 docker run --rm --device /dev/dri \
-  -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -e DISPLAY -v work/debug/.X11-unix:work/debug/.X11-unix \
   -v "$PWD/baserom.us.z64:/work/baserom.us.z64:ro" \
   ghcr.io/hunkstalker/hybrid-heaven-recomp:latest
 ```

@@ -8,7 +8,7 @@ contrato del módulo, origen del asset. (Plan: `TODO.md` Fase A #1.)
 
 ## Método
 3 runs headless con gdb (breakpoints en `FUN_80003824` = descompresor/carga, y en `get_function`
-= resoluciones indirectas). Script `/tmp/mod.gdb`; logs en `/tmp/opencode/mod_run{1,2,3}.log`.
+= resoluciones indirectas). Script `work/debug/mod.gdb`; logs en `work/debug/mod_run{1,2,3}.log`.
 
 ## Resultados
 

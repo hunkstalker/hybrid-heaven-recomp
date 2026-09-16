@@ -51,7 +51,7 @@ estado del **AI** que el port no modela (registros/counters `AI_*`, `osAiGetLeng
   cd port/HybridHeavenRecomp/build_dbg
   DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
     HH_VERBOSE=1 HH_TBLTRACE=1 HH_SP_SHARED=1 HH_DUMP_VI=6000,12000 timeout 200 "./Hybrid Heaven Recomp" \
-    > /app/hybrid-heaven-recomp/work/debug/run.log 2>&1
+    > work/debug/run.log 2>&1
   ```
   (sin `HH_SP_SHARED` = reparto dirigido; ambos modos crashean igual).
 

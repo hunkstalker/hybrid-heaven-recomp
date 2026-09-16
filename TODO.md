@@ -7,7 +7,7 @@
 
 > **TAREA ACTUAL (aprobada, pendiente de ejecutar)**: el **plan consolidado** de la nota
 > `notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md` — 8 bloques: 1) rutas y
-> referencias (sin `/app`, `/tmp`, equipo ni "opencode"), 2) **icono**: publicar solo
+> referencias (sin rutas absolutas/temporales del sistema ni identidades locales), 2) **icono**: publicar solo
 > `assets/HybridHeaven.ico`, 3) **ROM**: `rom/` oficial + salvaguarda junto al `.exe` y adaptación de
 > Docker, 4) arreglos funcionales (rutas de config/tools/runtime), 5) **pipeline de compilación**:
 > `port/build_windows.local.bat` ignorado + pin al SHA publicado (`725a5a8`) + traza del runtime

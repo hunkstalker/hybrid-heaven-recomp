@@ -122,7 +122,7 @@ DISPLAY=:99 ... CORE_SO=work/libmupen64plus-wplog.so HH_WPLOG=1 HH_WPLO=0x5CD40 
 
 # Port: secuencia de llamadas + estado de hilos/colas
 cd port/HybridHeavenRecomp/build_dbg
-HH_CALLTRACE=/app/hybrid-heaven-recomp/work/debug/port_ct.bin ./...   # traza de get_function
+HH_CALLTRACE=work/debug/port_ct.bin ./...   # traza de get_function
 HH_QLOG=1 HH_VERBOSE=1 ./...                                          # envíos/recvs de colas
 ```
 

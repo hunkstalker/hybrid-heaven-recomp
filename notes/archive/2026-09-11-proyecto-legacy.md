@@ -9,7 +9,7 @@
 > **ESTE ARCHIVO ES LA FUENTE DE CONTEXTO PRINCIPAL DEL PROYECTO.**
 > Cada sesión debe leerlo y actualizarlo con TODA la información relevante que obtenga
 > (hallazgos, decisiones, estado, rutas, herramientas, problemas).
-> Vive en la raíz del proyecto: `/app/hybrid-heaven-recomp/PROYECTO.md`.
+> Vive en la raíz del proyecto: `PROYECTO.md`.
 > Los documentos detallados viven en `docs/` (ver sección 8 "Estructura de documentación").
 
 Actualizado por última vez: **2026-09-11** (progreso: **game loop CORRE** con la syms Ghidra; **fix DMA hecho** (commit `8387efd`) → el asset 0x4E69A8 ya carga; **bloqueante actual = clobber del `a0`** en el reload del descompresor (`FUN_80003D3C` guarda en `0x8005BE18` y la vía de runtime del DMA/threading lo pisa a 0) → SIGSEGV, pantalla negra. TODO operativo detallado en `sesion.md` §16.7). Hist: 2026-09-10 (thread 5 desbloqueado, solución de fondo Ghidra, fix DMA). 2026-09-08 (visión desacoplada). 2026-09-05 (asset map RZ011).
@@ -38,18 +38,18 @@ El resultado debe funcionar **sin emulador**, leyendo solo la ROM del usuario
 
 | Ítem | Valor |
 |---|---|
-| Diretorio de trabajo actual | `/app` |
-| Proyecto | `/app/hybrid-heaven-recomp/` |
+| Raiz del repo | `.` |
+| Proyecto | `` |
 | SO del entorno | Alpine Linux 3.24.1 (ligero; gestor de paquetes `apk`) |
 | Workspace del proyecto | Todo vive en este repo (ver §8): `work/` y `toolchain/` se generan/descargan y están gitignored |
-| ROM USA | `/app/baserom.us.z64` (16 MB, big-endian/z64, ID NHVE) |
-| ROM Europa | `/app/baserom.eu.z64` (16 MB, big-endian/z64, ID NHVP) |
+| ROM USA | `rom/baserom.us.z64` (16 MB, big-endian/z64, ID NHVE) |
+| ROM Europa | `rom/baserom.eu.z64` (16 MB, big-endian/z64, ID NHVP) |
 | MD5 US | `da861c4d9202f661575466450a27c412` |
 | MD5 EU | `c47e95bb32ab132c41d67bd243f9e02a` |
 | Red a internet | OK (GitHub, repos Alpine accesibles) |
 | Toolchain instalada | python3 3.14, pip, git, binutils, file, wget, xxd/od/hexdump, **gcc/g++ 15.2.0, cmake 4.2.3, ninja, SDL2 2.32.10** + **JDK 21 + Ghidra 12.1.3 + N64LoaderWV** |
 | Toolchain FALTA | emulador de referencia (Ares/Mupen64Plus + dump RDRAM para overlays), `mingw-w64` (build Windows), cargo/rust (solo si abandonamos el shim Python de `lzkn64`) |
-| Repos clonados (en `toolchain/src/`) | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp (con mnsg, mnsg_syms) |
+| Repos clonados (en `toolchain/src/`) | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp (con mnsg, las syms del proyecto de referencia) |
 | Extracción de assets | ✅ `rommy.py` (Konami Nisitenma-Ichigo): US y EU descomprimidas; manifests en `notes/` |
 | Análisis Ghidra US | ✅ Ghidra 12.1.3 (JDK 21) + N64LoaderWV → importación + análisis de `baserom.us.z64` completados (2026-09-05); proyecto en `work/ghidra/proj` |
 
@@ -80,7 +80,7 @@ El resultado debe funcionar **sin emulador**, leyendo solo la ROM del usuario
 - El **mapa overlay→RAM (tarea #3)** es necesario para los ~462 overlays de código, pero NO bloquea
   el arranque/render del núcleo plano.
 - **División de trabajo:** el usuario avanza la tarea #3 jugando en BizHawk (work ajeno al
-  contenedor); el agente arranca la Fase 2 (núcleo plano → ELF → build → RT64) en paralelo.
+  entorno de desarrollo); el agente arranca la Fase 2 (núcleo plano → ELF → build → RT64) en paralelo.
 - **Bloqueantes que resolver de forma temprana (independientes del mapa):**
   1. **Microcode de audio custom KCEO** (no matchea aspMain) → identificación; bloquea audio real,
      no el render (usar audio dummy primero).
@@ -156,7 +156,7 @@ Ruta de strings principal: zona `0x0530000-0x06D0000` (ver nota completa 4.5).
 ### 4.6 Compresión — **FORMATO KONAMI CONFIRMADO (LZKN64 + tabla Nisitenma-Ichigo)**
 - Ambos ROMs contienen la firma ASCII **`Nisitenma-Ichigo`** (US @0x39BE0 → tabla @0x39BF0;
   EU @0x3AA30 → tabla @0x3AA40). Es la **tabla de archivos de todos los N64 de Konami**,
-  exactamente la que maneja `rommy.py` del repo mnsg (Goemon).
+  exactamente la que maneja `rommy.py` del repo del proyecto de referencia.
 - **Formato de tabla**: entradas de **4 bytes BE**: bits [0-30] = offset en ROM, bit31 =
   flag de compresión **LZKN64**; el final del fichero N es el inicio de N+1; termina en `0x00000000`.
 - **Verificado en ambas ROMs**: la 1ª entrada comprimida descomprime con LZKN64 a exactamente
@@ -178,11 +178,11 @@ Ruta de strings principal: zona `0x0530000-0x06D0000` (ver nota completa 4.5).
   fifo 2.06, y el **mismo formato de tabla de archivos Nisitenma-Ichigo + LZKN64**.
 - Microcode de audio: NO encontrada la firma estándar de Nintendo (`aspMain` `LDV/LBV` inicial)
   → **PENDIENTE identificar** (posible ucode custom KCEO; verificarlo con Ghidra/emulador).
-- **Qué NO se reutiliza de Goemon64Recomp tal cual**: su `decompress_mnsg`/descompresión de ROM
+- **Qué NO se reutiliza de Goemon64Recomp tal cual**: su `la descompresion del proyecto de referencia`/descompresión de ROM
   completa (innecesaria en HH: el código es plano). Nuestro pipeline N64Recomp arranca directo
   sobre el ROM sin paso de descompresión (como Zelda64Recomp).
 - **Qué SÍ se reutiliza**: scaffolding del port (main.cpp/GameEntry, integración RT64 +
-  N64ModernRuntime), formato de tomas `mnsg.toml`/`patches/*.toml`, sistema de parches por
+  N64ModernRuntime), formato de tomas `las tomas del proyecto de referencia`/`patches/*.toml`, sistema de parches por
   instrucción, y `rommy.py` + `lzkn64` para extracción de assets (Fase 0/1 y 6).
 
 ### 4.9 Mapa de assets y nombre interno **RZ011** (3ª sesión)
@@ -272,7 +272,7 @@ Detalle de las fases: `docs/README.md`.
 ## 8. Estructura de documentación
 
 ```
-/app/hybrid-heaven-recomp/
+
 ├── PROYECTO.md          ← ESTE ARCHIVO (contexto maestro, se actualiza cada sesión)
 ├── docs/
 │   ├── README.md        ← Plan maestro + fases + stack + riesgos (detallado)
@@ -296,7 +296,7 @@ Detalle de las fases: `docs/README.md`.
     ├── venv/            ← virtualenv Python (PyYAML, etc.)
     ├── ext/             ← N64LoaderWV (zip + fuente extraída)
     └── src/             ← repos fuente: N64Recomp, N64ModernRuntime, RT64,
-                           Zelda64Recomp, Goemon64Recomp (+ mnsg, mnsg_syms)
+                           Zelda64Recomp, Goemon64Recomp (+ mnsg, las syms del proyecto de referencia)
 ```
 
 **Nota:** la extensión N64LoaderWV se instala a nivel de usuario
@@ -313,7 +313,7 @@ Detalle de las fases: `docs/README.md`.
 > **VISIÓN OPERATIVA (2026-09-08):** la tarea #3 (mapa overlay→RAM) está **desacoplada** de la
 > Fase 2. El port del **código principal plano** se puede y debe empezar YA (no espera al mapa
 > completo de overlays); los overlays de código/fase se añaden progresivamente. La tarea #3 sigue
-> avanzando en paralelo por la vía BizHawk (es trabajo del usuario jugando, no del contenedor).
+> avanzando en paralelo por la vía BizHawk (es trabajo del usuario jugando, no del entorno de desarrollo).
 
 1. ~~Instalar toolchain core~~ ✅ (gcc/g++, cmake, ninja, SDL2 — 2026-09-05).
 2. ~~Clonar repos base~~ ✅ N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp.
@@ -343,7 +343,7 @@ Detalle de las fases: `docs/README.md`.
    BizHawk funcional (script **v5** en `work/gameplay screenshots/`, volcado de directorio + F12
    PNG/txt emparejados por wall-clock). **Confirmados con capturas**: combate por turnos
    (`010F`+`01AA…01B8`+`0125/0127`) y menú pausa (`0113…0121`) → `notes/…-overlay-directory.md` §10.7.
-   Pendiente: pasar la partida larga al contenedor, etiquetar sets sueltos. Índice operativo y
+   Pendiente: pasar la partida larga al entorno de desarrollo, etiquetar sets sueltos. Índice operativo y
    pendientes: `sesion.md` §1/§12/§15.
 10. **Criterio de corte de la tarea #3**: cubrir los ~6 sets de fase (combate / menú pausa /
     gameplay / diálogo / submenús) y consolidar el mapa como entregable — NO perseguir exhaustividad

@@ -56,7 +56,7 @@
 - **`port/config_test_oldmap.ini` + `port/run_test_*.bat`**: regresión (el propio `.ini` documenta
   el mapeo antiguo).
 - **`notes/**`** (evidencia; no se edita) y **`notes/reference/`** (dato generado).
-- **`assets/*`** (iconos bmp/ico/png) y **`.opencode/skills/`** (tooling del asistente).
+- **`assets/*`** (iconos bmp/ico/png) y **`.entorno/skills/`** (tooling del asistente).
 
 ## Reproducir la purga de un path en la historia
 

@@ -5,7 +5,7 @@ Date: 2026-09-08. ROM: `work/roms/us_dec.z64` (z64, plana; código RAM = offset_
 **ESTADO RÁPIDO (13:45)** — pipeline Windows/BizHawk funcional (script v5, capturas PNG+`.txt`
 emparejadas por wall-clock; dominio "System Bus"). Confirmados con capturas+usuario: **COMBATE
 por turnos** = `010F`+`01AA…01B8`+`0125/0127` y **MENÚ pausa** = `0113…0121` (§10.7). Pendiente:
-pasar la partida larga al contenedor y etiquetar sets sueltos. Índice operativo: `/app/sesion.md`.
+pasar la partida larga al entorno de desarrollo y etiquetar sets sueltos. Índice operativo: `el indice de sesion historico`.
 
 ## 0. Byte-order rule (RESUELTO)
 
@@ -91,7 +91,7 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 - Core limpio CON debugger: `work/libmupen64plus-debug.so` (sin prints ruidosos; solo `[dbgcore]
   BP HIT` en breaks).
 - `work/play.sh [segundos] [prefijo]`: ventana GLX + input-sdl (teclado; DPad=WASD, Start=Enter,
-  C=IJKL, R=c, L=x, Z=z; A/B en `/root/.config/mupen64plus/mupen64plus.cfg->[Input-SDL-Control1]`),
+  C=IJKL, R=c, L=x, Z=z; A/B en `la config de input de mupen64plus->[Input-SDL-Control1]`),
   `HB_RES_DIR=0x8008DFC0`, dumps a 5/10/20/40/80s. Log en `<prefijo>.session.log`.
 - El usuario juega/avanza por menús; cada registro de overlay nuevo → `[dbg] stop ... valid=YES`
   con `loader pc` + actualización de `<prefijo>.dir.bin`. Enviar logs+dumps para derivar el mapa.
@@ -105,7 +105,7 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
   (`tools/analysis/xshot.c`, `XGetImage` + PPM; compilado `tools/analysis/xshot`).
 - Verificación (Xvfb vivo único: **`:99`** 640x480x24 con GLX; el :7 del test murió): 3 captures
   `s1/s2/s3.ppm` con 3k–26k colores y mean/σ > 0 ⇒ **contenido real** (titular/attract), frames
-  cambiantes ⇒ video OK. Frames en `/tmp/opencode/shot/`, muestra en `/app/work/frames/attract_01.ppm`.
+  cambiantes ⇒ video OK. Frames en `work/debug/shot/`, muestra en `work/frames/attract_01.ppm`.
 - Nivel de confianza revisado el 08-09 01:50: la captura **X a nivel de root** de glide es **NO
   fiable**: glide64mk2 crea ventana (320x240) pero **NO presenta nunca** a X (venía de los
   `UpdateScreen` "Origin:"); los "frames" vistos antes eran contenido residual del root.
@@ -131,7 +131,7 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 - Confirmado operativo sesión `sess02` (pid 11593, 1200s): write-bp 3329 stops; `dir.bin` con 4
   entradas: id 0x0018 base 0x801FA948; 0x0073→0x8020B5C8; 0x0075→0x8020B938; 0x007C→0x80225468.
   NOTA: ids/bases difieren del attract previo (0xDE/0x91) → el set depende del recorrido; revisar.
-- Persistencia de seguridad: `/app/.backup/hh-wip-<ts>.tgz` (mupen-src parcheado + .so + tools +
+- Persistencia de seguridad: `.backup/hh-wip-<ts>.tgz` (mupen-src parcheado + .so + tools +
   notes; sin ROM ni dumps).
 
 ## 7d. HALLazgos 02:10 — rice OK + región viva + registro en vivo
@@ -187,7 +187,7 @@ titular→menús→gameplay (necesita input + visibilidad de video, ambos pendie
 
 ### 8.2 Input analógico (stick) — `hhinput.c` parcheado (sin commit aún)
 
-- `/tmp/hh_keys.bin` ahora **4 bytes BE**: `[0]=mask hi`, `[1]=mask lo`, `[2]=Y_AXIS firme`,
+- `work/debug/hh_keys.bin` ahora **4 bytes BE**: `[0]=mask hi`, `[1]=mask lo`, `[2]=Y_AXIS firme`,
   `[3]=X_AXIS firme`. `read_keys()` rellena los tres; `GetKeys()` los aplica a `Keys->X_AXIS/Y_AXIS`.
 - Stick N64: **arriba = Y=-127 (0x81)**, **derecha = X=+127 (0x7f)**, abajo = Y=+100.
 - D-pad (mask 0x0800) OK para menús, pero **el movimiento del PJ requiere el stick** (D-pad no

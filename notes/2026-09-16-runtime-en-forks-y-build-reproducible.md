@@ -7,7 +7,7 @@
 ## Hallazgo: el runtime no era reproducible desde upstream
 
 - `fd6b0d0eedc922700f67bab8b770d3986187f3e9` (base del patch) **es un commit LOCAL** del proyecto
-  (`opencode-hh <opencode@local>`); `origin/main` = `cdf5abb` es su ancestro. Nunca se publicó → un
+  (`la identidad local del entorno de desarrollo`); `origin/main` = `cdf5abb` es su ancestro. Nunca se publicó → un
   clon limpio no puede `checkout fd6b0d0`.
 - Además, `windows_runtime_changes.patch` se generó con `--ignore-submodules=all`, así que **no
   incluye** los cambios del submódulo **N64Recomp** (`include/recomp.h` con los `MEM_*` seguros y
@@ -40,7 +40,7 @@ clonándose de upstream en commit fijo (sin modificar). Ver ADR 0005.
 - Retirados: `lib_snapshots/`, `tools/analysis/make_nmr_snapshot.sh`,
   `port/windows_runtime_changes.patch`, `port/bisect_build.bat`, `port/bisect_extra.patch`
   (dependían del mecanismo de patch).
-- Copias de publicación en la raíz del workspace: `/app/N64ModernRuntime` y `/app/N64Recomp`
+- Copias de publicación en la raíz del workspace: `https://github.com/hunkstalker/N64ModernRuntime` y `https://github.com/hunkstalker/N64Recomp`
   (con remotos `origin`=upstream y `fork`=propio). Los push los hizo el usuario desde Windows.
 - Docs: `CREDITS.md` (forks + lineage + GPLv3), `README`, `port/README_windows.md`,
   `port/README_linux.md`, `docs/workflows.md` §1.1, `RETOMAR/PROYECTO/TODO`, ADR 0005.
@@ -74,5 +74,5 @@ ROM del usuario y extrae de ella los datos**. Nadie está obligado a compilar (h
   13 archivos modificados) + ROM; fuera del build reproducible.
 - **`LICENSE`** GPL-3.0-compatible del proyecto (los binarios enlazan NMR).
 - (Opcional) selector de ROM tipo menú; hoy se carga de `rom/`.
-- Identidad de los commits de los forks: `opencode-hh <opencode@local>` (igual que los 23 previos);
+- Identidad de los commits de los forks: `la identidad local del entorno de desarrollo` (igual que los 23 previos);
   si se quiere atribuir a la cuenta de GitHub, reescribir antes de nuevos push.

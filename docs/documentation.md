@@ -26,6 +26,9 @@ histórico que no compite con la verdad actual. El objetivo es que una sesión n
 | Docs legacy congelados | `../notes/archive/` | histórico |
 | Datos generados (syms, manifests) | `../notes/reference/` | generado |
 
+Los **datos generados** (manifiestos, listas de funciones, etc.) se producen localmente a partir de la
+ROM que aporta el usuario y **no se versionan**: no hacen falta para compilar ni para jugar.
+
 Regla: **`../notes/` nunca es fuente operativa.** No se corrige una nota antigua; se escribe una nueva.
 
 ## 3. Ciclo de sesión
