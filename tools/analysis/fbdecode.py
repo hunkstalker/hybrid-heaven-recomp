@@ -48,7 +48,7 @@ def main():
     data = load(d)
     if len(sys.argv) >= 5:
         base=int(sys.argv[2],16); w=int(sys.argv[3]); h=int(sys.argv[4])
-        out = sys.argv[5] if len(sys.argv)>5 else '/tmp/fb.ppm'
+        out = sys.argv[5] if len(sys.argv)>5 else 'work/debug/fb.ppm'
         r = render(data, base, w, h)
         if r is None: print("out of range"); return
         open(out,'wb').write(b'P6\n%d %d\n255\n'%(w,h)+r[0])

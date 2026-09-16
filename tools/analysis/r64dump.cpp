@@ -24,12 +24,12 @@
 #include <mupen64plus/m64p_types.h>
 
 static int g_win_w = 640, g_win_h = 480;
-static const char *g_cap_dir = "/app/hybrid-heaven-recomp/work/debug/frames";
+// Rutas relativas a la raiz del repo (CWD). Todo artefacto persistente vive en el repo.
+static const char *g_cap_dir = "work/debug/frames";
 
-// Persistent, project-local defaults (everything outside /app is lost between sessions).
-// Overridable via MU64_CFGDIR / MU64_DATADIR.
-static const char *g_cfgdir = "/app/hybrid-heaven-recomp/work/debug/mupencfg";
-static const char *g_datadir = "/app/hybrid-heaven-recomp/work/debug/mupendata";
+// Persistent, project-local defaults. Overridable via MU64_CFGDIR / MU64_DATADIR.
+static const char *g_cfgdir = "work/debug/mupencfg";
+static const char *g_datadir = "work/debug/mupendata";
 
 static void dbg_cb(void *context, int level, const char *msg) {
     if (level <= M64MSG_VERBOSE) fprintf(stderr, "[core] %s\n", msg ? msg : "");
@@ -279,7 +279,7 @@ static uint16_t sched_mask_at(double t) {
 static void write_keys(double t) {
     uint16_t m = sched_mask_at(t);
     unsigned char b[4] = { (unsigned char)(m >> 8), (unsigned char)(m & 0xFF), 0, 0 };
-    FILE *f = fopen("/tmp/hh_keys.bin", "wb");
+    FILE *f = fopen("work/debug/hh_keys.bin", "wb");
     if (f) { fwrite(b, 1, 4, f); fclose(f); }
 }
 

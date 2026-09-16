@@ -56,5 +56,5 @@ def analyze(p):
         print(f"  0x{start:07X}: nop-density {nops/len(words):.1%}")
 
 if __name__ == '__main__':
-    analyze('/app/baserom.us.z64')
-    analyze('/app/baserom.eu.z64')
+    analyze('rom/baserom.us.z64')
+    analyze('rom/baserom.eu.z64')

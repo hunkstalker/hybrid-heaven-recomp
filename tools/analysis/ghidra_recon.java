@@ -11,7 +11,8 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 public class ghidra_recon extends GhidraScript {
-	private static final String OUT = "/app/hybrid-heaven-recomp/work/scratch/recon.txt";
+	// Ruta relativa al directorio de trabajo desde el que se lanza Ghidra (raiz del repo).
+	private static final String OUT = "work/scratch/recon.txt";
 
 	private static final String[][] PATT = {
 		{ "seginfo",  "seginfo" },

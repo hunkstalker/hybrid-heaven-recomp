@@ -10,7 +10,7 @@ arranque**: el hilo principal giraba sin avanzar la fase. Verificado que:
 - El estado del port era **idéntico al del harness** `r64dump` (misma tabla de recursos, `fase=0/1`,
   `fe00` contando), pero **BizHawk sí progresa** (sesión larga `work/gameplay screenshots/session2`).
 - RT64 **sí funciona** (Vulkan `setup SUCCESS`, display lists procesadas; su log va a
-  `/root/.local/share/HybridHeavenRecomp/hh.log`, no a stderr).
+  la carpeta de datos del usuario (`~/.local/share/HybridHeavenRecomp/hh.log`), no a stderr).
 - La entrada **sí llega al juego** (verificado con logs `[IN]`/`[PAD]`: Start=0x1000, `err_no=0`).
 - El retrace VI **sí entrega mensajes** (7187 envíos / 7188 recepciones en la cola del hilo 19).
 

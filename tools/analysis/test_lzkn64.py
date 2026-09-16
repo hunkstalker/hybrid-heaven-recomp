@@ -65,7 +65,7 @@ def lzkn64_decompress(data, offset):
             out += b'\x00'*length
     return bytes(out)
 
-data = open('/app/baserom.us.z64','rb').read()
+data = open('rom/baserom.us.z64','rb').read()
 print("=== Top file-table candidates (US) ===")
 for run, p, aend, bend in find_tables(data)[:10]:
     print(f"  run={run:3d} table@0x{p:07X} first_file@0x{aend:07X} end@0x{bend:07X}")

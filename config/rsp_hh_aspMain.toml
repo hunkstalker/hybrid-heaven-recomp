@@ -1,7 +1,7 @@
 text_offset = 0x37130
 text_size = 0xE18
 text_address = 0x04001080
-rom_file_path = "/app/hybrid-heaven-recomp/work/roms/us_retail.z64"
-output_file_path = "/app/hybrid-heaven-recomp/work/rsp/hh_aspMain.cpp"
+rom_file_path = "../work/roms/us_retail.z64"
+output_file_path = "../work/rsp/hh_aspMain.cpp"
 output_function_name = "hh_aspMain"
 extra_indirect_branch_targets = [ 0x1118, 0x12D0, 0x11DC, 0x1294, 0x12EC, 0x1214, 0x1E24, 0x1254, 0x1470, 0x140C, 0x187C, 0x1328, 0x138C, 0x1B38, 0x144C, 0x170C ]

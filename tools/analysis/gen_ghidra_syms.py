@@ -1,7 +1,10 @@
-import re
+import os, re
+
+# Raiz del repo derivada de la ubicacion del propio script (tools/analysis/ -> raiz).
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 ghidra = {}
-with open('/app/hybrid-heaven-recomp/work/ghidra_funcs.txt') as f:
+with open(os.path.join(ROOT, 'work/ghidra_funcs.txt')) as f:
     for line in f:
         m = re.match(r'\s*\{\s*name\s*=\s*"([^"]+)",\s*vram\s*=\s*0x([0-9A-Fa-f]+),\s*size\s*=\s*0x([0-9A-Fa-f]+)\s*\},?', line)
         if m:
@@ -9,7 +12,7 @@ with open('/app/hybrid-heaven-recomp/work/ghidra_funcs.txt') as f:
             ghidra[vram] = (name, size)
 
 n64sym = {}
-with open('/app/hybrid-heaven-recomp/notes/reference/n64sym_osfuncs_us_retail.txt') as f:
+with open(os.path.join(ROOT, 'notes/reference/n64sym_osfuncs_us_retail.txt')) as f:
     for line in f:
         p = line.strip().split()
         if len(p) == 2 and p[0].startswith('8'):
@@ -26,7 +29,7 @@ for vram in sorted(ghidra.keys()):
         size = 0x10
     out.append('    { name = "%s", vram = 0x%X, size = 0x%X },' % (name, vram, size))
 
-with open('/app/hybrid-heaven-recomp/config/us_ghidra.syms.toml', 'w') as f:
+with open(os.path.join(ROOT, 'config/us_ghidra.syms.toml'), 'w') as f:
     f.write("# Full function syms from Ghidra (function boundaries) + n64sym (os func names).\n")
     f.write("# Single .text section spanning the boot and flat main code.\n")
     f.write("# vram 0x80000400..0x804E5F40 <-> rom 0x1000..\n")

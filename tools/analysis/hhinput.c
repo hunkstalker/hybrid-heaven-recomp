@@ -1,4 +1,4 @@
-/* hhinput: minimal Zilmar-spec N64 input plugin. Reads /tmp/hh_keys.bin (2 bytes,
+/* hhinput: minimal Zilmar-spec N64 input plugin. Reads work/debug/hh_keys.bin (2 bytes,
  * N64 little-host-order button mask: A=0x8000 B=0x4000 Z=0x2000 START=0x1000
  * DPad U/D/L/R=0x0800/0x0400/0x0200/0x0100, CUDLR=0x0010/0x0020/0x0040/0x0080,
  * R/L=0x0008/0x0004) and maps to mupen's BUTTONS.Value bit order. */
@@ -98,14 +98,14 @@ void InitiateControllers(CONTROL_INFO ControlInfo)
 int RomOpen(void) { return 1; }
 void RomClosed(void) {}
 
-/* /tmp/hh_keys.bin format: 4 bytes BE: [0]=mask lo, [1]=mask hi, [2]=Y_AXIS, [3]=X_AXIS */
+/* work/debug/hh_keys.bin format: 4 bytes BE: [0]=mask lo, [1]=mask hi, [2]=Y_AXIS, [3]=X_AXIS */
 /* (mask is the N64 little-host-order button bits used above; a 2-byte file is
  *  treated as mask with zeroed analog, keeping old callers working). */
 static void read_keys(unsigned short *m_out, signed char *y_out, signed char *x_out)
 {
     unsigned short m = 0;
     signed char y = 0, x = 0;
-    FILE *f = fopen("/tmp/hh_keys.bin", "rb");
+    FILE *f = fopen("work/debug/hh_keys.bin", "rb");
     if (f) {
         unsigned char b[4] = {0, 0, 0, 0};
         int n = (int)fread(b, 1, 4, f);
