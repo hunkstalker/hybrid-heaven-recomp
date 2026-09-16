@@ -127,6 +127,17 @@ echo [1-2/4] lib\rt64 y lib\N64ModernRuntime ya existen: se OMITE git.
 echo          Usa --force-libs si quieres clonar/actualizar.
 
 :cmake
+REM --- Traza del runtime que se va a compilar (siempre) ---
+set "NMR_USED=desconocido (no es repo git)"
+if exist "%NMR%\.git" (
+    for /f "usebackq delims=" %%s in (`git -c safe.directory=* -C "%NMR%" rev-parse --short HEAD 2^>nul`) do set "NMR_USED=%%s"
+)
+if "%SKIP_LIBS%"=="1" (set "GIT_NOTE=arbol local, git OMITIDO") else (set "GIT_NOTE=git revisado/clonado")
+echo Runtime   : %NMR%  @ %NMR_USED%
+echo             pin    : %NMR_URL% @ %NMR_COMMIT%
+echo             modo   : %GIT_NOTE%
+echo.
+
 REM ============ 3) CMake configure ============
 set "VSGEN="
 cmake -G "Visual Studio 18 2026" --help >nul 2>&1 && set "VSGEN=Visual Studio 18 2026"

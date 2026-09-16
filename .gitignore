@@ -75,3 +75,6 @@ config/*.bak
 
 # Artefactos de build del usuario (release de Windows)
 hhport_win.zip
+
+# Build local del mantenedor (compila lib/ tal cual, sin git; no se publica)
+port/build_windows.local.bat

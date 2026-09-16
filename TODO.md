@@ -56,6 +56,10 @@
    tras un env, y decidir si se quedan `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*` y el watchpoint.
 5. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
+6. [ ] **Pipeline de compilación**: `port/runtime.lock` debe apuntar a un commit **publicado** del
+   fork (`725a5a8`); tras publicar los commits de runtime locales (fork + `origin main` + pin) subir
+   el SHA. Para probar commits locales sin publicar: `port/build_windows.local.bat` (no versionado,
+   contenido en `port/README_windows.md` §2b). `build_windows.bat` imprime siempre el runtime usado.
 
 ## Hecho (resumen; detalle en `notes/`)
 
