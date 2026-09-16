@@ -693,5 +693,15 @@ ultramodern::input::connected_device_info_t hh::get_connected_device_info(int co
         result.connected_pak = ultramodern::input::Pak::None;
     }
 
+    // HH: diagnostico de accesorios (HH_PAKLOG=1; una linea por puerto, nada sin el env).
+    if (std::getenv("HH_PAKLOG") != nullptr) {
+        static bool logged[4] = {false, false, false, false};
+        if (controller_num >= 0 && controller_num < 4 && !logged[controller_num]) {
+            logged[controller_num] = true;
+            std::fprintf(stderr, "[PAK] get_connected_device_info port=%d -> dev=%d pak=%d\n",
+                         controller_num, (int)result.connected_device, (int)result.connected_pak);
+        }
+    }
+
     return result;
 }

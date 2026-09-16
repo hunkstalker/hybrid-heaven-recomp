@@ -91,11 +91,20 @@ git clone "%NMR_URL%" "%NMR%"
 if errorlevel 1 goto :err
 pushd "%NMR%"
 git -c safe.directory=* checkout %NMR_COMMIT%
-if errorlevel 1 echo AVISO: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime
+if errorlevel 1 goto :err_nmr_commit
 git -c safe.directory=* submodule sync --recursive
 git -c safe.directory=* submodule update --init --recursive
 popd
 goto :cmake
+
+:err_nmr_commit
+echo.
+echo ERROR: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime.
+echo        Ese commit no esta en el clon: publica el fork ^(git push fork hybrid-heaven^)
+echo        o corrige NMR_COMMIT en port\runtime.lock. Se aborta para no compilar un runtime
+echo        distinto al fijado.
+popd
+goto :err
 
 :nmr_present
 echo [2/4] lib/N64ModernRuntime ya existe. Comprobando repo git ...
@@ -105,8 +114,9 @@ if not exist "%NMR%\.git" (
     goto :err
 )
 pushd "%NMR%"
+git -c safe.directory=* fetch --all --quiet
 git -c safe.directory=* checkout %NMR_COMMIT%
-if errorlevel 1 echo AVISO: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime
+if errorlevel 1 goto :err_nmr_commit
 git -c safe.directory=* submodule sync --recursive
 git -c safe.directory=* submodule update --init --recursive
 popd

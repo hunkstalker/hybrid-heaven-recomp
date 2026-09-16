@@ -49,8 +49,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D y combate) con
-mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. Arreglados y
+**Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
+cuerpo a cuerpo y cinemáticas) con mando Xbox (perfiles `config.ini`) y audio a 43200 Hz. El
+**guardado sigue pendiente**: en la cápsula el juego detecta el Controller Pak y pregunta si guardar,
+pero al aceptar se salta la UI de slots y no escribe (`saves/` no se crea); hay instrumentación
+`HH_PAKLOG=1` en el fork del runtime para trazar el corte (nota
+`notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`). Arreglados y
 **validados en Windows**: la **entrega del objeto del NPC** (fallthrough en módulo 55 — fuga `0x48`/
 frame + animación saltada — y mid-entries `0x80379954`/`0x803798E8`; el módulo 55 es el overlay de
 la secuencia de objeto, ver `docs/architecture.md` §2.2), la **regresión de las escaleras** (partir
@@ -73,7 +77,7 @@ Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`,
 | 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
-| 5. Guardado | pendiente | Controller Pak → disco |
+| 5. Guardado | en curso | PFS emulado (`pak.cpp`); en la cápsula el juego detecta el pak y pregunta, pero se salta la UI de slots y no escribe → `HH_PAKLOG` (nota 2026-09-16) |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 

@@ -1,6 +1,28 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M55_FUN_803762e0(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x803762E0: addiu       $sp, $sp, -0x28
+    ctx->r29 = ADD32(ctx->r29, -0X28);
+    // 0x803762E4: sw          $ra, 0x1C($sp)
+    MEM_W(0X1C, ctx->r29) = ctx->r31;
+    // 0x803762E8: sw          $s0, 0x18($sp)
+    MEM_W(0X18, ctx->r29) = ctx->r16;
+    // 0x803762EC: lw          $t6, 0x5C($a0)
+    ctx->r14 = MEM_W(ctx->r4, 0X5C);
+    // 0x803762F0: or          $s0, $a0, $zero
+    ctx->r16 = ctx->r4 | 0;
+    // 0x803762F4: addiu       $a2, $zero, 0x4
+    ctx->r6 = ADD32(0, 0X4);
+    // 0x803762F8: sw          $t6, 0x24($sp)
+    MEM_W(0X24, ctx->r29) = ctx->r14;
+    // 0x803762FC: lw          $t7, 0x38($s0)
+    ctx->r15 = MEM_W(ctx->r16, 0X38);
+    // @fallthrough-fix: split fallthrough -> chain to continuation
+    M55_FUN_80376300(rdram, ctx);
+;}
 RECOMP_FUNC void M55_FUN_80376300(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -6566,12 +6588,4 @@ RECOMP_FUNC void M55_FUN_80378764(uint8_t* rdram, recomp_context* ctx) {
     after_1:
     // @fallthrough-fix: split fallthrough -> chain to continuation
     M55_FUN_8037879c(rdram, ctx);
-;}
-RECOMP_FUNC void M55_FUN_8037879c(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x8037879C: lw          $ra, 0x24($sp)
-    ctx->r31 = MEM_W(ctx->r29, 0X24);
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M55_FUN_803787a0(rdram, ctx);
 ;}

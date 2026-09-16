@@ -2,7 +2,7 @@
 # port/build_windows.bat. Los SHAs son de commits ya publicados (no cambian con el push).
 # Actualizar aqui si se anaden commits al runtime (y regenerar nada mas: el build clona el SHA).
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d
+NMR_COMMIT=333cdbdcd3de2872c15b17f075d9b2b0cd1028cc
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=63069b9176310ba78b4fe76476d86f0b0d584ae6

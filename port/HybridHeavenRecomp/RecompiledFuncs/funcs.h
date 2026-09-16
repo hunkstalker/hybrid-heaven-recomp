@@ -4746,6 +4746,7 @@ void M10_FUN_8021d808(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021d84c(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021d8b8(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021d8c4(uint8_t* rdram, recomp_context* ctx);
+void M10_FUN_8021d8d0(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021d8d8(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021dc6c(uint8_t* rdram, recomp_context* ctx);
 void M10_FUN_8021dea8(uint8_t* rdram, recomp_context* ctx);
