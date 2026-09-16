@@ -7,8 +7,8 @@ REM  Cambia HH_WATCH_ADDR si hiciera falta.
 REM =====================================================================
 setlocal
 
-set HH_WATCH_ADDR=0x8024AA1C
-set HH_WATCH_SIZE=4
+set HH_WATCH_ADDR=0x8024A9A8
+set HH_WATCH_SIZE=0x80
 REM set HH_WATCH_ADDR=0x80059D80
 
 REM Graba los inputs de la sesion (para poder reproducir localmente la secuencia del NPC).
