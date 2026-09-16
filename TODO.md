@@ -20,19 +20,27 @@
    `Failed to find function at 0x...` (se ve en consola y en `hh_missing.log`), registrarlo con
    `python3 tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config
    config/game_combined.toml --force` (ver nota, "Ronda 9"; **no** usar `setup_module.py`: cascado
-   de `auto_mid` → datos como código). Hechos hoy: `M55_FUN_80378c48` (menú) y `M9_FUN_80203830`
-   (cinemática al cruzar una puerta; el contenedor `M9_FUN_8020382c` empezaba en un `nop`/delay slot).
-   Próximo hito probable: **primer combate cuerpo a cuerpo (CaC)**.
-   **Aviso**: al reaplicar ese fix, `add_mid_entry.py` recalculaba todos los tamaños y **borró** el
-   override `M9_FUN_802169AC:0x1C0` (regresión del cuelgue del NPC). Corregido (edición mínima +
-   overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de `recomp.py`;
-   aborta si se pierde un override). Ver `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-2. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
+   de `auto_mid` → datos como código). Hechos hoy: `M55_FUN_80378c48` (menú), `M9_FUN_80203830`
+   (cinemática al cruzar una puerta) y `M10_FUN_8021d8d0` (**primer combate cuerpo a cuerpo**);
+   los tres contenedores empezaban en `nop`/delay slot (frontera real desplazada).
+   **Aviso**: al registrar mid-entries, la 1ª versión de `add_mid_entry.py` recalculaba todos los
+   tamaños y **borró** el override `M9_FUN_802169AC:0x1C0` (regresión del cuelgue del NPC). Corregido
+   (edición mínima + overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de
+   `recomp.py`; aborta si se pierde un override). Ver
+   `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
+2. [•] **Guardado en cápsula (Controller Pak)**: el juego detecta el pak y pregunta si guardar, pero
+   al aceptar **se salta la UI de slots**, no se crea `saves/` y sale un aviso de accesorio.
+   Instrumentado `HH_PAKLOG=1` en el fork (commit `333cdbd`, pin `runtime.lock` actualizado; hay que
+   **publicar el fork**: `git push fork hybrid-heaven`) para trazar todas las llamadas PFS + retornos.
+   Con ese log: corregir la semántica que falle (reserva/tamaño `PAK_SIZE`/`PAK_RESERVED`, `NumFiles`,
+   `FindFile` o `PFS_ERR_NEW_PACK` + formato). Proceso del juego y análisis:
+   `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
+3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).
-3. [ ] **Limpieza de instrumentación** (tras estabilizar): silenciar `hh_sched.log`/`hh_mq.log`/`hh_ovl.log`
+4. [ ] **Limpieza de instrumentación** (tras estabilizar): silenciar `hh_sched.log`/`hh_mq.log`/`hh_ovl.log`
    tras un env, y decidir si se quedan `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*` y el watchpoint.
-4. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
+5. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
 
 ## Hecho (resumen; detalle en `notes/`)

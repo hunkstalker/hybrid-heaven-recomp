@@ -31,6 +31,14 @@
   `M9_FUN_802169AC:0x1C0`); ya corregido (edición mínima + overrides) y protegido por
   `tools/analysis/check_syms_overrides.py` (paso 1b de `recomp.py`).
   Detalle: `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
+- **Primer combate cuerpo a cuerpo (CaC): ARREGLADO (2026-09-16; pendiente de validar en Windows)**:
+  `M10_FUN_8021d8d0` era frontera real de función (su contenedor arrancaba con tres `nop`s) y cae en
+  `M10_FUN_8021d8d8`. Igual que la cinemática de puerta (`M9_FUN_80203830`).
+- **Guardado en cápsula: PENDIENTE y ya acotado**: el juego **detecta** el Controller Pak y pregunta
+  si guardar, pero al aceptar **se salta la UI de slots**, **no crea `saves/`** y sale un aviso de
+  accesorio. Como `saves/` solo se crea al escribir, ninguna operación de escritura/alocación llegó a
+  ejecutarse. Hay `HH_PAKLOG=1` en el fork del runtime para trazar todas las llamadas PFS y sus
+  retornos. Detalle: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 - Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
   módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
   rápida es `python3 tools/analysis/add_mid_entry.py 0xADDR` seguido de
@@ -45,14 +53,23 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-1. Recompilar: `port\build_windows.bat` (Release) — **sin** `--force-libs`. El árbol trae: objeto del
-   NPC, láser, caída, mid-entry de menú (`M55_FUN_80378c48`) y el **nuevo `M9_FUN_80203830`**.
-2. Ejecutar `port\run_windows.bat` y **cruzar la puerta que lanzaba la cinemática** (era el crash);
-   seguir la partida. Próximo hito probable: primer combate cuerpo a cuerpo (CaC).
-3. Si crashea con `Failed to find function at 0x...`: pasarme la dirección; la registro con
-   `tools/analysis/add_mid_entry.py` (rechaza delay slots y switches fusionados; ahora con edición
-   mínima y guardián `check_syms_overrides.py` en `recomp.py`).
-4. Después: teardown SEGV al cerrar, limpieza de instrumentación y mando de menús de combate
+1. **Publicar el runtime del fork** (una vez): `pushd port\HybridHeavenRecomp\lib\N64ModernRuntime`
+   + `git push fork hybrid-heaven`. Sin eso `build_windows.bat` **aborta** (el pin de `runtime.lock`
+   apunta al commit `333cdbd`, que añade `HH_PAKLOG`); es a propósito, para no compilar otro runtime.
+2. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). El árbol trae: objeto del NPC,
+   láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática (`M9_FUN_80203830`) y **primer CaC**
+   (`M10_FUN_8021d8d0`).
+3. Probar: (a) el **combate cuerpo a cuerpo** que crasheaba; (b) el **guardado en cápsula** con el log:
+   ```bat
+   set HH_PAKLOG=1
+   port\run_windows.bat
+   ```
+   y enviarme la salida `[PAK] ...` (secuencia de llamadas PFS + retornos) y, si aparece,
+   `saves\*.bin.pak`. Es lo único que falta para arreglar el guardado con datos y no a ciegas.
+4. Si crashea con `Failed to find function at 0x...`: pasarme la dirección (misma vía:
+   `add_mid_entry.py` + `recomp --force`; ahora con edición mínima y guardián
+   `check_syms_overrides.py`).
+5. Después: teardown SEGV al cerrar, limpieza de instrumentación y mando de menús de combate
    (ver `TODO.md`).
 
 

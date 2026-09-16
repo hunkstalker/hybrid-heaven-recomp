@@ -96,11 +96,14 @@ setup_nmr() {
     fi
     [ -d "$NMR/.git" ] || {
         echo "ERROR: $NMR existe pero NO es un repositorio git. Borralo y reintenta." >&2; exit 1; }
+    gitc "$NMR" fetch --quiet --all 2>/dev/null || true
     if gitc "$NMR" checkout --quiet "$NMR_COMMIT" 2>/dev/null; then
         echo "      N64ModernRuntime (fork) en $NMR_COMMIT"
     else
-        echo "AVISO: no se pudo hacer checkout de $NMR_COMMIT en N64ModernRuntime (se usa el actual)." >&2
-        echo "       Revisa port/runtime.lock (NMR_URL/NMR_COMMIT)." >&2
+        echo "ERROR: no se pudo hacer checkout de $NMR_COMMIT en N64ModernRuntime." >&2
+        echo "       El commit fijado no esta en el clon: publica el fork (git push fork hybrid-heaven)" >&2
+        echo "       o corrige NMR_COMMIT en port/runtime.lock. Se aborta para no compilar otro runtime." >&2
+        exit 1
     fi
     # Al cambiar de rama cambia .gitmodules: sincronizar URLs antes de bajar los submodulos
     # (N64Recomp sale del fork propio; thirdparty de upstream).
