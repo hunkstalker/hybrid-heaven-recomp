@@ -11,14 +11,14 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 87 | 2026-09-16 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 127 | 2026-09-16 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 153 | 2026-09-16 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 163 | 2026-09-16 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Hybrid Heaven: Recompiled — Plan Maestro (documentación detallada)](README.md) | Port a PC por **recompilación estática** (N64 → C → nativo) siguiendo el modelo de proyectos como | 233 | 2026-09-11 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 236 | 2026-09-15 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 236 | 2026-09-16 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 79 | 2026-09-13 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 239 | 2026-09-16 |
 
@@ -37,6 +37,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
+| [2026-09-16 — Plan de la próxima sesión: limpieza de rutas/referencias y pipeline de compilación](../notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md) | Plan consolidado y **aprobado por el usuario** (queda ejecutarlo). Es la tarea que `RETOMAR.md` debe | 230 | 2026-09-16 |
 | [2026-09-16 — Limpieza del repo: purga de `.vs/` e inventario de candidatos](../notes/2026-09-16-limpieza-repo-inventario.md) | Contexto: el usuario crea el repo en GitHub (`hunkstalker/hybrid-heaven-recomp`) y pide limpiar | 67 | 2026-09-16 |
 | [2026-09-16 — Guardado en cápsula (Controller Pak) sin UI de slots + crash de CaC `0x8021D8D0`](../notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md) | ``` | 195 | 2026-09-16 |
 | [2026-09-16 — Fix del estado de caída: fallthrough M55 `0x8037A6F4` → `0x8037A884` (fuga `0x38`/frame)](../notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md) | Continúa `2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md` (ronda 14). Ahí quedó: láser | 94 | 2026-09-16 |
