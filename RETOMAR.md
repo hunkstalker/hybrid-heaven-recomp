@@ -78,6 +78,7 @@
   - Los cambios del runtime se hacen en el árbol local (`lib/N64ModernRuntime`) y se **pushean al
     fork**; luego se actualiza el SHA en `port/runtime.lock`.
   - Copias de trabajo/publicación en `/app/N64ModernRuntime` y `/app/N64Recomp`.
-- Bats de apoyo: `run_windows.bat`, `run_noaudio.bat`, `run_audlog.bat`, `run_test_*` (regresión),
-  `bisect_build.bat` (build de bisect), `run_watch.bat` (watchpoint + grabación de replay).
+- Bats de apoyo (solo los recurrentes): `build_windows.bat`, `run_windows.bat` (admite
+  `noaudio`/`audlog`), `run_mqlog.bat` (traza + s0fix) y `run_watch.bat` (watchpoint + ring + replay).
+  Política: un bat puntual se borra tras usarse.
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).

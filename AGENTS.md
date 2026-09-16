@@ -53,6 +53,9 @@ nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. No commi
   `config/*.syms.toml`, a la lista de reimplementadas del toolchain (ver ADR 0002) o al runtime.
 - Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
 - No commitear sin pedirlo. No tocar ROMs ni `work/*.so` sin pedirlo.
+- **Higiene**: scripts/bats **puntuales** se eliminan tras usarse (no dejar residuos); los de uso
+  recurrente van en `port/` y se documentan. Borrar builds locales que no se usen (`.vs`, builds
+  obsoletos) antes de dar por cerrada una tanda.
 
 ## Referencia de comportamiento (emulador que progresa)
 
