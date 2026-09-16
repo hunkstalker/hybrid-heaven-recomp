@@ -8,6 +8,7 @@ REM =====================================================================
 setlocal
 
 set HH_MQLOG_ALL=1
+set HH_S0FIX=1
 set HH_RECORD=hh_replay_dmg.txt
 
 if /i "%~1"=="noaudio" set HH_NOAUDIO=1
