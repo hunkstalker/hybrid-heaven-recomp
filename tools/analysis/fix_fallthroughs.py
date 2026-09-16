@@ -104,12 +104,23 @@ def main():
                     tail_call = bool(re.match(r'\w+\(rdram, ctx\);$', last))
                     # Direccion de la ultima instruccion emitida (ultimo comentario // 0xADDR:)
                     last_addr = None
+                    last_mnem = ""
                     for l in reversed(body):
-                        am = re.match(r'\s*// 0x([0-9A-Fa-f]{8}):', l)
+                        am = re.match(r'\s*// 0x([0-9A-Fa-f]{8}):\s*(\S+)', l)
                         if am:
                             last_addr = int(am.group(1), 16)
+                            last_mnem = am.group(2)
                             break
-                    is_ft = bool(stmts) and not term_ret and not term_goto and not tail_call
+                    # Rama condicional como ultima instruccion: su fall-through sigue en la
+                    # instruccion contigua (p.ej. M55_FUN_8037a6f4 -> 0x8037A884, fuga 0x38/frame
+                    # en el estado de caida). En ese caso el `return;`/`goto` final es condicional
+                    # (dentro del if) y NO garantiza terminacion.
+                    cond_branch = last_mnem in (
+                        "beq", "bne", "beql", "bnel", "beqz", "bnez",
+                        "bgtz", "bgez", "bltz", "blez", "bgtzl", "bgezl", "bltzl", "blezl",
+                        "bgezal", "bltzal")
+                    is_ft = bool(stmts) and (
+                        (not term_ret and not term_goto and not tail_call) or cond_branch)
                 if is_ft:
                     total_ft += 1
                     a = func_addr(cur)
