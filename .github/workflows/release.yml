@@ -1,18 +1,30 @@
 name: Release
 
-# Publica binarios listos para usar (Windows .zip y Linux .tar.gz) y la imagen de ejecucion en
-# ghcr.io. La ROM NO se incluye: el .exe la pide en runtime al usuario.
-#
-#   git tag v0.1.0 && git push origin v0.1.0
-# (o lanzar el workflow a mano con "Run workflow")
+# Publica binarios (Windows .zip y Linux .tar.gz) y la imagen de ejecucion en ghcr.io.
+# Dos formas de lanzarlo:
+#   1) Con tag:   git tag -a v0.1.1 -m v0.1.1 && git push origin v0.1.1
+#   2) A mano:    Actions -> Release -> Run workflow -> escribe la version (p.ej. v0.1.1)
+#                 (crea el Release y el tag automaticamente en el commit actual)
+# Si lanzas a mano SIN version, solo compila y sube artefactos (no crea Release).
+# La ROM NO se incluye: el .exe la pide en runtime al usuario.
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version del release (p.ej. v0.1.1). Vacio = solo compila y sube artefactos.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
+
+env:
+  # Tag empujado -> su nombre; manual -> lo que escribas (vacio = sin release).
+  HH_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name || '') }}
 
 jobs:
   windows:
@@ -78,14 +90,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
+      - name: Calcular tags
+        id: tags
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "ghcr.io/${{ github.repository }}:latest"
+            if [ -n "${HH_VERSION}" ]; then echo "ghcr.io/${{ github.repository }}:${HH_VERSION}"; fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
           target: runtime
           push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -93,7 +112,8 @@ jobs:
     name: Publicar release
     needs: [windows, linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    # Con tag empujado, o manual habiendo indicado version.
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
     permissions:
       contents: write
     steps:
@@ -101,7 +121,7 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Crear release con los artefactos
+      - name: Crear release (y su tag si no existia) con los artefactos
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "$HH_VERSION" dist/* --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"
