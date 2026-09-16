@@ -56,6 +56,24 @@ add_subdirectory(lib/N64ModernRuntime)
 
 file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS RecompiledFuncs/funcs_*.c)
 
+# El repo NO versiona contenido derivado de la ROM (codigo recompilado ni ucode). Hay que
+# generarlo con TU ROM antes de compilar. Ver README / docs/workflows.md.
+if(NOT RECOMPILED_FUNCS)
+    message(FATAL_ERROR
+        "Faltan los archivos generados desde la ROM (RecompiledFuncs/funcs_*.c).\n"
+        "Genera el port con tu copia de la ROM:\n"
+        "  python3 tools/setup_module.py --build\n"
+        "  python3 tools/recomp.py --config config/game_combined.toml --force\n"
+        "y vuelve a configurar. (El C recompilado es derivado de la ROM: no se versiona.)")
+endif()
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
+    message(FATAL_ERROR
+        "Falta rsp/hh_aspMain.cpp (ucode de audio recompilado de TU ROM).\n"
+        "Regeneralo con RSPRecomp:\n"
+        "  toolchain/src/N64Recomp/build_recomp/RSPRecomp config/rsp_hh_aspMain.toml\n"
+        "  cp work/rsp/hh_aspMain.cpp port/HybridHeavenRecomp/rsp/hh_aspMain.cpp")
+endif()
+
 add_executable(HybridHeavenRecomp
     src/main/main.cpp
     src/main/icon.cpp
@@ -102,15 +120,20 @@ if(WIN32)
         _CRT_SECURE_NO_WARNINGS
     )
 
-    # Embed the app icon into the .exe as a Windows resource.
-    enable_language(RC)
+    # Embed the app icon into the .exe as a Windows resource (opcional: el icono del
+    # juego es un asset derivado de la ROM y no se versiona; aporta uno propio si quieres).
     set(APP_ICON "${PROJECT_SOURCE_DIR}/assets/HybridHeaven.ico")
-    configure_file(
-        "${PROJECT_SOURCE_DIR}/assets/app.rc.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/app.rc"
-        @ONLY
-    )
-    target_sources(HybridHeavenRecomp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+    if(EXISTS "${APP_ICON}")
+        enable_language(RC)
+        configure_file(
+            "${PROJECT_SOURCE_DIR}/assets/app.rc.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/app.rc"
+            @ONLY
+        )
+        target_sources(HybridHeavenRecomp PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+    else()
+        message(STATUS "assets/HybridHeaven.ico no presente: se compila sin icono embebido")
+    endif()
 
     # Copy the SDL2 and DXC runtime DLLs next to the executable.
     add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
@@ -143,7 +166,9 @@ elseif(UNIX AND NOT APPLE)
     install(TARGETS HybridHeavenRecomp RUNTIME DESTINATION bin)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/hybridheaven.desktop"
             DESTINATION share/applications)
-    install(FILES "${PROJECT_SOURCE_DIR}/assets/HybridHeaven.png"
-            DESTINATION share/icons/hicolor/256x256/apps
-            RENAME "${APP_ICON_NAME}.png")
+    if(EXISTS "${PROJECT_SOURCE_DIR}/assets/HybridHeaven.png")
+        install(FILES "${PROJECT_SOURCE_DIR}/assets/HybridHeaven.png"
+                DESTINATION share/icons/hicolor/256x256/apps
+                RENAME "${APP_ICON_NAME}.png")
+    endif()
 endif()

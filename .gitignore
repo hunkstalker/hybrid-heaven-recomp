@@ -1,11 +1,30 @@
-# ... ROMs, assets y derivados del usuario (NUNCA versionar)
+# ---------------------------------------------------------------------------
+# NUNCA versionar: ROMs y contenido DERIVADO de la ROM (copyright).
+# El repo solo lleva NUESTRO codigo; los derivados se generan con la ROM del
+# usuario (ver README y docs/adr/0005).
+# ---------------------------------------------------------------------------
 work/
-
-# ROMs y contenido derivado con copyright: NUNCA versionar
 *.z64
 *.n64
 *.v64
 baserom.*
+
+# Codigo recompilado y ucode de audio (generados con la ROM; tools/recomp.py + RSPRecomp)
+port/HybridHeavenRecomp/RecompiledFuncs/
+port/HybridHeavenRecomp/rsp/hh_aspMain.cpp
+
+# Assets del juego (imagenes derivadas) y capturas de referencia
+port/HybridHeavenRecomp/assets/HybridHeaven.bmp
+port/HybridHeavenRecomp/assets/HybridHeaven.ico
+port/HybridHeavenRecomp/assets/HybridHeaven.png
+port/HybridHeavenRecomp/assets/icon_bmp.inc
+Referencias screenshots/
+
+# Datos extraidos de la ROM (tablas, textos, simbolos)
+notes/us_manifest.yaml
+notes/eu_manifest.yaml
+notes/2026-09-05_asset-map.md
+notes/reference/n64sym_osfuncs_us_retail.txt
 
 # Toolchain descargable/reproducible
 toolchain/
@@ -42,8 +61,7 @@ Thumbs.db
 port/HybridHeavenRecomp/lib/N64ModernRuntime/
 port/HybridHeavenRecomp/lib/rt64/
 
-# Recompilaciones generadas por el pipeline (se regeneran con tools/setup_module.py o tools/recomp.py).
-# El input de build real es port/HybridHeavenRecomp/RecompiledFuncs/ (sí versionado).
+# Salidas intermedias del pipeline de recompilación (no son el input de build)
 config/RecompiledFuncs_retail/
 config/RecompiledFuncs_retail_backup/
 config/RecompiledFuncs/

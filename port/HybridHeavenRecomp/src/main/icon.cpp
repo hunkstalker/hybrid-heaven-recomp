@@ -11,7 +11,14 @@
 
 #include "hh.h"
 
+#if __has_include("../../assets/icon_bmp.inc")
 #include "../../assets/icon_bmp.inc"
+#else
+// Sin assets versionados (las imagenes del juego son derivadas de la ROM): el port
+// compila sin icono de ventana. Ver README/ADR 0005.
+static const uint8_t kHybridHeavenIconBmp[] = { 0 };
+static const uint32_t kHybridHeavenIconBmpSize = 0;
+#endif
 
 static uint32_t read_le32(const uint8_t* p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
