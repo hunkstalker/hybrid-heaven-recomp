@@ -1,6 +1,22 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M10_FUN_80230484(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x80230484: addiu       $v0, $zero, 0x1
+    ctx->r2 = ADD32(0, 0X1);
+    // 0x80230488: sb          $v0, 0x2DB($a0)
+    MEM_B(0X2DB, ctx->r4) = ctx->r2;
+    // 0x8023048C: jr          $ra
+    // 0x80230490: sb          $v0, 0x2D9($a0)
+    MEM_B(0X2D9, ctx->r4) = ctx->r2;
+    return;
+    // 0x80230490: sb          $v0, 0x2D9($a0)
+    MEM_B(0X2D9, ctx->r4) = ctx->r2;
+    // @fallthrough-fix: split fallthrough -> chain to continuation
+    M10_FUN_80230494(rdram, ctx);
+;}
 RECOMP_FUNC void M10_FUN_80230494(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -14178,57 +14194,4 @@ L_80234D24:
     ctx->r2 = ctx->r3 | 0;
     // @fallthrough-fix: split fallthrough -> chain to continuation
     M10_FUN_80234d2c(rdram, ctx);
-;}
-RECOMP_FUNC void M10_FUN_80234d2c(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x80234D2C: lw          $v0, 0x98($a0)
-    ctx->r2 = MEM_W(ctx->r4, 0X98);
-    // 0x80234D30: lh          $t6, 0x4($v0)
-    ctx->r14 = MEM_H(ctx->r2, 0X4);
-    // 0x80234D34: lh          $t7, 0x6($v0)
-    ctx->r15 = MEM_H(ctx->r2, 0X6);
-    // 0x80234D38: or          $v0, $zero, $zero
-    ctx->r2 = 0 | 0;
-    // 0x80234D3C: bne         $t6, $t7, L_80234D68
-    if (ctx->r14 != ctx->r15) {
-            // 0x80234D40: nop
-
-    LOOKUP_FUNC(0x80234D68)(rdram, ctx);
-    return;
-    }
-    // 0x80234D40: nop
-
-    // 0x80234D44: lb          $t8, 0xA1($a0)
-    ctx->r24 = MEM_B(ctx->r4, 0XA1);
-    // 0x80234D48: bltz        $t8, L_80234D68
-    if (SIGNED(ctx->r24) < 0) {
-            // 0x80234D4C: nop
-
-    LOOKUP_FUNC(0x80234D68)(rdram, ctx);
-    return;
-    }
-    // 0x80234D4C: nop
-
-    // 0x80234D50: lbu         $t9, 0xA9($a0)
-    ctx->r25 = MEM_BU(ctx->r4, 0XA9);
-    // 0x80234D54: andi        $t0, $t9, 0x1
-    ctx->r8 = ctx->r25 & 0X1;
-    // 0x80234D58: beq         $t0, $zero, L_80234D68
-    if (ctx->r8 == 0) {
-            // 0x80234D5C: nop
-
-    LOOKUP_FUNC(0x80234D68)(rdram, ctx);
-    return;
-    }
-    // 0x80234D5C: nop
-
-    // 0x80234D60: jr          $ra
-    // 0x80234D64: addiu       $v0, $zero, 0x1
-    ctx->r2 = ADD32(0, 0X1);
-    return;
-    // 0x80234D64: addiu       $v0, $zero, 0x1
-    ctx->r2 = ADD32(0, 0X1);
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M10_FUN_80234d68(rdram, ctx);
 ;}

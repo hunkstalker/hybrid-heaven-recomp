@@ -100,16 +100,48 @@ def split_fichero(path, addr, idx, dry):
     if addr in addrs:
         print(f"  = {path.name}: ya presente")
         return True
-    addrs.add(addr)
-    sa = sorted(a for a in addrs if start <= a < end)
-    lineas = []
-    for k, a in enumerate(sa):
-        nxt = sa[k + 1] if k + 1 < len(sa) else end
-        lineas.append(f'    {{ name = "M{idx}_FUN_{a:08x}", vram = 0x{a:08X}, size = 0x{nxt-a:X} }},')
-    nuevo = s[:i] + "functions = [\n" + "\n".join(lineas) + "\n]" + s[j + 2:]
+    # Edicion MINIMA: solo se reescribe la entrada contenedora y se inserta la nueva. Recalcular
+    # TODOS los tamanos por "hueco hasta el siguiente" borraba overrides manuales
+    # (p. ej. M9_FUN_802169ac:0x1C0 de module_extras.json, que evita el stub do_break) y estados
+    # deliberados del .syms (fronteras gruesas, simbolos fusionados con comentario de validate_syms).
+    lineas = bloque.splitlines()
+    rx = re.compile(r'vram = 0x([0-9A-Fa-f]+), size = 0x([0-9A-Fa-f]+)')
+    ents = [(k, int(m.group(1), 16), int(m.group(2), 16), ln)
+            for k, ln in enumerate(lineas) for m in [rx.search(ln)] if m]
+    cont = None
+    for e in ents:
+        if e[1] <= addr:
+            cont = e
+        else:
+            break
+    sig = next((e[1] for e in ents if e[1] > addr), end)
+    if cont is not None and cont[1] <= addr < cont[1] + cont[2]:
+        indent = cont[3][:len(cont[3]) - len(cont[3].lstrip())]
+        lineas[cont[0]] = f'{indent}{{ name = "M{idx}_FUN_{cont[1]:08x}", vram = 0x{cont[1]:08X}, size = 0x{addr - cont[1]:X} }},'
+        pos = cont[0] + 1
+    else:
+        pos = (cont[0] + 1) if cont is not None else 0
+        indent = cont[3][:len(cont[3]) - len(cont[3].lstrip())] if cont is not None else "    "
+        print(f"  ! {path.name}: {addr:#x} no cae dentro de ningun simbolo; se inserta sin recortar")
+    lineas.insert(pos, f'{indent}{{ name = "M{idx}_FUN_{addr:08x}", vram = 0x{addr:08X}, size = 0x{sig - addr:X} }},')
+
+    # Overrides de tamano declarados en module_extras.json ("0xADDR:0xSIZE").
+    overrides = {}
+    for tok in json.loads((CONFIG / "module_extras.json").read_text()).get(str(idx), []):
+        if ":" in tok:
+            a_str, s_str = tok.split(":", 1)
+            overrides[int(a_str, 16)] = int(s_str, 16)
+    if overrides:
+        rx_size = re.compile(r'(size = 0x)[0-9A-Fa-f]+')
+        for k2, ln in enumerate(lineas):
+            m = rx.search(ln)
+            if m and int(m.group(1), 16) in overrides:
+                lineas[k2] = rx_size.sub(rf'\g<1>{overrides[int(m.group(1), 16)]:X}', ln)
+
+    nuevo = s[:i] + "\n".join(lineas) + s[j:]
     if not dry:
         path.write_text(nuevo)
-    print(f"  + {path.name}: {addr:#x} insertado ({len(sa)} funciones)")
+    print(f"  + {path.name}: {addr:#x} insertado ({len(ents) + 1} funciones)")
     return True
 
 

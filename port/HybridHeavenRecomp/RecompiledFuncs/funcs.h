@@ -4621,6 +4621,7 @@ void M9_FUN_80202bf0(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_80203254(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_802033f8(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_8020382c(uint8_t* rdram, recomp_context* ctx);
+void M9_FUN_80203830(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_8020394c(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_802039b0(uint8_t* rdram, recomp_context* ctx);
 void M9_FUN_8020571c(uint8_t* rdram, recomp_context* ctx);

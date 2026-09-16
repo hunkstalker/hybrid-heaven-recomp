@@ -1,6 +1,16 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M10_FUN_80236c60(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x80236C60: lui         $a0, 0x8024
+    ctx->r4 = S32(0X8024 << 16);
+    // 0x80236C64: lw          $a0, -0x1C40($a0)
+    ctx->r4 = MEM_W(ctx->r4, -0X1C40);
+    // @fallthrough-fix: split fallthrough -> chain to continuation
+    M10_FUN_80236c68(rdram, ctx);
+;}
 RECOMP_FUNC void M10_FUN_80236c68(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -10255,14 +10265,4 @@ L_8023A41C:
     return;
     // 0x8023A420: nop
 
-;}
-RECOMP_FUNC void M10_FUN_8023a424(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x8023A424: lui         $t6, 0x8024
-    ctx->r14 = S32(0X8024 << 16);
-    // 0x8023A428: lbu         $t6, 0x89B($t6)
-    ctx->r14 = MEM_BU(ctx->r14, 0X89B);
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M10_FUN_8023a42c(rdram, ctx);
 ;}

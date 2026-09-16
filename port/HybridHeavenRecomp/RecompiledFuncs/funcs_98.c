@@ -1,6 +1,16 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M10_FUN_8022ba44(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x8022BA44: lui         $v0, 0x801C
+    ctx->r2 = S32(0X801C << 16);
+    // 0x8022BA48: lbu         $v0, -0x33E0($v0)
+    ctx->r2 = MEM_BU(ctx->r2, -0X33E0);
+    // @fallthrough-fix: split fallthrough -> chain to continuation
+    M10_FUN_8022ba4c(rdram, ctx);
+;}
 RECOMP_FUNC void M10_FUN_8022ba4c(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -14852,20 +14862,4 @@ L_80230474:
     return;
     // 0x80230480: nop
 
-;}
-RECOMP_FUNC void M10_FUN_80230484(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x80230484: addiu       $v0, $zero, 0x1
-    ctx->r2 = ADD32(0, 0X1);
-    // 0x80230488: sb          $v0, 0x2DB($a0)
-    MEM_B(0X2DB, ctx->r4) = ctx->r2;
-    // 0x8023048C: jr          $ra
-    // 0x80230490: sb          $v0, 0x2D9($a0)
-    MEM_B(0X2D9, ctx->r4) = ctx->r2;
-    return;
-    // 0x80230490: sb          $v0, 0x2D9($a0)
-    MEM_B(0X2D9, ctx->r4) = ctx->r2;
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M10_FUN_80230494(rdram, ctx);
 ;}

@@ -1,6 +1,16 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M10_FUN_80228320(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x80228320: lui         $t1, 0x801C
+    ctx->r9 = S32(0X801C << 16);
+    // 0x80228324: addiu       $t1, $t1, -0x4410
+    ctx->r9 = ADD32(ctx->r9, -0X4410);
+    // @fallthrough-fix: split fallthrough -> chain to continuation
+    M10_FUN_80228328(rdram, ctx);
+;}
 RECOMP_FUNC void M10_FUN_80228328(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -11318,14 +11328,4 @@ L_8022BA28:
     MEM_B(0X2DF, ctx->r5) = ctx->r14;
     // @fallthrough-fix: split fallthrough -> chain to continuation
     M10_FUN_8022ba44(rdram, ctx);
-;}
-RECOMP_FUNC void M10_FUN_8022ba44(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x8022BA44: lui         $v0, 0x801C
-    ctx->r2 = S32(0X801C << 16);
-    // 0x8022BA48: lbu         $v0, -0x33E0($v0)
-    ctx->r2 = MEM_BU(ctx->r2, -0X33E0);
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M10_FUN_8022ba4c(rdram, ctx);
 ;}

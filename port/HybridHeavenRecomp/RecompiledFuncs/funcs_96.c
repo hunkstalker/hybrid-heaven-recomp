@@ -1,6 +1,32 @@
 #include "recomp.h"
 #include "funcs.h"
 
+RECOMP_FUNC void M10_FUN_80225540(uint8_t* rdram, recomp_context* ctx) {
+    uint64_t hi = 0, lo = 0, result = 0;
+    int c1cs = 0;
+    // 0x80225540: addiu       $sp, $sp, -0x18
+    ctx->r29 = ADD32(ctx->r29, -0X18);
+    // 0x80225544: sw          $ra, 0x14($sp)
+    MEM_W(0X14, ctx->r29) = ctx->r31;
+    // 0x80225548: jal         0x80225450
+    // 0x8022554C: or          $a1, $zero, $zero
+    ctx->r5 = 0 | 0;
+    LOOKUP_FUNC(0x80225450)(rdram, ctx);
+        goto after_0;
+    // 0x8022554C: or          $a1, $zero, $zero
+    ctx->r5 = 0 | 0;
+    after_0:
+    // 0x80225550: lw          $ra, 0x14($sp)
+    ctx->r31 = MEM_W(ctx->r29, 0X14);
+    // 0x80225554: addiu       $sp, $sp, 0x18
+    ctx->r29 = ADD32(ctx->r29, 0X18);
+    // 0x80225558: jr          $ra
+    // 0x8022555C: nop
+
+    return;
+    // 0x8022555C: nop
+
+;}
 RECOMP_FUNC void M10_FUN_80225560(uint8_t* rdram, recomp_context* ctx) {
     uint64_t hi = 0, lo = 0, result = 0;
     int c1cs = 0;
@@ -8317,14 +8343,4 @@ L_80228304:
     return;
     // 0x8022831C: nop
 
-;}
-RECOMP_FUNC void M10_FUN_80228320(uint8_t* rdram, recomp_context* ctx) {
-    uint64_t hi = 0, lo = 0, result = 0;
-    int c1cs = 0;
-    // 0x80228320: lui         $t1, 0x801C
-    ctx->r9 = S32(0X801C << 16);
-    // 0x80228324: addiu       $t1, $t1, -0x4410
-    ctx->r9 = ADD32(ctx->r9, -0X4410);
-    // @fallthrough-fix: split fallthrough -> chain to continuation
-    M10_FUN_80228328(rdram, ctx);
 ;}
