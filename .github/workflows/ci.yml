@@ -44,7 +44,9 @@ jobs:
           set -e
           mkdir -p dist/HybridHeavenRecomp-Linux
           cid=$(docker create hh-build:ci)
-          docker cp "$cid:/out/Hybrid Heaven Recomp" "dist/HybridHeavenRecomp-Linux/"
+          # En la imagen el binario va sin espacios (buildx no parsea COPY con comillas+espacios);
+          # en el artefacto lo dejamos con el nombre "bonito".
+          docker cp "$cid:/out/hybrid-heaven-recomp" "dist/HybridHeavenRecomp-Linux/Hybrid Heaven Recomp"
           docker rm "$cid"
           cp port/README_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
           cp CREDITS.md dist/HybridHeavenRecomp-Linux/CREDITOS.md
