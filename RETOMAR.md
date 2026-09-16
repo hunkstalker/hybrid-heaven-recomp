@@ -55,21 +55,23 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO (2026-09-16)** — bloques 1→7 +
-> preparación del bloque **8.B**. Detalle:
+> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO Y PUBLICADO (2026-09-16)** —
+> bloques 1→7 y **8.B** (identidad reescrita, `force-push` hechos: runtime `feae2d5`, N64Recomp
+> `cab94d9`, main `0d283d5`). Build **Linux y Windows OK**, **CI en verde**. Detalle:
 > `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
 
-1. **[pendiente, usuario]** Lanzar los `force-push` del bloque 8.B en orden: N64Recomp →
-   N64ModernRuntime (con el puntero del submódulo actualizado) → main (con `runtime.lock`
-   actualizado). Más detalle en la nota de la sesión.
-2. **[pendiente, usuario]** Validar en Windows el guardado en cápsula: `port\build_windows.local.bat`
-   (o `build_windows.bat`) + `port\run_windows.bat` → GAME START → cápsula; en `hh_pak.log` debe verse
-   `osPfsAllocateFile ... size=13568` y el guardado completar (`.pak` en `saves\` junto al `.exe`).
-3. Al validar el guardado: publicar el fork del runtime + `origin main`, y **subir el pin** de
-   `runtime.lock` al SHA publicado.
-4. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
+1. **[pendiente, usuario]** Validar en Windows el guardado en cápsula: `port\build_windows.local.bat`
+   (o `build_windows.bat`) + `port\run_windows.bat` → GAME START → cápsula; al aceptar debe salir la
+   **UI de slots** y escribirse `saves\hh.us.bin.pak` junto al `.exe`, con `osPfsAllocateFile ...
+   size=13568` en `hh_pak.log`. Es lo único que falta para cerrar el guardado.
+2. **[opcional, usuario]** Smoke de arranque con la ROM en `rom\` junto al `.exe` (y en Docker:
+   `HH_HEADLESS=1` con `rom/` montado en `/work/rom`): comprobar que encuentra la ROM y que no hay
+   `Failed to find function`.
+3. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`, con el guardián `check_syms_overrides.py`).
-5. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
+4. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
+5. Pendientes varios: teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de
+   combate para **X** (ver `TODO.md`).
 
 
 ## Cómo leer los logs

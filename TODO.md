@@ -5,11 +5,11 @@
 
 ## Ahora — Guardado, teardown y limpieza
 
-> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO (2026-09-16)** — bloques 1→7 y
-> preparación del 8.B. Detalle: `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y
-> **ADR 0006** (política de rutas relativas y contenido externo). Pendiente fuera del plan: los
-> `force-push` del bloque 8.B (los lanza el usuario) y, al validar el guardado, publicar el fork +
-> `origin main` y subir el pin de `runtime.lock`.
+> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO Y PUBLICADO (2026-09-16)** —
+> bloques 1→7 y 8.B (identidad reescrita). `force-push` hechos: runtime `feae2d5`, N64Recomp
+> `cab94d9`, main `0d283d5`; `port/runtime.lock` apunta a SHAs publicados. **Build Linux y Windows
+> OK** y **CI en verde**. Detalle:
+> `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
 
 > **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
 > `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no
@@ -52,10 +52,14 @@
    tras un env, y decidir si se quedan `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*` y el watchpoint.
 5. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
-6. [ ] **Pipeline de compilación**: `port/runtime.lock` debe apuntar a un commit **publicado** del
-   fork (`c976c89`); tras publicar los commits de runtime locales (fork + `origin main` + pin) subir
-   el SHA. Para probar commits locales sin publicar: `port/build_windows.local.bat` (no versionado,
-   contenido en `port/README_windows.md` §2b). `build_windows.bat` imprime siempre el runtime usado.
+6. [x] **Pipeline de compilación** (2026-09-16): `port/runtime.lock` apunta a commits **publicados**
+   (runtime `feae2d5`, N64Recomp `cab94d9`). Verificado: build Linux (`tools/build_linux.sh
+   --force-libs`) hace checkout de los pins y compila; build **Windows OK**; **CI verde**. Para
+   commits locales sin publicar: `port/build_windows.local.bat` (no versionado; contenido en
+   `port/README_windows.md` §2b). `build_windows.bat` imprime siempre el runtime usado.
+7. [ ] **Smoke de arranque** (opcional, requiere ROM): con la ROM en `rom\` junto al `.exe`, arrancar
+   y comprobar que el binario la encuentra (`hh.log`/consola) y que no hay `Failed to find function`.
+   En Docker: `HH_HEADLESS=1` con `rom/` montado en `/work/rom`.
 
 ## Hecho (resumen; detalle en `notes/`)
 

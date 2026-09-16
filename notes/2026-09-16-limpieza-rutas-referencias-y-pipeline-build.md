@@ -105,7 +105,7 @@ de los forks.
   entorno de esta sesión). Al validar: `HH_HEADLESS=1` con `rom/` montado en `/work/rom`.
 - `docs/INDEX.md` regenerado; `TODO.md`, `PROYECTO.md`, `RETOMAR.md` y `AGENTS.md` actualizados.
 
-## Bloque 8 — Identidad de los commits (8.B, preparado)
+## Bloque 8 — Identidad de los commits (8.B, publicado)
 
 Identidad objetivo: `Denis Anfruns Millán <daanfruns@gmail.com>` (author **y** committer) en **todo**
 el historial propio de los 3 repos, **preservando intactos los commits upstream** (autores y firmas).
@@ -128,15 +128,25 @@ Cadena de SHAs (antes → después), con copias de seguridad en ramas `backup/pr
 | N64ModernRuntime (tip) | `6a518eb…` | `feae2d564bac2f31ba51865f2ead97de74d311d4` |
 | N64ModernRuntime (= 725a5a8 reescrito) | `725a5a8…` | `c976c89bbc8eb2d58d7e30b8d1e03d3ad822f7b1` |
 
-- `port/runtime.lock` apunta al **tip reescrito** (`feae2d5…`) y al SHA nuevo de N64Recomp; es válido
-  en cuanto el usuario haga **force-push** de los forks (N64Recomp → N64ModernRuntime → main).
+- `port/runtime.lock` apunta al **tip reescrito** (`feae2d5…`) y al SHA nuevo de N64Recomp.
 - Referencias a SHAs de runtime en `TODO.md`/`notes/` actualizadas al mapa nuevo; las referencias a
   commits del repo `main` quedan como históricas (los hashes de `main` cambian al reescribirse).
 - El commit de `events.cpp` del fork (antes `6a518eb…`) queda en `b01d4b4bcec…`.
 
+## Publicación y verificación post-push
+
+- **`force-push` hechos** (por el usuario), en orden: N64Recomp `cab94d9` → N64ModernRuntime `feae2d5`
+  → main `0d283d5`. Remotos comprobados por `ls-remote`; copias de publicación resincronizadas.
+- **Build Linux verificado**: `tools/build_linux.sh --force-libs` hace checkout de `rt64 4337374`,
+  runtime `feae2d5` y submódulo `N64Recomp cab94d9`, y compila al 100% (`build_verify`, borrado).
+- **Build Windows**: OK (usuario).
+- **CI (GitHub Actions)**: compilación correcta tras el push.
+- **Ramas de seguridad** `backup/pre-identidad`: el usuario las eliminó después de verificar. Los
+  objetos viejos siguen en local hasta que caduquen reflogs/gc (por defecto 30–90 días).
+
 ## Resumen
 
-Plan ejecutado por bloques 1→7 con un commit por bloque en `main` y un commit en el fork del runtime
-(`ultramodern/src/events.cpp`). Decisión estructural documentada en **ADR 0006**. Pendiente del
-usuario: `force-push` de 8.B y, tras validar el guardado en Windows, publicar el fork + `origin main`
-+ subir el pin de `runtime.lock`.
+Plan ejecutado por bloques 1→7, con un commit por bloque en `main` y un commit en el fork del runtime
+(`ultramodern/src/events.cpp`); decisión estructural en **ADR 0006**. **8.B publicado** y build
+Linux/Windows + CI verificados. Pendiente de gameplay: validar el guardado en cápsula en Windows
+(UI de slots + `saves\hh.us.bin.pak` + `osPfsAllocateFile ... size=13568`).
