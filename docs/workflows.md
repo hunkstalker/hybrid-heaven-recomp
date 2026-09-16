@@ -143,6 +143,10 @@ python3 tools/recomp.py --config config/game_combined.toml --force
   `keep_syms.txt` + `module_extras.json`. **No** usar `setup_module.py` para esto: su detección
   automática (`auto_mid`) puede cascar y meter **datos como código** (rompe el build con
   `0 = cop0_register_read`). Ver `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+- **Overrides de tamaño**: los `0xADDR:0xSIZE` de `module_extras.json` deben sobrevivir a la edición.
+  `tools/analysis/check_syms_overrides.py` lo verifica y `recomp.py` (paso 1b) **aborta** si falta
+  alguno (perder `M9_FUN_802169AC:0x1C0` devolvía el símbolo a `0x4604` → stub `do_break` → cuelgue
+  del NPC). Ver `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
 - `fix_fallthroughs.py` (paso automático del pipeline, §1) encadena además cuando la **última
   instrucción ROM** es una **rama condicional** (`beq/bne/beql/bnel/bgtz/...`): su fall-through cae
   al símbolo contiguo aunque la última sentencia C sea un `return`/`goto` dentro del `if` final

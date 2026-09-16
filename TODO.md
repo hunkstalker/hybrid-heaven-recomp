@@ -20,8 +20,13 @@
    `Failed to find function at 0x...` (se ve en consola y en `hh_missing.log`), registrarlo con
    `python3 tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config
    config/game_combined.toml --force` (ver nota, "Ronda 9"; **no** usar `setup_module.py`: cascado
-   de `auto_mid` → datos como código). Hecho hoy: `M55_FUN_80378c48` (crash en menú).
+   de `auto_mid` → datos como código). Hechos hoy: `M55_FUN_80378c48` (menú) y `M9_FUN_80203830`
+   (cinemática al cruzar una puerta; el contenedor `M9_FUN_8020382c` empezaba en un `nop`/delay slot).
    Próximo hito probable: **primer combate cuerpo a cuerpo (CaC)**.
+   **Aviso**: al reaplicar ese fix, `add_mid_entry.py` recalculaba todos los tamaños y **borró** el
+   override `M9_FUN_802169AC:0x1C0` (regresión del cuelgue del NPC). Corregido (edición mínima +
+   overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de `recomp.py`;
+   aborta si se pierde un override). Ver `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
 2. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).

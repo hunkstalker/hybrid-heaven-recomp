@@ -24,6 +24,13 @@
   switch fusionado; revertida). **Módulo 55 = overlay de la secuencia de objeto del NPC**
   (`docs/architecture.md` §2.2). Si hay que recompilar: `tools/recomp.py ... --force`.
   Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+- **Crash de la cinemática de puerta: ARREGLADO (2026-09-16; pendiente de validar en Windows)**:
+  `M9_FUN_80203830` era una frontera real de función (su contenedor `M9_FUN_8020382c` empezaba en un
+  `nop` que es el delay slot del `jr $ra` anterior). Ojo: la primera pasada de `add_mid_entry.py`
+  **revirtió** el fix del cuelgue del NPC (recalculaba todos los tamaños y borraba el override
+  `M9_FUN_802169AC:0x1C0`); ya corregido (edición mínima + overrides) y protegido por
+  `tools/analysis/check_syms_overrides.py` (paso 1b de `recomp.py`).
+  Detalle: `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
 - Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
   módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
   rápida es `python3 tools/analysis/add_mid_entry.py 0xADDR` seguido de
@@ -38,12 +45,13 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-1. Recompilar (si no lo has hecho ya con la ronda 15): `port\build_windows.bat` (Release) — **sin**
-   `--force-libs`. El árbol ya trae: objeto del NPC, láser y caída arreglados.
-2. Ejecutar `port\run_windows.bat` y probar el siguiente hito: **abrir cajas de ítem** y seguir la
-   partida (y, de paso, re-verificar el ciclo del robot: daño → caída → levantarse).
+1. Recompilar: `port\build_windows.bat` (Release) — **sin** `--force-libs`. El árbol trae: objeto del
+   NPC, láser, caída, mid-entry de menú (`M55_FUN_80378c48`) y el **nuevo `M9_FUN_80203830`**.
+2. Ejecutar `port\run_windows.bat` y **cruzar la puerta que lanzaba la cinemática** (era el crash);
+   seguir la partida. Próximo hito probable: primer combate cuerpo a cuerpo (CaC).
 3. Si crashea con `Failed to find function at 0x...`: pasarme la dirección; la registro con
-   `tools/analysis/add_mid_entry.py` (rechaza delay slots y switches fusionados).
+   `tools/analysis/add_mid_entry.py` (rechaza delay slots y switches fusionados; ahora con edición
+   mínima y guardián `check_syms_overrides.py` en `recomp.py`).
 4. Después: teardown SEGV al cerrar, limpieza de instrumentación y mando de menús de combate
    (ver `TODO.md`).
 

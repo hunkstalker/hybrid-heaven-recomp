@@ -35,6 +35,7 @@ PORT = ROOT / "port/HybridHeavenRecomp"
 RECOMP_DIR = PORT / "RecompiledFuncs"
 ROM = ROOT / "work/roms/us_retail.z64"
 VALIDATOR = ROOT / "tools/analysis/validate_syms.py"
+CHECK_OVERRIDES = ROOT / "tools/analysis/check_syms_overrides.py"
 FIX_FT = ROOT / "tools/analysis/fix_fallthroughs.py"
 KEEP_SYMS = CONFIG_DIR / "keep_syms.txt"
 
@@ -89,6 +90,15 @@ def main() -> int:
             elif not args.force:
                 print("[recomp] validación con errores (usa --fix-syms o --force); abortando")
                 return 1
+
+    # 1b) los overrides de tamano de module_extras.json deben seguir en las .syms (perderlos
+    # revierte fixes ya hechos: M9_FUN_802169ac -> stub do_break -> cuelgue del NPC)
+    if not args.dry_run:
+        rc = run([sys.executable, CHECK_OVERRIDES], dry=args.dry_run)
+        if rc != 0:
+            print("[recomp] overrides de tamano perdidos en las .syms; abortando "
+                  "(revisa el aviso de check_syms_overrides.py)")
+            return 1
 
     # 2) regenerar (limpiar salida primero)
     if out_dir.exists() and not args.dry_run:
