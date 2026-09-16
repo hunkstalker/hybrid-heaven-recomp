@@ -22,6 +22,9 @@ if /i "%~1"=="audlog"  set HH_AUDIOLOG=1
 set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Release"
 if not exist "%HHBIN%\Hybrid Heaven Recomp.exe" set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Debug"
 cd /d "%HHBIN%"
+if not exist "%HHBIN%\rom\baserom.us.z64" if not exist "%HHBIN%\baserom.us.z64" (
+  echo AVISO: no veo la ROM. Ponla en "%HHBIN%\rom\baserom.us.z64".
+)
 echo === Hybrid Heaven Recomp ===
 echo HH_INPUTLOG=%HH_INPUTLOG%  HH_NOAUDIO=%HH_NOAUDIO%  HH_AUDIOLOG=%HH_AUDIOLOG%  HH_INVERT_Y=%HH_INVERT_Y%
 "Hybrid Heaven Recomp.exe" %2 %3

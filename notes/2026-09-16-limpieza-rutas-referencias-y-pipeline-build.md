@@ -38,3 +38,16 @@ Pendiente en bloques siguientes: los scripts (`tools/analysis/*`, `work/*.sh`) y
 - `src/main/icon.cpp` y el comentario de `CMakeLists.txt` (Windows): aclarado que el `.ico` sí se
   versiona/embebe como recurso y que el `.bmp` de ventana es opcional.
 - `Referencias screenshots/` ya estaba ignorada.
+
+## Bloque 3 — ROM (opción A) y Docker
+
+- `src/main/support.cpp` (`get_rom_candidates`): solo `<carpeta del .exe>/rom/baserom.us.z64`
+  (oficial) y `<carpeta del .exe>/baserom.us.z64` (salvaguarda). **Se elimina** la búsqueda en el
+  directorio de lanzamiento (CWD).
+- Mensajes actualizados: `tools/build_linux.sh`, `port/build_windows.bat`, `port/run_windows.bat`,
+  `README.md`, `port/README_windows.md`, `port/README_linux.md`.
+- Docker (imagen de ejecución): el binario vive en `/work/hybrid-heaven-recomp` y la ROM se monta en
+  `/work/rom/baserom.us.z64` (carpeta `rom/` junto al binario) → encaja con la búsqueda nueva.
+  Actualizados `Dockerfile`, `docker/Dockerfile.runtime`, `docker/entrypoint.sh`,
+  `docker-compose.yml` (volumen `./rom:/work/rom`) y `port/README_linux.md`. En la documentación de
+  Docker se evita citar rutas absolutas del sistema (socket X11 descrito genéricamente).

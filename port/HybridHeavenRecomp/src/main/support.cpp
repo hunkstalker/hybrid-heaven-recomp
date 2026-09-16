@@ -147,16 +147,14 @@ std::filesystem::path hh::get_app_folder_path() {
 }
 
 static std::vector<std::filesystem::path> get_rom_candidates() {
-    // La ROM la aporta el usuario; se busca (por orden) en:
-    //   <carpeta del .exe>/rom/  y  ./rom/  (recomendado), y junto al .exe / en el CWD.
+    // La ROM la aporta el usuario. Ubicación oficial: <carpeta del .exe>/rom/baserom.us.z64.
+    // Una salvaguarda: <carpeta del .exe>/baserom.us.z64. NO se busca en el directorio de
+    // lanzamiento (CWD): la carpeta del ejecutable es la referencia portable.
     const std::filesystem::path exe_dir = std::filesystem::path(get_executable_path()).parent_path();
-    const std::filesystem::path cwd = std::filesystem::current_path();
     std::vector<std::filesystem::path> candidates;
     for (const std::string& name : { "baserom.us.z64" }) {
         candidates.emplace_back(exe_dir / "rom" / name);
-        candidates.emplace_back(cwd / "rom" / name);
         candidates.emplace_back(exe_dir / name);
-        candidates.emplace_back(cwd / name);
     }
     return candidates;
 }
