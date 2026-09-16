@@ -56,17 +56,19 @@
 ## TU TAREA AHORA (pasos exactos)
 
 1. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). No hay que publicar nada: se
-   compila en la carpeta compartida y el pin de `runtime.lock` (`dc22060`, el volcado del pak) existe
+   compila en la carpeta compartida y el pin de `runtime.lock` (`4e1ee0a`, pak nuevo + volcado) existe
    en el `.git` local. Si el checkout fallara, el script **aborta** en vez de compilar otro runtime.
    El árbol trae: objeto del NPC, láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática
    (`M9_FUN_80203830`) y **primer CaC** (`M10_FUN_8021d8d0`).
-2. Ejecutar `port\run_windows.bat` y jugar dos cosas:
+2. Ejecutar `port\run_windows.bat` y jugar:
    (a) el **combate cuerpo a cuerpo** que crasheaba;
-   (b) el **guardado en cápsula**: aceptar guardar, esperar el aviso final y salir.
+   (b) **GAME START** (partida nueva) y luego el **guardado en cápsula**. Con el fix del pak virgen
+      (`PFS_ERR_NEW_PACK`), el juego debe **crear su fichero** (`AllocateFile size=13568`) y guardar.
+      Si el arranque/menús se comportara raro, `set HH_PAK_NEWPACK=0` lo revierte sin recompilar.
 3. Enviarme (o dejarme en la carpeta compartida) **el final de**
-   `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log` — el volcado del pak está **activo por
-   defecto** (incluye un autotest de la API PFS al arrancar; en Linux dio `OK`). El log también dice
-   en qué ruta espera el `.pak` (es el directorio de config, no junto al exe).
+   `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log`: debe verse `osPfsAllocateFile` y el
+   guardado completando. El `.pak` vive en el directorio de config del runtime
+   (`%APPDATA%\HybridHeavenRecomp\saves\hh.us.bin.pak`, lo imprime el log).
 4. Si crashea con `Failed to find function at 0x...`: pasarme la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`; ahora con edición mínima y guardián
    `check_syms_overrides.py`).
