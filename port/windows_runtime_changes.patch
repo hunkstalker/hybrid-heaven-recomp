@@ -1,26 +1,29 @@
 diff --git a/librecomp/src/overlays.cpp b/librecomp/src/overlays.cpp
-index 22a4524..e6fe3e6 100644
+index e6fe3e6..8e60d12 100644
 --- a/librecomp/src/overlays.cpp
 +++ b/librecomp/src/overlays.cpp
-@@ -870,13 +870,18 @@ static std::atomic<unsigned long long> hh_s0fix_counter{0};
- extern "C" unsigned long long hh_s0fix_hits(void) {
-     return hh_s0fix_counter.load();
+@@ -872,7 +872,7 @@ extern "C" unsigned long long hh_s0fix_hits(void) {
  }
-+static thread_local uint32_t hh_last_valid_r16 = 0;
+ static thread_local uint32_t hh_last_valid_r16 = 0;
  static void hh_s0fix_check(uint32_t tgt, recomp_context* ctx) {
-     if (getenv("HH_S0FIX") == nullptr || ctx == nullptr) return;
--    if ((tgt & 0xFFFF0000u) != 0x80020000u) return;   // solo el recvm principal (0x800266B0)
-+    if ((tgt & 0xFFFF0000u) != 0x80020000u) return;   // solo el recv principal (0x800266B0)
+-    if (getenv("HH_S0FIX") == nullptr || ctx == nullptr) return;
++    if (ctx == nullptr) return;
+     if ((tgt & 0xFFFF0000u) != 0x80020000u) return;   // solo el recv principal (0x800266B0)
      if ((tgt & 0xFFFFu) != 0x66B0u) return;
      uint32_t r16 = (uint32_t)ctx->r16;
--    if ((r16 & 0xFFFF0000u) == 0x80030000u) return;   // ya es el puntero de estado valido
--    if (r16 >= 0x80000000u && r16 < 0x80800000u) return; // otro puntero valido: no tocar
-+    if (r16 >= 0x80000000u && r16 < 0x80800000u) {    // puntero valido: recordar el ultimo
-+        hh_last_valid_r16 = r16;
-+        return;
-+    }
-+    // r16 invalido: reparar SOLO si este hilo venia manteniendo el estado del bucle principal.
-+    if (hh_last_valid_r16 != 0x80037748u) return;
+@@ -884,11 +884,10 @@ static void hh_s0fix_check(uint32_t tgt, recomp_context* ctx) {
+     if (hh_last_valid_r16 != 0x80037748u) return;
      ctx->r16 = 0x80037748u;
      hh_s0fix_counter++;
-     if (getenv("HH_MQLOG_ALL") != nullptr) {
+-    if (getenv("HH_MQLOG_ALL") != nullptr) {
+-        static FILE* ff = nullptr;
+-        if (ff == nullptr) ff = fopen("hh_s0fix.log", "w");
+-        if (ff != nullptr) { fprintf(ff, "[S0FIX] r16 %08X -> 80037748 (tgt=%08X)\n", r16, tgt); fflush(ff); }
+-    }
++    static FILE* ff = nullptr;
++    if (ff == nullptr) ff = fopen("hh_s0fix.log", "w");
++    if (ff != nullptr) { fprintf(ff, "[S0FIX] r16 %08X -> 80037748 (tgt=%08X)\n", r16, tgt); fflush(ff); }
++    fprintf(stderr, "[S0FIX] r16 %08X -> 80037748 (recv del bucle principal)\n", r16);
+ }
+ 
+ extern "C" recomp_func_t * get_function(int32_t addr) {
