@@ -64,7 +64,7 @@ if exist "%RT64%\CMakeLists.txt" goto :rt64_present
 echo [1/4] Clonando lib/rt64 ...
 git clone https://github.com/rt64/rt64.git "%RT64%"
 if errorlevel 1 goto :err
-goto :step2
+goto :rt64_checkout
 
 :rt64_present
 echo [1/4] lib/rt64 ya existe. Comprobando repo git ...
@@ -73,9 +73,14 @@ if not exist "%RT64%\.git" (
     echo        Borra la carpeta lib\rt64 y vuelve a ejecutar.
     goto :err
 )
+
+:rt64_checkout
 pushd "%RT64%"
 git -c safe.directory=* checkout %RT64_COMMIT%
 if errorlevel 1 echo AVISO: no se pudo hacer checkout de %RT64_COMMIT% en rt64
+REM rt64 trae submodulos propios (plume, re-spirv, nativefiledialog-extended, zstd...)
+git -c safe.directory=* submodule sync --recursive
+git -c safe.directory=* submodule update --init --recursive
 popd
 
 :step2
