@@ -16,10 +16,12 @@
 > `0x803798E8`). Módulo 55 = overlay de la secuencia de objeto (`docs/architecture.md` §2.2).
 > Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
 
-1. [•] **Probar abrir cajas/obtener ítems** (usuario, en curso): si crashea con
-   `Failed to find function at 0x...`, registrar SOLO esa dirección editando a mano
-   `us_moduleNN.syms.toml` + `us_combined.syms.toml` y `tools/recomp.py ... --force` (ver nota,
-   "Ronda 9"; **no** usar `setup_module.py`: cascado de `auto_mid` → datos como código).
+1. [•] **Seguir la partida** (usuario, en curso; ya llega lejos): ante un
+   `Failed to find function at 0x...` (se ve en consola y en `hh_missing.log`), registrarlo con
+   `python3 tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config
+   config/game_combined.toml --force` (ver nota, "Ronda 9"; **no** usar `setup_module.py`: cascado
+   de `auto_mid` → datos como código). Hecho hoy: `M55_FUN_80378c48` (crash en menú).
+   Próximo hito probable: **primer combate cuerpo a cuerpo (CaC)**.
 2. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).
@@ -81,6 +83,10 @@
   de CI/release y en la imagen Docker.
 - [ ] **`LICENSE` del proyecto**: los binarios enlazan N64ModernRuntime (**GPL-3.0**) → decidir una
   licencia GPL-3.0-compatible y añadir `LICENSE` a los artefactos.
+- [x] **Mid-entry `M55_FUN_80378c48`** (2026-09-16, validado en Windows): crash en un menú
+  (`Failed to find function at 0x80378C48`) → símbolo contenedor `M55_FUN_80378bb0` partido; el
+  hueco hasta `0x80378CD8` era justo `0x90`. Recomp + build OK; usuario sigue avanzando.
+  Ver `notes/2026-09-16-crash-menu-midentry-m55-80378c48.md`.
 - [x] **Datos del juego fuera del repo** (2026-09-16): purgados de **todo el historial** los
   assets/capturas (`Referencias screenshots/`, `muestra-menu*.png`, `tests/*.png`), los `assets/`
   del juego y los datos extraídos (manifiestos, mapa de assets, dump de símbolos). El **código del

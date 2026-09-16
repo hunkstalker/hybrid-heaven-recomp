@@ -58,10 +58,13 @@ un switch fusionado) y el **cuelgue por daño del robot** en dos capas: `s0` (r1
 cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, el personaje que no se levantaba por un
 **fallthrough ausente al final de `M55_FUN_8037a6f4`** (fuga `0x38`/frame + lógica de caída saltada;
 nueva regla de ramas condicionales en `fix_fallthroughs.py`). Instrumentación de crash/cuelgue y
-bats de regresión en el repo. **Build reproducible**: receta Linux + Docker (Debian/glibc) + CI y
-Releases en GitHub (`docs/adr/0005-build-reproducible-y-artefactos.md`). Detalle:
-`notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md` y
-`notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`.
+bats de regresión en el repo. La **partida avanza** (menús, escenas 3D, NPC); los
+`Failed to find function at 0x…` se resuelven con **mid-entries** (`add_mid_entry.py` +
+`recomp --force`; p. ej. `M55_FUN_80378c48` en un menú). **Build reproducible**: receta Linux +
+Docker (Debian/glibc) + CI y Releases en GitHub (`docs/adr/0005-build-reproducible-y-artefactos.md`).
+Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`,
+`notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md` y
+`notes/2026-09-16-crash-menu-midentry-m55-80378c48.md`.
 
 | Fase | Estado | Nota |
 |---|---|---|
