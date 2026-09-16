@@ -9,7 +9,7 @@ set -eu
 
 cd /work
 
-BIN="/usr/local/bin/Hybrid Heaven Recomp"
+BIN="/usr/local/bin/hybrid-heaven-recomp"
 
 if [ "${HH_HEADLESS:-0}" = "1" ]; then
     export SDL_VIDEODRIVER="${SDL_VIDEODRIVER:-x11}"
