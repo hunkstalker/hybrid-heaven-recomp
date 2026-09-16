@@ -22,9 +22,9 @@ Publicar los cambios en **forks de GitHub** con `main` = upstream (crédito/line
 en la rama **`hybrid-heaven`**:
 
 - `hunkstalker/N64ModernRuntime` — 23 commits del runtime + 1 que apunta el submódulo al fork y
-  actualiza `.gitmodules` → HEAD de la rama `725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d`.
+  actualiza `.gitmodules` → HEAD de la rama `c976c89bbc8eb2d58d7e30b8d1e03d3ad822f7b1`.
 - `hunkstalker/N64Recomp` — `include/recomp.h` + `src/symbol_lists.cpp` →
-  `63069b9176310ba78b4fe76476d86f0b0d584ae6`.
+  `cab94d912ff858d6574974cead7dbbcca09e282f`.
 
 El build clona por **URL+SHA de `port/runtime.lock`**; sin patch y sin snapshot. `rt64` sigue
 clonándose de upstream en commit fijo (sin modificar). Ver ADR 0005.
@@ -48,7 +48,7 @@ clonándose de upstream en commit fijo (sin modificar). Ver ADR 0005.
 ## Validación
 
 - Push verificado con `git ls-remote`: `main` de ambos forks = upstream y `hybrid-heaven` = nuestros
-  SHA esperados (725a5a8… y 63069b9…).
+  SHA esperados (c976c89… y cab94d9…).
 - `sh -n` de scripts, YAML de workflows/compose y `docs_index.py --check` OK.
 - Pendiente de validar en CI (primer push del port): build Linux por Docker y Windows en
   `windows-latest` (clon limpio de los forks).

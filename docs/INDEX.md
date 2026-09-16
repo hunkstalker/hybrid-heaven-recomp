@@ -39,7 +39,7 @@
 |---|---|---|---|
 | [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
 | [2026-09-16 — Plan de la próxima sesión: limpieza de rutas/referencias y pipeline de compilación](../notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md) | Plan consolidado y **aprobado por el usuario** (queda ejecutarlo). Es la tarea que `RETOMAR.md` debe | 231 | 2026-09-16 |
-| [2026-09-16 — Limpieza de rutas/referencias y pipeline de compilación (ejecución del plan)](../notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md) | Nota de sesión. Ejecuta el plan consolidado | 120 | 2026-09-16 |
+| [2026-09-16 — Limpieza de rutas/referencias y pipeline de compilación (ejecución del plan)](../notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md) | Nota de sesión. Ejecuta el plan consolidado | 142 | 2026-09-16 |
 | [2026-09-16 — Limpieza del repo: purga de `.vs/` e inventario de candidatos](../notes/2026-09-16-limpieza-repo-inventario.md) | Contexto: el usuario crea el repo en GitHub (`hunkstalker/hybrid-heaven-recomp`) y pide limpiar | 67 | 2026-09-16 |
 | [2026-09-16 — Guardado en cápsula (Controller Pak) sin UI de slots + crash de CaC `0x8021D8D0`](../notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md) | ``` | 195 | 2026-09-16 |
 | [2026-09-16 — Fix del estado de caída: fallthrough M55 `0x8037A6F4` → `0x8037A884` (fuga `0x38`/frame)](../notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md) | Continúa `2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md` (ronda 14). Ahí quedó: láser | 94 | 2026-09-16 |

@@ -78,7 +78,7 @@ Verificado: build Linux incremental del port OK tras los cambios.
   Su contenido queda documentado en `port/README_windows.md` §2b para poder recrearlo.
 - `.gitignore`: añadida la línea `port/build_windows.local.bat`.
 - `port/runtime.lock`: `NMR_COMMIT` vuelve al SHA **publicado**
-  `725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d` y el comentario explica que el pin solo se mueve tras
+  `c976c89bbc8eb2d58d7e30b8d1e03d3ad822f7b1` y el comentario explica que el pin solo se mueve tras
   publicar (para probar local, el `.bat` local).
 - `port/build_windows.bat`: imprime **siempre** la ruta + commit del runtime y si omitió git/revisó
   git, además del pin (`NMR_URL`@`NMR_COMMIT`). Mantiene el aborto si el commit fijado no existe.
@@ -105,12 +105,34 @@ de los forks.
   entorno de esta sesión). Al validar: `HH_HEADLESS=1` con `rom/` montado en `/work/rom`.
 - `docs/INDEX.md` regenerado; `TODO.md`, `PROYECTO.md`, `RETOMAR.md` y `AGENTS.md` actualizados.
 
-## Bloque 8 — Identidad de los commits
+## Bloque 8 — Identidad de los commits (8.B, preparado)
 
-Se prepara **8.B** (aplicar `Denis Anfruns Millán <daanfruns@gmail.com>` a todo el historial propio,
-author y committer) en el orden de la cadena de referencias: N64Recomp → N64ModernRuntime
-(actualizando el puntero del submódulo) → main (actualizando `runtime.lock`). Los `force-push` los
-lanza el usuario. La identidad local de los 3 repos ya queda configurada al nombre objetivo.
+Identidad objetivo: `Denis Anfruns Millán <daanfruns@gmail.com>` (author **y** committer) en **todo**
+el historial propio de los 3 repos, **preservando intactos los commits upstream** (autores y firmas).
+
+Método: **rebase/reescritura solo de los commits propios**, no `filter-branch` global. Se descartó
+`filter-branch --all` porque reescribía también los commits de upstream (les quitaba la firma GPG).
+- N64Recomp: `git rebase --exec 'git commit --amend --no-edit --reset-author' <base upstream>`
+  (1 commit propio).
+- N64ModernRuntime: reescritura de los 30 commits propios por la vía de objetos (`git commit-tree`
+  con author/committer objetivo y fechas originales), sin tocar el árbol de trabajo (el montaje 9p
+  del host da `Permission denied` al borrar/renombrar algunos ficheros). Luego se añade un commit
+  que actualiza el gitlink de `N64Recomp` al SHA nuevo.
+- Main: `filter-branch` sobre `main` (todos los commits son propios).
+
+Cadena de SHAs (antes → después), con copias de seguridad en ramas `backup/pre-identidad`:
+
+| Repo | Antes | Después |
+|---|---|---|
+| N64Recomp | `63069b9…` | `cab94d912ff858d6574974cead7dbbcca09e282f` |
+| N64ModernRuntime (tip) | `6a518eb…` | `feae2d564bac2f31ba51865f2ead97de74d311d4` |
+| N64ModernRuntime (= 725a5a8 reescrito) | `725a5a8…` | `c976c89bbc8eb2d58d7e30b8d1e03d3ad822f7b1` |
+
+- `port/runtime.lock` apunta al **tip reescrito** (`feae2d5…`) y al SHA nuevo de N64Recomp; es válido
+  en cuanto el usuario haga **force-push** de los forks (N64Recomp → N64ModernRuntime → main).
+- Referencias a SHAs de runtime en `TODO.md`/`notes/` actualizadas al mapa nuevo; las referencias a
+  commits del repo `main` quedan como históricas (los hashes de `main` cambian al reescribirse).
+- El commit de `events.cpp` del fork (antes `6a518eb…`) queda en `b01d4b4bcec…`.
 
 ## Resumen
 

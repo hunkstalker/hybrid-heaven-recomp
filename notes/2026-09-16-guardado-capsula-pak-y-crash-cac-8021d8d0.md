@@ -54,7 +54,7 @@ No hay "SAVE" en el menú de pausa. El guardado es **en el mundo**, mediante **c
 
 ## 3. Instrumentación añadida (Fase 1, aprobada)
 
-Runtime (**fork**, commits locales `dc22060`+`4e1ee0a`): volcado a **fichero** (compartido por `pak.cpp` e
+Runtime (**fork**, commits locales `afff411`+`2170683`): volcado a **fichero** (compartido por `pak.cpp` e
 `input.cpp`), **activo por defecto** durante esta fase:
 
 - `hh_pak.log` en el **directorio del exe** (que es donde `run_windows.bat` pone el CWD). `HH_PAKLOG=0`
@@ -74,7 +74,7 @@ runtime. En Linux el log lo imprime: `~/.local/share/HybridHeavenRecomp/saves/hh
 (en Windows, el equivalente bajo `%APPDATA%`). Conviene confirmarlo en el log del usuario antes de
 concluir "no hay `saves/`" mirando junto al exe.
 
-- `port/runtime.lock`: `NMR_COMMIT` → `4e1ee0a892aee41d778e4f578e7e5f9457e5a5a2`.
+- `port/runtime.lock`: `NMR_COMMIT` → `217068304201b221594f99995d3e2024754224a3`.
 - `port/build_windows.bat` / `tools/build_linux.sh`: si no se puede hacer checkout del commit fijado
   **abortan** con mensaje claro en vez de compilar un runtime distinto. Como la carpeta de trabajo es
   la compartida, el checkout del commit local funciona **sin publicar el fork**.
@@ -97,7 +97,7 @@ Ese "creado y vacío" fue la pista: el fallo estaba **dentro de la primera líne
 
 **Causa**: el CRT de Windows considera inválido `setvbuf(stream, NULL, _IOLBF, 0)` y llama al
 *invalid parameter handler* → fast-fail `0xC0000409`. En Linux no ocurre. Además el tamaño 0 no
-aporta nada porque el log hace `fflush` por línea. **Fix** (`dc22060`): quitar `setvbuf`, pasar los
+aporta nada porque el log hace `fflush` por línea. **Fix** (`afff411`): quitar `setvbuf`, pasar los
 `%zu` a `%u` (portabilidad MSVC) y dejar el autotest como opt-in.
 
 **Primer volcado útil** (arranque del juego, que ya lee datos de guardado):
@@ -160,12 +160,12 @@ fichero existía y leía/escribía con un `file_no` basura (los 95/233/237 del l
 → "Could not save". Con **5**, el wrapper devuelve 3 (no-cero) y el juego detecta que no hay fichero
 (y puede crear el suyo con el dispatcher op 2 → `AllocateFile` de 0x3500).
 
-**Fix** (runtime `ff70e20`):
+**Fix** (runtime `0619945`):
 - `osPfsFindFile`: no encontrado → `*file_no = -1` y retorno **5**.
 - `osPfsDeleteFile`: no encontrado → **5** (el ROM lo propaga de FindFile).
 - `osPfsAllocateFile`: sin espacio → **9** (data full, como el ROM).
 
-### 6.1 Intento descartado: pak virgen → `PFS_ERR_NEW_PACK` (runtime `4e1ee0a`)
+### 6.1 Intento descartado: pak virgen → `PFS_ERR_NEW_PACK` (runtime `2170683`)
 
 Antes de desensamblar probé que un pak virgen devolviera `PFS_ERR_NEW_PACK` (el dispatcher
 `FUN_800183D0` op 2 = crear ficheros → `M7_FUN_801414B0` → `osPfsAllocateFile` size **0x3500** =

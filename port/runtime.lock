@@ -1,10 +1,12 @@
 # Runtime del port (forks propios, rama hybrid-heaven). Lo leen tools/build_linux.sh y
 # port/build_windows.bat: clonan por URL y hacen checkout de NMR_COMMIT (no hay patch).
-# Actualizar aqui SOLO tras publicar los commits del fork (el pin debe ser reproducible para
-# terceros). Para probar commits locales sin publicar, usar port/build_windows.local.bat, que
-# compila el arbol local de lib/ sin tocar git.
+#
+# SHAs reescritos (bloque 8.B): TODOS los commits de los forks cambiaron de identidad; el pin
+# apunta al tip reescrito de la rama hybrid-heaven (incluye los commits de runtime de la sesion).
+# Es valido en cuanto el usuario haga force-push de los forks (N64Recomp y despues N64ModernRuntime).
+# Para probar el arbol local sin publicar, usar port/build_windows.local.bat (no toca git).
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=725a5a827c9b2bc836fc8e4a5fa5dcd5f9bb3f9d
+NMR_COMMIT=feae2d564bac2f31ba51865f2ead97de74d311d4
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
-N64RECOMP_COMMIT=63069b9176310ba78b4fe76476d86f0b0d584ae6
+N64RECOMP_COMMIT=cab94d912ff858d6574974cead7dbbcca09e282f
