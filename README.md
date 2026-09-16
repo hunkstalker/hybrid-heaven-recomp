@@ -4,6 +4,10 @@ Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyec
 **RZ011**) por **recompilación estática** con el stack N64Recomp + RT64 + N64ModernRuntime.
 Plataformas objetivo: **Windows, Linux y Steam Deck**.
 
+> **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos,
+> incompatibilidades, regresiones y cambios que rompan partidas guardadas. Las builds de *Releases*
+> son de prueba. El estado real y las tareas: `PROYECTO.md` y `TODO.md`.
+
 - **`PROYECTO.md`** → contexto maestro: motor Konami confirmado (tabla Nisitenma-Ichigo +
   LZKN64), mapa de la ROM, decisiones de arquitectura, roadmap y riesgos. **_Actualizar aquí
   en cada sesión._**

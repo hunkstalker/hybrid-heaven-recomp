@@ -10,7 +10,7 @@
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 87 | 2026-09-16 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 120 | 2026-09-16 |
-| [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 58 | 2026-09-16 |
+| [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 62 | 2026-09-16 |
 | [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 129 | 2026-09-16 |
 
 ## Técnico y guías (vivos)
