@@ -57,6 +57,7 @@ licencias respectivas.
 
 ## Licencia de este proyecto
 
-El port enlaza **N64ModernRuntime (GPL-3.0)**, por lo que su distribución debe cumplir GPL-3.0
-(código fuente disponible + avisos). Pendiente decidir/añadir el `LICENSE` del propio proyecto y
-empaquetar estos avisos en los artefactos (ver `TODO.md`).
+El proyecto se distribuye bajo **GPL-3.0** (texto en [`LICENSE`](LICENSE)): es un proyecto
+**público y comunitario**. La combinación enlaza **N64ModernRuntime (GPL-3.0)**, por lo que esta
+licencia cumple los requisitos (código fuente disponible + avisos de terceros, que están en este
+documento). `CREDITOS.md`/`LICENCIA.txt` se incluyen en los artefactos publicados.

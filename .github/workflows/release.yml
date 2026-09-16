@@ -99,6 +99,7 @@ jobs:
           # Sin espacios: el parser de COPY con comillas+espacios falla en buildx.
           cp "imgctx/HybridHeavenRecomp-Linux/Hybrid Heaven Recomp" imgctx/hh-bin
           cp "imgctx/HybridHeavenRecomp-Linux/CREDITOS.md" imgctx/CREDITOS.md
+          cp "imgctx/HybridHeavenRecomp-Linux/LICENCIA.txt" imgctx/LICENCIA.txt
           cp docker/entrypoint.sh imgctx/
       - uses: docker/login-action@v3
         with:

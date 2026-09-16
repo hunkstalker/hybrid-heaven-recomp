@@ -54,9 +54,16 @@ submódulo `N64Recomp`). Guías: `port/README_windows.md`, `port/README_linux.md
 El estado y las tareas viven en **`PROYECTO.md`**, **`TODO.md`** y **`RETOMAR.md`** (una sola fuente
 por tema; aquí no se duplican). Para arrancar una sesión: `AGENTS.md`.
 
-## Créditos y licencias
+## Licencia
 
-El port se apoya en proyectos de terceros: **N64ModernRuntime** (GPL-3.0, equipo N64Recomp),
-**N64Recomp** y **RT64** (MIT), más xxHash/miniz/o1heap. Autoría, licencias y commits exactos:
-[`CREDITS.md`](CREDITS.md). El repositorio **no** incluye la ROM de Hybrid Heaven (© Konami): la
-aporta cada usuario en runtime.
+**Software libre bajo GPL-3.0** — ver [`LICENSE`](LICENSE). Es un proyecto **público y
+comunitario**: nace de recompilación estática con ayuda de IA (entrenada con código de la
+comunidad), así que devuelve el resultado a la comunidad con las mismas libertades. Al enlazar
+**N64ModernRuntime (GPL-3.0)**, esta licencia es compatible y cumple los requisitos (fuente
+disponible + avisos).
+
+## Créditos y licencias de terceros
+
+El port se apoya en: **N64ModernRuntime** (GPL-3.0, equipo N64Recomp), **N64Recomp** y **RT64**
+(MIT), más xxHash/miniz/o1heap. Autoría, licencias y commits exactos: [`CREDITS.md`](CREDITS.md).
+El repositorio **no** incluye la ROM de Hybrid Heaven (© Konami): la aporta cada usuario en runtime.

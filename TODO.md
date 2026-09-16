@@ -81,8 +81,9 @@
 - [x] **Créditos de terceros**: `CREDITS.md` (NMR GPL-3.0; N64Recomp/RT64/SDL2 MIT/Zlib; submódulos
   xxHash/miniz/o1heap; herramientas de desarrollo). Se incluye como `CREDITOS.md` en el `.zip`/`.tar.gz`
   de CI/release y en la imagen Docker.
-- [ ] **`LICENSE` del proyecto**: los binarios enlazan N64ModernRuntime (**GPL-3.0**) → decidir una
-  licencia GPL-3.0-compatible y añadir `LICENSE` a los artefactos.
+- [x] **`LICENSE` = GPL-3.0** (2026-09-16): proyecto **público y comunitario**; compatible con
+  N64ModernRuntime (GPL-3.0). `LICENSE` en el repo y se incluye en los artefactos
+  (`.zip`/`.tar.gz` → `LICENCIA.txt`, imagen → `/usr/local/share/doc/...`).
 - [x] **Mid-entry `M55_FUN_80378c48`** (2026-09-16, validado en Windows): crash en un menú
   (`Failed to find function at 0x80378C48`) → símbolo contenedor `M55_FUN_80378bb0` partido; el
   hueco hasta `0x80378CD8` era justo `0x90`. Recomp + build OK; usuario sigue avanzando.
