@@ -1,17 +1,3793 @@
+diff --git a/librecomp/include/librecomp/overlays.hpp b/librecomp/include/librecomp/overlays.hpp
+index 2e8ab02..e411ab2 100644
+--- a/librecomp/include/librecomp/overlays.hpp
++++ b/librecomp/include/librecomp/overlays.hpp
+@@ -46,6 +46,19 @@ namespace recomp {
+         void add_loaded_function(int32_t ram_addr, recomp_func_t* func);
+         void register_flat_code();
+ 
++        // HH: módulos de código con base reutilizada. El juego pide la carga al loader
++        // (`FUN_80003824`) con el offset de ROM retail del blob (a0); el runtime registra la
++        // sección recompilada correspondiente en la base de RAM que pide el juego (a1). Así un
++        // módulo puede reemplazar a otro en la misma VRAM (p.ej. idx 24 sobre la base de idx 23).
++        // OJO: `init_overlays` ordena las secciones por `rom_addr`, así que el registro busca por
++        // el offset del ROM combinado, no por índice fijo.
++        struct ModuleSource {
++            uint32_t src_rom;   // offset del blob en la ROM retail (a0 del loader)
++            uint32_t rom_addr;  // offset de la sección en el ROM combinado (clave de sección)
++        };
++        void register_module_sources(const ModuleSource* sources, size_t count);
++        void load_module_by_source(uint32_t src_rom, int32_t ram_addr);
++
+         struct BasePatchedFunction {
+             size_t patch_section;
+             size_t function_index;
+diff --git a/librecomp/include/librecomp/rsp.hpp b/librecomp/include/librecomp/rsp.hpp
+index 748558c..9b9a59e 100644
+--- a/librecomp/include/librecomp/rsp.hpp
++++ b/librecomp/include/librecomp/rsp.hpp
+@@ -2,6 +2,7 @@
+ #define __RSP_H__
+ 
+ #include <cstdio>
++#include <cstdlib>
+ 
+ #include "rsp_vu.hpp"
+ #include "recomp.h"
+@@ -97,7 +98,12 @@ static inline void RSP_MEM_H_STORE(uint32_t offset, uint32_t addr, uint32_t val)
+ static inline void dma_rdram_to_dmem(uint8_t* rdram, uint32_t dmem_addr, uint32_t dram_addr, uint32_t rd_len) {
+     rd_len += 1; // Read length is inclusive
+     dram_addr &= 0xFFFFF8;
+-    assert(dmem_addr + rd_len <= 0x1000);
++    // NDEBUG desactiva los asserts: un DMA fuera de DMEM corromperia globals. Chequeo real.
++    if (dmem_addr + rd_len > 0x1000) {
++        static int hh_n = 0;
++        if (hh_n++ < 20) fprintf(stderr, "[RSPDMA] OVERFLOW R dmem=%03X len=%X dram=%08X (clamp)\n", (unsigned)dmem_addr, (unsigned)rd_len, (unsigned)dram_addr);
++        rd_len = (dmem_addr < 0x1000) ? (0x1000 - dmem_addr) : 0;
++    }
+     for (uint32_t i = 0; i < rd_len; i++) {
+         RSP_MEM_B(i, dmem_addr) = MEM_B(0, (int64_t)(int32_t)(dram_addr + i + 0x80000000));
+     }
+@@ -106,7 +112,42 @@ static inline void dma_rdram_to_dmem(uint8_t* rdram, uint32_t dmem_addr, uint32_
+ static inline void dma_dmem_to_rdram(uint8_t* rdram, uint32_t dmem_addr, uint32_t dram_addr, uint32_t wr_len) {
+     wr_len += 1; // Write length is inclusive
+     dram_addr &= 0xFFFFF8;
+-    assert(dmem_addr + wr_len <= 0x1000);
++    if (dmem_addr + wr_len > 0x1000) {
++        static int hh_n = 0;
++        if (hh_n++ < 20) fprintf(stderr, "[RSPDMA] OVERFLOW W dmem=%03X len=%X (clamp)\n", (unsigned)dmem_addr, (unsigned)wr_len);
++        wr_len = (dmem_addr < 0x1000) ? (0x1000 - dmem_addr) : 0;
++    }
++    if (dram_addr + wr_len > 0x800000) {
++        static int hh_n = 0;
++        if (hh_n++ < 20) fprintf(stderr, "[RSPDMA] OVERFLOW W dram=%08X len=%X (clamp)\n", (unsigned)dram_addr, (unsigned)wr_len);
++        wr_len = (dram_addr < 0x800000) ? (0x800000 - dram_addr) : 0;
++    }
++    // HH diag: avisar si el ucode escribe fuera de su workspace de audio o sobre el objeto RSP.
++    {
++        uint32_t end = dram_addr + wr_len;
++        bool bad = false; (void)end;
++        // HH: las voces viven en descriptor+0x60..+0x67 y su buffer AI empieza en +0x70.
++        // Un DMA que pise descriptor+0x00..+0x6F corrompe el estado del driver de audio.
++        if (getenv("HH_CTXWATCH") != nullptr) {
++            struct { uint32_t lo, hi; const char* name; } voices[] = {
++                { 0xC79F0u, 0xC7A60u, "v1" },
++                { 0xC89E0u, 0xC8A50u, "v2" },
++                { 0xC99D0u, 0xC9A40u, "v3" },
++                { 0x1BBD60u, 0x1BBD80u, "bd6d" },
++            };
++            for (auto& v : voices) {
++                if (dram_addr < v.hi && end > v.lo) {
++                    static int hh_n = 0;
++                    if (hh_n++ < 80) fprintf(stderr, "[RSPW] PISA %s dram=%06X len=%X dmem=%03X\n",
++                        v.name, (unsigned)dram_addr, (unsigned)wr_len, (unsigned)dmem_addr);
++                }
++            }
++        }
++        if (bad) {
++            static int hh_n = 0;
++            if (hh_n++ < 40) fprintf(stderr, "[RSPW] sospechoso dram=%06X len=%X dmem=%03X\n", (unsigned)dram_addr, (unsigned)wr_len, (unsigned)dmem_addr);
++        }
++    }
+     for (uint32_t i = 0; i < wr_len; i++) {
+         MEM_B(0, (int64_t)(int32_t)(dram_addr + i + 0x80000000)) = RSP_MEM_B(i, dmem_addr);
+     }
+diff --git a/librecomp/src/ai.cpp b/librecomp/src/ai.cpp
+index 0195f2b..bf4e6b9 100644
+--- a/librecomp/src/ai.cpp
++++ b/librecomp/src/ai.cpp
+@@ -1,27 +1,75 @@
+ #include "recomp.h"
+ #include <cstdio>
++#include <chrono>
+ #include <string>
+ #include <ultramodern/ultra64.h>
+ #include <ultramodern/ultramodern.hpp>
+ 
+ #define VI_NTSC_CLOCK 48681812
+ 
++static double hh_ms() {
++    static const auto t0 = std::chrono::steady_clock::now();
++    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
++}
++
+ extern "C" void osAiSetFrequency_recomp(uint8_t* rdram, recomp_context* ctx) {
+     uint32_t freq = ctx->r4;
+     // This makes actual audio frequency more accurate to console, but may not be desirable
+     //uint32_t dacRate = (uint32_t)(((float)VI_NTSC_CLOCK / freq) + 0.5f);
+     //freq = VI_NTSC_CLOCK / dacRate;
++    HH_LOG("[AI ] t=%.0f set_freq freq=%u\n", hh_ms(), (unsigned)freq);
+     ctx->r2 = freq;
+     ultramodern::set_audio_frequency(freq);
+ }
+ 
+ extern "C" void osAiSetNextBuffer_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    ultramodern::queue_audio_buffer(rdram, ctx->r4, ctx->r5);
++    uint32_t bytes = ctx->r5;
++    // HH: el driver de audio de este juego programa AI_DACRATE por MMIO (no usa osAiSetFrequency).
++    // El puerto ignora ese registro y se queda en 48 kHz por defecto -> desajuste de tasa
++    // (audio a tirones/ralentizado). Leer el registro del area MMIO (0xA4500004 -> offset
++    // 0x24500004) y adaptar la frecuencia si cambio. VI_NTSC_CLOCK ~ 48681812 Hz.
++    {
++        static uint32_t hh_last_freq = 0xFFFFFFFFu;
++        uint32_t dacrate = *(uint32_t*)&rdram[0x24500004];
++        uint32_t freq;
++        if (dacrate == 0 || dacrate == 0xFFFFFFFFu) {
++            // El juego no programa AI_DACRATE y produce 720 frames por VI: a 60 VI/s eso son
++            // 43200 Hz exactos. (Mupen usa 44100 por defecto, que deja un deficit del 2% ->
++            // huecos/petardeo.) Configurable con HH_AI_RATE=<hz>.
++            const char* rate_env = getenv("HH_AI_RATE");
++            freq = (rate_env != nullptr && *rate_env != '\0')
++                       ? (uint32_t)strtoul(rate_env, nullptr, 10) : 43200u;
++            if (freq == 0) freq = 43200u;
++        }
++        else {
++            freq = (uint32_t)((double)VI_NTSC_CLOCK / (double)(dacrate + 1) + 0.5);
++        }
++        if (freq != hh_last_freq && freq >= 4000 && freq <= 192000) {
++            hh_last_freq = freq;
++            fprintf(stderr, "[AI ] AI rate: dacrate=%u -> %u Hz\n", dacrate, freq);
++            ultramodern::set_audio_frequency(freq);
++        }
++    }
++    // HH: el driver de audio calcula el tamano con (0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0
++    // y lo guarda en un s16. Si la cola virtual supera esa ventana (bursts de ticks), el resultado
++    // hace wrap y se convierte en un byte_count negativo (~4 GiB) que envenenaria la cola de audio
++    // (osAiGetLength gigante -> command lists runaway que pisan los contextos de voz).
++    // Un byte_count negativo o absurdo no corresponde a ningun buffer real: se ignora.
++    if ((int32_t)bytes < 0 || bytes > 0x200000u) {
++        static int hh_n = 0;
++        if (hh_n++ < 20) fprintf(stderr, "[AI ] set_next IGNORADO ptr=%08X bytes=%d (wrap del juego)\n", (unsigned)ctx->r4, (int32_t)bytes);
++        ctx->r2 = 0;
++        return;
++    }
++    HH_LOG("[AI ] t=%.0f set_next ptr=%08X bytes=%u rem=%u\n", hh_ms(), (unsigned)ctx->r4, bytes, ultramodern::get_remaining_audio_bytes());
++    ultramodern::queue_audio_buffer(rdram, ctx->r4, bytes);
+     ctx->r2 = 0;
+ }
+ 
+ extern "C" void osAiGetLength_recomp(uint8_t* rdram, recomp_context* ctx) {
+     ctx->r2 = ultramodern::get_remaining_audio_bytes();
++    static uint64_t n = 0;
++    if ((n++ & 0x3F) == 0) HH_LOG("[AI ] t=%.0f get_length -> %u (n=%llu)\n", hh_ms(), (unsigned)ctx->r2, (unsigned long long)n);
+ }
+ 
+ extern "C" void osAiGetStatus_recomp(uint8_t* rdram, recomp_context* ctx) {
+diff --git a/librecomp/src/cont.cpp b/librecomp/src/cont.cpp
+index 7ad6c21..e7a68be 100644
+--- a/librecomp/src/cont.cpp
++++ b/librecomp/src/cont.cpp
+@@ -1,5 +1,8 @@
+ #include "ultramodern/ultramodern.hpp"
+ 
++#include <cstdio>
++#include <cstdlib>
++
+ #include "helpers.hpp"
+ 
+ #define MAXCONTROLLERS 4
+@@ -49,14 +52,23 @@ extern "C" void osContGetReadData_recomp(uint8_t* rdram, recomp_context* ctx) {
+ 
+     osContGetReadData(dummy_data);
+ 
+-    for (int controller = 0; controller < MAXCONTROLLERS; controller++) {
+-        if (dummy_data[controller].err_no == 0) {
+-            MEM_H(6 * controller + 0, data) = dummy_data[controller].button;
+-            MEM_B(6 * controller + 2, data) = dummy_data[controller].stick_x;
+-            MEM_B(6 * controller + 3, data) = dummy_data[controller].stick_y;
+-            MEM_B(6 * controller + 4, data) = dummy_data[controller].err_no;
++    if (std::getenv("HH_INLOG") != nullptr) {
++        static uint16_t pad_last = 0;
++        if (dummy_data[0].button != pad_last) {
++            std::fprintf(stderr, "[PAD] c0 button=0x%04X err=%u\n", dummy_data[0].button, (unsigned)dummy_data[0].err_no);
++            pad_last = dummy_data[0].button;
+         }
+     }
++
++    for (int controller = 0; controller < MAXCONTROLLERS; controller++) {
++        // libultra writes an OSContPad for every controller, including absent ones (with
++        // err_no = CONT_NO_RESPONSE_ERROR). Skipping absent controllers leaves stale values
++        // in the game's buffer, which game logic can misread as "controller connected".
++        MEM_H(6 * controller + 0, data) = dummy_data[controller].button;
++        MEM_B(6 * controller + 2, data) = dummy_data[controller].stick_x;
++        MEM_B(6 * controller + 3, data) = dummy_data[controller].stick_y;
++        MEM_B(6 * controller + 4, data) = dummy_data[controller].err_no;
++    }
+ }
+ 
+ extern "C" void osContStartQuery_recomp(uint8_t * rdram, recomp_context * ctx) {
 diff --git a/librecomp/src/overlays.cpp b/librecomp/src/overlays.cpp
-index 8e60d12..5996092 100644
+index 20e07d9..5996092 100644
 --- a/librecomp/src/overlays.cpp
 +++ b/librecomp/src/overlays.cpp
-@@ -873,6 +873,12 @@ extern "C" unsigned long long hh_s0fix_hits(void) {
- static thread_local uint32_t hh_last_valid_r16 = 0;
- static void hh_s0fix_check(uint32_t tgt, recomp_context* ctx) {
-     if (ctx == nullptr) return;
+@@ -1,9 +1,12 @@
+ #include <algorithm>
+ #include <cassert>
++#include <chrono>
++#include <cstdarg>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+ #include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ #include "ultramodern/ultramodern.hpp"
+@@ -16,6 +19,27 @@
+ static recomp::overlays::overlay_section_table_data_t sections_info {};
+ static recomp::overlays::overlays_by_index_t overlays_info {};
+ 
++// HH: registro con marca de tiempo de carga de overlays/modulos (hh_ovl.log, acotado) para
++// correlacionar escenas y transiciones con hh_state.log y hh_pi.log.
++static void hh_ovl_log(const char* fmt, ...) {
++    static FILE* f = nullptr;
++    static long total = 0;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_ovl.log", "w");
++        if (f == nullptr) return;
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (total > (8L * 1024 * 1024)) return;
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    va_list args;
++    va_start(args, fmt);
++    total += fprintf(f, "[OVL] t=%.3f ", t);
++    total += vfprintf(f, fmt, args);
++    va_end(args);
++    fflush(f);
++}
++
+ static SectionTableEntry* patch_code_sections = nullptr;
+ size_t num_patch_code_sections = 0;
+ static std::vector<char> patch_data;
+@@ -38,6 +62,8 @@ static std::unordered_map<uint32_t, uint16_t> code_sections_by_rom{};
+ static std::unordered_map<uint32_t, uint16_t> patch_code_sections_by_rom{};
+ static std::vector<LoadedSection> loaded_sections{};
+ static std::unordered_map<int32_t, recomp_func_t*> func_map{};
++static std::unordered_map<uint32_t, uint32_t> module_sources{};
++static std::unordered_set<uint32_t> module_rom_addrs{};
+ static std::unordered_map<std::string, recomp_func_t*> base_exports{};
+ static std::unordered_map<std::string, recomp_func_ext_t*> ext_base_exports{};
+ static std::unordered_map<std::string, size_t> base_events;
+@@ -151,10 +177,26 @@ void recomp::overlays::add_loaded_function(int32_t ram, recomp_func_t* func) {
+     func_map[ram] = func;
+ }
+ 
++// HH: registra el módulo recompilado que corresponde al blob de ROM que el juego carga.
++void recomp::overlays::register_module_sources(const ModuleSource* sources, size_t count) {
++    module_sources.clear();
++    module_rom_addrs.clear();
++    for (size_t i = 0; i < count; i++) {
++        uint32_t src = sources[i].src_rom & 0x1FFFFFFFu;
++        module_sources.emplace(src, sources[i].rom_addr);
++        module_rom_addrs.insert(sources[i].rom_addr);
++    }
++}
++
+ // Registers every function of every code section at its absolute ram_addr. This is used for flat
+ // (non-overlay) code where each section has its own absolute ram_addr that isn't entrypoint-relative.
+ void recomp::overlays::register_flat_code() {
+     for (size_t section_index = 0; section_index < sections_info.num_code_sections; section_index++) {
++        // HH: los módulos con registro dinámico (module_sources) NO se registran en su base fija:
++        // el juego puede reutilizar la misma VRAM para otro módulo (se registran al cargarse).
++        if (module_rom_addrs.count(sections_info.code_sections[section_index].rom_addr) != 0) {
++            continue;
++        }
+         const SectionTableEntry& section = sections_info.code_sections[section_index];
+         for (size_t function_index = 0; function_index < section.num_funcs; function_index++) {
+             const FuncEntry& func = section.funcs[function_index];
+@@ -165,6 +207,9 @@ void recomp::overlays::register_flat_code() {
+ 
+ void load_overlay(size_t section_table_index, int32_t ram) {
+     const SectionTableEntry& section = sections_info.code_sections[section_table_index];
++    hh_ovl_log("load section=%zu idx=%u rom=%08X ram=%08X funcs=%zu\n", section_table_index,
++               (unsigned)section.index, (unsigned)section.rom_addr, (unsigned)ram,
++               (size_t)section.num_funcs);
+ 
+     for (size_t function_index = 0; function_index < section.num_funcs; function_index++) {
+         const FuncEntry& func = section.funcs[function_index];
+@@ -175,6 +220,27 @@ void load_overlay(size_t section_table_index, int32_t ram) {
+     section_addresses[section.index] = ram;
+ }
+ 
++// HH: registra la sección del módulo que corresponde al blob cargado (ver overlays.hpp).
++void recomp::overlays::load_module_by_source(uint32_t src_rom, int32_t ram_addr) {
++    auto it = module_sources.find(src_rom & 0x1FFFFFFFu);
++    if (it == module_sources.end()) {
++        return;
++    }
++    // Las secciones están ordenadas por rom_addr (init_overlays): buscar la posición actual.
++    for (size_t i = 0; i < sections_info.num_code_sections; i++) {
++        if (sections_info.code_sections[i].rom_addr == it->second) {
++            hh_ovl_log("module src=%06X section=%zu rom=%08X ram=%08X\n",
++                       (unsigned)(src_rom & 0x1FFFFFFFu), i, (unsigned)it->second, (unsigned)ram_addr);
++            if (getenv("HH_TBLTRACE") != nullptr) {
++                fprintf(stderr, "[OVL] src=%06X -> section[%zu] rom=%08X at %08X\n",
++                        (unsigned)(src_rom & 0x1FFFFFFFu), i, (unsigned)it->second, (unsigned)ram_addr);
++            }
++            load_overlay(i, ram_addr);
++            return;
++        }
++    }
++}
++
+ static void load_special_overlay(const SectionTableEntry& section, int32_t ram) {
+     for (size_t function_index = 0; function_index < section.num_funcs; function_index++) {
+         const FuncEntry& func = section.funcs[function_index];
+@@ -378,16 +444,582 @@ recomp_func_t* recomp::overlays::get_func_by_section_rom_function_vram(uint32_t
+ // funciones faltantes en un solo run. Solo para depuración de símbolos.
+ static void soft_missing_func(uint8_t*, recomp_context*) {}
+ 
++static FILE* hh_calltrace_fp = nullptr;
++static unsigned long hh_calltrace_n = 0;
++static void hh_calltrace(uint32_t a) {
++    if (hh_calltrace_fp == nullptr) {
++        const char* e = getenv("HH_CALLTRACE");
++        if (e == nullptr || *e == 0) return;
++        hh_calltrace_fp = fopen(e, "wb");
++        if (hh_calltrace_fp == nullptr) return;
++    }
++    fwrite(&a, 4, 1, hh_calltrace_fp);
++    if ((++hh_calltrace_n & 0xFFF) == 0) fflush(hh_calltrace_fp);
++}
++
++// HH resource-table tracing (HH_TBLTRACE=1): runtime-side wrappers around the table helpers so the
++// arguments/results can be observed without modifying the generated C.
++static recomp_func_t* hh_real_FUN_80017064 = nullptr; // id -> index (-1 if absent)
++static recomp_func_t* hh_real_FUN_80017014 = nullptr; // table[index] -> id (0xFFFF if oob)
++static recomp_func_t* hh_real_FUN_800045e8 = nullptr; // register resource by id
++static recomp_func_t* hh_real_FUN_80017384 = nullptr; // set id at index
++static recomp_func_t* hh_real_FUN_800173b8 = nullptr; // set ptr at index
++static recomp_func_t* hh_real_FUN_80125814 = nullptr; // registration step
++static recomp_func_t* hh_real_FUN_80125808 = nullptr; // read-flag + fallthrough to register step
++static recomp_func_t* hh_real_FUN_80124ed8 = nullptr; // resource registration state machine
++
++static bool hh_trc() {
++    static const bool enabled = getenv("HH_TRCTRACE") != nullptr;
++    return enabled;
++}
++static void hh_wrap_FUN_80017064(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t id = (uint32_t)ctx->r4 & 0xFFFF;
++    uint32_t sp_before = (uint32_t)ctx->r29;
++    uint32_t ra_before = (uint32_t)ctx->r31;
++    hh_real_FUN_80017064(rdram, ctx);
++    if ((id != 0 && hh_trc()) || id == 0x74) {
++        auto r16 = [&](uint32_t a){ return *(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++        fprintf(stderr, "[TRC] FIND(0x%04X) END -> 0x%08X sp=%08X->%08X ra=%08X->%08X tbl=%04X %04X %04X %04X\n", id,
++            (unsigned)ctx->r2, sp_before, (unsigned)ctx->r29, ra_before, (unsigned)ctx->r31,
++            r16(0x8008DFC0), r16(0x8008DFC8), r16(0x8008DFD0), r16(0x8008DFD8));
++    }
++}
++static void hh_wrap_FUN_80017014(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t idx = (uint32_t)ctx->r4;
++    hh_real_FUN_80017014(rdram, ctx);
++    uint32_t val = (uint32_t)ctx->r2 & 0xFFFF;
++    if (hh_trc() && (idx < 6 || (val != 0 && val != 0xFFFF))) {
++        fprintf(stderr, "[TRC]   tbl[%u] = 0x%04X\n", idx, val);
++    }
++}
++static void hh_wrap_FUN_800045e8(uint8_t* rdram, recomp_context* ctx) {
++    if (hh_trc()) fprintf(stderr, "[TRC] REG  id=0x%04X\n", (unsigned)ctx->r4 & 0xFFFF);
++    hh_real_FUN_800045e8(rdram, ctx);
++}
++static void hh_wrap_FUN_80017384(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t id = (uint32_t)ctx->r5 & 0xFFFF;
++    if (id != 0 && hh_trc()) fprintf(stderr, "[TRC] SETID idx=%u id=0x%04X\n", (unsigned)ctx->r4, id);
++    hh_real_FUN_80017384(rdram, ctx);
++}
++static void hh_wrap_FUN_800173b8(uint8_t* rdram, recomp_context* ctx) {
++    if ((uint32_t)ctx->r5 != 0 && hh_trc()) fprintf(stderr, "[TRC] SETPTR idx=%u ptr=0x%08X\n", (unsigned)ctx->r4, (unsigned)ctx->r5);
++    hh_real_FUN_800173b8(rdram, ctx);
++}
++static void hh_wrap_FUN_80125814(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t id = (uint32_t)ctx->r4 & 0xFFFF;
++    uint32_t t6 = (uint32_t)ctx->r14;
++    hh_real_FUN_80125814(rdram, ctx);
++    if (id != 0 && hh_trc()) fprintf(stderr, "[TRC] REGSTEP id=0x%04X t6=%u -> 0x%08X\n", id, t6, (unsigned)ctx->r2);
++}
++static void hh_wrap_FUN_80125808(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t id = (uint32_t)ctx->r4 & 0xFFFF;
++    auto rb = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    uint32_t flag = rb(0x8008D550);
++    hh_real_FUN_80125808(rdram, ctx);
++    if (hh_trc() || id == 0x74 || id == 0x104) {
++        static int n = 0;
++        if (n < 400) fprintf(stderr, "[TRC] STEP5808 n=%d id=0x%04X flag=0x%02X c0=%02X ff=%02X d558=%02X -> r=0x%08X\n",
++            n, id, flag, rb(0x8008D570), rb(0x8008D5AF), rb(0x8008D558), (unsigned)ctx->r2);
++        n++;
++    }
++}
++static void hh_wrap_FUN_80124ed8(uint8_t* rdram, recomp_context* ctx) {
++    if (hh_trc()) fprintf(stderr, "[TRC] SMED8 a0=0x%08X\n", (unsigned)ctx->r4);
++    hh_real_FUN_80124ed8(rdram, ctx);
++}
++
++// HH: cola de peticiones del servidor RSP (+0x888) y su broadcast a las colas de completion
++// (nod+4). Sirve para ver por qué el hilo 17 no despierta de su espera en obj+0x158.
++static recomp_func_t* hh_real_FUN_80000a0c = nullptr; // broadcast a todos los nodos
++static recomp_func_t* hh_real_FUN_80000934 = nullptr; // push request node
++static recomp_func_t* hh_real_FUN_80000984 = nullptr; // pop request node
++static int hh_tid(uint8_t* rdram) {
++    PTR(OSThread) t = ultramodern::this_thread();
++    return t == NULLPTR ? -1 : (int)TO_PTR(OSThread, t)->id;
++}
++static void hh_wrap_FUN_80000a0c(uint8_t* rdram, recomp_context* ctx) {
++    auto r32 = [&](uint32_t a){ return *(uint32_t*)&rdram[a & 0x1FFFFFFF]; };
++    static uint64_t hh_n = 0;
++    uint32_t obj = (uint32_t)ctx->r4, msg = (uint32_t)ctx->r5;
++    uint32_t head = r32(obj + 0x888);
++    if (hh_n < 10 || (hh_n % 200) == 0) {
++        fprintf(stderr, "[BCAST] n=%llu tid=%d obj=%08X msg=%08X head=%08X", (unsigned long long)hh_n, hh_tid(rdram), obj, msg, head);
++        for (uint32_t n = head, i = 0; n != 0 && i < 8; n = r32(n), i++) {
++            fprintf(stderr, " [node=%08X q=%08X]", n, r32(n + 4));
++        }
++        fprintf(stderr, "\n");
++    }
++    hh_n++;
++    hh_real_FUN_80000a0c(rdram, ctx);
++}
++static void hh_wrap_FUN_80000934(uint8_t* rdram, recomp_context* ctx) {
++    auto r32 = [&](uint32_t a){ return *(uint32_t*)&rdram[a & 0x1FFFFFFF]; };
++    uint32_t obj = (uint32_t)ctx->r4, node = (uint32_t)ctx->r5, q = (uint32_t)ctx->r6;
++    fprintf(stderr, "[PUSH] tid=%d obj=%08X node=%08X q=%08X oldhead=%08X\n", hh_tid(rdram), obj, node, q, r32(obj + 0x888));
++    hh_real_FUN_80000934(rdram, ctx);
++}
++static void hh_wrap_FUN_80000984(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t obj = (uint32_t)ctx->r4, node = (uint32_t)ctx->r5;
++    fprintf(stderr, "[POP ] tid=%d obj=%08X node=%08X\n", hh_tid(rdram), obj, node);
++    hh_real_FUN_80000984(rdram, ctx);
++}
++// HH: sondeo del estado de framebuffer del juego (VI context) vs el del runtime.
++static recomp_func_t* hh_real_FUN_80035050 = nullptr; // [ [0x8004AED0]+4 ] (VI ctx del juego)
++static int hh_fb_n = 0;
++static void hh_wrap_FUN_80035050(uint8_t* rdram, recomp_context* ctx) {
++    hh_real_FUN_80035050(rdram, ctx);
++    if (hh_fb_n < 40) {
++        fprintf(stderr, "[FB ] 35050 ret=%08X\n", (unsigned)ctx->r2);
++        hh_fb_n++;
++    }
++}
++// HH: args del loader (a0=src ROM, a1=dest, a2=size, a3=end descomp.). Tras la descompresión,
++// registra la sección recompilada del módulo en la base real (reutilización de bases).
++static recomp_func_t* hh_real_FUN_80003824 = nullptr;
++static void hh_wrap_FUN_80003824(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t src = (uint32_t)ctx->r4;
++    uint32_t dst = (uint32_t)ctx->r5;
++    if (getenv("HH_TBLTRACE") != nullptr) {
++        fprintf(stderr, "[LD384] a0=%08X a1=%08X a2=%08X a3=%08X\n",
++                src, dst, (unsigned)ctx->r6, (unsigned)ctx->r7);
++    }
++    hh_real_FUN_80003824(rdram, ctx);
++    recomp::overlays::load_module_by_source(src, (int32_t)dst);
++}
++// HH: cadena del nodo de boot: setter de callback (FUN_800058DC), dispatcher y pasos del
++// módulo 23 que deben avanzar 0x801CFE00/02.
++static recomp_func_t* hh_real_FUN_800058dc = nullptr;
++static void hh_wrap_FUN_800058dc(uint8_t* rdram, recomp_context* ctx) {
++    fprintf(stderr, "[SETCB] obj=%08X cb=%08X\n", (unsigned)ctx->r4, (unsigned)ctx->r5);
++    hh_real_FUN_800058dc(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80005270 = nullptr;
++static void hh_wrap_FUN_80005270(uint8_t* rdram, recomp_context* ctx) {
++    auto r32 = [&](uint32_t a){ return *(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    uint32_t head = r32(0x80089378);
++    if (head != 0) {
++        fprintf(stderr, "[DISP] head=%08X n=%08X f18=%08X f1C=%08X f20=%08X\n",
++                head, r32(head), r32(head + 0x18), r32(head + 0x1C), r32(head + 0x20));
++    } else {
++        fprintf(stderr, "[DISP] head=0\n");
++    }
++    hh_real_FUN_80005270(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_801CBE88 = nullptr;
++static void hh_wrap_FUN_801CBE88(uint8_t* rdram, recomp_context* ctx) {
++    fprintf(stderr, "[M23] FUN_801CBE88 a0=%08X a1=%08X\n", (unsigned)ctx->r4, (unsigned)ctx->r5);
++    hh_real_FUN_801CBE88(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_801CBDC0 = nullptr;
++static void hh_wrap_FUN_801CBDC0(uint8_t* rdram, recomp_context* ctx) {
++    fprintf(stderr, "[M23] FUN_801CBDC0 a0=%08X a1=%08X\n", (unsigned)ctx->r4, (unsigned)ctx->r5);
++    hh_real_FUN_801CBDC0(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_801BF1CC = nullptr;
++static void hh_wrap_FUN_801BF1CC(uint8_t* rdram, recomp_context* ctx) {
++    fprintf(stderr, "[M23] FUN_801BF1CC a0=%08X a1=%08X\n", (unsigned)ctx->r4, (unsigned)ctx->r5);
++    hh_real_FUN_801BF1CC(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_801C2050 = nullptr; // callback instalado en 0x801D0474 (transicion)
++static void hh_wrap_FUN_801C2050(uint8_t* rdram, recomp_context* ctx) {
++    static uint64_t n = 0;
++    if (n < 10 || (n % 100) == 0) {
++        fprintf(stderr, "[M23] FUN_801C2050 n=%llu a0=%08X a1=%08X a2=%08X a3=%08X ra=%08X\n",
++            (unsigned long long)n, (unsigned)ctx->r4, (unsigned)ctx->r5, (unsigned)ctx->r6,
++            (unsigned)ctx->r7, (unsigned)ctx->r31);
++    }
++    n++;
++    hh_real_FUN_801C2050(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80124C54 = nullptr; // callback del nodo 0x801CFE20
++static void hh_wrap_FUN_80124C54(uint8_t* rdram, recomp_context* ctx) {
++    static uint64_t n = 0;
++    if (n < 8 || (n % 500) == 0) {
++        fprintf(stderr, "[M23] FUN_80124C54 n=%llu a0=%08X a1=%08X bd6d=%02X bd6e=%02X bc1c=%04X\n",
++            (unsigned long long)n, (unsigned)ctx->r4, (unsigned)ctx->r5,
++            (unsigned)rdram[(0x801BBD6D ^ 3) & 0x7FFFFF], (unsigned)rdram[(0x801BBD6E ^ 3) & 0x7FFFFF],
++            (unsigned)*(uint16_t*)&rdram[(0x801BBC1C ^ 2) & 0x7FFFFF]);
++    }
++    n++;
++    hh_real_FUN_80124C54(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_8012FD1C = nullptr; // condicion que instala 80124CEC
++static void hh_wrap_FUN_8012FD1C(uint8_t* rdram, recomp_context* ctx) {
++    uint32_t a0 = (uint32_t)ctx->r4;
++    hh_real_FUN_8012FD1C(rdram, ctx);
++    static int n = 0;
++    if (n < 30 || ((n % 500) == 0 && (uint32_t)ctx->r2 != 0)) {
++        fprintf(stderr, "[M23] FUN_8012FD1C n=%d a0=%08X -> %08X\n", n, a0, (unsigned)ctx->r2);
++    }
++    n++;
++}
++static recomp_func_t* hh_real_FUN_8012FE50 = nullptr; // escribe bd6d (gate: bd6d==0 && [0x8008D550]==0)
++static void hh_wrap_FUN_8012FE50(uint8_t* rdram, recomp_context* ctx) {
++    auto rb = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    uint32_t pre = rb(0x801BBD6D);
++    uint32_t d550 = rb(0x8008D550);
++    uint32_t a0 = (uint32_t)ctx->r4, a1 = (uint32_t)ctx->r5, a2 = (uint32_t)ctx->r6, a3 = (uint32_t)ctx->r7;
++    hh_real_FUN_8012FE50(rdram, ctx);
++    static int n = 0;
++    if (n < 40) {
++        fprintf(stderr, "[M23] FUN_8012FE50 n=%d a0=%02X a1=%04X a2=%02X a3=%02X bd6d_pre=%02X d550=%02X bd6d_post=%02X\n",
++            n, a0 & 0xFF, a1 & 0xFFFF, a2 & 0xFF, a3 & 0xFF, pre, d550, (unsigned)rb(0x801BBD6D));
++    }
++    n++;
++}
++static recomp_func_t* hh_real_FUN_801C5A0C = nullptr; // continuacion (fallthrough) de FUN_801C5A00
++static void hh_wrap_FUN_801C5A0C(uint8_t* rdram, recomp_context* ctx) {
++    static int n = 0;
++    if (n < 20) {
++        auto rh = [&](uint32_t a){ return (uint32_t)*(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++        fprintf(stderr, "[M23] FUN_801C5A0C n=%d idx=%u\n", n, rh(0x801BBD68));
++    }
++    n++;
++    hh_real_FUN_801C5A0C(rdram, ctx);
++}
++static int hh_ms_now() {
++    static const auto t0 = std::chrono::steady_clock::now();
++    return (int)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
++}
++static void hh_log_chain(const char* name, uint8_t* rdram, recomp_context* ctx) {
++    fprintf(stderr, "[CHN] t=%d %s a0=%08X a1=%08X bd6d=%02X d550=%02X\n", hh_ms_now(), name,
++        (unsigned)ctx->r4, (unsigned)ctx->r5,
++        (unsigned)rdram[(0x801BBD6D ^ 3) & 0x7FFFFF], (unsigned)rdram[(0x8008D550 ^ 3) & 0x7FFFFF]);
++}
++static recomp_func_t* hh_real_FUN_80125968 = nullptr;
++static void hh_wrap_FUN_80125968(uint8_t* rdram, recomp_context* ctx) { hh_log_chain("80125968", rdram, ctx); hh_real_FUN_80125968(rdram, ctx); }
++static recomp_func_t* hh_real_FUN_801257DC = nullptr;
++static void hh_wrap_FUN_801257DC(uint8_t* rdram, recomp_context* ctx) { hh_log_chain("801257DC", rdram, ctx); hh_real_FUN_801257DC(rdram, ctx); }
++static recomp_func_t* hh_real_FUN_80126A18 = nullptr;
++static void hh_wrap_FUN_80126A18(uint8_t* rdram, recomp_context* ctx) { hh_log_chain("80126A18", rdram, ctx); hh_real_FUN_80126A18(rdram, ctx); }
++static recomp_func_t* hh_real_FUN_801267C0 = nullptr;
++static void hh_wrap_FUN_801267C0(uint8_t* rdram, recomp_context* ctx) { hh_log_chain("801267C0", rdram, ctx); hh_real_FUN_801267C0(rdram, ctx); }
++static recomp_func_t* hh_real_FUN_80022044 = nullptr; // progreso de modulo: contador de carga
++static void hh_wrap_FUN_80022044(uint8_t* rdram, recomp_context* ctx) {
++    auto r8 = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    auto r16 = [&](uint32_t a){ return (uint32_t)*(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++    uint32_t cnt = r8(0x800CBB4E);
++    uint32_t v1 = r16(0x800CBB4C);
++    uint32_t flag = r8(0x8008DC18);
++    uint32_t idx = (v1 - 0x10) & 0xFFFF;
++    uint32_t tbl = r8(0x80153072 + idx * 4);
++    static int n = 0;
++    if (n < 3000) { fprintf(stderr, "[MDL] n=%d cnt=%u v1=%04X flag=%u idx=%X tbl=%u\n", n, cnt, v1, flag, idx, tbl); n++; }
++    hh_real_FUN_80022044(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_8001fd14 = nullptr; // driver de audio (mixer + submit SP)
++static void hh_wrap_FUN_8001fd14(uint8_t* rdram, recomp_context* ctx) {
++    static uint64_t n = 0;
++    uint32_t a1 = (uint32_t)ctx->r5;
++    bool bad = (a1 != 0) && (a1 < 0x80000000u || a1 >= 0x80800000u);
++    if (n < 10 || (n % 200) == 0 || bad) {
++        fprintf(stderr, "[TKA] n=%llu a0=%08X a1=%08X%s\n", (unsigned long long)n, (unsigned)ctx->r4, a1, bad ? " BAD" : "");
++    }
++    n++;
++    hh_real_FUN_8001fd14(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_8001fba8 = nullptr; // thread del driver de audio
++static void hh_wrap_FUN_8001fba8(uint8_t* rdram, recomp_context* ctx) {
++    static uint64_t n = 0;
++    fprintf(stderr, "[TKB] entry n=%llu\n", (unsigned long long)n);
++    n++;
++    hh_real_FUN_8001fba8(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80021eb8 = nullptr; // peticion de modulo (escribe 0x800CBB4C)
++static void hh_wrap_FUN_80021eb8(uint8_t* rdram, recomp_context* ctx) {
++    auto r16 = [&](uint32_t a){ return (uint32_t)*(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++    auto r32 = [&](uint32_t a){ return (uint32_t)*(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    static int n = 0;
++    if (n < 40) {
++        fprintf(stderr, "[MDLE] n=%d a0=%08X a1=%08X a2=%08X a3=%08X cb48=%08X cbb4c=%04X\n",
++            n, (unsigned)ctx->r4, (unsigned)ctx->r5, (unsigned)ctx->r6, (unsigned)ctx->r7,
++            r32(0x800CBB48), r16(0x800CBB4C));
++    }
++    n++;
++    hh_real_FUN_80021eb8(rdram, ctx);
++    if (n <= 40) fprintf(stderr, "[MDLE] -> cbb4c=%04X\n", r16(0x800CBB4C));
++}
++static recomp_func_t* hh_real_FUN_8002c4d0 = nullptr; // iterador del scheduler de procesos
++static void hh_wrap_FUN_8002c4d0(uint8_t* rdram, recomp_context* ctx) {
++    static uint64_t n = 0;
++    if (n < 20 || (n % 500) == 0) {
++        fprintf(stderr, "[SCD] n=%llu a0=%08X a1=%08X a2=%08X a3=%08X\n",
++                (unsigned long long)n, (unsigned)ctx->r4, (unsigned)ctx->r5, (unsigned)ctx->r6, (unsigned)ctx->r7);
++    }
++    n++;
++    hh_real_FUN_8002c4d0(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_8002c7f4 = nullptr; // selector de voz del mixer
++static void hh_wrap_FUN_8002c7f4(uint8_t* rdram, recomp_context* ctx) {
++    auto r32 = [&](uint32_t a){ return (uint32_t)*(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    uint32_t outp = (uint32_t)ctx->r5;
++    hh_real_FUN_8002c7f4(rdram, ctx);
++    static int n = 0;
++    if (n < 24) {
++        uint32_t voice = outp ? r32(outp) : 0;
++        uint32_t cb = voice ? r32(voice + 8) : 0;
++        fprintf(stderr, "[VOICE] n=%d ret=%08X voice=%08X cb=%08X\n", n, (unsigned)ctx->r2, voice, cb);
++    }
++    n++;
++}
++static recomp_func_t* hh_real_FUN_80020460 = nullptr; // procesa peticion de modulo (llama a 80022044)
++static void hh_wrap_FUN_80020460(uint8_t* rdram, recomp_context* ctx) {
++    auto r8 = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    auto r16 = [&](uint32_t a){ return (uint32_t)*(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++    static int n = 0;
++    uint32_t ab0 = r8(0x800CBAB0);
++    uint32_t req = r16(0x800CBB4C);
++    uint32_t st = (uint32_t)rdram[(0x800CBAF0 ^ 3) & 0x7FFFFF];
++    if (n < 20 || (n % 100) == 0 || req != 0) {
++        fprintf(stderr, "[MDLB] n=%d ab0=%u req=%04X st=%02X\n", n, ab0, req, st);
++    }
++    n++;
++    hh_real_FUN_80020460(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_800207d0 = nullptr; // productor de eventos de modulo (cola 0x800CBB28)
++static void hh_wrap_FUN_800207d0(uint8_t* rdram, recomp_context* ctx) {
++    auto r8 = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    static int n = 0;
++    if (n < 200) {
++        fprintf(stderr, "[EVQ] n=%d id=%04X ra=%08X a1=%08X a3=%08X cnt=%u\n",
++            n, (unsigned)ctx->r4 & 0xFFFF, (unsigned)ctx->r31, (unsigned)ctx->r5,
++            (unsigned)ctx->r7, r8(0x800CBB22));
++    }
++    n++;
++    hh_real_FUN_800207d0(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80020f60 = nullptr; // consumidor de la cola de eventos de modulo
++static void hh_wrap_FUN_80020f60(uint8_t* rdram, recomp_context* ctx) {
++    auto r8 = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    auto r32 = [&](uint32_t a){ return (uint32_t)*(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    uint32_t cnt0 = r8(0x800CBB22);
++    uint32_t pend = cnt0 ? r32(0x800CBB28) : 0xFFFFFFFFu;
++    hh_real_FUN_80020f60(rdram, ctx);
++    uint32_t cnt1 = r8(0x800CBB22);
++    static int n = 0;
++    if (n < 100 || cnt0 != 0 || cnt0 != cnt1) {
++        fprintf(stderr, "[EVQC] n=%d cnt0=%u cnt1=%u id=%04X\n", n, cnt0, cnt1, (unsigned)pend & 0xFFFF);
++    }
++    n++;
++}
++static recomp_func_t* hh_real_FUN_8002059c = nullptr; // rama estado==8 de FUN_80020460
++static void hh_wrap_FUN_8002059c(uint8_t* rdram, recomp_context* ctx) {
++    static int n = 0;
++    if (n < 200) fprintf(stderr, "[EVQS] n=%d (estado==8)\n", n);
++    n++;
++    hh_real_FUN_8002059c(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80022b6c = nullptr; // handler del evento id 0x08 (tabla 0x80047E0C)
++static void hh_wrap_FUN_80022b6c(uint8_t* rdram, recomp_context* ctx) {
++    auto r16 = [&](uint32_t a){ return (uint32_t)*(uint16_t*)&rdram[(a ^ 2) & 0x7FFFFF]; };
++    auto r32 = [&](uint32_t a){ return (uint32_t)*(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    static int n = 0;
++    if (n < 200) {
++        fprintf(stderr, "[EVQH] n=%d a0=%08X a1=%08X ab4=%04X ab8=%04X ab0=%08X cbb48=%08X\n", n,
++            (unsigned)ctx->r4, (unsigned)ctx->r5, r16(0x800CBAAC), r16(0x800CBAAE),
++            r32(0x800CBAB0), r32(0x800CBB48));
++    }
++    n++;
++    hh_real_FUN_80022b6c(rdram, ctx);
++}
++static recomp_func_t* hh_real_FUN_80004560 = nullptr; // registra recurso: FUN_8001752C(id, ptr)
++static void hh_wrap_FUN_80004560(uint8_t* rdram, recomp_context* ctx) {
++    auto rb = [&](uint32_t a){ return (uint32_t)rdram[(a ^ 3) & 0x7FFFFF]; };
++    uint32_t a0 = (uint32_t)ctx->r4 & 0xFFFF;
++    uint32_t d558 = (uint32_t)rdram[(0x8008D558 ^ 3) & 0x7FFFFF];
++    hh_real_FUN_80004560(rdram, ctx);
++    static int n = 0;
++    if (n < 60 || a0 == 0x74) {
++        fprintf(stderr, "[REG] n=%d FUN_80004560 id=%04X d558=%02X -> %08X c0=%02X ff=%02X\n", n, a0, d558,
++            (unsigned)ctx->r2, rb(0x8008D570), rb(0x8008D5AF));
++    }
++    n++;
++}
++static recomp_func_t* hh_real_FUN_80000ed0 = nullptr; // submit de task con contador +0x89C
++static void hh_wrap_FUN_80000ed0(uint8_t* rdram, recomp_context* ctx) {
++    auto r32 = [&](uint32_t a){ return *(uint32_t*)&rdram[a & 0x7FFFFF]; };
++    uint32_t mq = (uint32_t)ctx->r5, msg = (uint32_t)ctx->r6;
++    uint32_t before = r32(0x8005CD4C);
++    fprintf(stderr, "[SUBM] tid=%d msg=%08X mq=%08X fl8=%08X cnt=%u\n", hh_tid(rdram), msg, mq, r32((msg & 0x7FFFFF) + 8), before);
++    hh_real_FUN_80000ed0(rdram, ctx);
++    fprintf(stderr, "[SUBM] -> cnt=%u\n", r32(0x8005CD4C));
++}
++
++// HH: declaraciones para el registro de llamadas (diagnostico de pila).
++extern "C" int hh_watch_active;
++extern "C" recomp_context* hh_get_current_ctx(void);
++extern "C" uint8_t* hh_get_rdram_base(void);
++extern "C" void hh_ring_record(uint32_t target, uint32_t sp);
++extern "C" void hh_ring2_record(uint32_t target, uint32_t sp);
++extern "C" void hh_callring_record(uint32_t addr);
++extern "C" recomp_context* hh_get_current_ctx(void);
++extern "C" uint8_t* hh_get_rdram_base(void);
++
++static thread_local uint32_t hh_last_r16 = 0xFFFFFFFFu;
++static thread_local uint32_t hh_last_tgt = 0;
++static thread_local bool hh_main_seen = false;
++
++// HH: FIX del cuelgue por dano. El bucle principal (0x800011B0) guarda en s0 (r16) el puntero de
++// estado 0x80037748 y lo usa tras sus llamadas (frame/no-op). Algun camino del frame (dispatcher
++// FUN_80026fe8 y compania, simbolo sobredimensionado) deja s0 con un valor que ya no es un puntero
++// valido de RDRAM -> el check lee memoria invalida -> el frame no se vuelve a llamar (sin input
++// polls, imagen congelada; el resto del motor sigue). Reparamos SOLO el puntero invalido, en la
++// entrada del osRecvMesg del bucle principal, restaurando el invariante s0=0x80037748. Un valor
++// legitimo (0x800xxxxx) nunca se toca. Opt-in con HH_S0FIX=1.
++static std::atomic<unsigned long long> hh_s0fix_counter{0};
++extern "C" unsigned long long hh_s0fix_hits(void) {
++    return hh_s0fix_counter.load();
++}
++static thread_local uint32_t hh_last_valid_r16 = 0;
++static void hh_s0fix_check(uint32_t tgt, recomp_context* ctx) {
++    if (ctx == nullptr) return;
 +    // Auto-test: HH_TEST_S0BUG=1 corrompe s0 una vez (viniendo de 0x80037748) para validar el fix.
 +    static const bool s0bug = getenv("HH_TEST_S0BUG") != nullptr;
 +    static thread_local int hh_s0bug_n = 0;
 +    if (s0bug && tgt == 0x800266B0u && (uint32_t)ctx->r16 == 0x80037748u && hh_last_valid_r16 == 0x80037748u) {
 +        if (++hh_s0bug_n == 60) { ctx->r16 = 0x00001E82u; fprintf(stderr, "[S0TEST] corrompiendo r16 a 1E82 (llamada %d del hilo principal)\n", hh_s0bug_n); }
 +    }
-     if ((tgt & 0xFFFF0000u) != 0x80020000u) return;   // solo el recv principal (0x800266B0)
-     if ((tgt & 0xFFFFu) != 0x66B0u) return;
-     uint32_t r16 = (uint32_t)ctx->r16;
++    if ((tgt & 0xFFFF0000u) != 0x80020000u) return;   // solo el recv principal (0x800266B0)
++    if ((tgt & 0xFFFFu) != 0x66B0u) return;
++    uint32_t r16 = (uint32_t)ctx->r16;
++    if (r16 >= 0x80000000u && r16 < 0x80800000u) {    // puntero valido: recordar el ultimo
++        hh_last_valid_r16 = r16;
++        return;
++    }
++    // r16 invalido: reparar SOLO si este hilo venia manteniendo el estado del bucle principal.
++    if (hh_last_valid_r16 != 0x80037748u) return;
++    ctx->r16 = 0x80037748u;
++    hh_s0fix_counter++;
++    static FILE* ff = nullptr;
++    if (ff == nullptr) ff = fopen("hh_s0fix.log", "w");
++    if (ff != nullptr) { fprintf(ff, "[S0FIX] r16 %08X -> 80037748 (tgt=%08X)\n", r16, tgt); fflush(ff); }
++    fprintf(stderr, "[S0FIX] r16 %08X -> 80037748 (recv del bucle principal)\n", r16);
++}
++
+ extern "C" recomp_func_t * get_function(int32_t addr) {
++    hh_calltrace((uint32_t)addr);
++    hh_callring_record((uint32_t)addr);
++    // HH: vigila cambios de r16 (s0) entre llamadas guest. El cuelgue por dano: s0 se machaca a
++    // 0x1E82 y el dispatch frame/no-op del bucle principal se rompe. Loguea SOLO los cambios con
++    // la funcion anterior (la culpable) y la actual. Gated por HH_MQLOG_ALL -> hh_s0.log.
++    if (getenv("HH_MQLOG_ALL") != nullptr) {
++        recomp_context* hc0 = hh_get_current_ctx();
++        if (hc0 != nullptr) {
++            uint32_t r16 = (uint32_t)hc0->r16;
++            uint32_t tgt = (uint32_t)addr;
++            if (r16 == 0x80037748u || hh_last_r16 == 0x80037748u) hh_main_seen = true;
++            bool interes = hh_main_seen;
++            if (interes && r16 != hh_last_r16) {
++                static FILE* sf = nullptr;
++                static long total = 0;
++                if (sf == nullptr) sf = fopen("hh_s0.log", "w");
++                if (sf != nullptr && total < (32L * 1024 * 1024)) {
++                    total += fprintf(sf, "[S0] prev=%08X new=%08X r16: %08X -> %08X\n",
++                                     hh_last_tgt, tgt, hh_last_r16, r16);
++                    fflush(sf);
++                }
++                hh_last_r16 = r16;
++            }
++            hh_last_tgt = tgt;
++        }
++    }
++    // HH: vigilancia del dispatch del bucle principal (livelock del dano): registra, en cada
++    // llamada al frame (0x80001454) o al no-op (0x80001BB0), el registro s0 (r16) y el valor de
++    // memoria que consulta el branch (lhu 0x0(s0)). Gated por HH_MQLOG_ALL.
++    {
++        recomp_context* hc_fix = hh_get_current_ctx();
++        hh_s0fix_check((uint32_t)addr, hc_fix);
++    }
++    if (((uint32_t)addr == 0x80001454u || (uint32_t)addr == 0x80001BB0u ||
++         (uint32_t)addr == 0x8000290Cu || (uint32_t)addr == 0x800266B0u) && getenv("HH_MQLOG_ALL") != nullptr) {
++        recomp_context* hc = hh_get_current_ctx();
++        uint32_t s0 = hc != nullptr ? (uint32_t)hc->r16 : 0;
++        uint32_t flag = 0;
++        uint8_t* rdram_base = hh_get_rdram_base();
++        if (rdram_base != nullptr && s0 >= 0x80000000u && s0 + 2 <= 0x80800000u) {
++            flag = *(uint16_t*)(rdram_base + (s0 - 0x80000000u));
++        }
++        static FILE* df = nullptr;
++        if (df == nullptr) df = fopen("hh_disp.log", "w");
++        if (df != nullptr) {
++            fprintf(df, "[DISP] tgt=%08X s0=%08X flag=%04X\n", (unsigned)addr, s0, flag);
++            fflush(df);
++        }
++    }
++    // HH: registrar (target, sp) de cada llamada para diagnosticar hundimientos de pila.
++    if (hh_watch_active) {
++        recomp_context* hh_c = hh_get_current_ctx();
++        uint32_t hh_sp = hh_c != nullptr ? (uint32_t)hh_c->r29 : 0;
++        hh_ring_record((uint32_t)addr, hh_sp);
++        hh_ring2_record((uint32_t)addr, hh_sp);
++    }
+     auto func_find = func_map.find(addr);
+     if (func_find == func_map.end()) {
+         fprintf(stderr, "Failed to find function at 0x%08X\n", addr);
++        // HH: además de stderr, dejarlo en hh_missing.log (CWD) para builds de Windows sin consola.
++        if (FILE* mf = fopen("hh_missing.log", "a")) {
++            fprintf(mf, "Failed to find function at 0x%08X\n", addr);
++            fclose(mf);
++        }
+         if (getenv("HH_SOFT_LOOKUP") != nullptr) {
+             return soft_missing_func;
+         }
+         assert(false);
+         std::exit(EXIT_FAILURE);
+     }
++    // HH: el loader de módulos debe registrar la sección recompilada en su base real SIEMPRE
++    // (no solo en modo traza): soporta la reutilización de bases entre módulos.
++    if ((uint32_t)addr == 0x80003824) {
++        if (hh_real_FUN_80003824 == nullptr) {
++            hh_real_FUN_80003824 = func_find->second;
++        }
++        return hh_wrap_FUN_80003824;
++    }
++    if (getenv("HH_TBLTRACE") != nullptr) {
++        switch ((uint32_t)addr) {
++            case 0x80017064: if (hh_real_FUN_80017064 == nullptr) hh_real_FUN_80017064 = func_find->second; return hh_wrap_FUN_80017064;
++            case 0x80017014: if (hh_real_FUN_80017014 == nullptr) hh_real_FUN_80017014 = func_find->second; return hh_wrap_FUN_80017014;
++            case 0x80004560: if (hh_real_FUN_80004560 == nullptr) hh_real_FUN_80004560 = func_find->second; return hh_wrap_FUN_80004560;
++            case 0x800045E8: if (hh_real_FUN_800045e8 == nullptr) hh_real_FUN_800045e8 = func_find->second; return hh_wrap_FUN_800045e8;
++            case 0x80017384: if (hh_real_FUN_80017384 == nullptr) hh_real_FUN_80017384 = func_find->second; return hh_wrap_FUN_80017384;
++            case 0x800173B8: if (hh_real_FUN_800173b8 == nullptr) hh_real_FUN_800173b8 = func_find->second; return hh_wrap_FUN_800173b8;
++            case 0x80125814: if (hh_real_FUN_80125814 == nullptr) hh_real_FUN_80125814 = func_find->second; return hh_wrap_FUN_80125814;
++            case 0x80125808: if (hh_real_FUN_80125808 == nullptr) hh_real_FUN_80125808 = func_find->second; return hh_wrap_FUN_80125808;
++            case 0x80124ED8: if (hh_real_FUN_80124ed8 == nullptr) hh_real_FUN_80124ed8 = func_find->second; return hh_wrap_FUN_80124ed8;
++            case 0x80000A0C: if (hh_real_FUN_80000a0c == nullptr) hh_real_FUN_80000a0c = func_find->second; return hh_wrap_FUN_80000a0c;
++            case 0x80000934: if (hh_real_FUN_80000934 == nullptr) hh_real_FUN_80000934 = func_find->second; return hh_wrap_FUN_80000934;
++            case 0x80000984: if (hh_real_FUN_80000984 == nullptr) hh_real_FUN_80000984 = func_find->second; return hh_wrap_FUN_80000984;
++            case 0x80022044: if (hh_real_FUN_80022044 == nullptr) hh_real_FUN_80022044 = func_find->second; return hh_wrap_FUN_80022044;
++            case 0x80020460: if (hh_real_FUN_80020460 == nullptr) hh_real_FUN_80020460 = func_find->second; return hh_wrap_FUN_80020460;
++            case 0x8001FD14: if (hh_real_FUN_8001fd14 == nullptr) hh_real_FUN_8001fd14 = func_find->second; return hh_wrap_FUN_8001fd14;
++            case 0x8001FBA8: if (hh_real_FUN_8001fba8 == nullptr) hh_real_FUN_8001fba8 = func_find->second; return hh_wrap_FUN_8001fba8;
++            case 0x80021EB8: if (hh_real_FUN_80021eb8 == nullptr) hh_real_FUN_80021eb8 = func_find->second; return hh_wrap_FUN_80021eb8;
++            case 0x8002C4D0: if (hh_real_FUN_8002c4d0 == nullptr) hh_real_FUN_8002c4d0 = func_find->second; return hh_wrap_FUN_8002c4d0;
++            case 0x8002C7F4: if (hh_real_FUN_8002c7f4 == nullptr) hh_real_FUN_8002c7f4 = func_find->second; return hh_wrap_FUN_8002c7f4;
++            case 0x80000ED0: if (hh_real_FUN_80000ed0 == nullptr) hh_real_FUN_80000ed0 = func_find->second; return hh_wrap_FUN_80000ed0;
++            case 0x800207D0: if (hh_real_FUN_800207d0 == nullptr) hh_real_FUN_800207d0 = func_find->second; return hh_wrap_FUN_800207d0;
++            case 0x80020F60: if (hh_real_FUN_80020f60 == nullptr) hh_real_FUN_80020f60 = func_find->second; return hh_wrap_FUN_80020f60;
++            case 0x8002059C: if (hh_real_FUN_8002059c == nullptr) hh_real_FUN_8002059c = func_find->second; return hh_wrap_FUN_8002059c;
++            case 0x80022B6C: if (hh_real_FUN_80022b6c == nullptr) hh_real_FUN_80022b6c = func_find->second; return hh_wrap_FUN_80022b6c;
++            case 0x80035050: if (hh_real_FUN_80035050 == nullptr) hh_real_FUN_80035050 = func_find->second; return hh_wrap_FUN_80035050;
++            case 0x800058DC: if (hh_real_FUN_800058dc == nullptr) hh_real_FUN_800058dc = func_find->second; return hh_wrap_FUN_800058dc;
++            case 0x80003824: if (hh_real_FUN_80003824 == nullptr) hh_real_FUN_80003824 = func_find->second; return hh_wrap_FUN_80003824;
++            case 0x80005270: if (hh_real_FUN_80005270 == nullptr) hh_real_FUN_80005270 = func_find->second; return hh_wrap_FUN_80005270;
++            case 0x801CBE88: if (hh_real_FUN_801CBE88 == nullptr) hh_real_FUN_801CBE88 = func_find->second; return hh_wrap_FUN_801CBE88;
++            case 0x801CBDC0: if (hh_real_FUN_801CBDC0 == nullptr) hh_real_FUN_801CBDC0 = func_find->second; return hh_wrap_FUN_801CBDC0;
++            case 0x801BF1CC: if (hh_real_FUN_801BF1CC == nullptr) hh_real_FUN_801BF1CC = func_find->second; return hh_wrap_FUN_801BF1CC;
++            case 0x801C2050: if (hh_real_FUN_801C2050 == nullptr) hh_real_FUN_801C2050 = func_find->second; return hh_wrap_FUN_801C2050;
++            case 0x80124C54: if (hh_real_FUN_80124C54 == nullptr) hh_real_FUN_80124C54 = func_find->second; return hh_wrap_FUN_80124C54;
++            case 0x8012FD1C: if (hh_real_FUN_8012FD1C == nullptr) hh_real_FUN_8012FD1C = func_find->second; return hh_wrap_FUN_8012FD1C;
++            case 0x8012FE50: if (hh_real_FUN_8012FE50 == nullptr) hh_real_FUN_8012FE50 = func_find->second; return hh_wrap_FUN_8012FE50;
++            case 0x801C5A0C: if (hh_real_FUN_801C5A0C == nullptr) hh_real_FUN_801C5A0C = func_find->second; return hh_wrap_FUN_801C5A0C;
++            case 0x80125968: if (hh_real_FUN_80125968 == nullptr) hh_real_FUN_80125968 = func_find->second; return hh_wrap_FUN_80125968;
++            case 0x801257DC: if (hh_real_FUN_801257DC == nullptr) hh_real_FUN_801257DC = func_find->second; return hh_wrap_FUN_801257DC;
++            case 0x80126A18: if (hh_real_FUN_80126A18 == nullptr) hh_real_FUN_80126A18 = func_find->second; return hh_wrap_FUN_80126A18;
++            case 0x801267C0: if (hh_real_FUN_801267C0 == nullptr) hh_real_FUN_801267C0 = func_find->second; return hh_wrap_FUN_801267C0;
++            default: break;
++        }
++    }
+     return func_find->second;
+ }
+ 
+diff --git a/librecomp/src/pak.cpp b/librecomp/src/pak.cpp
+index 0be1513..a3fb0e2 100644
+--- a/librecomp/src/pak.cpp
++++ b/librecomp/src/pak.cpp
+@@ -1,51 +1,414 @@
+-#include "ultramodern/ultra64.h"
+-#include "ultramodern/ultramodern.hpp"
++#include <cstring>
++#include <filesystem>
++#include <fstream>
++#include <vector>
++
++#include <ultramodern/ultra64.h>
++#include <ultramodern/ultramodern.hpp>
+ 
+ #include "recomp.h"
+ #include "helpers.hpp"
+ 
+-extern "C" void osPfsInitPak_recomp(uint8_t * rdram, recomp_context* ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++// HH: Controller Pak (mempak) mínimo en RAM, persistido a disco.
++// El host no emula el dispositivo SI real: implementamos aquí la semántica de
++// alto nivel de PFS (init/formato, asignación, búsqueda, lectura/escritura,
++// borrado y estado) sobre un pak de 32 KB con un sistema de ficheros simple.
++// Ver TODO #15.
++
++enum {
++    PFS_ERR_NOPACK      = 1,
++    PFS_ERR_NEW_PACK    = 2,
++    PFS_ERR_INCONSISTENT = 3,
++    PFS_ERR_CONTRFAIL   = 4,
++    PFS_ERR_INVALID     = 5,
++    PFS_ERR_BAD_DATA    = 6,
++    PFS_ERR_ID_FATAL    = 7,
++    PFS_ERR_DEVICE      = 8,
++    PFS_ERR_NO_FILE     = 10,
++};
++
++#define OS_READ_FLAG  0
++#define OS_WRITE_FLAG 1
++
++#define PAK_SIZE       0x8000
++#define PAK_RESERVED   0x200
++#define PAK_MAX_FILES  16
++
++struct PakFile {
++    bool used = false;
++    uint16_t company = 0;
++    uint32_t game = 0;
++    uint8_t game_name[4] = {0, 0, 0, 0};
++    uint8_t ext_name[4] = {0, 0, 0, 0};
++    uint32_t size = 0;
++    std::vector<uint8_t> data;
++};
++
++struct PakState {
++    bool loaded = false;
++    std::vector<PakFile> files;
++};
++
++static PakState g_pak;
++
++static std::filesystem::path pak_path() {
++    std::filesystem::path p = ultramodern::get_save_file_path();
++    if (p.empty()) {
++        return std::filesystem::path("saves") / "mempak.bin";
++    }
++    return p.string() + ".pak";
++}
++
++static void pak_save() {
++    std::filesystem::path path = pak_path();
++    std::error_code ec;
++    std::filesystem::create_directories(path.parent_path(), ec);
++
++    std::ofstream out(path, std::ios::binary | std::ios::trunc);
++    if (!out) {
++        fprintf(stderr, "[PAK] no se pudo escribir %s\n", path.string().c_str());
++        return;
++    }
++    const char magic[4] = {'H', 'H', 'P', 'K'};
++    uint32_t count = static_cast<uint32_t>(g_pak.files.size());
++    out.write(magic, 4);
++    out.write(reinterpret_cast<const char*>(&count), 4);
++    for (const PakFile& f : g_pak.files) {
++        uint8_t used = f.used ? 1 : 0;
++        out.write(reinterpret_cast<const char*>(&used), 1);
++        out.write(reinterpret_cast<const char*>(&f.company), 2);
++        out.write(reinterpret_cast<const char*>(&f.game), 4);
++        out.write(reinterpret_cast<const char*>(f.game_name), 4);
++        out.write(reinterpret_cast<const char*>(f.ext_name), 4);
++        out.write(reinterpret_cast<const char*>(&f.size), 4);
++        if (f.used && !f.data.empty()) {
++            out.write(reinterpret_cast<const char*>(f.data.data()), f.data.size());
++        }
++    }
++}
++
++static void pak_load() {
++    g_pak.loaded = true;
++    g_pak.files.clear();
++    std::ifstream in(pak_path(), std::ios::binary);
++    if (!in) {
++        return;
++    }
++    char magic[4] = {};
++    uint32_t count = 0;
++    in.read(magic, 4);
++    if (magic[0] != 'H' || magic[1] != 'H' || magic[2] != 'P' || magic[3] != 'K') {
++        return;
++    }
++    in.read(reinterpret_cast<char*>(&count), 4);
++    for (uint32_t i = 0; i < count && i < PAK_MAX_FILES; i++) {
++        PakFile f;
++        uint8_t used = 0;
++        in.read(reinterpret_cast<char*>(&used), 1);
++        in.read(reinterpret_cast<char*>(&f.company), 2);
++        in.read(reinterpret_cast<char*>(&f.game), 4);
++        in.read(reinterpret_cast<char*>(f.game_name), 4);
++        in.read(reinterpret_cast<char*>(f.ext_name), 4);
++        in.read(reinterpret_cast<char*>(&f.size), 4);
++        f.used = used != 0;
++        if (f.size > PAK_SIZE) {
++            f.size = PAK_SIZE;
++        }
++        f.data.assign(f.size, 0);
++        if (f.used && f.size > 0 && !f.data.empty()) {
++            in.read(reinterpret_cast<char*>(f.data.data()), f.data.size());
++            if (!in) {
++                std::fill(f.data.begin(), f.data.end(), 0);
++            }
++        }
++        g_pak.files.push_back(std::move(f));
++    }
++}
++
++static void pak_ensure_loaded() {
++    if (!g_pak.loaded) {
++        pak_load();
++    }
++}
++
++static uint32_t pak_used_bytes() {
++    uint32_t used = PAK_RESERVED;
++    for (const PakFile& f : g_pak.files) {
++        if (f.used) {
++            used += (f.size + 0xFF) & ~0xFFu;
++        }
++    }
++    return used < PAK_SIZE ? used : PAK_SIZE;
++}
++
++static int pak_find(uint16_t company, uint32_t game, const uint8_t game_name[4], const uint8_t ext_name[4]) {
++    for (size_t i = 0; i < g_pak.files.size(); i++) {
++        const PakFile& f = g_pak.files[i];
++        if (f.used && f.company == company && f.game == game &&
++            memcmp(f.game_name, game_name, 4) == 0 && memcmp(f.ext_name, ext_name, 4) == 0) {
++            return static_cast<int>(i);
++        }
++    }
++    return -1;
+ }
+ 
+-extern "C" void osPfsFreeBlocks_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++static void pak_init_fields(OSPfs* pfs, int channel) {
++    memset(pfs, 0, sizeof(OSPfs));
++    pfs->channel = channel;
++    pfs->status = 0;
++    pfs->banks = 1;
++    pfs->activebank = 0;
++    static const u8 id[8] = {'N', '6', '4', ' ', 'P', 'F', 'S', 0};
++    memcpy(pfs->id, id, sizeof(id));
+ }
+ 
+-extern "C" void osPfsAllocateFile_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++extern "C" void osPfsInitPak_recomp(uint8_t* rdram, recomp_context* ctx) {
++    OSPfs* pfs = _arg<1, OSPfs*>(rdram, ctx);
++    int channel = _arg<2, int>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (channel != 0 || pfs == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    pak_init_fields(pfs, channel);
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsDeleteFile_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++// Formato: deja el pak vacío (el juego lo usa para formatear un pak nuevo).
++extern "C" void osPfsInit_recomp(uint8_t* rdram, recomp_context* ctx) {
++    OSPfs* pfs = _arg<1, OSPfs*>(rdram, ctx);
++    int channel = _arg<2, int>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (channel != 0 || pfs == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    g_pak.files.clear();
++    pak_save();
++    pak_init_fields(pfs, channel);
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsFileState_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++extern "C" void osPfsFreeBlocks_recomp(uint8_t* rdram, recomp_context* ctx) {
++    s32* bytes = _arg<1, s32*>(rdram, ctx);
++    pak_ensure_loaded();
++    if (bytes != nullptr) {
++        *bytes = static_cast<s32>(PAK_SIZE - pak_used_bytes());
++    }
++    _return<s32>(ctx, 0);
++}
++
++extern "C" void osPfsAllocateFile_recomp(uint8_t* rdram, recomp_context* ctx) {
++    uint16_t company = _arg<1, u16>(rdram, ctx);
++    uint32_t game = _arg<2, u32>(rdram, ctx);
++    u8* game_name = _arg<3, u8*>(rdram, ctx);
++    u8* ext_name = _arg<4, u8*>(rdram, ctx);
++    s32 size = _arg<5, s32>(rdram, ctx);
++    s32* file_no = _arg<6, s32*>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (size < 0 || file_no == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    if (pak_used_bytes() + ((static_cast<uint32_t>(size) + 0xFF) & ~0xFFu) > PAK_SIZE) {
++        _return<s32>(ctx, PFS_ERR_INCONSISTENT);
++        return;
++    }
++    int slot = -1;
++    for (size_t i = 0; i < g_pak.files.size(); i++) {
++        if (!g_pak.files[i].used) {
++            slot = static_cast<int>(i);
++            break;
++        }
++    }
++    if (slot < 0) {
++        if (g_pak.files.size() >= PAK_MAX_FILES) {
++            _return<s32>(ctx, PFS_ERR_INCONSISTENT);
++            return;
++        }
++        g_pak.files.emplace_back();
++        slot = static_cast<int>(g_pak.files.size()) - 1;
++    }
++
++    PakFile& f = g_pak.files[slot];
++    f.used = true;
++    f.company = company;
++    f.game = game;
++    if (game_name != nullptr) {
++        memcpy(f.game_name, game_name, 4);
++    }
++    if (ext_name != nullptr) {
++        memcpy(f.ext_name, ext_name, 4);
++    }
++    f.size = static_cast<uint32_t>(size);
++    f.data.assign(size, 0);
++    *file_no = slot;
++    pak_save();
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsFindFile_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++extern "C" void osPfsFindFile_recomp(uint8_t* rdram, recomp_context* ctx) {
++    uint16_t company = _arg<1, u16>(rdram, ctx);
++    uint32_t game = _arg<2, u32>(rdram, ctx);
++    u8* game_name = _arg<3, u8*>(rdram, ctx);
++    u8* ext_name = _arg<4, u8*>(rdram, ctx);
++    s32* file_no = _arg<5, s32*>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (game_name == nullptr || ext_name == nullptr || file_no == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    int idx = pak_find(company, game, game_name, ext_name);
++    if (idx < 0) {
++        _return<s32>(ctx, PFS_ERR_NO_FILE);
++        return;
++    }
++    *file_no = idx;
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsReadWriteFile_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++extern "C" void osPfsDeleteFile_recomp(uint8_t* rdram, recomp_context* ctx) {
++    uint16_t company = _arg<1, u16>(rdram, ctx);
++    uint32_t game = _arg<2, u32>(rdram, ctx);
++    u8* game_name = _arg<3, u8*>(rdram, ctx);
++    u8* ext_name = _arg<4, u8*>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (game_name == nullptr || ext_name == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    int idx = pak_find(company, game, game_name, ext_name);
++    if (idx < 0) {
++        _return<s32>(ctx, PFS_ERR_NO_FILE);
++        return;
++    }
++    PakFile& f = g_pak.files[idx];
++    f.used = false;
++    f.size = 0;
++    f.data.clear();
++    pak_save();
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsChecker_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 1; // PFS_ERR_NOPACK
++extern "C" void osPfsReadWriteFile_recomp(uint8_t* rdram, recomp_context* ctx) {
++    s32 file_no = _arg<1, s32>(rdram, ctx);
++    u8 flag = _arg<2, u8>(rdram, ctx);
++    s32 offset = _arg<3, s32>(rdram, ctx);
++    s32 size = _arg<4, s32>(rdram, ctx);
++    u8* buffer = _arg<5, u8*>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (file_no < 0 || static_cast<size_t>(file_no) >= g_pak.files.size() ||
++        offset < 0 || size < 0 || buffer == nullptr) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    PakFile& f = g_pak.files[file_no];
++    if (!f.used) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    if (static_cast<uint32_t>(offset) > f.size) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    uint32_t count = static_cast<uint32_t>(size);
++    if (static_cast<uint32_t>(offset) + count > f.size) {
++        count = f.size - static_cast<uint32_t>(offset);
++    }
++
++    if (flag == OS_WRITE_FLAG) {
++        if (count > 0) {
++            memcpy(f.data.data() + offset, buffer, count);
++        }
++        pak_save();
++    } else {
++        if (count > 0) {
++            memcpy(buffer, f.data.data() + offset, count);
++        }
++    }
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsNumFiles_recomp(uint8_t * rdram, recomp_context * ctx) {
++extern "C" void osPfsFileState_recomp(uint8_t* rdram, recomp_context* ctx) {
++    s32 file_no = _arg<1, s32>(rdram, ctx);
++    s32 state_ptr = _arg<2, s32>(rdram, ctx);
++    pak_ensure_loaded();
++
++    if (file_no < 0 || static_cast<size_t>(file_no) >= g_pak.files.size() ||
++        state_ptr == 0) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++    const PakFile& f = g_pak.files[file_no];
++    if (!f.used) {
++        _return<s32>(ctx, PFS_ERR_INVALID);
++        return;
++    }
++
++    MEM_W(state_ptr, 0x0) = f.size;
++    MEM_W(state_ptr, 0x4) = f.game;
++    MEM_H(state_ptr, 0x8) = f.company;
++    for (int i = 0; i < 4; i++) {
++        MEM_B(state_ptr, 0xA + i) = f.ext_name[i];
++    }
++    _return<s32>(ctx, 0);
++}
++
++extern "C" void osPfsNumFiles_recomp(uint8_t* rdram, recomp_context* ctx) {
+     s32* max_files = _arg<1, s32*>(rdram, ctx);
+     s32* files_used = _arg<2, s32*>(rdram, ctx);
++    pak_ensure_loaded();
+ 
+-    *max_files = 0;
+-    *files_used = 0;
++    int used = 0;
++    for (const PakFile& f : g_pak.files) {
++        if (f.used) {
++            used++;
++        }
++    }
++    if (max_files != nullptr) {
++        *max_files = PAK_MAX_FILES;
++    }
++    if (files_used != nullptr) {
++        *files_used = used;
++    }
++    _return<s32>(ctx, 0);
++}
++
++extern "C" void osPfsIsPlug_recomp(uint8_t* rdram, recomp_context* ctx) {
++    u8* pattern = _arg<1, u8*>(rdram, ctx);
++    pak_ensure_loaded();
++    if (pattern != nullptr) {
++        *pattern = 0x01; // pak presente en el canal 0
++    }
++    _return<s32>(ctx, 0);
++}
++
++extern "C" void osPfsChecker_recomp(uint8_t* rdram, recomp_context* ctx) {
++    s32* errors = _arg<2, s32*>(rdram, ctx);
++    if (errors != nullptr) {
++        *errors = 0;
++    }
++    _return<s32>(ctx, 0);
++}
+ 
+-    _return<s32>(ctx, 1); // PFS_ERR_NOPACK
++extern "C" void osPfsRepairId_recomp(uint8_t* rdram, recomp_context* ctx) {
++    _return<s32>(ctx, 0);
+ }
+ 
+-extern "C" void osPfsRepairId_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    _return<s32>(ctx, 1); // PFS_ERR_NOPACK
++// Game Boy Pak: libultra `osGbpakInit` devuelve GB_PAK_ERR_NOPAK (0xB) cuando no hay accesorio.
++#define GB_PAK_ERR_NOPAK 0xB
++extern "C" void osGbpakInit_recomp(uint8_t * rdram, recomp_context* ctx) {
++    OSPfs* pfs = _arg<1, OSPfs*>(rdram, ctx);
++    int channel = _arg<2, int>(rdram, ctx);
++    if (pfs != nullptr) {
++        pfs->status = GB_PAK_ERR_NOPAK;
++        pfs->channel = channel;
++    }
++    _return<s32>(ctx, GB_PAK_ERR_NOPAK);
+ }
+diff --git a/librecomp/src/pi.cpp b/librecomp/src/pi.cpp
+index 43509ba..e73783a 100644
+--- a/librecomp/src/pi.cpp
++++ b/librecomp/src/pi.cpp
+@@ -2,9 +2,13 @@
+ #include <fstream>
+ #include <array>
+ #include <cstring>
++#include <cstdio>
++#include <cstdlib>
+ #include <string>
+ #include <mutex>
++#include <chrono>
+ #include "recomp.h"
++#include <cstdarg>
+ #include "librecomp/addresses.hpp"
+ #include "librecomp/game.hpp"
+ #include "librecomp/files.hpp"
+@@ -13,6 +17,9 @@
+ 
+ static std::vector<uint8_t> rom;
+ 
++// HH: watchpoint de escrituras (ver recomp.cpp). Avisa si un DMA toca el rango vigilado.
++extern "C" void hh_watch_dma(uint32_t dram, uint32_t size);
++
+ bool recomp::is_rom_loaded() {
+     return !rom.empty();
+ }
+@@ -266,9 +273,49 @@ void ultramodern::join_saving_thread() {
+     }
+ }
+ 
++// HH: log siempre-activo del camino PI (hh_pi.log, acotado) para diagnosticar cuelgues tipo
++// "el juego espera una completacion de DMA que no llega". Cada linea lleva t= (segundos desde el
++// primer DMA) para poder alinear con hh_state.log. Limite: HH_PI_MAX bytes (defecto 32 MB).
++static void hh_pi_log(const char* fmt, ...) {
++    static FILE* f = nullptr;
++    static long total = 0;
++    static long max_total = -1;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_pi.log", "w");
++        if (f == nullptr) return;
++        const char* env = getenv("HH_PI_MAX");
++        max_total = (env != nullptr && *env != '\0') ? atol(env) : (32L * 1024 * 1024);
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (total > max_total) return;
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    va_list args;
++    va_start(args, fmt);
++    total += fprintf(f, "[PI] t=%.3f ", t);
++    total += vfprintf(f, fmt, args);
++    va_end(args);
++    fflush(f);
++}
++
+ void do_dma(RDRAM_ARG PTR(OSMesgQueue) mq, gpr rdram_address, uint32_t physical_addr, uint32_t size, uint32_t direction) {
+     // TODO asynchronous transfer
+     // TODO implement unaligned DMA correctly
++    const char* region = (physical_addr >= recomp::rom_base) ? "rom"
++                       : (physical_addr >= recomp::sram_base) ? "sram" : "DESCONOCIDA";
++    uint32_t tid = 0xFFFFFFFFu;
++    if (ultramodern::is_game_thread()) {
++        tid = (uint32_t)TO_PTR(OSThread, ultramodern::this_thread())->id;
++    }
++    hh_pi_log("tid=%u dir=%u dev=%08X phys=%08X dram=%08X size=%X mq=%08X region=%s\n",
++              tid, direction, physical_addr, physical_addr, (uint32_t)rdram_address, size,
++              (uint32_t)mq, region);
++    // HH: si hay watchpoint activo, avisar si este DMA toca el rango vigilado.
++    hh_watch_dma((uint32_t)rdram_address, size);
++    if (getenv("HH_PILOG") != nullptr) {
++        fprintf(stderr, "[PI] do_dma mq=%p dram=0x%08X phys=0x%08X size=0x%X dir=%u\n",
++                (void*)mq, (uint32_t)rdram_address, physical_addr, size, direction);
++    }
+     if (direction == 0) {
+         if (physical_addr >= recomp::rom_base) {
+             // read cart rom
+diff --git a/librecomp/src/recomp.cpp b/librecomp/src/recomp.cpp
+index dea4176..0bdec96 100644
+--- a/librecomp/src/recomp.cpp
++++ b/librecomp/src/recomp.cpp
+@@ -21,6 +21,7 @@
+ 
+ #include "recomp.h"
+ #include "librecomp/overlays.hpp"
++#include "ultramodern/ultra64.h"
+ #include "librecomp/game.hpp"
+ #include "xxHash/xxh3.h"
+ 
+@@ -56,14 +57,16 @@ std::mutex current_game_mutex;
+ std::mutex mod_context_mutex{};
+ 
+ // Simple file logger used by the boot path so progress is visible even without a console.
++// Opt-in via HH_BOOTLOG=<path>; when unset, boot logging is a no-op (no file is created).
+ static FILE* g_boot_log = nullptr;
+ static void boot_log(const char* fmt, ...) {
++    static const char* log_path = getenv("HH_BOOTLOG");
++    if (log_path == nullptr) {
++        return;
++    }
+     if (g_boot_log == nullptr) {
+-        std::error_code ec;
+-        std::filesystem::path dir = std::filesystem::current_path();
+-        std::filesystem::create_directories(dir, ec);
+         // Truncate on first open so each run starts fresh.
+-        g_boot_log = std::fopen((dir / "boot.log").string().c_str(), "w");
++        g_boot_log = std::fopen(log_path, "w");
+     }
+     if (g_boot_log == nullptr) {
+         return;
+@@ -451,7 +454,11 @@ recomp::RomValidationError recomp::select_rom(const std::filesystem::path& rom_p
+ }
+ 
+ extern "C" void osGetMemSize_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    ctx->r2 = 8 * 1024 * 1024;
++    // Hybrid Heaven's boot checks osGetMemSize() against 0x400000 (4MB) and enters an
++    // infinite wait loop otherwise. The retail game targets the base 4MB machine (no
++    // Expansion Pak), so report 4MB even though the runtime allocates 8MB.
++    (void)rdram;
++    ctx->r2 = 4 * 1024 * 1024;
+ }
+ 
+ enum class StatusReg {
+@@ -525,7 +532,8 @@ extern "C" void cop0_register_write(recomp_context* ctx, uint32_t reg, gpr value
+ }
+ 
+ extern "C" void switch_error(const char* func, uint32_t vram, uint32_t jtbl) {
+-    printf("Switch-case out of bounds in %s at 0x%08X for jump table at 0x%08X\n", func, vram, jtbl);
++    fprintf(stderr, "Switch-case out of bounds in %s at 0x%08X for jump table at 0x%08X\n", func, vram, jtbl);
++    fflush(stderr);
+     assert(false);
+     exit(EXIT_FAILURE);
+ }
+@@ -534,14 +542,142 @@ extern "C" void do_break(uint32_t vram) {
+     // TODO: properly handle break by restoring PC to caller and continuing.
+     // For now, just warn and return to avoid killing the process.
+     printf("do_break: unhandled break at original vram 0x%08X (ignored)\n", vram);
++    // HH: registrar en fichero (dedup) los break/stubs ejecutados: un simbolo mal acotado queda en
++    // stub do_break y rompe el flujo en silencio (asi se cuelga el NPC). hh_stub.log junto al exe.
++    {
++        static std::mutex stub_mutex;
++        static std::unordered_set<uint32_t> stub_seen;
++        std::lock_guard<std::mutex> lock(stub_mutex);
++        if (stub_seen.insert(vram).second) {
++            FILE* f = fopen("hh_stub.log", "a");
++            if (f != nullptr) {
++                fprintf(f, "[STUB] vram=0x%08X\n", vram);
++                fflush(f);
++                fclose(f);
++            }
++        }
++    }
+ }
+ 
+ std::string current_game_mode_id;
+ std::optional<std::u8string> current_game = std::nullopt;
+ std::atomic<GameStatus> game_status = GameStatus::None;
+ 
++// HH: contexto de registros MIPS del hilo de juego en ejecucion (para volcados de crash).
++static thread_local recomp_context* hh_current_ctx = nullptr;
++
++extern "C" recomp_context* hh_get_current_ctx() {
++    return hh_current_ctx;
++}
++
++// HH: sp (r29) del contexto del hilo actual, o 0 si no hay. Para diagnosticos sin exponer el tipo.
++extern "C" uint32_t hh_current_sp() {
++    return hh_current_ctx != nullptr ? (uint32_t)hh_current_ctx->r29 : 0;
++}
++
++// HH: registro de los contextos de todos los hilos de juego vivos. El watchdog de cuelgue del
++// port lo usa para volcar donde esta atascado cada hilo (RA/SP = punto de bloqueo).
++// HH: anillo de las ultimas llamadas guest por hilo (para el watchdog: localizar bucles que no
++// ceden). En este port todas las llamadas pasan por get_function (use_lookup_for_all_function_calls).
++struct HhCallRing {
++    std::atomic<uint32_t> entries[16];
++    std::atomic<uint32_t> n{0};
++};
++struct HhCtxSlot {
++    std::atomic<recomp_context*> ctx{nullptr};
++    std::atomic<int> tid{-1};
++    std::atomic<uintptr_t> thr{0};
++    HhCallRing ring;
++};
++static HhCtxSlot hh_ctx_slots[32];
++static thread_local HhCallRing* hh_my_ring = nullptr;
++
++extern "C" void hh_callring_record(uint32_t addr) {
++    if (hh_my_ring == nullptr) return;
++    uint32_t n = hh_my_ring->n.load(std::memory_order_relaxed);
++    hh_my_ring->entries[n & 15].store(addr, std::memory_order_relaxed);
++    hh_my_ring->n.store(n + 1, std::memory_order_relaxed);
++}
++
++extern "C" int hh_get_callring(recomp_context* c, uint32_t* out, int max) {
++    for (auto& slot : hh_ctx_slots) {
++        if (slot.ctx.load() == c) {
++            uint32_t n = slot.ring.n.load();
++            int cnt = (int)std::min<uint32_t>(n, 16);
++            for (int i = 0; i < cnt && i < max; i++) {
++                out[i] = slot.ring.entries[(n - cnt + i) & 15].load();
++            }
++            return cnt;
++        }
++    }
++    return 0;
++}
++
++static void hh_register_ctx(recomp_context* ctx, int tid, uintptr_t thr) {
++    for (auto& slot : hh_ctx_slots) {
++        recomp_context* expected = nullptr;
++        if (slot.ctx.compare_exchange_strong(expected, ctx)) {
++            slot.tid.store(tid);
++            slot.thr.store(thr);
++            hh_my_ring = &slot.ring;
++            return;
++        }
++    }
++}
++
++static void hh_unregister_ctx(recomp_context* ctx) {
++    for (auto& slot : hh_ctx_slots) {
++        recomp_context* expected = ctx;
++        if (slot.ctx.compare_exchange_strong(expected, nullptr)) {
++            slot.tid.store(-1);
++            slot.thr.store(0);
++            if (hh_my_ring == &slot.ring) hh_my_ring = nullptr;
++            return;
++        }
++    }
++}
++
++extern "C" int hh_get_thread_ctxs(recomp_context** out, int max) {
++    int n = 0;
++    for (auto& slot : hh_ctx_slots) {
++        recomp_context* c = slot.ctx.load();
++        if (c != nullptr && n < max) {
++            out[n++] = c;
++        }
++    }
++    return n;
++}
++
++// HH: como hh_get_thread_ctxs pero devuelve tambien el id y el puntero de OSThread (watchdog).
++extern "C" int hh_get_thread_ctxs_tids(recomp_context** out, int* tids, int max) {
++    int n = 0;
++    for (auto& slot : hh_ctx_slots) {
++        recomp_context* c = slot.ctx.load();
++        if (c != nullptr && n < max) {
++            out[n] = c;
++            tids[n] = slot.tid.load();
++            n++;
++        }
++    }
++    return n;
++}
++
++extern "C" int hh_get_thread_ctxs_full(recomp_context** out, int* tids, uintptr_t* thrs, int max) {
++    int n = 0;
++    for (auto& slot : hh_ctx_slots) {
++        recomp_context* c = slot.ctx.load();
++        if (c != nullptr && n < max) {
++            out[n] = c;
++            tids[n] = slot.tid.load();
++            thrs[n] = slot.thr.load();
++            n++;
++        }
++    }
++    return n;
++}
++
+ void run_thread_function(uint8_t* rdram, uint64_t addr, uint64_t sp, uint64_t arg) {
+-    fprintf(stderr, "[RT] thread addr=0x%llx sp=0x%llx arg=0x%llx rdram=%p\n",
++    HH_LOG("[RT] thread addr=0x%llx sp=0x%llx arg=0x%llx rdram=%p\n",
+         (unsigned long long)addr, (unsigned long long)sp, (unsigned long long)arg, (void*)rdram);
+     auto find_it = game_roms.find(current_game.value());
+     const recomp::GameEntry& game_entry = find_it->second;
+@@ -557,10 +693,167 @@ void run_thread_function(uint8_t* rdram, uint64_t addr, uint64_t sp, uint64_t ar
+     }
+ 
+     recomp_func_t* func = get_function(addr);
++    hh_current_ctx = &ctx;
++    hh_register_ctx(&ctx, (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (uintptr_t)TO_PTR(OSThread, ultramodern::this_thread()));
+     func(rdram, &ctx);
++    hh_unregister_ctx(&ctx);
++    hh_current_ctx = nullptr;
++}
++
++// HH: watchpoint de accesos de codigo recompilado (ver recomp.h). Config: HH_WATCH_ADDR=0x...
++// Loguea a hh_watch.log (acotado) la direccion accedida, el ra guest del contexto actual y la
++// direccion de retorno host (mapeable con el .map). Sirve para cazar quien pisa una direccion.
++extern "C" int hh_watch_active = 0;
++extern "C" unsigned int hh_watch_lo = 0;
++extern "C" unsigned int hh_watch_hi = 0;
++
++#if defined(_MSC_VER)
++#include <intrin.h>
++static void* hh_watch_ret() { return _ReturnAddress(); }
++#else
++static void* hh_watch_ret() { return __builtin_return_address(0); }
++#endif
++
++// Base del modulo (para traducir direcciones host con el .map).
++#if defined(_WIN32)
++#ifndef NOMINMAX
++#define NOMINMAX
++#endif
++#include <windows.h>
++static uintptr_t hh_module_base() {
++    HMODULE hm = nullptr;
++    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
++                           GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
++                           reinterpret_cast<LPCSTR>(&hh_watch_ret), &hm) && hm != nullptr) {
++        return reinterpret_cast<uintptr_t>(hm);
++    }
++    return 0;
++}
++#else
++#include <dlfcn.h>
++static uintptr_t hh_module_base() {
++    Dl_info info{};
++    if (dladdr(reinterpret_cast<void*>(&hh_watch_ret), &info) != 0) {
++        return reinterpret_cast<uintptr_t>(info.dli_fbase);
++    }
++    return 0;
++}
++#endif
++
++static void hh_watch_init() {
++    const char* a = getenv("HH_WATCH_ADDR");
++    if (a == nullptr || *a == '\0') return;
++    unsigned long v = strtoul(a, nullptr, 0);
++    hh_watch_lo = (unsigned int)(v & 0x1FFFFFFFu);
++    hh_watch_hi = hh_watch_lo + 0x40;
++    hh_watch_active = 1;
++    fprintf(stderr, "[WATCH] vigilando RDRAM 0x%08X..0x%08X\n", hh_watch_lo, hh_watch_hi);
++}
++
++static void hh_watch_log(const char* what, uint64_t off, uint32_t extra) {
++    static FILE* f = nullptr;
++    static long n = 0;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_watch.log", "w");
++        if (f == nullptr) { hh_watch_active = 0; return; }
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (n >= 60000) { hh_watch_active = 0; return; }
++    n++;
++    recomp_context* c = hh_get_current_ctx();
++    uint32_t ra = (c != nullptr) ? (uint32_t)c->r31 : 0;
++    uint32_t sp = (c != nullptr) ? (uint32_t)c->r29 : 0;
++    uint32_t a0 = (c != nullptr) ? (uint32_t)c->r4 : 0;
++    uint32_t a1 = (c != nullptr) ? (uint32_t)c->r5 : 0;
++    uint32_t a2 = (c != nullptr) ? (uint32_t)c->r6 : 0;
++    uint32_t a3 = (c != nullptr) ? (uint32_t)c->r7 : 0;
++    static uintptr_t hh_base = 0;
++    if (hh_base == 0) hh_base = hh_module_base();
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    void* ret = hh_watch_ret();
++    unsigned long long ret_off = (hh_base != 0) ? (unsigned long long)((uintptr_t)ret - hh_base) : 0;
++    fprintf(f, "[WATCH] t=%.3f %s off=%05llX ra=%08X sp=%08X a0=%08X a1=%08X a2=%08X a3=%08X extra=%08X ret=%p (exe+0x%llX)\n",
++            t, what, (unsigned long long)off, ra, sp, a0, a1, a2, a3, extra, ret, ret_off);
++#if defined(_WIN32)
++    {
++        void* frames[16];
++        USHORT nf = CaptureStackBackTrace(0, 16, frames, nullptr);
++        unsigned long long offs[16];
++        for (USHORT i = 0; i < nf && i < 16; i++) {
++            offs[i] = (hh_base != 0) ? (unsigned long long)((uintptr_t)frames[i] - hh_base) : 0;
++        }
++        fprintf(f, "         bt:");
++        for (USHORT i = 0; i < nf && i < 16; i++) fprintf(f, " 0x%llX", offs[i]);
++        fprintf(f, "\n");
++    }
++#endif
++    fflush(f);
++}
++
++// HH: ring buffer de las ultimas llamadas (target + sp) para volcar la secuencia que hunde la pila.
++struct HhCallRec { uint32_t target; uint32_t sp; };
++static thread_local HhCallRec hh_ring[96];
++static thread_local int hh_ring_n = 0;
++extern "C" void hh_ring_record(uint32_t target, uint32_t sp) {
++    hh_ring[hh_ring_n % 96] = { target, sp };
++    hh_ring_n++;
++}
++extern "C" void hh_ring_dump(FILE* f) {
++    int start = hh_ring_n > 96 ? hh_ring_n - 96 : 0;
++    for (int i = start; i < hh_ring_n; i++) {
++        const HhCallRec& r = hh_ring[i % 96];
++        fprintf(f, "   call -> 0x%08X sp=%08X\n", r.target, r.sp);
++    }
++}
++
++// HH: ring grande (por hilo) de llamadas para capturar un frame entero y localizar la fuga de pila.
++static const int HH_RING2_SIZE = 1 << 16;
++static thread_local HhCallRec hh_ring2[HH_RING2_SIZE];
++static thread_local int hh_ring2_n = 0;
++extern "C" void hh_ring2_record(uint32_t target, uint32_t sp) {
++    hh_ring2[hh_ring2_n % HH_RING2_SIZE] = { target, sp };
++    hh_ring2_n++;
++}
++extern "C" int hh_ring2_count() { return hh_ring2_n; }extern "C" void hh_ring2_dump_last(FILE* f, int count) {
++    if (count > hh_ring2_n) count = hh_ring2_n;
++    if (count > HH_RING2_SIZE) count = HH_RING2_SIZE;
++    int start = hh_ring2_n - count;
++    for (int i = start; i < hh_ring2_n; i++) {
++        const HhCallRec& r = hh_ring2[i % HH_RING2_SIZE];
++        fprintf(f, "0x%08X %08X\n", r.target, r.sp);
++    }
++}
++
++extern "C" void hh_watch_hit(uint64_t off) {
++    // HH: la primera vez que la pila entra en la zona del struct, volcar las ultimas llamadas.
++    recomp_context* c = hh_get_current_ctx();
++    static bool dumped = false;
++    if (!dumped && c != nullptr && (uint32_t)c->r29 != 0 && (uint32_t)c->r29 < 0x8005A000u) {
++        dumped = true;
++        FILE* f = fopen("hh_ring.log", "w");
++        if (f != nullptr) {
++            fprintf(f, "=== HH ring de llamadas (sp=%08X, off=%05llX) ===\n",
++                    (uint32_t)c->r29, (unsigned long long)off);
++            hh_ring_dump(f);
++            fflush(f);
++            fclose(f);
++        }
++    }
++    hh_watch_log("mem", off, 0);
++}
++
++extern "C" void hh_watch_dma(uint32_t dram, uint32_t size) {
++    if (hh_watch_active == 0) return;
++    uint32_t lo = dram & 0x1FFFFFFFu;
++    uint32_t hi = lo + size;
++    if (hi > hh_watch_lo && lo < hh_watch_hi) {
++        hh_watch_log("dma", lo, size);
++    }
+ }
+ 
+ void init(uint8_t* rdram, recomp_context* ctx, gpr entrypoint) {
++    hh_watch_init();
+     // Initialize the overlays
+     recomp::overlays::init_overlays();
+     init_mmio(rdram);
+@@ -600,7 +893,7 @@ void init(uint8_t* rdram, recomp_context* ctx, gpr entrypoint) {
+     MEM_W(osTvType, 0) = 1; // NTSC
+     MEM_W(osRomBase, 0) = 0xB0000000u; // standard rom base
+     MEM_W(osResetType, 0) = 0; // cold reset
+-    MEM_W(osMemSize, 0) = 8 * 1024 * 1024; // 8MB
++    MEM_W(osMemSize, 0) = 4 * 1024 * 1024; // 4MB (base retail machine; see osGetMemSize_recomp)
+ }
+ 
+ std::u8string recomp::current_game_id() {
+@@ -778,6 +1071,9 @@ void recomp::mods::set_mod_index(const std::string &mod_game_id, const std::stri
+     return mod_context->set_mod_index(mod_game_id, mod_id, index);
+ }
+ 
++// HH: volcado de crash del port (definido en src/main/main.cpp).
++extern "C" void hh_port_crash_dump(uint32_t n64_addr);
++
+ // Runs the game entrypoint, capturing a Windows access violation so the boot's faulting address
+ // can be reported. Extracted into its own noinline function because __try/__except cannot be used
+ // in a function that requires C++ object unwinding.
+@@ -871,6 +1167,8 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
+                     // Convert the host pointer back to the N64 address the recompiled code was accessing.
+                     int64_t n64_addr = (int64_t)(intptr_t)(crash_addr - (uintptr_t)rdram) + 0xFFFFFFFF80000000LL;
+                     boot_log("Crash N64 addr = 0x%08X\n", (uint32_t)n64_addr);
++                    // HH: que el port deje su volcado completo (hh_crash.log + RDRAM + DMEM).
++                    hh_port_crash_dump((uint32_t)n64_addr);
+                     std::exit(EXIT_FAILURE);
+                 }
+                 boot_log("Entrypoint returned\n");
+@@ -880,7 +1178,11 @@ bool wait_for_game_started(uint8_t* rdram, recomp_context* context) {
+                     // spawns (via osStartThread from a NULL thread_self) cannot run concurrently with
+                     // it; they block on the lock until the entrypoint returns and releases it.
+                     ultramodern::acquire_game_lock();
++                    hh_current_ctx = context;
++                    hh_register_ctx(context, (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (uintptr_t)TO_PTR(OSThread, ultramodern::this_thread()));
+                     game_entry.entrypoint(rdram, context);
++                    hh_unregister_ctx(context);
++                    hh_current_ctx = nullptr;
+                     ultramodern::release_game_lock();
+                     boot_log("Entrypoint returned\n");
+                 } catch (ultramodern::thread_terminated& terminated) {
+diff --git a/librecomp/src/rsp.cpp b/librecomp/src/rsp.cpp
+index 1cb3f6a..86b9b90 100644
+--- a/librecomp/src/rsp.cpp
++++ b/librecomp/src/rsp.cpp
+@@ -1,6 +1,7 @@
+ #include <cassert>
+ #include <cstring>
+ #include <cinttypes>
++#include <cstdlib>
+ 
+ #include "rsp.hpp"
+ 
+@@ -38,7 +39,17 @@ bool recomp::rsp::run_task(uint8_t* rdram, const OSTask* task) {
+     RspUcodeFunc* ucode_func = rsp_callbacks.get_rsp_microcode(task);
+ 
+     if (ucode_func == nullptr) {
+-        fprintf(stderr, "No registered RSP ucode for %" PRIu32 " (returned `nullptr`)\n", task->t.type);
++        // Tasks without a registered ucode (e.g. the game's audio ucode) are completed as no-ops
++        // by the task thread. Warn once per task type, and only in verbose mode, to avoid spamming
++        // the console every frame.
++        static bool warned[64] = {};
++        uint32_t type = static_cast<uint32_t>(task->t.type);
++        if (type < 64 && !warned[type]) {
++            warned[type] = true;
++            if (getenv("HH_VERBOSE") != nullptr) {
++                fprintf(stderr, "No registered RSP ucode for %" PRIu32 " (returned `nullptr`)\n", type);
++            }
++        }
+         return false;
+     }
+ 
+diff --git a/librecomp/src/sp.cpp b/librecomp/src/sp.cpp
+index ae0f44f..d2b44f3 100644
+--- a/librecomp/src/sp.cpp
++++ b/librecomp/src/sp.cpp
+@@ -36,12 +36,30 @@ extern "C" void osSpTaskStartGo_recomp(uint8_t* rdram, recomp_context* ctx) {
+     ultramodern::submit_rsp_task(rdram, ctx->r4);
+ }
+ 
++// El juego usa el protocolo de yield de libultra para alternar gfx/audio en el RSP:
++// t18 llama osSpTaskYield mientras t17 tiene una task en vuelo y luego espera la
++// completacion SP. Con el reparto dirigido del port, esa completacion va al emisor
++// (t17), asi que el que hace yield se quedaria esperando para siempre. Entregamos una
++// completacion SP sintetica al hilo que hace yield (la task real completa por su lado).
++extern void sp_complete(PTR(OSThread) submitter);
+ extern "C" void osSpTaskYield_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    // Ignore yield requests (acts as if the task completed before it received the yield request)
++    const char* dbg = getenv("HH_VERBOSE");
++    static const bool shared = getenv("HH_SP_SHARED") != nullptr;
++    static uint64_t n = 0;
++    if (dbg && n < 200) fprintf(stderr, "[YLD] yield n=%llu shared=%d\n", (unsigned long long)n, (int)shared);
++    n++;
++    if (!shared) {
++        sp_complete(ultramodern::this_thread());
++    }
+ }
+ 
+ extern "C" void osSpTaskYielded_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    // Task yield requests are ignored, so always return 0 as tasks will never be yielded
++    const char* dbg = getenv("HH_VERBOSE");
++    static uint64_t n = 0;
++    uint32_t task = (uint32_t)ctx->r4;
++    uint32_t flags = task ? *(uint32_t*)&rdram[(task + 4) & 0x7FFFFF] : 0;
++    if (dbg && n < 200) fprintf(stderr, "[YLD] yielded n=%llu task=%08X flags=%08X\n", (unsigned long long)n, task, flags);
++    n++;
+     ctx->r2 = 0;
+ }
+ 
+diff --git a/librecomp/src/ultra_translation.cpp b/librecomp/src/ultra_translation.cpp
+index e0d367e..541ff96 100644
+--- a/librecomp/src/ultra_translation.cpp
++++ b/librecomp/src/ultra_translation.cpp
+@@ -4,11 +4,11 @@
+ #include "recomp.h"
+ 
+ extern "C" void osInitialize_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    osInitialize();
++    osInitialize_stub();
+ }
+ 
+ extern "C" void __osInitialize_common_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    osInitialize();
++    osInitialize_stub();
+ }
+ 
+ extern "C" void osCreateThread_recomp(uint8_t* rdram, recomp_context* ctx) {
+@@ -49,11 +49,21 @@ extern "C" void osCreateMesgQueue_recomp(uint8_t* rdram, recomp_context* ctx) {
+     osCreateMesgQueue(rdram, (int32_t)ctx->r4, (int32_t)ctx->r5, (s32)ctx->r6);
+ }
+ 
++static void hh_check_mq_arg(const char* fn, uint8_t* rdram, recomp_context* ctx) {
++    uint32_t mq = (uint32_t)ctx->r4;
++    if (mq != 0 && (mq < 0x80000000u || mq >= 0x80800000u || (mq & 3u))) {
++        static int hh_n = 0;
++        if (hh_n++ < 40) fprintf(stderr, "[BADMQ] %s mq=%08X ra=%08X\n", fn, mq, (unsigned)ctx->r31);
++    }
++}
++
+ extern "C" void osRecvMesg_recomp(uint8_t* rdram, recomp_context* ctx) {
++    hh_check_mq_arg("osRecvMesg", rdram, ctx);
+     ctx->r2 = osRecvMesg(rdram, (int32_t)ctx->r4, (int32_t)ctx->r5, (s32)ctx->r6);
+ }
+ 
+ extern "C" void osSendMesg_recomp(uint8_t* rdram, recomp_context* ctx) {
++    hh_check_mq_arg("osSendMesg", rdram, ctx);
+     ctx->r2 = osSendMesg(rdram, (int32_t)ctx->r4, (OSMesg)ctx->r5, (s32)ctx->r6);
+ }
+ 
+@@ -65,10 +75,6 @@ extern "C" void osSetEventMesg_recomp(uint8_t* rdram, recomp_context* ctx) {
+     osSetEventMesg(rdram, (OSEvent)ctx->r4, (int32_t)ctx->r5, (OSMesg)ctx->r6);
+ }
+ 
+-extern "C" void osViSetEvent_recomp(uint8_t * rdram, recomp_context * ctx) {
+-    osViSetEvent(rdram, (int32_t)ctx->r4, (OSMesg)ctx->r5, (u32)ctx->r6);
+-}
+-
+ extern "C" void osGetCount_recomp(uint8_t * rdram, recomp_context * ctx) {
+     ctx->r2 = osGetCount();
+ }
+diff --git a/librecomp/src/vi.cpp b/librecomp/src/vi.cpp
+index 1f3a4cf..b2a3d66 100644
+--- a/librecomp/src/vi.cpp
++++ b/librecomp/src/vi.cpp
+@@ -2,6 +2,11 @@
+ #include "recomp.h"
+ #include "helpers.hpp"
+ 
++// ADR 0003: la familia VI principal (osCreateViManager, osViSetMode/Event/SwapBuffer, osViBlack,
++// osViSetSpecialFeatures, osViGetCurrent/NextFramebuffer) se genera del ROM, que mantiene el
++// OSViContext y los registros VI. El runtime solo conserva los stubs que sí se reimplementan y
++// el helper de espera de frame.
++
+ extern "C" void osViSetYScale_recomp(uint8_t* rdram, recomp_context * ctx) {
+     osViSetYScale(ctx->f12.fl);
+ }
+@@ -10,38 +15,10 @@ extern "C" void osViSetXScale_recomp(uint8_t* rdram, recomp_context * ctx) {
+     osViSetXScale(ctx->f12.fl);
+ }
+ 
+-extern "C" void osCreateViManager_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    ;
+-}
+-
+-extern "C" void osViBlack_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    osViBlack((uint32_t)ctx->r4);
+-}
+-
+ extern "C" void osViRepeatLine_recomp(uint8_t* rdram, recomp_context* ctx) {
+     osViRepeatLine(_arg<0, u8>(rdram, ctx));
+ }
+ 
+-extern "C" void osViSetSpecialFeatures_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    osViSetSpecialFeatures((uint32_t)ctx->r4);
+-}
+-
+-extern "C" void osViGetCurrentFramebuffer_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    ctx->r2 = (gpr)(int32_t)osViGetCurrentFramebuffer();
+-}
+-
+-extern "C" void osViGetNextFramebuffer_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    ctx->r2 = (gpr)(int32_t)osViGetNextFramebuffer();
+-}
+-
+-extern "C" void osViSwapBuffer_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    osViSwapBuffer(rdram, (int32_t)ctx->r4);
+-}
+-
+-extern "C" void osViSetMode_recomp(uint8_t* rdram, recomp_context* ctx) {
+-    osViSetMode(rdram, (int32_t)ctx->r4);
+-}
+-
+ extern uint64_t total_vis;
+ 
+ extern "C" void wait_one_frame(uint8_t* rdram, recomp_context* ctx) {
+diff --git a/ultramodern/include/ultramodern/ultra64.h b/ultramodern/include/ultramodern/ultra64.h
+index 31eb106..2c58c03 100644
+--- a/ultramodern/include/ultramodern/ultra64.h
++++ b/ultramodern/include/ultramodern/ultra64.h
+@@ -39,7 +39,18 @@ typedef uint8_t u8;
+ #  define RDRAM_ARG1 uint8_t *rdram
+ #  define PASS_RDRAM rdram, 
+ #  define PASS_RDRAM1 rdram
+-#  define TO_PTR(type, var) ((type*)(&rdram[(uint64_t)var - 0xFFFFFFFF80000000]))
++// HH: conversión guest→host segura. Igual que la fórmula original para direcciones mapeadas
++// (KSEG0/KSEG1: RDRAM y ventana MMIO), pero los accesos no mapeados (p.ej. osSendMesg con cola
++// NULL, que el hardware/emulador ignoran) van a un scratch fuera del heap del runtime en vez de
++// calcular un puntero fuera del buffer (SEGV). Ver notes/2026-09-14-fix-*.md.
++static inline uint64_t hh_to_ptr_off(uint32_t guest) {
++    if (guest >= 0x80000000u) {
++        uint32_t off = guest - 0x80000000u;
++        return (off < 0x40000000u) ? (uint64_t)off : UINT64_C(0x0FFFFF0);
++    }
++    return (guest < 0x00800000u) ? (uint64_t)guest : UINT64_C(0x0FFFFF0);
++}
++#  define TO_PTR(type, var) ((type*)(&rdram[hh_to_ptr_off((uint32_t)(var))]))
+ #  define GET_MEMBER(type, addr, member) (addr + (intptr_t)&(((type*)nullptr)->member))
+ #  ifdef __cplusplus
+ #    define NULLPTR (PTR(void))0
+@@ -107,6 +118,26 @@ typedef struct OSThread_t {
+     int32_t sp;
+ } OSThread;
+ 
++// HH: sombra host de los campos de scheduling del OSThread (ver threads.cpp). El scheduler debe
++// usar SIEMPRE estos accesores: el struct guest puede quedar pisado (pila del propio hilo, reuso).
++#ifdef __cplusplus
++extern "C" {
++#endif
++void hh_sh_init(OSThread* t, int32_t next, int32_t priority, int32_t queue, uint16_t state, int32_t id, int32_t sp);
++int32_t hh_sh_get_next(OSThread* t);
++void hh_sh_set_next(OSThread* t, int32_t v);
++int32_t hh_sh_get_priority(OSThread* t);
++void hh_sh_set_priority(OSThread* t, int32_t v);
++int32_t hh_sh_get_queue(OSThread* t);
++void hh_sh_set_queue(OSThread* t, int32_t v);
++int32_t hh_sh_get_state(OSThread* t);
++void hh_sh_set_state(OSThread* t, int32_t v);
++int32_t hh_sh_get_id(OSThread* t);
++int32_t hh_sh_get_sp(OSThread* t);
++#ifdef __cplusplus
++}
++#endif
++
+ typedef u32 OSEvent;
+ typedef PTR(void) OSMesg;
+ 
+@@ -261,7 +292,7 @@ typedef struct {
+ extern "C" {
+ #endif // __cplusplus
+ 
+-void osInitialize(void);
++void osInitialize_stub(void);
+ 
+ typedef void (thread_func_t)(PTR(void));
+ 
+@@ -279,16 +310,12 @@ s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue), OSMesg, s32);
+ s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue), OSMesg, s32);
+ s32 osRecvMesg(RDRAM_ARG PTR(OSMesgQueue), PTR(OSMesg), s32);
+ void osSetEventMesg(RDRAM_ARG OSEvent, PTR(OSMesgQueue), OSMesg);
+-void osViSetEvent(RDRAM_ARG PTR(OSMesgQueue), OSMesg, u32);
+-void osViSwapBuffer(RDRAM_ARG PTR(void) frameBufPtr);
+-void osViSetMode(RDRAM_ARG PTR(OSViMode));
+-void osViSetSpecialFeatures(uint32_t func);
+-void osViBlack(uint8_t active);
++// ADR 0003: osCreateViManager/osViSetMode/osViSetEvent/osViSwapBuffer/osViBlack/
++// osViSetSpecialFeatures/osViGetCurrent(Next)Framebuffer se generan del ROM; sus prototipos viven
++// en RecompiledFuncs/funcs.h (firma recomp). Aquí solo quedan los que el runtime reimplementa.
+ void osViRepeatLine(uint8_t active);
+ void osViSetXScale(float scale);
+ void osViSetYScale(float scale);
+-PTR(void) osViGetNextFramebuffer();
+-PTR(void) osViGetCurrentFramebuffer();
+ u32 osGetCount();
+ void osSetCount(u32 count);
+ OSTime osGetTime();
+diff --git a/ultramodern/include/ultramodern/ultramodern.hpp b/ultramodern/include/ultramodern/ultramodern.hpp
+index eba6524..d473bd4 100644
+--- a/ultramodern/include/ultramodern/ultramodern.hpp
++++ b/ultramodern/include/ultramodern/ultramodern.hpp
+@@ -21,6 +21,18 @@
+ #include "ultramodern/rsp.hpp"
+ #include "ultramodern/threads.hpp"
+ 
++// HH-specific debug tracing. All verbose runtime traces are opt-in via `HH_VERBOSE=1` so normal
++// runs (and release builds) stay quiet and readable. Use HH_LOG(...) exactly like fprintf(stderr, ...).
++#include <cstdio>
++#include <cstdlib>
++namespace ultramodern { namespace debug {
++inline bool verbose() {
++    static const bool enabled = getenv("HH_VERBOSE") != nullptr;
++    return enabled;
++}
++} }
++#define HH_LOG(...) do { if (ultramodern::debug::verbose()) { fprintf(stderr, __VA_ARGS__); } } while (0)
++
+ struct UltraThreadContext {
+     std::thread host_thread;
+     moodycamel::LightweightSemaphore running;
+@@ -62,7 +74,9 @@ std::filesystem::path get_save_file_path();
+ // Thread queues.
+ constexpr PTR(PTR(OSThread)) running_queue = (PTR(PTR(OSThread)))-1;
+ 
+-void thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue, PTR(OSThread) toadd);
++// HH: `fifo_equals=true` (usado al ceder el CPU en swap_to_thread) inserta los empates de prioridad
++// al final (round-robin); por defecto se conserva el orden original de upstream.
++void thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue, PTR(OSThread) toadd, bool fifo_equals = false);
+ PTR(OSThread) thread_queue_pop(RDRAM_ARG PTR(PTR(OSThread)) queue);
+ bool thread_queue_remove(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) t_);
+ bool thread_queue_empty(RDRAM_ARG PTR(PTR(OSThread)) queue);
+@@ -91,6 +105,9 @@ struct MessageQueueControl {
+ void set_message_queue_control(const MessageQueueControl& mqc);
+ void enqueue_external_message_src(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, EventMessageSource src);
+ void enqueue_external_message(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, bool requeue_if_blocked);
++// HH: entrega dirigida (usada para completaciones SP/DP): si `target` está bloqueado en `mq`,
++// se le despierta a él (no al primero de la lista). Ver ADR/arquitectura §5.
++void enqueue_external_message_to(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, PTR(OSThread) target);
+ void wait_for_external_message(RDRAM_ARG1);
+ void wait_for_external_message_timed(RDRAM_ARG1, u32 millis);
+ 
+diff --git a/ultramodern/src/events.cpp b/ultramodern/src/events.cpp
+index 2e47068..fdaf579 100644
+--- a/ultramodern/src/events.cpp
++++ b/ultramodern/src/events.cpp
+@@ -26,8 +26,13 @@ void ultramodern::events::set_callbacks(const ultramodern::events::callbacks_t&
+ 
+ struct SpTaskAction {
+     OSTask task;
++    PTR(OSThread) submitter; // HH: hilo que envió la task (para la completación dirigida)
+ };
+ 
++// HH: task RSP en vuelo (no-gfx) -> hilo emisor, para entregarle su completación SP.
++static std::mutex sp_submitter_mutex;
++static std::unordered_map<uint32_t, PTR(OSThread)> sp_task_submitters;
++
+ struct ScreenUpdateAction {
+     ultramodern::renderer::ViRegs regs;
+ };
+@@ -150,9 +155,35 @@ ultramodern::renderer::ViRegs* ultramodern::renderer::get_vi_regs() {
+     return &events_context.vi.update_screen_regs;
+ }
+ 
++
++// HH: traza de eventos (osSetEventMesg y entregas VI/AI) en fichero PROPIO (hh_evt.log) para que no
++// lo trunque el logger de colas. Sirve para cazar el cuelgue por dano (el hilo VI deja de entregar).
++extern uint64_t total_vis;
++
++// HH: base de RDRAM para diagnosticos fuera de este TU (p. ej. el dispatch del bucle principal).
++extern "C" uint8_t* hh_get_rdram_base(void) { return events_context.rdram; }
++
++extern "C" void hh_evt_log(const char* what, int event_id, PTR(OSMesgQueue) mq_, OSMesg msg, unsigned long long vi, int tid) {
++    if (getenv("HH_MQLOG_ALL") == nullptr) return;
++    static FILE* f = nullptr;
++    static long total = 0;
++    if (f == nullptr) {
++        f = fopen("hh_evt.log", "w");
++        if (f == nullptr) return;
++    }
++    if (total > (4L * 1024 * 1024)) return;
++    total += fprintf(f, "[EVT] t_vis=%llu %s tid=%d event=%d mq=%08X msg=%08X\n",
++                     vi, what, tid, event_id, (unsigned)mq_, (unsigned)msg);
++    fflush(f);
++}
++
+ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_, OSMesg msg) {
+-    std::lock_guard lock{ events_context.message_mutex };
+-    fprintf(stderr, "[EV] osSetEventMesg event=%d mq=%p msg=%p\n", (int)event_id, (void*)mq_, (void*)msg);
++    hh_evt_log("set-enter", (int)event_id, mq_, msg, (unsigned long long)total_vis,
++               ultramodern::is_game_thread() ? (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())) : -1);
++    HH_LOG("[EV] osSetEventMesg event=%d mq=%p msg=%p\n", (int)event_id, (void*)mq_, (void*)msg);
++    std::unique_lock<std::mutex> lock{ events_context.message_mutex };
++    hh_evt_log("set-acquired", (int)event_id, mq_, msg, (unsigned long long)total_vis,
++               ultramodern::is_game_thread() ? (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())) : -1);
+ 
+     switch (event_id) {
+         case OS_EVENT_SP:
+@@ -176,19 +207,58 @@ extern "C" void osSetEventMesg(RDRAM_ARG OSEvent event_id, PTR(OSMesgQueue) mq_,
+             events_context.vi_event.mq = mq_;
+             break;
+     }
+-}
+ 
+-extern "C" void osViSetEvent(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, u32 retrace_count) {
+-    fprintf(stderr, "[VIEV] osViSetEvent mq=%p msg=%p retrace=%u\n", (void*)mq_, (void*)msg, retrace_count);
+-    std::lock_guard lock{ events_context.message_mutex };
+-    ViState* next_state = events_context.vi.get_next_state();
+-    next_state->mq = mq_;
+-    next_state->msg = msg;
+-    next_state->retrace_count = retrace_count;
++    lock.unlock();
++    hh_evt_log("set-exit", (int)event_id, mq_, msg, (unsigned long long)total_vis,
++               ultramodern::is_game_thread() ? (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())) : -1);
++
++    // Mirror the ROM libultra bookkeeping: __osEventStateTab[event_id] = { mq, msg }.
++    // The game reads this table directly at 0x800CD5F0 + event_id * 8; the runtime replaces
++    // osSetEventMesg with this C++ version, so the table has to be written here too.
++    if (event_id < 24) {
++        uint32_t addr = 0xCD5F0 + (uint32_t)event_id * 8;
++        *reinterpret_cast<uint32_t*>(&rdram[addr]) = static_cast<uint32_t>(mq_);
++        *reinterpret_cast<uint32_t*>(&rdram[addr + 4]) = static_cast<uint32_t>(msg);
++    }
+ }
+ 
+ uint64_t total_vis = 0;
+ 
++// HH: latido del hilo de VI del runtime (para el watchdog de cuelgue del port).
++static std::atomic<uint64_t> hh_vi_ticks{0};
++extern "C" uint64_t hh_get_vi_ticks() { return hh_vi_ticks.load(); }
++
++// HH: contador de VI (frames de juego) expuesto para el replay determinista de input.
++extern "C" uint64_t hh_get_vi_count(void) { return total_vis; }
++
++// ADR 0003: el OSViContext y los registros VI los mantiene libultra del ROM
++// (viMgrMain -> __osViSwapContext). El runtime solo lee el bloque de registros MMIO
++// (KSEG1 0x04400000) para alimentar ViRegs/RT64. Devuelve false mientras el ROM no los
++// haya inicializado (VI_CTRL == 0), en cuyo caso se usa el modo dummy.
++static bool load_vi_regs(uint8_t* rdram, ultramodern::renderer::ViRegs& regs) {
++    constexpr uint32_t VI_BASE = 0x20000000u + 0x04400000u;
++    auto r = [&](uint32_t off) { return *(uint32_t*)&rdram[VI_BASE + off]; };
++    uint32_t status = r(0x00);
++    if (status == 0) {
++        return false;
++    }
++    regs.VI_STATUS_REG = status;
++    regs.VI_ORIGIN_REG = r(0x04);
++    regs.VI_WIDTH_REG = r(0x08);
++    regs.VI_INTR_REG = r(0x0C);
++    regs.VI_V_CURRENT_LINE_REG = r(0x10);
++    regs.VI_TIMING_REG = r(0x14);
++    regs.VI_V_SYNC_REG = r(0x18);
++    regs.VI_H_SYNC_REG = r(0x1C);
++    regs.VI_LEAP_REG = r(0x20);
++    regs.VI_H_START_REG = r(0x24);
++    regs.VI_V_START_REG = r(0x28);
++    regs.VI_V_BURST_REG = r(0x2C);
++    regs.VI_X_SCALE_REG = r(0x30);
++    regs.VI_Y_SCALE_REG = r(0x34);
++    return true;
++}
++
+ 
+ extern std::atomic_bool exited;
+ extern moodycamel::LightweightSemaphore graphics_shutdown_ready;
+@@ -202,9 +272,8 @@ void vi_thread_func() {
+     ultramodern::set_native_thread_priority(ultramodern::ThreadPriority::Critical);
+     using namespace std::chrono_literals;
+ 
+-    int remaining_retraces = 1;
+-
+     while (!exited) {
++        hh_vi_ticks.fetch_add(1, std::memory_order_relaxed);
+         // Determine the next VI time (more accurate than adding 16ms each VI interrupt)
+         auto next = ultramodern::get_start() + (total_vis * 1000000us) / (60 * ultramodern::get_speed_multiplier());
+         //if (next > std::chrono::high_resolution_clock::now()) {
+@@ -242,39 +311,146 @@ void vi_thread_func() {
+         // Doing this before the VI update is equivalent to updating the screen after the previous frame's scanout finished.
+         events_context.action_queue.enqueue(ScreenUpdateAction{ events_context.vi.regs });
+ 
+-        // Update VI registers and swap VI modes.
+-        events_context.vi.update_vi();
++        // ADR 0003: con el subsistema VI del ROM activo, los registros los escribe
++        // __osViSwapContext; el runtime solo los lee. Hasta que el ROM los inicialice,
++        // se mantiene el modo dummy (set_dummy_vi + update_vi).
++        static bool rom_vi_active = false;
++        if (!rom_vi_active && ultramodern::is_game_started()) {
++            rom_vi_active = load_vi_regs(events_context.rdram, events_context.vi.regs);
++        }
++        if (rom_vi_active) {
++            load_vi_regs(events_context.rdram, events_context.vi.regs);
++        } else {
++            events_context.vi.update_vi();
++        }
+ 
+         // If the game has started, handle sending VI and AI events.
+         if (ultramodern::is_game_started()) {
+-            remaining_retraces--;
+-            
+-            std::lock_guard lock{ events_context.message_mutex };
+-            ViState* cur_state = events_context.vi.get_cur_state();
+-            if (remaining_retraces == 0) {
+-                if (cur_state->mq != NULLPTR) {
+-                    fprintf(stderr, "[EV] VI retrace fire mq=%p\n", (void*)cur_state->mq);
+-                    // Send a message to the VI queue, and do not set it to be requeued if the queue was full.
+-                    // The worst case scenario is that the game misses a VI message and has to wait a little longer for the next. 
+-                    ultramodern::enqueue_external_message_src(cur_state->mq, cur_state->msg, false, ultramodern::EventMessageSource::Vi);
+-                } else {
+-                    fprintf(stderr, "[EV] VI retrace fire but mq=NULLPTR\n");
+-                }
+-                // The game may have registered the VI interrupt via osSetEventMesg(OS_EVENT_VI=7) instead of osViSetEvent.
++            {
++                hh_evt_log("vi-deliver-try", -1, NULLPTR, 0, (unsigned long long)total_vis, -1);
++                std::lock_guard lock{ events_context.message_mutex };
++                // Interrupt VI de hardware: lo consume viMgrMain (osCreateViManager lo registró
++                // con osSetEventMesg(OS_EVENT_VI)). La entrega al juego la hace el ROM.
+                 if (events_context.vi_event.mq != NULLPTR) {
+                     ultramodern::enqueue_external_message_src(events_context.vi_event.mq, events_context.vi_event.msg, false, ultramodern::EventMessageSource::Vi);
+                 }
++                hh_evt_log("vi-deliver-ok", -1, events_context.vi_event.mq, (OSMesg)events_context.vi_event.msg, (unsigned long long)total_vis, -1);
++                // HH diag: vigilancia de los contextos de audio (voice+0x60/+0x64/+0x5C) y de la
++                // tabla de voces (0x80091BE0..) para localizar la corrupcion del descriptor.
++                if (getenv("HH_CTXWATCH") != nullptr) {
++                    uint8_t* g = events_context.rdram;
++                    struct { const char* name; uint32_t addr; } fields[] = {
++                        { "v1+60", 0x800C7A50 }, { "v1+64", 0x800C7A54 }, { "v1+5C", 0x800C7A5C },
++                        { "v2+60", 0x800C8A40 }, { "v2+64", 0x800C8A44 }, { "v2+5C", 0x800C8A4C },
++                        { "v3+60", 0x800C9A30 }, { "v3+64", 0x800C9A34 }, { "v3+5C", 0x800C9A3C },
++                        { "tbl0",  0x80091BE0 }, { "tbl1",  0x80091BE4 }, { "tbl2",  0x80091BE8 },
++                    };
++                    static uint32_t prev[12];
++                    static bool init = false;
++                    for (unsigned i = 0; i < 12; i++) {
++                        uint32_t v = *(uint32_t*)&g[fields[i].addr & 0x1FFFFFFF];
++                        if (!init || v != prev[i]) {
++                            fprintf(stderr, "[CTXW] vis=%llu %s=%08X (antes %08X)\n",
++                                    (unsigned long long)total_vis, fields[i].name, v, init ? prev[i] : 0);
++                            prev[i] = v;
++                        }
++                    }
++                    init = true;
++                }
++                // HH diag: vigilancia del objeto RSP (0x8005C4B0) para el crash del driver.
++                if (getenv("HH_WATCH59") != nullptr) {
++                    uint8_t* g = events_context.rdram;
++                    auto rw = [&](uint32_t a){ return *(uint32_t*)&g[a]; };
++                    static uint32_t p0 = 0, p4 = 0, p8 = 0, pc = 0;
++                    uint32_t v0 = rw(0x5C4B0), v4 = rw(0x5C4B4), v8 = rw(0x5C4B8), vc = rw(0x5C4BC);
++                    if (v0 != p0) { fprintf(stderr, "[W59] vis=%llu +0=%08X (antes %08X)\n", (unsigned long long)total_vis, v0, p0); p0 = v0; }
++                    if (v4 != p4) { fprintf(stderr, "[W59] vis=%llu +4=%08X (antes %08X)\n", (unsigned long long)total_vis, v4, p4); p4 = v4; }
++                    if (v8 != p8) { fprintf(stderr, "[W59] vis=%llu +8=%08X (antes %08X)\n", (unsigned long long)total_vis, v8, p8); p8 = v8; }
++                    if (vc != pc) { fprintf(stderr, "[W59] vis=%llu +C=%08X (antes %08X)\n", (unsigned long long)total_vis, vc, pc); pc = vc; }
++                }
++                // GATE: traza de cambios del contador de tareas RSP pendientes (0x8005CD4C).
++                if (ultramodern::debug::verbose()) {
++                    uint8_t* g = events_context.rdram;
++                    uint32_t c = *(uint32_t*)&g[0x5CD4C];
++                    static uint32_t prev_cd4c = 0;
++                    static bool cd4c_init = false;
++                    if (!cd4c_init || c != prev_cd4c) {
++                        fprintf(stderr, "[GATE] vis=%llu cd4c=%u\n", (unsigned long long)total_vis, c);
++                        prev_cd4c = c;
++                        cd4c_init = true;
++                    }
++                }
+                 // DUMP: render-mode state of the game (DAT_80037750 / DAT_80037730 / DAT_80037738)
+                 if ((total_vis % 60) == 0) {
+                     uint8_t* g = events_context.rdram;
+                     auto rd = [&](uint32_t a){ return *(uint32_t*)&g[a & 0x1FFFFFFF]; };
+-                    fprintf(stderr, "[RND] vis=%llu 3750=0x%08X 3730=0x%08X 3738=0x%08X 3734=0x%08X 373c=0x%08X\n",
+-                        (unsigned long long)total_vis, rd(0x80037750), rd(0x80037730), rd(0x80037738), rd(0x80037734), rd(0x8003773c));
++                    auto rdu16 = [&](uint32_t a){ return *(uint16_t*)&g[(a ^ 2) & 0x1FFFFFFF]; };
++                    auto rdu8 = [&](uint32_t a){ return g[(a ^ 3) & 0x1FFFFFFF]; };
++                    HH_LOG("[RND] vis=%llu 3750=0x%08X 3730=0x%08X 3738=0x%08X 3734=0x%08X 373c=0x%08X fe00=0x%04X fe02=0x%02X node=%08X n0=%08X n14=%08X n18=%08X n1C=%08X v478=%08X f545=%02X f544=%02X d550=%02X ld14=%08X ld18=%08X ld1C=%08X ld20=%08X cd4c=%u t17q=%08X t17n=%08X t16q=%08X mqr=%08X mqs=%08X mqv=%u req=%08X q158r=%08X q158v=%u t19q=%08X\n",
++                        (unsigned long long)total_vis, rd(0x80037750), rd(0x80037730), rd(0x80037738), rd(0x80037734), rd(0x8003773c),
++                        rdu16(0x801CFE00), rdu8(0x801CFE02),
++                        rd(0x801D03C0), rd(0x801D03C0), rd(0x801D03D4), rd(0x801D03D8), rd(0x801D03DC), rd(0x80089478),
++                        rdu8(0x8008D545), rdu8(0x8008D544), rdu8(0x8008D550),
++                        rd(0x8005D014), rd(0x8005D018), rd(0x8005D01C), rd(0x8005D020),
++                        rd(0x8005CD4C), rd(0x8005C9D8 + 8), rd(0x8005C9D8), rd(0x8005CB88 + 8),
++                        rd(0x8005C4F0), rd(0x8005C4F4), rd(0x8005C4F8),
++                        rd(0x8005C4B0 + 0x888), rd(0x8005C608), rd(0x8005C608 + 8), rd(0x8005C678 + 8));
++                }
++                {
++                    // HH_DUMP_VI admite lista separada por comas (p. ej. "3000,4500,5400").
++                    static bool dumpvi_parsed = false;
++                    static unsigned long long dumpvi_list[32];
++                    static int dumpvi_count = 0;
++                    if (!dumpvi_parsed) {
++                        dumpvi_parsed = true;
++                        const char* dumpvi = getenv("HH_DUMP_VI");
++                        if (dumpvi != nullptr) {
++                            char buf[512];
++                            strncpy(buf, dumpvi, sizeof(buf) - 1);
++                            buf[sizeof(buf) - 1] = 0;
++                            for (char* tok = strtok(buf, ","); tok != nullptr && dumpvi_count < 32; tok = strtok(nullptr, ",")) {
++                                dumpvi_list[dumpvi_count++] = strtoull(tok, nullptr, 0);
++                            }
++                        }
++                    }
++                    for (int i = 0; i < dumpvi_count; i++) {
++                        if (dumpvi_list[i] != total_vis) continue;
++                        uint8_t* g = events_context.rdram;
++                        char path[512];
++                        snprintf(path, sizeof(path), "/app/hybrid-heaven-recomp/work/debug/port_vi%llu.bin", (unsigned long long)total_vis);
++                        FILE* f = fopen(path, "wb");
++                        if (f) { fwrite(g, 1, 0x800000, f); fclose(f); fprintf(stderr, "[DUMP] VI %llu -> %s\n", (unsigned long long)total_vis, path); }
++                        break;
++                    }
++                }
++                // Per-frame evolution of the boot object (HH debug): +0x00..+0x2C.
++                if (ultramodern::debug::verbose()) {
++                    uint8_t* g = events_context.rdram;
++                    auto rdw = [&](uint32_t a){ return *(uint32_t*)&g[a & 0x1FFFFFFF]; };
++                    HH_LOG("[OBJ] vis=%llu %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X %08X\n",
++                        (unsigned long long)total_vis,
++                        rdw(0x801D03C0), rdw(0x801D03C4), rdw(0x801D03C8), rdw(0x801D03CC),
++                        rdw(0x801D03D0), rdw(0x801D03D4), rdw(0x801D03D8), rdw(0x801D03DC),
++                        rdw(0x801D03E0), rdw(0x801D03E4), rdw(0x801D03E8), rdw(0x801D03EC));
++                }
++                if (ultramodern::debug::verbose()) {
++                    uint8_t* g = events_context.rdram;
++                    auto rd16 = [&](uint32_t a){ return *(uint16_t*)&g[(a ^ 2) & 0x1FFFFFFF]; };
++                    auto rd32 = [&](uint32_t a){ return *(uint32_t*)&g[a & 0x1FFFFFFF]; };
++                    HH_LOG("[TBL] vis=%llu %04X:%08X %04X:%08X %04X:%08X %04X:%08X\n",
++                        (unsigned long long)total_vis,
++                        rd16(0x8008DFC0), rd32(0x8008DFC4),
++                        rd16(0x8008DFC8), rd32(0x8008DFCC),
++                        rd16(0x8008DFD0), rd32(0x8008DFD4),
++                        rd16(0x8008DFD8), rd32(0x8008DFDC));
+                 }
+-                remaining_retraces = cur_state->retrace_count;
+             }
+             if (events_context.ai.mq != NULLPTR) {
+                 // Send a message to the VI queue, and do not set it to be requeued if the queue was full for the same reason as the VI message above.
++                static uint64_t ai_fires = 0;
++                if ((ai_fires++ % 60) == 0) {
++                    HH_LOG("[AIEV] fire n=%llu vis=%llu mq=%p\n", (unsigned long long)ai_fires, (unsigned long long)total_vis, (void*)events_context.ai.mq);
++                }
+                 ultramodern::enqueue_external_message_src(events_context.ai.mq, events_context.ai.msg, false, ultramodern::EventMessageSource::Ai);
+             }
+         }
+@@ -285,16 +461,32 @@ void vi_thread_func() {
+     }
+ }
+ 
+-void sp_complete() {
++// HH: completación dirigida al hilo que envió la task (si sigue bloqueado en el evento);
++// el juego tiene varios hilos (16/17/18) esperando el mismo mq SP/DP y el reparto por lista
++// podía entregar la completación al hilo equivocado (deadlock del gate, ver nota 2026-09-13).
++void sp_complete(PTR(OSThread) submitter = NULLPTR) {
+     uint8_t* rdram = events_context.rdram;
+     std::lock_guard lock{ events_context.message_mutex };
+-    ultramodern::enqueue_external_message_src(events_context.sp.mq, events_context.sp.msg, false, ultramodern::EventMessageSource::Sp);
++    // HH_SP_SHARED: semantica libultra (cola de evento compartida): la completacion la consume
++    // cualquier waiter (el protocolo de yield del juego lo requiere). Sin el knob se mantiene el
++    // reparto dirigido al emisor (fix del deadlock del gate).
++    static const bool shared = getenv("HH_SP_SHARED") != nullptr;
++    if (shared) {
++        submitter = NULLPTR;
++    }
++    HH_LOG("[SPC] fire mq=%p msg=%p target=%p\n", (void*)events_context.sp.mq, (void*)events_context.sp.msg, (void*)submitter);
++    ultramodern::enqueue_external_message_to(events_context.sp.mq, events_context.sp.msg, false, submitter);
+ }
+ 
+-void dp_complete() {
++void dp_complete(PTR(OSThread) submitter = NULLPTR) {
+     uint8_t* rdram = events_context.rdram;
+     std::lock_guard lock{ events_context.message_mutex };
+-    ultramodern::enqueue_external_message_src(events_context.dp.mq, events_context.dp.msg, false, ultramodern::EventMessageSource::Dp);
++    static const bool shared = getenv("HH_SP_SHARED") != nullptr;
++    if (shared) {
++        submitter = NULLPTR;
++    }
++    HH_LOG("[DP] dp_complete -> mq=%p msg=%p target=%p\n", (void*)events_context.dp.mq, (void*)events_context.dp.msg, (void*)submitter);
++    ultramodern::enqueue_external_message_to(events_context.dp.mq, events_context.dp.msg, false, submitter);
+ }
+ 
+ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_ready) {
+@@ -312,6 +504,19 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+         if (task == nullptr) {
+             return;
+         }
++        // HH: recuperar el hilo emisor de esta task (si lo registró submit_rsp_task).
++        PTR(OSThread) submitter = NULLPTR;
++        {
++            std::lock_guard lock{ sp_submitter_mutex };
++            // Clave por offset de rdram: (uint8_t*)task - rdram == PTR - 0xFFFFFFFF80000000.
++            uint32_t task_key = (uint32_t)((uint8_t*)task - rdram);
++            auto it = sp_task_submitters.find(task_key);
++            if (it != sp_task_submitters.end()) {
++                submitter = it->second;
++                sp_task_submitters.erase(it);
++            }
++        }
++        HH_LOG("[SPTHR] deq task=%p type=%u target=%p\n", (void*)task, (unsigned)task->t.type, (void*)submitter);
+ 
+         // Execute the RSP task. Tasks without a registered ucode (p. ej. audio, M_AUDTASK=2) se
+         // tratan como no-op: se completa igualmente para que el juego avance (audio dummy).
+@@ -320,12 +525,13 @@ void task_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_r
+             uint32_t t = static_cast<uint32_t>(task->t.type);
+             if (t < 64 && !warned[t]) {
+                 warned[t] = true;
+-                fprintf(stderr, "[RSP] sin ucode para task type %u -> no-op (dummy)\n", t);
++                HH_LOG("[RSP] sin ucode para task type %u -> no-op (dummy)\n", t);
+             }
+         }
++        HH_LOG("[SPTHR] done task=%p\n", (void*)task);
+ 
+-        // Tell the game that the RSP has completed
+-        sp_complete();
++        // Tell the game that the RSP has completed (al hilo emisor, si está bloqueado)
++        sp_complete(submitter);
+     }
+ }
+ 
+@@ -399,7 +605,6 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+                 // start another graphics task until the RDP is also complete. Games usually preserve the RSP inputs until the RDP
+                 // is finished as well, so sending this early shouldn't be an issue in most cases.
+                 // If this causes issues then the logic can be replaced with responding to yield requests.
+-                sp_complete();
+                 ultramodern::measure_input_latency();
+ 
+                 PTR(u64) displaylist = task_action->task.t.data_ptr;
+@@ -409,7 +614,7 @@ void gfx_thread_func(uint8_t* rdram, moodycamel::LightweightSemaphore* thread_re
+                 renderer_context->send_dl(&task_action->task);
+                 [[maybe_unused]] auto renderer_end = std::chrono::high_resolution_clock::now();
+ 
+-                dp_complete();
++                dp_complete(task_action->submitter);
+                 // TODO hook the parsed event up to the actual parsing point when a callback is added to RT64.
+                 ultramodern::extensions::on_displaylist_parsed(displaylist);
+                 ultramodern::extensions::on_displaylist_completed(displaylist);
+@@ -490,77 +695,9 @@ void set_dummy_vi(bool odd) {
+     }
+ }
+ 
+-extern "C" void osViSwapBuffer(RDRAM_ARG PTR(void) frameBufPtr) {
+-    std::lock_guard lock{ events_context.message_mutex };
+-    events_context.vi.get_next_state()->framebuffer = frameBufPtr;
+-}
+-
+-extern "C" void osViSetMode(RDRAM_ARG PTR(OSViMode) mode_) {
+-    std::lock_guard lock{ events_context.message_mutex };
+-    OSViMode* mode = TO_PTR(OSViMode, mode_);
+-    ViState* next_state = events_context.vi.get_next_state();
+-    next_state->mode = mode;
+-    next_state->control = next_state->mode->comRegs.ctrl;
+-}
+-
+-#define OS_VI_GAMMA_ON          0x0001
+-#define OS_VI_GAMMA_OFF         0x0002
+-#define OS_VI_GAMMA_DITHER_ON   0x0004
+-#define OS_VI_GAMMA_DITHER_OFF  0x0008
+-#define OS_VI_DIVOT_ON          0x0010
+-#define OS_VI_DIVOT_OFF         0x0020
+-#define OS_VI_DITHER_FILTER_ON  0x0040
+-#define OS_VI_DITHER_FILTER_OFF 0x0080
+-
+-extern "C" void osViSetSpecialFeatures(uint32_t func) {
+-    std::lock_guard lock{ events_context.message_mutex };
+-    ViState* next_state = events_context.vi.get_next_state();
+-    uint32_t* control_out = &next_state->control;
+-    if ((func & OS_VI_GAMMA_ON) != 0) {
+-        *control_out |= VI_CTRL_GAMMA_ON;
+-    }
+-
+-    if ((func & OS_VI_GAMMA_OFF) != 0) {
+-        *control_out &= ~VI_CTRL_GAMMA_ON;
+-    }
+-
+-    if ((func & OS_VI_GAMMA_DITHER_ON) != 0) {
+-        *control_out |= VI_CTRL_GAMMA_DITHER_ON;
+-    }
+-
+-    if ((func & OS_VI_GAMMA_DITHER_OFF) != 0) {
+-        *control_out &= ~VI_CTRL_GAMMA_DITHER_ON;
+-    }
+-
+-    if ((func & OS_VI_DIVOT_ON) != 0) {
+-        *control_out |= VI_CTRL_DIVOT_ON;
+-    }
+-
+-    if ((func & OS_VI_DIVOT_OFF) != 0) {
+-        *control_out &= ~VI_CTRL_DIVOT_ON;
+-    }
+-
+-    if ((func & OS_VI_DITHER_FILTER_ON) != 0) {
+-        *control_out |= VI_CTRL_DITHER_FILTER_ON;
+-        *control_out &= ~VI_CTRL_ANTIALIAS_MASK;
+-    }
+-
+-    if ((func & OS_VI_DITHER_FILTER_OFF) != 0) {
+-        *control_out &= ~VI_CTRL_DITHER_FILTER_ON;
+-        *control_out |= next_state->mode->comRegs.ctrl & VI_CTRL_ANTIALIAS_MASK;
+-    }
+-}
+-
+-extern "C" void osViBlack(uint8_t active) {
+-    std::lock_guard lock{ events_context.message_mutex };
+-    ViState* next_state = events_context.vi.get_next_state();
+-    uint32_t* state_out = &next_state->state;
+-    if (active) {
+-        *state_out |= VI_STATE_BLACK;
+-    } else {
+-        *state_out &= ~VI_STATE_BLACK;
+-    }
+-}
++// osViSwapBuffer/osViSetMode/osViSetSpecialFeatures/osViBlack/osViGet*Framebuffer se generan
++// del ROM (ADR 0003): viMgrMain mantiene el OSViContext y __osViSwapContext escribe los registros.
++// El runtime solo conserva la emulación de hardware (temporización + ViRegs vía MMIO).
+ 
+ extern "C" void osViRepeatLine(uint8_t active) {
+     std::lock_guard lock{ events_context.message_mutex };
+@@ -585,25 +722,33 @@ extern "C" void osViSetYScale(float scale) {
+     }
+ }
+ 
+-extern "C" PTR(void) osViGetNextFramebuffer() {
+-    return events_context.vi.get_next_state()->framebuffer;
+-}
+-
+-extern "C" PTR(void) osViGetCurrentFramebuffer() {
+-    return events_context.vi.get_cur_state()->framebuffer;
+-}
+-
+ void ultramodern::submit_rsp_task(RDRAM_ARG PTR(OSTask) task_) {
+     OSTask* task = TO_PTR(OSTask, task_);
+ 
+-    fprintf(stderr, "[SPT] submit_rsp_task task=%p type=%d\n", (void*)task, (int)task->t.type);
++    HH_LOG("[SPT] submit_rsp_task task=%p type=%d ucode=0x%08llX data=0x%08llX datasize=0x%llX out=0x%08llX outsize=0x%llX\n",
++        (void*)task, (int)task->t.type,
++        (unsigned long long)task->t.ucode, (unsigned long long)task->t.data_ptr,
++        (unsigned long long)task->t.data_size, (unsigned long long)task->t.output_buff,
++        (unsigned long long)task->t.output_buff_size);
+ 
+-    // Send gfx tasks to the graphics action queue
++    // HH: registrar el hilo emisor para entregarle su completación (SP/DP) a él y no al primero
++    // que esté esperando en el mq del evento. En gfx la task se procesa en el hilo de gráficos
++    // (copia), así que el registro se consume aquí mismo.
++    PTR(OSThread) submitter = ultramodern::this_thread();
+     if (task->t.type == M_GFXTASK) {
+-        events_context.action_queue.enqueue(SpTaskAction{ *task });
++        // El RSP del hardware completa al terminar de parsear la DL, independiente del RDP. Si
++        // esperamos al render de RT64 (lento en software) para el sp_complete, la task gfx queda
++        // "en vuelo" (+0x88C) ~80 ms y el driver de audio entra en yield constantemente (en el
++        // emulador no hay yields). Completamos el SP ya; el gfx thread hace send_dl + dp_complete.
++        sp_complete(submitter);
++        events_context.action_queue.enqueue(SpTaskAction{ *task, submitter });
+     }
+     // Set all other tasks as the RSP task
+     else {
++        {
++            std::lock_guard lock{ sp_submitter_mutex };
++            sp_task_submitters[(uint32_t)((uint64_t)task_ - 0xFFFFFFFF80000000ULL)] = submitter;
++        }
+         events_context.sp_task_queue.enqueue(task);
+     }
+ }
+diff --git a/ultramodern/src/extensions.cpp b/ultramodern/src/extensions.cpp
+index e18b276..4400e02 100644
+--- a/ultramodern/src/extensions.cpp
++++ b/ultramodern/src/extensions.cpp
+@@ -4,6 +4,19 @@
+ #include "ultramodern/extensions.h"
+ #include "ultramodern/ultramodern.hpp"
+ 
++// HH: traza de eventos de displaylist (osExQueueDisplaylistEvent y su dispatch). Un evento que
++// nunca casa deja el mensaje pendiente y cuelga al hilo que lo espera (cuelgue por dano).
++extern "C" void hh_dl_log(const char* what, unsigned dl, unsigned type, unsigned mq, unsigned msg) {
++    if (getenv("HH_MQLOG_ALL") == nullptr) return;
++    static FILE* f = nullptr;
++    static long total = 0;
++    if (f == nullptr) { f = fopen("hh_dl.log", "w"); if (f == nullptr) return; }
++    if (total > (4L * 1024 * 1024)) return;
++    total += fprintf(f, "[DL] %s dl=%08X type=%u mq=%08X msg=%08X\n", what, dl, type, mq, msg);
++    fflush(f);
++}
++
++
+ struct DLEvent {
+     PTR(OSMesgQueue) mq;
+     OSMesg mesg;
+@@ -29,6 +42,7 @@ extern "C" void osExQueueDisplaylistEvent(PTR(OSMesgQueue) mq, OSMesg mesg, PTR(
+     extension_state.dl_events.pending_events.emplace_back(
+         DLEvent{ mq, mesg, displaylist, event_type }
+     );
++    hh_dl_log("queue", (unsigned)displaylist, event_type, (unsigned)mq, (unsigned)mesg);
+ }
+ 
+ void dispatch_displaylist_events(PTR(void) displaylist, u32 event_type) {
+@@ -38,6 +52,7 @@ void dispatch_displaylist_events(PTR(void) displaylist, u32 event_type) {
+     for (auto iter = extension_state.dl_events.pending_events.begin(); iter != extension_state.dl_events.pending_events.end(); ) {
+         if (iter->displaylist == displaylist && iter->event_type == event_type) {
+             // Send the provided message to the corresponding message queue for this event, then remove this event from the queue.
++            hh_dl_log("hit", (unsigned)iter->displaylist, (unsigned)iter->event_type, (unsigned)iter->mq, (unsigned)iter->mesg);
+             ultramodern::enqueue_external_message_src(iter->mq, iter->mesg, false, ultramodern::EventMessageSource::Sp);
+             iter = extension_state.dl_events.pending_events.erase(iter);
+         }
+@@ -48,13 +63,16 @@ void dispatch_displaylist_events(PTR(void) displaylist, u32 event_type) {
+ }
+ 
+ void ultramodern::extensions::on_displaylist_submitted(PTR(void) displaylist) {
++    hh_dl_log("cb-submitted", (unsigned)displaylist, 0, 0, 0);
+     dispatch_displaylist_events(displaylist, OS_EX_DISPLAYLIST_EVENT_SUBMITTED);
+ }
+ 
+ void ultramodern::extensions::on_displaylist_parsed(PTR(void) displaylist) {
++    hh_dl_log("cb-parsed", (unsigned)displaylist, 0, 0, 0);
+     dispatch_displaylist_events(displaylist, OS_EX_DISPLAYLIST_EVENT_PARSED);
+ }
+ 
+ void ultramodern::extensions::on_displaylist_completed(PTR(void) displaylist) {
++    hh_dl_log("cb-completed", (unsigned)displaylist, 0, 0, 0);
+     dispatch_displaylist_events(displaylist, OS_EX_DISPLAYLIST_EVENT_COMPLETED);
+ }
+diff --git a/ultramodern/src/input.cpp b/ultramodern/src/input.cpp
+index 23228c7..8bb2631 100644
+--- a/ultramodern/src/input.cpp
++++ b/ultramodern/src/input.cpp
+@@ -94,11 +94,28 @@ static void __osContGetInitData(u8* pattern, OSContStatus *data) {
+     }
+ }
+ 
++extern "C" s32 osRecvMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, s32 flags);
++
+ extern "C" s32 osContInit(RDRAM_ARG PTR(OSMesgQueue) mq, u8* bitpattern, PTR(OSContStatus) data_) {
+     OSContStatus *data = TO_PTR(OSContStatus, data_);
+ 
++    // libultra's osContInit is a one-shot initializer: subsequent calls do nothing.
++    static bool cont_initialized = false;
++    if (cont_initialized) {
++        return 0;
++    }
++    cont_initialized = true;
++
+     max_controllers = MAXCONTROLLERS;
+ 
++    // Issue the SI status query and wait for its completion message on `mq`, mirroring libultra.
++    // The runtime fills the controller data synchronously, but the game expects osContInit to wait
++    // on the SI event queue (and the wait yields the thread, which the boot ordering depends on).
++    ultramodern::send_si_message();
++    if (mq != NULLPTR) {
++        osRecvMesg(PASS_RDRAM mq, NULLPTR, OS_MESG_BLOCK);
++    }
++
+     __osContGetInitData(bitpattern, data);
+ 
+     return 0;
+diff --git a/ultramodern/src/mesgqueue.cpp b/ultramodern/src/mesgqueue.cpp
+index 40faaf2..2244d9d 100644
+--- a/ultramodern/src/mesgqueue.cpp
++++ b/ultramodern/src/mesgqueue.cpp
+@@ -1,22 +1,61 @@
+ #include <bitset>
+ #include <thread>
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
++#include <mutex>
++#include <queue>
++#include <unordered_map>
+ 
+ #include "blockingconcurrentqueue.h"
+ 
+ #include "ultramodern/ultra64.h"
+ #include "ultramodern/ultramodern.hpp"
+ 
++// HH: diagnostico de fuga de pila (ver recomp.cpp).
++extern "C" uint32_t hh_current_sp(void);
++extern "C" int hh_ring2_count(void);
++extern "C" void hh_ring2_dump_last(FILE*, int);
++
+ struct QueuedMessage {
+     PTR(OSMesgQueue) mq;
+     OSMesg mesg;
+     bool jam;
+     bool requeue_if_blocked;
++    PTR(OSThread) target; // HH: para completaciones SP/DP; NULLPTR = reparto normal
+ };
+ 
+ static moodycamel::BlockingConcurrentQueue<QueuedMessage> external_messages {};
+ std::bitset<32> requeue_enabled;
+ 
+-bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block);
++// HH: completaciones dirigidas (SP/DP) pendientes por (hilo, mq). El juego tiene varios hilos
++// (16/17/18) esperando el mismo evento SP; el reparto por lista podía entregar la completación al
++// hilo equivocado (deadlock del gate, nota 2026-09-13-deadlock-sp-race.md).
++static std::mutex pending_mutex;
++static std::unordered_map<uint64_t, std::queue<OSMesg>> pending_completions;
++static uint64_t pending_key(PTR(OSThread) t, PTR(OSMesgQueue) mq) {
++    return ((uint64_t)(uint32_t)t << 32) | (uint32_t)mq;
++}
++// Consume una completación pendiente para (t, mq). Devuelve true si había.
++static bool take_pending_completion(RDRAM_ARG PTR(OSThread) t, PTR(OSMesgQueue) mq, PTR(OSMesg) msg_) {
++    if (t == NULLPTR) return false;
++    std::lock_guard lock{ pending_mutex };
++    auto it = pending_completions.find(pending_key(t, mq));
++    if (it == pending_completions.end() || it->second.empty()) {
++        return false;
++    }
++    if (msg_ != NULLPTR) {
++        *TO_PTR(OSMesg, msg_) = it->second.front();
++    }
++    it->second.pop();
++    if (it->second.empty()) {
++        pending_completions.erase(it);
++    }
++    return true;
++}
++
++
++bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block, PTR(OSThread) target);
+ 
+ void ultramodern::set_message_queue_control(const ultramodern::MessageQueueControl& mqc) {
+     requeue_enabled.reset();
+@@ -29,20 +68,117 @@ void ultramodern::set_message_queue_control(const ultramodern::MessageQueueContr
+     requeue_enabled.set(static_cast<int>(EventMessageSource::Dp), mqc.requeue_dp);
+ }
+ 
++static void hh_check_mq(const char* where, PTR(OSMesgQueue) mq) {
++    uint32_t v = (uint32_t)mq;
++    if (v != 0 && (v < 0x80000000u || v >= 0x80800000u || (v & 3u))) {
++        static int hh_n = 0;
++        if (hh_n++ < 30) fprintf(stderr, "[BADMQ] %s mq=%08X\n", where, v);
++    }
++}
++
++
++// HH: traza generica de colas de mensajes (HH_MQLOG_ALL=1) -> hh_mq_all.log.
++// Objetivo: ver quien envia/recibe en cada cola (tid guest, mq, msg) durante un cuelgue.
++static void hh_mqa_log(RDRAM_ARG const char* what, PTR(OSMesgQueue) mq_, OSMesg msg, int extra) {
++    static const bool on = getenv("HH_MQLOG_ALL") != nullptr;
++    if (!on) return;
++    static FILE* f = nullptr;
++    static long total = 0;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_mq_all.log", "w");
++        if (f == nullptr) return;
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (total > (128L * 1024 * 1024)) return;
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    int tid = -1;
++    if (ultramodern::is_game_thread()) {
++        tid = (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread()));
++    }
++    OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
++    unsigned thr = ultramodern::is_game_thread() ? (unsigned)ultramodern::this_thread() : 0;
++    total += fprintf(f, "[MQA] t=%.3f %s tid=%d thr=%08X mq=%08X msg=%08X valid=%d recvHead=%08X sendHead=%08X extra=%d\n",
++                     t, what, tid, thr, (unsigned)mq_, (unsigned)msg, (int)mq->validCount,
++                     (unsigned)mq->blocked_on_recv, (unsigned)mq->blocked_on_send, extra);
++    fflush(f);
++}
++
++// HH: traza quirurgica de la cola del helper sincrono de lectura ROM (0x8005C268, mb en 0x8005CD80):
++// quien pide, quien entrega, si se duerme y si alguien lo despierta. Sirve para cazar la
++// completacion perdida del cuelgue del NPC. Fichero hh_mq.log junto al exe (topes de tamano).
++static void hh_mqlog(RDRAM_ARG const char* what, PTR(OSMesgQueue) mq_, PTR(OSThread) sender, int extra) {
++    if ((uint32_t)mq_ != 0x8005C268u) return;
++    static FILE* f = nullptr;
++    static long total = 0;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_mq.log", "w");
++        if (f == nullptr) return;
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (total > (8L * 1024 * 1024)) return;
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    int tid = -1;
++    if (ultramodern::is_game_thread()) {
++        tid = (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread()));
++    }
++    int sid = -1;
++    if (sender != NULLPTR) {
++        sid = (int)hh_sh_get_id(TO_PTR(OSThread, sender));
++    }
++    OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
++    total += fprintf(f, "[MQ] t=%.3f %s tid=%d sender=%d valid=%d blockedHead=%08X extra=%d\n",
++                     t, what, tid, sid, (int)mq->validCount, (unsigned)mq->blocked_on_recv, extra);
++    fflush(f);
++}
++
++// HH: mensajes externos pendientes de repartir (diagnostico del watchdog de cuelgue).
++extern "C" uint64_t hh_get_pending_ext_msgs() {
++    return (uint64_t)external_messages.size_approx();
++}
++
+ void ultramodern::enqueue_external_message_src(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, EventMessageSource src) {
+-    external_messages.enqueue({mq, msg, jam, requeue_enabled[static_cast<int>(src)]});
++    hh_check_mq("src", mq);
++    external_messages.enqueue({mq, msg, jam, requeue_enabled[static_cast<int>(src)], NULLPTR});
+ }
+ 
+ void ultramodern::enqueue_external_message(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, bool requeue_if_blocked) {
+-    external_messages.enqueue({mq, msg, jam, requeue_if_blocked});
++    hh_check_mq("msg", mq);
++    external_messages.enqueue({mq, msg, jam, requeue_if_blocked, NULLPTR});
++}
++
++void ultramodern::enqueue_external_message_to(PTR(OSMesgQueue) mq, OSMesg msg, bool jam, PTR(OSThread) target) {
++    hh_check_mq("to", mq);
++    external_messages.enqueue({mq, msg, jam, false, target});
+ }
+ 
+ void dequeue_external_messages(RDRAM_ARG1) {
+     QueuedMessage to_send;
+     std::vector<QueuedMessage> requeued_messages{};
+     while (external_messages.try_dequeue(to_send)) {
+-        if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false) && to_send.requeue_if_blocked) {
+-            requeued_messages.push_back(to_send);
++        {
++            uint32_t v = (uint32_t)to_send.mq;
++            if (v != 0 && (v < 0x80000000u || v >= 0x80800000u || (v & 3u))) {
++                static int hh_n = 0;
++                if (hh_n++ < 30) fprintf(stderr, "[BADMQ] dequeue mq=%08X msg=%08X jam=%d req=%d target=%08X\n",
++                    v, (unsigned)to_send.mesg, (int)to_send.jam, (int)to_send.requeue_if_blocked, (unsigned)to_send.target);
++            }
++        }
++        hh_mqa_log(PASS_RDRAM "drain", to_send.mq, to_send.mesg, 0);
++        if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false, to_send.target)) {
++            if (to_send.requeue_if_blocked) {
++                requeued_messages.push_back(to_send);
++            }
++            else {
++                // HH: mensaje externo descartado por cola llena: si el juego lo espera en un
++                // osRecvMesg bloqueante, ese hilo queda colgado (patron del cuelgue del NPC).
++                static int hh_dropn = 0;
++                if (hh_dropn++ < 100) {
++                    fprintf(stderr, "[MQDROP] mq=%08X msg=%08X jam=%d (cola llena, sin requeue)\n",
++                            (unsigned)to_send.mq, (unsigned)to_send.mesg, (int)to_send.jam);
++                }
++            }
+         }
+     }
+     for (QueuedMessage& cur_mesg : requeued_messages) {
+@@ -56,8 +192,17 @@ void ultramodern::wait_for_external_message(RDRAM_ARG1) {
+     ultramodern::release_game_lock();
+     external_messages.wait_dequeue(to_send);
+     ultramodern::acquire_game_lock();
+-    if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false) && to_send.requeue_if_blocked) {
+-        external_messages.enqueue(to_send);
++    if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false, to_send.target)) {
++        if (to_send.requeue_if_blocked) {
++            external_messages.enqueue(to_send);
++        }
++        else {
++            static int hh_dropn = 0;
++            if (hh_dropn++ < 100) {
++                fprintf(stderr, "[MQDROP] (wait) mq=%08X msg=%08X jam=%d (cola llena, sin requeue)\n",
++                        (unsigned)to_send.mq, (unsigned)to_send.mesg, (int)to_send.jam);
++            }
++        }
+     }
+ }
+ 
+@@ -66,7 +211,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
+     ultramodern::release_game_lock();
+     if (external_messages.wait_dequeue_timed(to_send, std::chrono::milliseconds{millis})) {
+         ultramodern::acquire_game_lock();
+-        if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false) && to_send.requeue_if_blocked) {
++        if (!do_send(PASS_RDRAM to_send.mq, to_send.mesg, to_send.jam, false, to_send.target) && to_send.requeue_if_blocked) {
+             external_messages.enqueue(to_send);
+         }
+     }
+@@ -76,7 +221,7 @@ void ultramodern::wait_for_external_message_timed(RDRAM_ARG u32 millis) {
+ }
+ 
+ extern "C" void osCreateMesgQueue(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg, s32 count) {
+-    fprintf(stderr, "[MQ] osCreateMesgQueue mq=%p msg=%p count=%d\n", (void*)mq_, (void*)msg, (int)count);
++    HH_LOG("[MQ] osCreateMesgQueue mq=%p msg=%p count=%d\n", (void*)mq_, (void*)msg, (int)count);
+     OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
+     mq->blocked_on_recv = NULLPTR;
+     mq->blocked_on_send = NULLPTR;
+@@ -98,8 +243,52 @@ s32 MQ_IS_FULL(OSMesgQueue* mq) {
+     return MQ_GET_COUNT(mq) >= mq->msgCount;
+ }
+ 
+-bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
++// HH: traza quirúrgica del gate de tareas RSP (HH_GATELOG=1).
++// - 0x8005C4F0: cola de tareas del hilo 17 (submit FUN_80000ed0 / recv FUN_80000bf0).
++// - 0x8005C528: cola del camino de decremento del contador 0x8005CD4C.
++static void hh_gatelog(RDRAM_ARG const char* what, PTR(OSMesgQueue) mq_, OSMesg msg) {
++    if (getenv("HH_GATELOG") == nullptr) return;
++    uint32_t mq = (uint32_t)mq_;
++    if (mq != 0x8005C4F0u && mq != 0x8005C528u) return;
++    uint32_t fl8 = 0;
++    if (msg != 0) fl8 = *(uint32_t*)&rdram[((uint32_t)msg & 0x7FFFFF) + 8];
++    fprintf(stderr, "[GATE2] %s mq=%08X msg=%08X fl8=%08X cnt=%u\n",
++            what, mq, (uint32_t)msg, fl8, *(uint32_t*)&rdram[0x5CD4C]);
++}
++
++// HH: quita `t_` de una lista de bloqueados (cabeza en RDRAM). Devuelve true si estaba.
++// Los enlaces `next` se leen de la sombra host (el struct guest puede estar pisado).
++static bool remove_blocked_thread(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) t_) {
++    PTR(PTR(OSThread))* head = TO_PTR(PTR(OSThread), queue_);
++    int32_t prev = 0;
++    int32_t cur = *head;
++    while (cur != NULLPTR) {
++        OSThread* c = TO_PTR(OSThread, cur);
++        int32_t next = hh_sh_get_next(c);
++        if (cur == (int32_t)t_) {
++            if (prev == 0) {
++                *head = next;
++            } else {
++                hh_sh_set_next(TO_PTR(OSThread, prev), next);
++            }
++            hh_sh_set_queue(TO_PTR(OSThread, t_), 0);
++            return true;
++        }
++        prev = cur;
++        cur = next;
++    }
++    return false;
++}
++
++bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block, PTR(OSThread) target) {
++    hh_gatelog(PASS_RDRAM "send", mq_, msg);
++    hh_mqa_log(PASS_RDRAM "send", mq_, msg, jam ? 1 : 0);
++    hh_mqlog(PASS_RDRAM "send-in", mq_, ultramodern::is_game_thread() ? ultramodern::this_thread() : NULLPTR, jam ? 1 : 0);
+     OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
++    if (getenv("HH_QLOG") != nullptr) {
++        fprintf(stderr, "[QS] tid=%d send mq=%p msg=%p jam=%d block=%d validBefore=%d\n",
++                (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (void*)mq_, (void*)msg, (int)jam, (int)block, (int)mq->validCount);
++    }
+     if (!block) {
+         // If non-blocking, fail if the queue is full.
+         if (MQ_IS_FULL(mq)) {
+@@ -109,12 +298,31 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+     else {
+         // Otherwise, yield this thread until the queue has room.
+         while (MQ_IS_FULL(mq)) {
+-            debug_printf("[Message Queue] Thread %d is blocked on send\n", TO_PTR(OSThread, ultramodern::this_thread())->id);
++            debug_printf("[Message Queue] Thread %d is blocked on send\n", hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())));
+             ultramodern::thread_queue_insert(PASS_RDRAM GET_MEMBER(OSMesgQueue, mq_, blocked_on_send), ultramodern::this_thread());
+             ultramodern::run_next_thread_and_wait(PASS_RDRAM1);
+         }
+     }
+     
++    // HH: completación dirigida (SP/DP). No se inserta en el ring: se guarda para el hilo emisor
++    // y se le despierta si está bloqueado en esta cola; si aún no se ha bloqueado, la consumirá
++    // en su próximo osRecvMesg (take_pending_completion). Así ningún otro hilo puede robarla.
++    if (target != NULLPTR) {
++        PTR(PTR(OSThread)) blocked_queue = GET_MEMBER(OSMesgQueue, mq_, blocked_on_recv);
++        bool blocked = false;
++        {
++            std::lock_guard lock{ pending_mutex };
++            OSThread* t = TO_PTR(OSThread, target);
++            blocked = ((PTR(PTR(OSThread)))(int32_t)hh_sh_get_queue(t) == blocked_queue);
++            pending_completions[pending_key(target, mq_)].push(msg);
++        }
++        if (blocked) {
++            remove_blocked_thread(PASS_RDRAM blocked_queue, target);
++            ultramodern::schedule_running_thread(PASS_RDRAM target);
++        }
++        return true;
++    }
++
+     if (jam) {
+         // Jams insert at the head of the message queue's buffer.
+         mq->first = (mq->first + mq->msgCount - 1) % mq->msgCount;
+@@ -131,7 +339,9 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+     // If any threads were blocked on receiving from this message queue, pop the first one and schedule it.
+     PTR(PTR(OSThread)) blocked_queue = GET_MEMBER(OSMesgQueue, mq_, blocked_on_recv);
+     if (!ultramodern::thread_queue_empty(PASS_RDRAM blocked_queue)) {
+-        ultramodern::schedule_running_thread(PASS_RDRAM ultramodern::thread_queue_pop(PASS_RDRAM blocked_queue));
++        PTR(OSThread) woken = ultramodern::thread_queue_pop(PASS_RDRAM blocked_queue);
++        hh_mqlog(PASS_RDRAM "send-wake", mq_, woken, 0);
++        ultramodern::schedule_running_thread(PASS_RDRAM woken);
+     }
+     
+     return true;
+@@ -139,6 +349,14 @@ bool do_send(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, bool jam, bool block) {
+ 
+ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+     OSMesgQueue* mq = TO_PTR(OSMesgQueue, mq_);
++    hh_mqlog(PASS_RDRAM "recv-in", mq_, NULLPTR, block ? 1 : 0);
++    if (block) hh_mqa_log(PASS_RDRAM "recv-block", mq_, 0, 0);
++    // HH: completación dirigida pendiente para este hilo (la entrega el do_send dirigido).
++    if (take_pending_completion(PASS_RDRAM ultramodern::this_thread(), mq_, msg_)) {
++        hh_mqlog(PASS_RDRAM "recv-pend", mq_, NULLPTR, 0);
++        hh_mqa_log(PASS_RDRAM "recv-pend", mq_, msg_ != NULLPTR ? *TO_PTR(OSMesg, msg_) : 0, 0);
++        return true;
++    }
+     if (!block) {
+         // If non-blocking, fail if the queue is empty
+         if (MQ_IS_EMPTY(mq)) {
+@@ -155,10 +373,46 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+             if (!MQ_IS_EMPTY(mq)) {
+                 break;
+             }
+-            fprintf(stderr, "[MQ] BLOCK recv thread=%d mq=%p validCount=%d msgCount=%d\n",
+-                (int)TO_PTR(OSThread, ultramodern::this_thread())->id, (void*)mq_, (int)mq->validCount, (int)mq->msgCount);
+-            debug_printf("[Message Queue] Thread %d is blocked on receive\n", TO_PTR(OSThread, ultramodern::this_thread())->id);
+-            ultramodern::thread_queue_insert(PASS_RDRAM GET_MEMBER(OSMesgQueue, mq_, blocked_on_recv), ultramodern::this_thread());
++            {
++                // Comprobar la pendiente dirigida e insertar en la lista de bloqueados bajo el
++                // mismo lock con el que do_send decide si guardarla/despertar (evita la race).
++                std::lock_guard lock{ pending_mutex };
++                auto it = pending_completions.find(pending_key(ultramodern::this_thread(), mq_));
++                if (it != pending_completions.end() && !it->second.empty()) {
++                    if (msg_ != NULLPTR) {
++                        *TO_PTR(OSMesg, msg_) = it->second.front();
++                    }
++                    it->second.pop();
++                    if (it->second.empty()) {
++                        pending_completions.erase(it);
++                    }
++                    return true;
++                }
++                HH_LOG("[MQ] BLOCK recv thread=%d mq=%p validCount=%d msgCount=%d\n",
++                    (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (void*)mq_, (int)mq->validCount, (int)mq->msgCount);
++                hh_mqlog(PASS_RDRAM "recv-block", mq_, NULLPTR, 0);
++                debug_printf("[Message Queue] Thread %d is blocked on receive\n", hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())));
++                ultramodern::thread_queue_insert(PASS_RDRAM GET_MEMBER(OSMesgQueue, mq_, blocked_on_recv), ultramodern::this_thread());
++            }
++            // HH: al bloquear el hilo principal en su cola de comandos (0x8005C288) con la pila ya
++            // hundida, volcar una vez el ring de llamadas del frame para localizar la fuga de sp.
++            if ((uint32_t)mq_ == 0x8005C288u) {
++                static int paradas2 = 0;
++                uint32_t sp = hh_current_sp();
++                if (sp != 0 && sp < 0x8005B000u) {
++                    paradas2++;
++                    if (paradas2 >= 3 && paradas2 <= 8) {
++                        char nombre[32];
++                        snprintf(nombre, sizeof(nombre), "hh_ring2_%d.log", paradas2);
++                        FILE* f = fopen(nombre, "w");
++                        if (f != nullptr) {
++                            fprintf(f, "=== ring2 parada=%d sp=%08X n=%d ===\n", paradas2, sp, hh_ring2_count());
++                            hh_ring2_dump_last(f, 60000);
++                            fclose(f);
++                        }
++                    }
++                }
++            }
+             ultramodern::run_next_thread_and_wait(PASS_RDRAM1);
+         }
+     }
+@@ -166,7 +420,27 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+     if (msg_ != NULLPTR) {
+         *TO_PTR(OSMesg, msg_) = TO_PTR(OSMesg, mq->msg)[mq->first];
+     }
+-    
++    if ((uint32_t)mq_ == 0x8005C560u && getenv("HH_VERBOSE") != nullptr) {
++        static uint64_t hh_n = 0;
++        if (hh_n < 30 || (hh_n % 200) == 0) {
++            fprintf(stderr, "[R560] n=%llu tid=%d msg=%08X\n", (unsigned long long)hh_n,
++                (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (unsigned)TO_PTR(OSMesg, mq->msg)[mq->first]);
++        }
++        hh_n++;
++    }
++    hh_gatelog(PASS_RDRAM "recv", mq_, TO_PTR(OSMesg, mq->msg)[mq->first]);
++    hh_mqlog(PASS_RDRAM "recv-ok", mq_, NULLPTR, 0);
++    hh_mqa_log(PASS_RDRAM "recv-ok", mq_, TO_PTR(OSMesg, mq->msg)[mq->first], 0);
++    // HH: sp del receptor + mensaje al consumir de la cola de comandos del hilo principal.
++    if ((uint32_t)mq_ == 0x8005C288u) {
++        static FILE* cf = nullptr;
++        if (cf == nullptr) cf = fopen("hh_cmds.log", "w");
++        if (cf != nullptr) {
++            fprintf(cf, "sp=%08X msg=%08X\n", hh_current_sp(), (unsigned)TO_PTR(OSMesg, mq->msg)[mq->first]);
++            fflush(cf);
++        }
++    }
++
+     mq->first = (mq->first + 1) % mq->msgCount;
+     mq->validCount--;
+ 
+@@ -182,8 +456,7 @@ bool do_recv(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, bool block) {
+ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags) {
+     OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
+     bool jam = false;
+-    fprintf(stderr, "[MQ] osSendMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg, flags);
+-    
++    HH_LOG("[MQ] osSendMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg, flags);
+     // Don't directly send to the message queue if this isn't a game thread to avoid contention.
+     if (!ultramodern::is_game_thread()) {
+         ultramodern::enqueue_external_message(mq_, msg, jam, false);
+@@ -194,7 +467,7 @@ extern "C" s32 osSendMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+     dequeue_external_messages(PASS_RDRAM1);
+ 
+     // Try to send the message.
+-    bool sent = do_send(PASS_RDRAM mq_, msg, jam, flags == OS_MESG_BLOCK);
++    bool sent = do_send(PASS_RDRAM mq_, msg, jam, flags == OS_MESG_BLOCK, NULLPTR);
+     
+     // Check the queue to see if this thread should swap execution to another.
+     ultramodern::check_running_queue(PASS_RDRAM1);
+@@ -216,7 +489,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+     dequeue_external_messages(PASS_RDRAM1);
+ 
+     // Try to send the message.
+-    bool sent = do_send(PASS_RDRAM mq_, msg, jam, flags == OS_MESG_BLOCK);
++    bool sent = do_send(PASS_RDRAM mq_, msg, jam, flags == OS_MESG_BLOCK, NULLPTR);
+     
+     // Check the queue to see if this thread should swap execution to another.
+     ultramodern::check_running_queue(PASS_RDRAM1);
+@@ -226,7 +499,7 @@ extern "C" s32 osJamMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, OSMesg msg, s32 flags)
+ 
+ extern "C" s32 osRecvMesg(RDRAM_ARG PTR(OSMesgQueue) mq_, PTR(OSMesg) msg_, s32 flags) {
+     OSMesgQueue *mq = TO_PTR(OSMesgQueue, mq_);
+-    fprintf(stderr, "[MQ] osRecvMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg_, flags);
++    HH_LOG("[MQ] osRecvMesg mq=%p msg=%p flags=%d\n", (void*)mq_, (void*)msg_, flags);
+     
+     assert(ultramodern::is_game_thread() && "RecvMesg not allowed outside of game threads.");
+     
+diff --git a/ultramodern/src/scheduling.cpp b/ultramodern/src/scheduling.cpp
+index 8f3eaba..9c7cd73 100644
+--- a/ultramodern/src/scheduling.cpp
++++ b/ultramodern/src/scheduling.cpp
+@@ -1,16 +1,21 @@
+ #include "ultramodern/ultramodern.hpp"
+ 
++extern "C" void hh_schedlog(const char* fmt, ...);
++
+ void ultramodern::schedule_running_thread(RDRAM_ARG PTR(OSThread) t_) {
+-    debug_printf("[Scheduling] Adding thread %d to the running queue\n", TO_PTR(OSThread, t_)->id);
++    debug_printf("[Scheduling] Adding thread %d to the running queue\n", hh_sh_get_id(TO_PTR(OSThread, t_)));
++    hh_schedlog("queue tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, t_)));
+     thread_queue_insert(PASS_RDRAM running_queue, t_);
+-    TO_PTR(OSThread, t_)->state = OSThreadState::QUEUED;
++    hh_sh_set_state(TO_PTR(OSThread, t_), OSThreadState::QUEUED);
+ }
+ 
+ void swap_to_thread(RDRAM_ARG OSThread *to) {
+-    debug_printf("[Scheduling] Thread %d giving execution to thread %d\n", TO_PTR(OSThread, ultramodern::this_thread())->id, to->id);
+-    // Insert this thread in the running queue.
+-    ultramodern::thread_queue_insert(PASS_RDRAM ultramodern::running_queue, ultramodern::this_thread());
+-    TO_PTR(OSThread, ultramodern::this_thread())->state = OSThreadState::QUEUED;
++    debug_printf("[Scheduling] Thread %d giving execution to thread %d\n", hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), hh_sh_get_id(to));
++    hh_schedlog("swap from=%d to=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())), (int)hh_sh_get_id(to));
++    // Insert this thread in the running queue. HH: al ceder usamos FIFO entre igual prioridad
++    // (round-robin) para que el hilo que cede no quede por detrás de sus iguales para siempre.
++    ultramodern::thread_queue_insert(PASS_RDRAM ultramodern::running_queue, ultramodern::this_thread(), /*fifo_equals=*/true);
++    hh_sh_set_state(TO_PTR(OSThread, ultramodern::this_thread()), OSThreadState::QUEUED);
+     // Unpause the target thread and wait for this one to be unpaused.
+     ultramodern::resume_thread_and_wait(PASS_RDRAM to);
+ }
+@@ -21,7 +26,7 @@ void ultramodern::check_running_queue(RDRAM_ARG1) {
+         // Check if the highest priority thread in the queue is higher priority than the current thread.
+         OSThread* next_thread = TO_PTR(OSThread, ultramodern::thread_queue_peek(PASS_RDRAM running_queue));
+         OSThread* self = TO_PTR(OSThread, ultramodern::this_thread());
+-        if (next_thread->priority >= self->priority) {
++        if (hh_sh_get_priority(next_thread) >= hh_sh_get_priority(self)) {
+             ultramodern::thread_queue_pop(PASS_RDRAM running_queue);
+             // Swap to the higher (or equal) priority thread.
+             swap_to_thread(PASS_RDRAM next_thread);
+diff --git a/ultramodern/src/threadqueue.cpp b/ultramodern/src/threadqueue.cpp
+index f9c0fa1..83e7121 100644
+--- a/ultramodern/src/threadqueue.cpp
++++ b/ultramodern/src/threadqueue.cpp
+@@ -11,22 +11,41 @@ static PTR(OSThread)* queue_to_ptr(RDRAM_ARG PTR(PTR(OSThread)) queue) {
+     return TO_PTR(PTR(OSThread), queue);
+ }
+ 
+-void ultramodern::thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) toadd_) {
+-    PTR(OSThread)* cur = queue_to_ptr(PASS_RDRAM queue_);
+-    OSThread* toadd = TO_PTR(OSThread, toadd_); 
+-    debug_printf("[Thread Queue] Inserting thread %d into queue 0x%08X\n", toadd->id, (uintptr_t)queue_);
+-    while (*cur && TO_PTR(OSThread, *cur)->priority > toadd->priority) {
+-        cur = &TO_PTR(OSThread, *cur)->next;
++// HH: los enlaces (next/priority/queue) se leen/escriben de la SOMBRA host (hh_sh_*), no del struct
++// guest: la pila del hilo puede desbordar sobre su propio struct. Las cabezas de lista siguen en
++// memoria guest (structs de cola del juego y running_queue_impl).
++void ultramodern::thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) toadd_, bool fifo_equals) {
++    PTR(OSThread)* head = queue_to_ptr(PASS_RDRAM queue_);
++    OSThread* toadd = TO_PTR(OSThread, toadd_);
++    const int32_t pri = hh_sh_get_priority(toadd);
++    debug_printf("[Thread Queue] Inserting thread %d into queue 0x%08X\n", hh_sh_get_id(toadd), (uintptr_t)queue_);
++    // HH: `fifo_equals` (solo al ceder el CPU: swap_to_thread) inserta los empates de prioridad al
++    // final (round-robin, como libultra). Sin el flag se mantiene el orden original de upstream
++    // (`>` = LIFO entre iguales) para no alterar el orden de creacion/wake de hilos.
++    int32_t prev = 0;
++    int32_t cur = *head;
++    while (cur != 0) {
++        OSThread* c = TO_PTR(OSThread, cur);
++        const int32_t cp = hh_sh_get_priority(c);
++        const bool advance = fifo_equals ? (cp >= pri) : (cp > pri);
++        if (!advance) break;
++        prev = cur;
++        cur = hh_sh_get_next(c);
++    }
++    hh_sh_set_next(toadd, cur);
++    hh_sh_set_queue(toadd, (int32_t)queue_);
++    if (prev == 0) {
++        *head = toadd_;
++    } else {
++        hh_sh_set_next(TO_PTR(OSThread, prev), toadd_);
+     }
+-    toadd->next = (*cur);
+-    toadd->queue = queue_;
+-    *cur = toadd_;
+ 
+     debug_printf("  Contains:");
+-    cur = queue_to_ptr(PASS_RDRAM queue_);
+-    while (*cur) {
+-        debug_printf("%d (%d) ", TO_PTR(OSThread, *cur)->id, TO_PTR(OSThread, *cur)->priority);
+-        cur = &TO_PTR(OSThread, *cur)->next;
++    cur = *head;
++    while (cur != 0) {
++        OSThread* c = TO_PTR(OSThread, cur);
++        debug_printf("%d (%d) ", hh_sh_get_id(c), hh_sh_get_priority(c));
++        cur = hh_sh_get_next(c);
+     }
+     debug_printf("\n");
+ }
+@@ -34,25 +53,37 @@ void ultramodern::thread_queue_insert(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(O
+ PTR(OSThread) ultramodern::thread_queue_pop(RDRAM_ARG PTR(PTR(OSThread)) queue_) {
+     PTR(OSThread)* queue = queue_to_ptr(PASS_RDRAM queue_);
+     PTR(OSThread) ret = *queue;
+-    *queue = TO_PTR(OSThread, ret)->next;
+-    TO_PTR(OSThread, ret)->queue = NULLPTR;
+-    debug_printf("[Thread Queue] Popped thread %d from queue 0x%08X\n", TO_PTR(OSThread, ret)->id, (uintptr_t)queue_);
++    if (ret == NULLPTR) {
++        return ret;
++    }
++    OSThread* t = TO_PTR(OSThread, ret);
++    *queue = hh_sh_get_next(t);
++    hh_sh_set_queue(t, 0);
++    debug_printf("[Thread Queue] Popped thread %d from queue 0x%08X\n", hh_sh_get_id(t), (uintptr_t)queue_);
+     return ret;
+ }
+ 
+ bool ultramodern::thread_queue_remove(RDRAM_ARG PTR(PTR(OSThread)) queue_, PTR(OSThread) t_) {
+-    debug_printf("[Thread Queue] Removing thread %d from queue 0x%08X\n", TO_PTR(OSThread, t_)->id, (uintptr_t)queue_);
++    PTR(OSThread)* head = queue_to_ptr(PASS_RDRAM queue_);
++    debug_printf("[Thread Queue] Removing thread %d from queue 0x%08X\n", hh_sh_get_id(TO_PTR(OSThread, t_)), (uintptr_t)queue_);
+ 
+-    PTR(PTR(OSThread)) cur = queue_;
+-    while (cur != NULLPTR) {
+-        PTR(OSThread)* cur_ptr = queue_to_ptr(PASS_RDRAM queue_);
+-        if (*cur_ptr == t_) {
+-            *cur_ptr = TO_PTR(OSThread, *cur_ptr)->next;
++    int32_t prev = 0;
++    int32_t cur = *head;
++    while (cur != 0) {
++        OSThread* c = TO_PTR(OSThread, cur);
++        int32_t next = hh_sh_get_next(c);
++        if (cur == (int32_t)t_) {
++            if (prev == 0) {
++                *head = next;
++            } else {
++                hh_sh_set_next(TO_PTR(OSThread, prev), next);
++            }
++            hh_sh_set_queue(c, 0);
+             return true;
+         }
+-        cur = TO_PTR(OSThread, *cur_ptr)->next;
++        prev = cur;
++        cur = next;
+     }
+-
+     return false;
+ }
+ 
+diff --git a/ultramodern/src/threads.cpp b/ultramodern/src/threads.cpp
+index 9c020e4..ba5165f 100644
+--- a/ultramodern/src/threads.cpp
++++ b/ultramodern/src/threads.cpp
+@@ -3,6 +3,9 @@
+ #include <cassert>
+ #include <string>
+ #include <mutex>
++#include <chrono>
++#include <cstdarg>
++#include <unordered_map>
+ 
+ #include "ultramodern/ultra64.h"
+ #include "ultramodern/ultramodern.hpp"
+@@ -10,6 +13,27 @@
+ 
+ #include "ultramodern/threads.hpp"
+ 
++// HH: traza del scheduler cooperativo (hh_sched.log, acotado): encolar/parar/despertar/siguiente por
++// hilo. Imprescindible en cuelgues donde un hilo parece despertado pero nunca vuelve a ejecutarse.
++extern "C" void hh_schedlog(const char* fmt, ...) {
++    static FILE* f = nullptr;
++    static long total = 0;
++    static std::chrono::steady_clock::time_point t0{};
++    if (f == nullptr) {
++        f = fopen("hh_sched.log", "w");
++        if (f == nullptr) return;
++        t0 = std::chrono::steady_clock::now();
++    }
++    if (total > (16L * 1024 * 1024)) return;
++    const double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
++    va_list args;
++    va_start(args, fmt);
++    total += fprintf(f, "[SCH] t=%.3f ", t);
++    total += vfprintf(f, fmt, args);
++    va_end(args);
++    fflush(f);
++}
++
+ // Native APIs only used to set thread names for easier debugging
+ #ifdef _WIN32
+ #include <Windows.h>
+@@ -23,7 +47,7 @@ void ultramodern::threads::set_callbacks(const callbacks_t& callbacks) {
+ 
+ std::string ultramodern::threads::get_game_thread_name(const OSThread* t) {
+     if (threads_callbacks.get_game_thread_name == nullptr) {
+-        return "Game Thread " + std::to_string(t->id);
++        return "Game Thread " + std::to_string(hh_sh_get_id(const_cast<OSThread*>(t)));
+     }
+     return threads_callbacks.get_game_thread_name(t);
+ }
+@@ -34,6 +58,85 @@ thread_local bool is_entrypoint_thread = false;
+ // Whether this thread is part of the game (i.e. the start thread or one spawned by osCreateThread)
+ thread_local bool is_game_thread = false;
+ thread_local PTR(OSThread) thread_self = NULLPTR;
++// HH: copia host del contexto de ESTE hilo. No releerla del struct guest (`thread_self->context`):
++// el juego puede destruir el hilo y reutilizar su struct (el caso del objeto del NPC: los floats del
++// objeto pisaron `context`/`sp` y el hilo acabó llamando a un semáforo basura). Ver nota 2026-09-15.
++thread_local UltraThreadContext* self_context = nullptr;
++
++// HH: registro host OSThread* -> UltraThreadContext* (los campos guest `context`/`sp` pueden quedar
++// pisados por el juego). Es la fuente de verdad para senalizar/consultar el contexto de un hilo.
++static std::mutex hh_ctx_mutex;
++static std::unordered_map<uintptr_t, UltraThreadContext*> hh_ctx_map;
++
++static void hh_ctx_register(OSThread* t, UltraThreadContext* ctx) {
++    std::lock_guard<std::mutex> lock{ hh_ctx_mutex };
++    hh_ctx_map[(uintptr_t)t] = ctx;
++}
++
++static UltraThreadContext* hh_ctx_get(OSThread* t) {
++    std::lock_guard<std::mutex> lock{ hh_ctx_mutex };
++    auto it = hh_ctx_map.find((uintptr_t)t);
++    return it == hh_ctx_map.end() ? nullptr : it->second;
++}
++
++static void hh_ctx_unregister(OSThread* t) {
++    std::lock_guard<std::mutex> lock{ hh_ctx_mutex };
++    hh_ctx_map.erase((uintptr_t)t);
++}
++
++// HH: sombra host de los campos de scheduling del OSThread. La pila del hilo 5 puede desbordar
++// sobre su propio struct (nota del 2026-09-15) y el juego puede reutilizar structs destruidos;
++// el scheduler debe leer/escribir SIEMPRE la copia host, no la memoria guest. Los punteros de los
++// enlaces (`next`/`queue`) siguen siendo direcciones guest (los usan las colas del juego), pero se
++// guardan/leen de la sombra.
++struct HhThreadShadow {
++    int32_t next = 0;
++    int32_t priority = 0;
++    int32_t queue = 0;
++    uint16_t state = 0;
++    int32_t id = 0;
++    int32_t sp = 0;
++};
++
++static std::mutex hh_sh_mutex;
++static std::unordered_map<uintptr_t, HhThreadShadow> hh_sh_map;
++
++static HhThreadShadow* hh_sh_find(OSThread* t) {
++    if (t == nullptr) return nullptr;
++    std::lock_guard<std::mutex> lock{ hh_sh_mutex };
++    auto it = hh_sh_map.find((uintptr_t)t);
++    return it == hh_sh_map.end() ? nullptr : &it->second;
++}
++
++extern "C" void hh_sh_init(OSThread* t, int32_t next, int32_t priority, int32_t queue,
++                           uint16_t state, int32_t id, int32_t sp) {
++    std::lock_guard<std::mutex> lock{ hh_sh_mutex };
++    HhThreadShadow& s = hh_sh_map[(uintptr_t)t];
++    s.next = next; s.priority = priority; s.queue = queue;
++    s.state = state; s.id = id; s.sp = sp;
++}
++extern "C" int32_t hh_sh_get_next(OSThread* t)    { HhThreadShadow* s = hh_sh_find(t); return s ? s->next : 0; }
++extern "C" void    hh_sh_set_next(OSThread* t, int32_t v)    { if (HhThreadShadow* s = hh_sh_find(t)) s->next = v; }
++extern "C" int32_t hh_sh_get_priority(OSThread* t){ HhThreadShadow* s = hh_sh_find(t); return s ? s->priority : 0; }
++extern "C" void    hh_sh_set_priority(OSThread* t, int32_t v){ if (HhThreadShadow* s = hh_sh_find(t)) s->priority = v; }
++extern "C" int32_t hh_sh_get_queue(OSThread* t)   { HhThreadShadow* s = hh_sh_find(t); return s ? s->queue : 0; }
++extern "C" void    hh_sh_set_queue(OSThread* t, int32_t v)   { if (HhThreadShadow* s = hh_sh_find(t)) s->queue = v; }
++extern "C" int32_t hh_sh_get_state(OSThread* t)   { HhThreadShadow* s = hh_sh_find(t); return s ? (int32_t)s->state : 0; }
++extern "C" void    hh_sh_set_state(OSThread* t, int32_t v)   { if (HhThreadShadow* s = hh_sh_find(t)) s->state = (uint16_t)v; }
++extern "C" int32_t hh_sh_get_id(OSThread* t)      { HhThreadShadow* s = hh_sh_find(t); return s ? s->id : -1; }
++extern "C" int32_t hh_sh_get_sp(OSThread* t)      { HhThreadShadow* s = hh_sh_find(t); return s ? s->sp : 0; }
++
++// HH: info de un hilo por puntero de OSThread (para el watchdog; id/estado/cola/sp de la sombra).
++extern "C" int hh_thread_info(uintptr_t t, uint32_t* out) {
++    OSThread* th = (OSThread*)t;
++    HhThreadShadow* s = hh_sh_find(th);
++    if (s == nullptr) return 0;
++    out[0] = (uint32_t)s->id;
++    out[1] = (uint32_t)s->state;
++    out[2] = (uint32_t)s->queue;
++    out[3] = (uint32_t)s->sp;
++    return 1;
++}
+ 
+ // The N64 is a single-CPU machine: only one game thread may ever be executing at a time.
+ // The cooperative scheduler handles yields, but osStartThread from the boot thread
+@@ -177,19 +280,33 @@ void ultramodern::set_native_thread_priority(ThreadPriority pri) {}
+ void wait_for_resumed(RDRAM_ARG UltraThreadContext* thread_context) {
+     // Release the game lock so the thread being resumed can acquire it and run; then park this
+     // thread. Re-acquire the lock once we're resumed.
++    if (ultramodern::is_game_thread()) {
++        hh_schedlog("park tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())));
++    }
+     ultramodern::release_game_lock();
+     thread_context->running.wait();
+     ultramodern::acquire_game_lock();
++    if (ultramodern::is_game_thread()) {
++        hh_schedlog("wake tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())));
++    }
+     // If this thread's context was replaced by another thread or deleted, destroy it again from its own context.
+     // This will trigger thread cleanup instead.
+-    if (TO_PTR(OSThread, ultramodern::this_thread())->context != thread_context) {
+-        osDestroyThread(PASS_RDRAM NULLPTR);
++    // HH: comprobar contra el registro host (el struct guest puede estar pisado/reutilizado).
++    if (ultramodern::is_game_thread() && ultramodern::this_thread() != NULLPTR) {
++        if (hh_ctx_get(TO_PTR(OSThread, ultramodern::this_thread())) != thread_context) {
++            hh_schedlog("self-destroy tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, ultramodern::this_thread())));
++            osDestroyThread(PASS_RDRAM NULLPTR);
++        }
+     }
+ }
+ 
+ void resume_thread(OSThread* t) {
+-    debug_printf("[Thread] Resuming execution of thread %d\n", t->id);
+-    t->context->running.signal();
++    debug_printf("[Thread] Resuming execution of thread %d\n", hh_sh_get_id(t));
++    hh_schedlog("signal tid=%d\n", (int)hh_sh_get_id(t));
++    // HH: contexto por el registro host (el campo guest puede estar pisado por el juego).
++    UltraThreadContext* ctx = hh_ctx_get(t);
++    if (ctx == nullptr) return;  // hilo ya destruido
++    ctx->running.signal();
+ }
+ 
+ void run_next_thread(RDRAM_ARG1) {
+@@ -198,17 +315,25 @@ void run_next_thread(RDRAM_ARG1) {
+     }
+ 
+     OSThread* to_run = TO_PTR(OSThread, ultramodern::thread_queue_pop(PASS_RDRAM ultramodern::running_queue));
+-    debug_printf("[Scheduling] Resuming execution of thread %d\n", to_run->id);
+-    to_run->context->running.signal();
++    debug_printf("[Scheduling] Resuming execution of thread %d\n", hh_sh_get_id(to_run));
++    hh_schedlog("next tid=%d\n", (int)hh_sh_get_id(to_run));
++    // HH: contexto por el registro host (el campo guest puede estar pisado por el juego).
++    UltraThreadContext* ctx = hh_ctx_get(to_run);
++    if (ctx == nullptr) return;
++    ctx->running.signal();
+ }
+ 
+ void ultramodern::run_next_thread_and_wait(RDRAM_ARG1) {
+-    UltraThreadContext* cur_context = TO_PTR(OSThread, thread_self)->context;
++    // HH: contexto propio del hilo (thread_local), no `thread_self->context` (struct guest, puede
++    // estar destruido/reutilizado por el juego). Fallback al struct si no se inicializo (boot).
++    UltraThreadContext* cur_context = self_context != nullptr ? self_context : TO_PTR(OSThread, thread_self)->context;
++    hh_schedlog("rntw tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, thread_self)));
+     // If there are no runnable game threads, idle on external (hardware/OS) messages instead of
+     // aborting. Processing an external message on this game thread delivers it under the game
+     // lock and may schedule a thread blocked on receive into the running queue. (racer patch:
+     // "run_next_thread_and_wait idles on external messages when running queue is empty".)
+     while (ultramodern::thread_queue_empty(PASS_RDRAM ultramodern::running_queue)) {
++        hh_schedlog("rntw-idle tid=%d\n", (int)hh_sh_get_id(TO_PTR(OSThread, thread_self)));
+         ultramodern::wait_for_external_message(PASS_RDRAM1);
+     }
+     run_next_thread(PASS_RDRAM1);
+@@ -216,16 +341,17 @@ void ultramodern::run_next_thread_and_wait(RDRAM_ARG1) {
+ }
+ 
+ void ultramodern::resume_thread_and_wait(RDRAM_ARG OSThread *t) {
+-    UltraThreadContext* cur_context = TO_PTR(OSThread, thread_self)->context;
++    UltraThreadContext* cur_context = self_context != nullptr ? self_context : TO_PTR(OSThread, thread_self)->context;
+     resume_thread(t);
+     wait_for_resumed(PASS_RDRAM cur_context);
+ }
+ 
+ static void _thread_func(RDRAM_ARG PTR(OSThread) self_, PTR(thread_func_t) entrypoint, PTR(void) arg, UltraThreadContext* thread_context) {
+     OSThread *self = TO_PTR(OSThread, self_);
+-    debug_printf("[Thread] Thread created: %d\n", self->id);
++    debug_printf("[Thread] Thread created: %d\n", hh_sh_get_id(self));
+     thread_self = self_;
+     is_game_thread = true;
++    self_context = thread_context;
+ 
+     // Keep the game's __osRunningThread global (0x80049940) in sync so that
+     // game code that reads the current thread directly sees the right value.
+@@ -238,15 +364,20 @@ static void _thread_func(RDRAM_ARG PTR(OSThread) self_, PTR(thread_func_t) entry
+     // Signal the initialized semaphore to indicate that this thread can be started.
+     thread_context->initialized.signal();
+ 
+-    debug_printf("[Thread] Thread waiting to be started: %d\n", self->id);
++    debug_printf("[Thread] Thread waiting to be started: %d\n", hh_sh_get_id(self));
+ 
+     // Ensure the context is always cleaned up (and its host_thread joined) no matter how
+     // this function exits. Otherwise a leaked/unjoined host_thread can be destroyed while
+     // still joinable -> std::terminate ("terminate called without an active exception").
+     struct CleanupGuard {
++        OSThread* self;
+         UltraThreadContext* ctx;
+-        ~CleanupGuard() { ultramodern::cleanup_thread(ctx); }
+-    } guard{thread_context};
++        ~CleanupGuard() {
++            // HH: quitar del registro host antes de destruir el contexto.
++            hh_ctx_unregister(self);
++            ultramodern::cleanup_thread(ctx);
++        }
++    } guard{self, thread_context};
+ 
+     // Wait until the thread is marked as running.
+     try {
+@@ -255,21 +386,21 @@ static void _thread_func(RDRAM_ARG PTR(OSThread) self_, PTR(thread_func_t) entry
+     }
+ 
+     // Make sure the thread wasn't replaced or destroyed before it was started.
+-    if (self->context == thread_context) {
+-        debug_printf("[Thread] Thread started: %d\n", self->id);
++    if (hh_ctx_get(self) == thread_context) {
++        debug_printf("[Thread] Thread started: %d\n", hh_sh_get_id(self));
+         try {
+             // Run the thread's function with the provided argument.
+-            run_thread_function(PASS_RDRAM entrypoint, self->sp, arg);
++            run_thread_function(PASS_RDRAM entrypoint, hh_sh_get_sp(self), arg);
+         } catch (...) {
+         }
+     }
+     else {
+-        debug_printf("[Thread] Thread destroyed before being started: %d\n", self->id);
++        debug_printf("[Thread] Thread destroyed before being started: %d\n", hh_sh_get_id(self));
+     }
+ 
+     // Check if the thread hasn't been destroyed or replaced. If so, then the thread terminated or destroyed itself,
+     // so mark this thread as destroyed and run the next queued thread.
+-    if (self->context == thread_context) {
++    if (hh_ctx_get(self) == thread_context) {
+         self->context = nullptr;
+         // Release the game lock before handing execution to the next thread, otherwise the
+         // thread we resume will block forever trying to acquire it.
+@@ -288,8 +419,9 @@ static void _thread_func(RDRAM_ARG PTR(OSThread) self_, PTR(thread_func_t) entry
+ 
+ extern "C" void osStartThread(RDRAM_ARG PTR(OSThread) t_) {
+     OSThread* t = TO_PTR(OSThread, t_);
+-    fprintf(stderr, "[TH] osStartThread t=%p id=%d\n", (void*)t_, (int)t->id);
+-    debug_printf("[os] Start Thread %d\n", t->id);
++    HH_LOG("[TH] osStartThread t=%p id=%d\n", (void*)t_, (int)hh_sh_get_id(t));
++    debug_printf("[os] Start Thread %d\n", hh_sh_get_id(t));
++    hh_schedlog("start tid=%d t=%08X\n", (int)hh_sh_get_id(t), (unsigned)t_);
+ 
+     // If this is a game thread, insert the new thread into the running queue and then check the running queue.
+     if (thread_self) {
+@@ -298,7 +430,7 @@ extern "C" void osStartThread(RDRAM_ARG PTR(OSThread) t_) {
+     }
+     // Otherwise, immediately start the thread and terminate this one.
+     else {
+-        t->state = OSThreadState::QUEUED;
++        hh_sh_set_state(t, OSThreadState::QUEUED);
+         resume_thread(t);
+         //throw ultramodern::thread_terminated{};
+     }
+@@ -306,7 +438,8 @@ extern "C" void osStartThread(RDRAM_ARG PTR(OSThread) t_) {
+ 
+ extern "C" void osCreateThread(RDRAM_ARG PTR(OSThread) t_, OSId id, PTR(thread_func_t) entrypoint, PTR(void) arg, PTR(void) sp, OSPri pri) {
+     debug_printf("[os] Create Thread %d\n", id);
+-    fprintf(stderr, "[TH] osCreateThread id=%d entry=0x%x arg=0x%x\n", (int)id, (uint32_t)entrypoint, (uint32_t)arg);
++    HH_LOG("[TH] osCreateThread t=%p id=%d entry=0x%x arg=0x%x\n", (void*)t_, (int)id, (uint32_t)entrypoint, (uint32_t)arg);
++    hh_schedlog("create tid=%d t=%08X entry=%08X pri=%d\n", (int)id, (unsigned)t_, (unsigned)entrypoint, (int)pri);
+     OSThread *t = TO_PTR(OSThread, t_);
+     
+     t->next = NULLPTR;
+@@ -315,16 +448,20 @@ extern "C" void osCreateThread(RDRAM_ARG PTR(OSThread) t_, OSId id, PTR(thread_f
+     t->id = id;
+     t->state = OSThreadState::STOPPED;
+     t->sp = sp - 0x10; // Set up the first stack frame
++    // HH: la sombra host es la fuente de verdad del scheduling (el struct guest puede pisarse).
++    hh_sh_init(t, NULLPTR, pri, NULLPTR, OSThreadState::STOPPED, id, sp - 0x10);
+ 
+     // Spawn a new thread, which will immediately pause itself and wait until it's been started.
+     // Pass the context as an argument to the thread function to ensure that it can't get cleared before the thread captures its value.
+     UltraThreadContext* context = new UltraThreadContext{};
+     t->context = context;
++    // HH: registrar en el mapa host antes de lanzar el hilo (fuente de verdad del contexto).
++    hh_ctx_register(t, context);
+     context->host_thread = std::thread{_thread_func, PASS_RDRAM t_, entrypoint, arg, t->context};
+ 
+     // Wait until the thread is initialized to indicate that it's ready to be started.
+     context->initialized.wait();
+-    debug_printf("[os] Thread %d is ready to be started\n", t->id);
++    debug_printf("[os] Thread %d is ready to be started\n", hh_sh_get_id(t));
+ }
+ 
+ extern "C" void osStopThread(RDRAM_ARG PTR(OSThread) t_) {
+@@ -332,6 +469,7 @@ extern "C" void osStopThread(RDRAM_ARG PTR(OSThread) t_) {
+         t_ = thread_self;
+     }
+     OSThread* t = TO_PTR(OSThread, t_);
++    hh_schedlog("stop tid=%d t=%08X self=%d\n", (int)hh_sh_get_id(t), (unsigned)t_, (t_ == thread_self) ? 1 : 0);
+     // Check if the thread is stopping itself (arg is null or thread_self).
+     if (t_ == thread_self) {
+         ultramodern::run_next_thread_and_wait(PASS_RDRAM1);
+@@ -341,9 +479,9 @@ extern "C" void osStopThread(RDRAM_ARG PTR(OSThread) t_) {
+         // Its host thread stays parked (it's not the active one), and it can be
+         // restarted later with osStartThread. Do NOT null the context (that would
+         // destroy it); stopping keeps the thread restorable.
+-        if (t->state != OSThreadState::STOPPED) {
+-            ultramodern::thread_queue_remove(PASS_RDRAM t->queue, t_);
+-            t->state = OSThreadState::STOPPED;
++        if (hh_sh_get_state(t) != OSThreadState::STOPPED) {
++            ultramodern::thread_queue_remove(PASS_RDRAM (PTR(PTR(OSThread)))(int32_t)hh_sh_get_queue(t), t_);
++            hh_sh_set_state(t, OSThreadState::STOPPED);
+         }
+     }
+ }
+@@ -353,18 +491,21 @@ extern "C" void osDestroyThread(RDRAM_ARG PTR(OSThread) t_) {
+         t_ = thread_self;
+     }
+     OSThread* t = TO_PTR(OSThread, t_);
++    hh_schedlog("destroy tid=%d t=%08X self=%d\n", (int)hh_sh_get_id(t), (unsigned)t_, (t_ == thread_self) ? 1 : 0);
+     // Check if the thread is destroying itself (arg is null or thread_self)
+     if (t_ == thread_self) {
+         throw ultramodern::thread_terminated{};
+     }
+     // Otherwise if the thread isn't stopped, remove it from its currrent queue., 
+-    if (t->state != OSThreadState::STOPPED) {
+-        ultramodern::thread_queue_remove(PASS_RDRAM t->queue, t_);
++    if (hh_sh_get_state(t) != OSThreadState::STOPPED) {
++        ultramodern::thread_queue_remove(PASS_RDRAM (PTR(PTR(OSThread)))(int32_t)hh_sh_get_queue(t), t_);
+     }
+     // Check if the thread has already been destroyed to prevent destroying it again.
+-    UltraThreadContext* cur_context = t->context;
++    // HH: el registro host es la fuente de verdad (el campo guest puede estar pisado).
++    UltraThreadContext* cur_context = hh_ctx_get(t);
+     if (cur_context != nullptr) {
+         // Mark the target thread as destroyed and resume it. When it starts it'll check this and terminate itself instead of resuming.
++        hh_ctx_unregister(t);
+         t->context = nullptr;
+         cur_context->running.signal();
+     }
+@@ -376,12 +517,12 @@ extern "C" void osSetThreadPri(RDRAM_ARG PTR(OSThread) t_, OSPri pri) {
+     }
+     OSThread* t = TO_PTR(OSThread, t_);
+ 
+-    if (t->priority != pri) {
+-        t->priority = pri;
++    if (hh_sh_get_priority(t) != pri) {
++        hh_sh_set_priority(t, pri);
+ 
+-        if (t_ != ultramodern::this_thread() && t->state != OSThreadState::STOPPED) {
+-            ultramodern::thread_queue_remove(PASS_RDRAM t->queue, t_);
+-            ultramodern::thread_queue_insert(PASS_RDRAM t->queue, t_);
++        if (t_ != ultramodern::this_thread() && hh_sh_get_state(t) != OSThreadState::STOPPED) {
++            ultramodern::thread_queue_remove(PASS_RDRAM (PTR(PTR(OSThread)))(int32_t)hh_sh_get_queue(t), t_);
++            ultramodern::thread_queue_insert(PASS_RDRAM (PTR(PTR(OSThread)))(int32_t)hh_sh_get_queue(t), t_);
+         }
+ 
+         ultramodern::check_running_queue(PASS_RDRAM1);
+@@ -392,7 +533,7 @@ extern "C" OSPri osGetThreadPri(RDRAM_ARG PTR(OSThread) t) {
+     if (t == NULLPTR) {
+         t = thread_self;
+     }
+-    return TO_PTR(OSThread, t)->priority;
++    return (OSPri)hh_sh_get_priority(TO_PTR(OSThread, t));
+ }
+ 
+ extern "C" OSId osGetThreadId(RDRAM_ARG PTR(OSThread) t) {
+diff --git a/ultramodern/src/timer.cpp b/ultramodern/src/timer.cpp
+index ee26c45..644f04e 100644
+--- a/ultramodern/src/timer.cpp
++++ b/ultramodern/src/timer.cpp
+@@ -130,6 +130,7 @@ void timer_thread(RDRAM_ARG1) {
+         }
+         else {
+             // Waiting for the timer completed, so send the timer's message to its message queue
++            HH_LOG("[TIM] fire t=%p interval=%lld mq=%p\n", (void*)cur_timer_, (long long)cur_timer->interval, (void*)cur_timer->mq);
+             ultramodern::enqueue_external_message_src(cur_timer->mq, cur_timer->msg, false, ultramodern::EventMessageSource::Timer);
+             // If the timer has a specified interval then reload it with that value
+             if (cur_timer->interval != 0) {
+@@ -192,6 +193,8 @@ extern "C" int osSetTimer(RDRAM_ARG PTR(OSTimer) t_, OSTime countdown, OSTime in
+     t->mq = mq;
+     t->msg = msg;
+ 
++    HH_LOG("[TIM] set t=%p countdown=%lld interval=%lld mq=%p\n", (void*)t_, (long long)countdown, (long long)interval, (void*)mq);
++
+     timer_context.action_queue.enqueue(AddTimerAction{ t_ });
+ 
+     return 0;
+diff --git a/ultramodern/src/ultrainit.cpp b/ultramodern/src/ultrainit.cpp
+index af5132c..c4f7076 100644
+--- a/ultramodern/src/ultrainit.cpp
++++ b/ultramodern/src/ultrainit.cpp
+@@ -29,5 +29,5 @@ void ultramodern::preinit(RDRAM_ARG ultramodern::renderer::WindowHandle window_h
+     ultramodern::init_thread_cleanup();
+ }
+ 
+-extern "C" void osInitialize() {
++extern "C" void osInitialize_stub() {
+ }

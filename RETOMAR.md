@@ -64,8 +64,11 @@
     del NPC* (incluye `RecompiledFuncs/` regenerado, syms, docs y `tools/analysis/add_mid_entry.py`).
   - N64ModernRuntime (repo anidado, **detached HEAD** como venía siéndolo): `87acdbb` —
     *diag(runtime): instrumentacion del cuelgue del NPC y sombra host de scheduling*.
-- `port/windows_runtime_changes.patch` regenerado y cuadrado con el árbol NMR (verificar con
-  `git -C <NMR> diff --ignore-submodules=all` vs el patch).
+- **`port/windows_runtime_changes.patch` debe generarse SIEMPRE como diff desde la BASE**
+  (`git -C <NMR> diff fd6b0d0 --ignore-submodules=all > port/windows_runtime_changes.patch`): el
+  `build_windows.bat` hace `checkout fd6b0d0` + patch, así que un patch como "delta desde HEAD"
+  deja el build con el runtime de base (le pasó al usuario tras commits locales del runtime).
+  Verificar aplicándolo en un worktree limpio de `fd6b0d0`.
 - Bats de apoyo: `run_windows.bat`, `run_noaudio.bat`, `run_audlog.bat`, `run_test_*` (regresión),
   `bisect_build.bat` (build de bisect), `run_watch.bat` (watchpoint + grabación de replay).
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).

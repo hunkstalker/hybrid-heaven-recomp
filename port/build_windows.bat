@@ -113,10 +113,12 @@ popd
 goto :cmake
 
 :patch_unknown
-echo AVISO: el patch no aplica ni revierte. Si el port ya compila, ignorar;
-echo        si no, aplica a mano los ficheros que lista el patch.
+echo ERROR: el patch de runtime no aplica ni revierte. El arbol del runtime no coincide con
+echo        base+patch (fd6b0d0 + windows_runtime_changes.patch). Revisa git status en:
+echo        %NMR%
+echo        (regenerar el patch: git -C %NMR% diff fd6b0d0 --ignore-submodules=all ^> port\windows_runtime_changes.patch)
 popd
-goto :cmake
+goto :err
 
 :patch_failed
 echo ERROR aplicando el patch.
