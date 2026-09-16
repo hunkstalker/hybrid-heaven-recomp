@@ -61,6 +61,8 @@ jobs:
   image:
     name: Imagen ghcr (desde el binario de CI)
     runs-on: ubuntu-latest
+    # La imagen es secundaria: si falla (p. ej. permisos de ghcr), que NO tumbe el Release.
+    continue-on-error: true
     permissions:
       contents: read
       actions: read
