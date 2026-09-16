@@ -122,7 +122,9 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   - `cont.cpp`: `osContGetReadData` escribe los 4 `OSContPad` (libultra escribe también los ausentes
     con `CONT_NO_RESPONSE_ERROR`; el juego ramifica según eso).
   - `pak.cpp`: **Controller Pak (PFS) mínimo en RAM** con persistencia (`saves/<nombre>.bin.pak`,
-    magic `HHPK`): `osPfsInitPak`, `osPfsInit` (formato), `osPfsFreeBlocks`, `osPfsAllocateFile`,
+    magic `HHPK`) **junto al ejecutable** (portada portable; si esa carpeta no es escribible se usa el
+    directorio de datos del usuario y `HH_DATA_DIR` lo fuerza): `osPfsInitPak`, `osPfsInit` (formato),
+    `osPfsFreeBlocks`, `osPfsAllocateFile`,
     `osPfsFindFile`, `osPfsDeleteFile`, `osPfsReadWriteFile`, `osPfsFileState`, `osPfsNumFiles`,
     `osPfsIsPlug`, `osPfsChecker`, `osPfsRepairId`, `osPfsGetLabel`. El juego exige pak para GAME
     START y el upstream devolvía `PFS_ERR_NOPACK` en todo (TODO #15). Esas 13 entradas se movieron de

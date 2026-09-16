@@ -182,7 +182,8 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
 - Boot completo, transición y burst de módulos; **renderiza** logo, pantalla de título, menú y
   **cutscenes 3D in-engine**.
 - **Menú**: `START` → menú principal → `START` → GAME START/DIFFICULTY/EXIT → `A` entra en la intro
-  (exige **Controller Pak**, ya emulado con PFS en RAM + `saves/*.bin.pak`).
+  (exige **Controller Pak**, ya emulado con PFS en RAM + `saves\*.bin.pak` **junto al .exe**; si esa
+  carpeta no es escribible se usa `%APPDATA%\HybridHeavenRecomp`; `HH_DATA_DIR=<ruta>` lo fuerza).
 - **Mando Xbox compatible** (SDL2 GameController):
   - `A`=A, `B`=B (y C-derecha), `X`=C-izq, `Y`=C-arriba, `LB`=L, `RB`=R, `Back`=Z, `Start`=Start,
     D-Pad, stick izquierdo (botón = C-abajo) y eje analógico.

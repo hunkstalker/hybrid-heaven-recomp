@@ -176,3 +176,20 @@ dejó **opt-in** (`HH_PAK_NEWPACK=1`) y se revirtió el valor por defecto. Tambi
 `OSPfs` como libultra (`status=PFS_INITIALIZED`, `version=2`, `dir_size=16`, `inode_start_page=2`).
 
 ## 7. Siguiente paso
+## 8. Portada portable: `saves/` junto al `.exe`
+
+`hh::get_app_folder_path()` devolvía la carpeta de datos del usuario y el port la registra como
+`config_path` del runtime; de ahí que el `.pak` (y `hh.log`) cayeran en
+`%APPDATA%\HybridHeavenRecomp` / `~/.local/share/HybridHeavenRecomp`. Ahora **la carpeta de datos es
+la del ejecutable** (filosofía portable del proyecto):
+
+- `saves/` se crea junto al `.exe` y ahí van `hh.us.bin` y `hh.us.bin.pak`.
+- Si esa carpeta no es escribible (Program Files, USB de solo lectura) se usa la del usuario como
+  antes; `HH_DATA_DIR=<ruta>` lo fuerza.
+- Bug asociado en Linux: `get_executable_path()` devolvía `/proc/self/exe` **sin resolver**, así que
+  `parent_path()` era `/proc/self` y la sonda de escritura fallaba → siempre caía al fallback. Se
+  resuelve con `std::filesystem::canonical()`.
+- `config.ini` se lee relativo (CWD = carpeta del exe): sin cambios.
+
+Verificado en Linux: `pak_load path=<...>/build_dbg/saves/hh.us.bin.pak` y la carpeta `saves/` creada
+junto al binario.

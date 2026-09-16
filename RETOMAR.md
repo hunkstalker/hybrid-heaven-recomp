@@ -68,8 +68,8 @@
       No hay que tocar envs (`HH_PAK_NEWPACK` está desactivado por defecto).
 3. Enviarme (o dejarme en la carpeta compartida) **el final de**
    `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log`: debe verse `osPfsAllocateFile` y el
-   guardado completando. El `.pak` vive en el directorio de config del runtime
-   (`%APPDATA%\HybridHeavenRecomp\saves\hh.us.bin.pak`, lo imprime el log).
+   guardado completando. El `.pak` queda en `saves\` **junto al .exe** (portada portable; lo imprime
+   el log).
 4. Si crashea con `Failed to find function at 0x...`: pasarme la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`; ahora con edición mínima y guardián
    `check_syms_overrides.py`).

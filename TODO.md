@@ -36,7 +36,8 @@
    `*file_no=-1`, DeleteFile→5, AllocateFile sin espacio→9. Intento previo de "pak nuevo"
    (`PFS_ERR_NEW_PACK`) descartado y dejado opt-in (`HH_PAK_NEWPACK=1`) porque colgaba GAME START.
    En Linux: `osPfsInitPak -> 0` y `osPfsFindFile -> 5`. **Pendiente**: validar en Windows (recompilar
-   + GAME START + cápsula; el log debe mostrar `AllocateFile size=13568` y guardar). Detalle:
+   + GAME START + cápsula; el log debe mostrar `AllocateFile size=13568` y guardar; el `.pak` queda en
+   `saves\` junto al .exe). Detalle:
    `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
