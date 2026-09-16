@@ -321,3 +321,21 @@ Pendiente: un repro mas -> ver que displaylist del efecto de dano no recibe su e
   afectados: verificado en smoke). Log: `hh_s0fix.log`.
 - Pendiente: validacion en Windows (el dano no debe congelar) y, si funciona, decidir si el fix se
   queda siempre activo y/o se corrige ademas el simbolo `FUN_80026fe8`.
+
+### Ronda 14: FIX del laser validado + nueva fuga de pila en el estado de caida
+
+- **El fix de s0 funciona**: el usuario confirma que el impacto del laser del robot ya NO congela;
+  el `[S0FIX]` repara en cada frame del estado de dano (valores `1E82 -> 1E66`) y el motor sigue.
+- **Nuevo sintoma (siguiente capa)**: al caer el personaje, **no se levanta** (deberia en 1-2 s).
+  Los input polls se congelan (~t=85) y el watchdog (que *sale* tras el volcado) termina la sesion.
+- **Causa medida**: el `sp` del hilo principal (ctx2) **desciende ~68 bytes/frame** durante la caida:
+  `8005BEE0 (t=25) -> 80059F68 (65) -> 80058088 (70) -> 800560D0 (75) -> 80054350 (80) ->
+  80053E78 (85, clavado)`. Es la **misma familia** que el bug original (`M55_FUN_80379690`): una
+  salida/simbolo que no restaura la pila. Los punteros basura asociados eran de **modulo 12**
+  (0x8024A0xx) en el estado de caida (s0 y el `blocked_on_recv` de la cola C288 quedaron con
+  valores de modulo 12).
+- No hay desbalance simple en las funciones M12 (prologo > restauracion) ni candidatos claros en el
+  audit de fallthroughs -> toca trazarlo como la vez original: `port\run_watch.bat` (activa
+  hh_ring/ring2) + reproducir la caida -> `hh_ring2_3..8.log` (dumps de la ventana de 60000 llamadas
+  en parones con `sp<0x8005B000`) y comparar frames consecutivos para localizar la llamada que no
+  devuelve la pila (misma tecnica que la fuga 0x48 del objeto).
