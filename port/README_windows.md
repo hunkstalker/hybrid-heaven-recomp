@@ -19,51 +19,46 @@ port/HybridHeavenRecomp/
 ├── rsp/hh_aspMain.cpp      ← ucode de audio recompilado
 ├── assets/                 ← HybridHeaven.ico, app.rc.in, HybridHeaven.png, icon_bmp.inc
 ├── src/main/*.cpp          ← port (main, support, rt64_render_context, register_overlays, module_sources.inc)
-├── lib/rt64/               ← repo rt64 (vendored, sin cambios)
-└── lib/N64ModernRuntime/   ← repo N64ModernRuntime (vendored, CON NUESTROS FIXES)
+├── lib/rt64/               ← repo rt64 (upstream, commit fijo, sin cambios)
+└── lib/N64ModernRuntime/   ← runtime del FORK propio (rama hybrid-heaven, commit fijado)
 ```
 
-> **IMPORTANTE:** los dos `lib/` son repos anidados con su propio `.git` (gitignored del repo
-> principal). `rt64` va tal cual en `43373749dac9bbc1b653e6a02aed40a9e1783bed`. `N64ModernRuntime`
-> debe estar en `fd6b0d0eedc922700f67bab8b770d3986187f3e9` + el patch de runtime.
+> **IMPORTANTE:** los dos `lib/` están en `.gitignore` y los reproduce `build_windows.bat`:
+> `rt64` se clona de upstream en el commit `43373749dac9bbc1b653e6a02aed40a9e1783bed`; el runtime se
+> clona de **`hunkstalker/N64ModernRuntime`** (rama `hybrid-heaven`) en el commit que fija
+> **`port\runtime.lock`**, con submódulos recursivos (`N64Recomp` sale del fork
+> `hunkstalker/N64Recomp`; `thirdparty`, de upstream). Si los directorios ya existen, se respetan.
+> Créditos y licencias: `CREDITS.md`.
 
-## 1. Aplicar los fixes de runtime a N64ModernRuntime
+## 1. Runtime: forks propios (sin patch)
 
-`port/windows_runtime_changes.patch` contiene TODOS los cambios de runtime/librecomp que necesita el
-port (VI, threads, mesgqueue, registro dinámico de módulos, **Controller Pak (PFS)**, `MEM_*`/`TO_PTR`
-para direcciones no mapeadas, etc.). Base: `fd6b0d0eedc922700f67bab8b770d3986187f3e9`.
+Los cambios de runtime (VI, threads, mesgqueue, registro dinámico de módulos, **Controller Pak
+(PFS)**, `MEM_*` para direcciones no mapeadas, fix `s0`, instrumentación…) viven en el fork
+`hunkstalker/N64ModernRuntime`, rama `hybrid-heaven` (con `main` = upstream, para el crédito y para
+sincronizar). El cambio de `N64Recomp` que se **compila** dentro del port está en el fork
+`hunkstalker/N64Recomp`. **No hay patch.**
+
+Para cambiar el runtime (mantenedor): editar el árbol local (`lib\N64ModernRuntime` o la copia
+`N64ModernRuntime` junto al proyecto) → commit en `hybrid-heaven` → `git push fork hybrid-heaven` →
+actualizar `NMR_COMMIT` en `port\runtime.lock`.
+
+Reparar/forzar el runtime a lo que dice el lock:
 
 ```bat
 cd port\HybridHeavenRecomp\lib\N64ModernRuntime
-git checkout fd6b0d0eedc922700f67bab8b770d3986187f3e9
-git submodule update --init --recursive
-git apply ..\..\..\..\windows_runtime_changes.patch
+git -c safe.directory=* fetch
+git -c safe.directory=* checkout <NMR_COMMIT de port\runtime.lock>
+git -c safe.directory=* submodule update --init --recursive
 ```
-
-> Si no aplica limpio (base distinta), copia los archivos modificados que lista el patch
-> (`librecomp/src/*`, `librecomp/include/librecomp/*`, `ultramodern/src/*`, `ultramodern/include/...`).
-
-## 1b. Reparar el runtime si algo falla al compilar
-
-`windows_runtime_changes.patch` lleva TODOS los cambios de runtime (incluye `hh_get_vi_count`,
-`hh_missing.log`, Controller Pak, overlays, etc.). Si el runtime se ha revertido (p. ej. con
-`--force-libs`) el link fallara con simbolos indefinidos. Reparacion:
-
-```bat
-cd port\HybridHeavenRecomp\lib\N64ModernRuntime
-git -c safe.directory=* checkout -f fd6b0d0eedc922700f67bab8b770d3986187f3e9
-git -c safe.directory=* apply ..\..\..\..\port\windows_runtime_changes.patch
-```
-
-Luego recompila con `port\build_windows.bat` y lanza con `run_windows.bat`.
+(o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build_windows.bat`.)
 
 ## 2. Configurar y compilar
 
 Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
-`lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas), comprueba el patch
-y compila en **Release** (la build Debug sin optimizar hace que el juego caiga a 30 fps y que el hilo
-de audio solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si
-quieres clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
+`lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas) y compila en
+**Release** (la build Debug sin optimizar hace que el juego caiga a 30 fps y que el hilo de audio
+solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si quieres
+clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
 Manual:
 

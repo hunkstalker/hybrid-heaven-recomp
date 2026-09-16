@@ -30,6 +30,9 @@
   `tools/recomp.py --config config/game_combined.toml --force`. La herramienta **rechaza** delay
   slots y direcciones dentro de switches fusionados (romperlos causa regresiones como el crash de
   las escaleras del 2026-09-15: ver nota, "Ronda 10").
+- **Build/CI**: receta Linux (`tools/build_linux.sh`) + `Dockerfile` (Debian/glibc) + workflows
+  `ci`/`release` + devcontainer (ADR 0005). Pendiente: validar los workflows en GitHub tras el push
+  y el `.zip`/`.tar.gz` de un tag `v*`.
 - **Teardown**: el cierre ordenado no se reproduce en Linux (rc=0) con el camino actual; hay hook de
   prueba `HH_AUTOQUIT=<segundos>` (solo si se define el env).
 
@@ -68,11 +71,13 @@
 - **Commits de la ronda 15 (2026-09-16)** (main repo): *fix(recomp): encadenar fallthrough
   M55_FUN_8037a6f4->8037a884 (fuga 0x38/frame en la caida)* y
   *docs: ronda 15 (fix de la caida validado; heuristica de ramas condicionales)*.
-- **`port/windows_runtime_changes.patch` debe generarse SIEMPRE como diff desde la BASE**
-  (`git -C <NMR> diff fd6b0d0 --ignore-submodules=all > port/windows_runtime_changes.patch`): el
-  `build_windows.bat` hace `checkout fd6b0d0` + patch, así que un patch como "delta desde HEAD"
-  deja el build con el runtime de base (le pasó al usuario tras commits locales del runtime).
-  Verificar aplicándolo en un worktree limpio de `fd6b0d0`.
+- **Runtime y tool: FORKS propios** (rama `hybrid-heaven`), con `main` = upstream:
+  - `hunkstalker/N64ModernRuntime` (23 commits del runtime) y `hunkstalker/N64Recomp`
+    (`recomp.h` con `MEM_*` seguro + `symbol_lists.cpp`), que se compila dentro del port.
+  - Los scripts clonan por **URL+SHA fijados en `port/runtime.lock`** (no hay patch).
+  - Los cambios del runtime se hacen en el árbol local (`lib/N64ModernRuntime`) y se **pushean al
+    fork**; luego se actualiza el SHA en `port/runtime.lock`.
+  - Copias de trabajo/publicación en `/app/N64ModernRuntime` y `/app/N64Recomp`.
 - Bats de apoyo: `run_windows.bat`, `run_noaudio.bat`, `run_audlog.bat`, `run_test_*` (regresión),
   `bisect_build.bat` (build de bisect), `run_watch.bat` (watchpoint + grabación de replay).
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).

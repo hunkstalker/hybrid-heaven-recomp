@@ -50,6 +50,18 @@
   del entrypoint), watchdog de cuelgue (polls y audio), `hh_pi.log` con tiempos, `/MAP` de MSVC,
   `hh_missing.log`, bats de regresión `run_test_*`.
 - [x] **Bisect del cuelgue del NPC**: conclusión documentada (no regresión) + `bisect_build.bat`.
+- [x] **Build reproducible + CI/release** (2026-09-16): `tools/build_linux.sh` (rt64 clonado en commit
+  fijo + **snapshot del runtime** + CMake), `Dockerfile` multi-stage (Debian/glibc, stages
+  deps/build/runtime), `.github/workflows/{ci,release}.yml` (zip Windows / tar.gz Linux / imagen
+  ghcr.io en tag) y devcontainer. Decisión: `docs/adr/0005-build-reproducible-y-artefactos.md`.
+- [x] **Runtime y N64Recomp en forks propios** (2026-09-16, validado con los push): el runtime
+  modificado vive en `hunkstalker/N64ModernRuntime` (rama `hybrid-heaven`, 23 commits) y el cambio
+  de `recomp.h`/`symbol_lists.cpp` en `hunkstalker/N64Recomp` (que **se compila** en el port).
+  `main` de ambos forks = upstream (crédito/lineage). Los scripts clonan por URL+SHA de
+  `port/runtime.lock`; sin patch ni snapshot. Ver `docs/adr/0005-*.md`.
+- [ ] **(Diferido) Ramas del toolchain**: para reproducir la **regeneración** (syms→C) hará falta
+  una rama `hybrid-heaven-tool` en el fork de N64Recomp (la herramienta tiene 13 archivos
+  modificados). El build no la necesita.
 - [x] **Daño del robot, 2 capas** (2026-09-16, validado en Windows): `s0` machacado → dispatch
   frame/no-op roto (`HH_S0FIX` en runtime, incondicional, con auto-test `HH_TEST_S0BUG`); y caída que
   no se levantaba → fallthrough ausente en `M55_FUN_8037a6f4` (continuación `0x8037A884..` y epílogo
@@ -61,6 +73,14 @@
   asíncrona (divergencias con upstream auditadas en `docs/architecture.md` §5).
 - [ ] **Interfaces de sub-objetivos** (texto/traducción, audio, guardado): contrato y punto de hook.
 - [ ] **Automatizar el inventario de módulos** (medir bases de forma desatendida vía loader).
+
+## Licencia y distribución
+
+- [x] **Créditos de terceros**: `CREDITS.md` (NMR GPL-3.0; N64Recomp/RT64/SDL2 MIT/Zlib; submódulos
+  xxHash/miniz/o1heap; herramientas de desarrollo). Se incluye como `CREDITOS.md` en el `.zip`/`.tar.gz`
+  de CI/release y en la imagen Docker.
+- [ ] **`LICENSE` del proyecto**: los binarios enlazan N64ModernRuntime (**GPL-3.0**) → decidir una
+  licencia GPL-3.0-compatible y añadir `LICENSE` a los artefactos.
 
 ## Higiene del repo (candidatos de limpieza)
 
@@ -88,7 +108,10 @@
   completo con cuidado (ver nota del 2026-09-15 §4).
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco (+ Rumble).
-- [ ] **Builds**: Windows + Linux + Steam Deck; empaquetado sin ROM.
+- [ ] **Builds/empaquetado**: **validar** los workflows en GitHub tras el primer push (build Linux
+  por Docker, build Windows en CI, release con tag `v*` y subida a ghcr.io), y empaquetado para
+  **Steam Deck** (AppImage/paquete nativo). Hecho ya: receta Linux + Docker + CI + Releases
+  (`docs/adr/0005-build-reproducible-y-artefactos.md`).
 - [ ] **Tarea #3** (mapa overlay→RAM por BizHawk): complementa la medición empírica de bases.
 - [ ] Limpiar data-as-code (189 sospechosas) → habilita re-evaluar
   `use_lookup_for_all_function_calls=false`.

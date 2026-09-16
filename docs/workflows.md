@@ -52,6 +52,31 @@ python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml --fix --out /
 Regla: **nunca editar a mano el C generado**. Todo fix va a `config/*.syms.toml` y el validador
 lo propone (`--fix`). Windows (usuario): `cmake --build build --target HybridHeavenRecomp --config Debug`.
 
+### 1.1 Build reproducible en Linux (script y Docker)
+
+Para compilar el port **sin** regenerar syms (el C recompilado está versionado):
+
+```sh
+tools/build_linux.sh                 # clona deps (fork runtime + rt64) + CMake + build (Release)
+tools/build_linux.sh --debug         # Debug
+tools/build_linux.sh --force-libs    # re-clona/actualiza las deps
+tools/build_linux.sh --help
+```
+
+- **Runtime y N64Recomp**: los cambios propios viven en **forks** (`hunkstalker/N64ModernRuntime` y
+  `hunkstalker/N64Recomp`, rama `hybrid-heaven`; `main` = upstream). Los scripts clonan por **URL+SHA
+  de `port/runtime.lock`** (submódulos incluidos: `N64Recomp` sale del fork, `thirdparty` de
+  upstream). No hay patch. Si se añaden commits al runtime: push al fork y actualizar el SHA en
+  `port/runtime.lock`. `rt64` se clona del upstream en su commit fijo (sin modificar).
+- **Docker** (`Dockerfile` multi-stage, Debian/glibc): `docker compose build run`. Clona las deps
+  (rt64 + fork del runtime) por el lock; stages `deps` (también devcontainer) / `build` / `runtime`.
+  Headless: `HH_HEADLESS=1 docker compose run --rm run` (Xvfb + lavapipe). GUI en host Linux:
+  `--device /dev/dri` + socket X11 (ver `port/README_linux.md`).
+- **CI / releases**: `.github/workflows/ci.yml` (docs + build Linux por Docker + build Windows en
+  `windows-latest`) y `.github/workflows/release.yml` (tag `v*` → `.zip`/`.tar.gz` en Releases +
+  imagen runtime en `ghcr.io`). El CI **no** ejecuta el juego: la ROM no se sube nunca.
+- Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md`.
+
 ## 2. Ejecutar headless (Linux)
 
 ```sh

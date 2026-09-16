@@ -15,12 +15,33 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
   (ROMs del usuario descomprimidas, proyecto Ghidra, toolchain). El repo versionado queda
   limpio de assets (modelo No-Intro): el port requiere la ROM del usuario en runtime.
 
-Estado actual (2026-09-10): portado/recompilación en curso (Fase 2) — el port **compila y hace boot**
-(Linux y Windows) con el set unificado; el juego **aún no renderiza**. **Progreso clave**: se
-identificó la causa raíz (la syms solo mapeaba 11 os funcs; la mayoría de os funcs libultra estaban
-como `FUN_xxx` → el recompilador los compilaba como código de juego → el juego usaba su propio
-osSetTimer no emulado → thread 5 colgado en `osRecvMesg(0x8005be40)`). **Fix aplicado**: se mapearon
-46 os funcs (vrams de `n64sym`) + `use_lookup_for_all_function_calls=false` → **thread 5 se desbloqueó**.
-El boot progresa más pero crashea en el allocator de heap (límites de función del auto-detector).
-Detalle: `notes/2026-09-10-n64sym-osfuncs-rootcause.md` (§5/§8) y
-`notes/reference/n64sym_osfuncs_us_retail.txt`.
+## Compilar y ejecutar
+
+La ROM **no** se distribuye: necesitas tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
+`0x0F6A72F2C36A216DULL`) como `baserom.us.z64` junto al ejecutable o en el directorio de trabajo.
+
+**Binarios listos**: descarga el `.zip` (Windows) o `.tar.gz` (Linux) de *Releases* y aporta tu ROM.
+
+| Plataforma | Comando | Requisitos |
+|---|---|---|
+| Windows | `port\build_windows.bat` | Visual Studio 2022/2026 (C++), CMake, Git |
+| Linux | `tools/build_linux.sh` | gcc, CMake, Ninja, SDL2-dev, Vulkan-dev, X11-dev, GTK3-dev |
+| Docker (Linux) | `docker compose build run` | Docker (la imagen clona las libs y compila) |
+
+Ambos scripts **clonan las dependencias por URL+SHA fijados en `port/runtime.lock`**: `rt64` de
+su upstream y `N64ModernRuntime` de un **fork propio** (rama `hybrid-heaven`) que incluye
+nuestros cambios y cuyo submódulo `N64Recomp` también sale de un fork. Esos directorios están en
+`.gitignore`, así que los scripts son la forma de reproducirlos. Guías:
+`port/README_windows.md`, `port/README_linux.md`, `docs/workflows.md` §1.
+
+## Estado
+
+El estado y las tareas viven en **`PROYECTO.md`**, **`TODO.md`** y **`RETOMAR.md`** (una sola fuente
+por tema; aquí no se duplican). Para arrancar una sesión: `AGENTS.md`.
+
+## Créditos y licencias
+
+El port se apoya en proyectos de terceros: **N64ModernRuntime** (GPL-3.0, equipo N64Recomp),
+**N64Recomp** y **RT64** (MIT), más xxHash/miniz/o1heap. Autoría, licencias y commits exactos:
+[`CREDITS.md`](CREDITS.md). El repositorio **no** incluye la ROM de Hybrid Heaven (© Konami): la
+aporta cada usuario en runtime.
