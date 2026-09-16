@@ -24,6 +24,13 @@ reproducirla**, y que el patch (`diff fd6b0d0..HEAD`, generado con `--ignore-sub
 cubría los cambios del submódulo N64Recomp**. Además, los 23 commits locales vivían en un **HEAD
 detached** (sólo alcanzables por reflog).
 
+Por otro lado, el port no debe distribuir **datos del juego**: el repo llegó a versionar imágenes
+del juego (capturas, iconos/logo) y **datos extraídos de la ROM** (manifiestos, mapa de assets, dump
+de símbolos). Eso se ha **purgado de todo el historial**. El **código del port** (incluido el C
+recompilado y el ucode, que son el propio programa) **sí se versiona**, para poder compilar el `.exe`
+sin la ROM (modelo de Zelda64Recomp/Goemon64Recomp): el `.exe` obtiene los datos de la ROM del usuario
+en runtime.
+
 ## Decisión
 
 1. Publicar los cambios como **forks reales** de GitHub, con **`main` = upstream** (lineage y crédito
@@ -33,15 +40,23 @@ detached** (sólo alcanzables por reflog).
    `NMR_URL`/`NMR_COMMIT` permiten apuntar a otro fork). **Sin patch y sin snapshot**; los submódulos
    se resuelven recursivamente (`N64Recomp` desde el fork vía `.gitmodules`; `thirdparty`, de upstream).
 3. **`rt64`** no se modifica: se clona de su upstream en un commit fijo.
-4. La **ROM nunca** entra en el repo, la imagen, los artefactos ni el CI: la aporta el usuario en runtime.
+4. La **ROM nunca** entra en el repo, la imagen, los artefactos ni el CI: la aporta el usuario.
 5. Las herramientas de **regeneración** (`toolchain/src/N64Recomp`, 13 archivos modificados) quedan
    fuera del build; si se quiere reproducir la regeneración, se añadirá una segunda rama
    (`hybrid-heaven-tool`) en el fork de N64Recomp.
+6. **No versionar datos del juego** (ROM, imágenes/capturas, textos/manifiestos extraídos). Sí se
+   versiona **el código del port** (incluido `RecompiledFuncs/` y `rsp/hh_aspMain.cpp`), de modo que el
+   `.exe` **se compila sin la ROM**. El binario, **al ejecutarse, busca la ROM del usuario**
+   (`rom/baserom.us.z64` o junto al ejecutable/CWD) y extrae de ella los datos. Los datos de fuentes
+   (símbolos) se regeneran con la ROM solo cuando un mantenedor toca los símbolos.
 
 ## Consecuencias
 
-- Cualquiera compila con un comando (`tools/build_linux.sh`, `port/build_windows.bat` o Docker) sin
-  instalar dependencias más allá del toolchain base; y puede descargar binarios de *Releases*.
+- Repositorio **sin datos del juego** (ROM/assets/textos extraídos) y **con el código del port**: el
+  `.exe` se compila sin ROM; para **jugar** basta con descargar el binario de *Releases* y aportar la
+  ROM. Nadie está obligado a compilar.
+- **CI compila** Linux (Docker) y Windows, y un tag `v*` publica `.zip`/`.tar.gz` (+ imagen en
+  `ghcr.io`), sin ROM.
 - Crédito y lineage conservados: los forks muestran “forked from …”, incluyen su `COPYING`
   (NMR, GPL-3.0) y se documentan en `CREDITS.md`.
 - Mantenimiento: los cambios del runtime se hacen en el árbol local y se **pushean al fork**, y luego
@@ -64,7 +79,10 @@ detached** (sólo alcanzables por reflog).
 
 ## Criterio de salida
 
-- `tools/build_linux.sh --force-libs` compila en limpio clonando los forks por `runtime.lock`.
-- `docker build --target runtime` produce la imagen y el CI (Linux por Docker + Windows) valida el
-  clon limpio.
-- Un tag `v*` publica `.zip`/`.tar.gz` y la imagen en `ghcr.io`, sin ROM.
+- `tools/build_linux.sh` y `port\build_windows.bat` compilan **sin ROM**, clonando las dependencias
+  por `port/runtime.lock`.
+- El `.exe`/binario arranca pidiendo la ROM (`rom/baserom.us.z64` o junto al ejecutable/CWD).
+- `git log --name-only` no muestra datos del juego (assets/capturas/manifiestos/dumps).
+- CI compila Linux (Docker) y Windows; un tag `v*` publica `.zip`/`.tar.gz` e imagen `ghcr.io`.
+- **Pendiente**: para que terceros regeneren el C (si tocan símbolos), publicar la rama
+  `hybrid-heaven-tool` del toolchain; y, opcional, selector de ROM tipo menú (hoy `rom/`).

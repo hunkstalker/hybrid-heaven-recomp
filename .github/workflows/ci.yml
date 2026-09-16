@@ -1,5 +1,6 @@
 name: CI
 
+# El repo incluye el codigo del port (recompilado incluido), asi que compila SIN ROM.
 on:
   push:
     branches: [main]
@@ -46,7 +47,7 @@ jobs:
         env:
           CI: '1'
         run: cmd /c port\build_windows.bat
-      - name: Empaquetar (exe + DLLs + LEEME)
+      - name: Empaquetar (exe + DLLs + LEEME + creditos)
         shell: pwsh
         run: |
           $dir = "port/HybridHeavenRecomp/build_win/bin/Release"

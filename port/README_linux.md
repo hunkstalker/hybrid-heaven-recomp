@@ -1,8 +1,9 @@
 # Hybrid Heaven Recomp — Linux
 
-Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: necesitas tu copia de
-Hybrid Heaven (USA) — `NHVE`, 16 MB, hash `0x0F6A72F2C36A216DULL` — como `baserom.us.z64`
-junto al binario o en el directorio desde el que lo lances.
+Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu
+copia de Hybrid Heaven (USA) — `NHVE`, 16 MB, hash `0x0F6A72F2C36A216DULL` — como
+`rom/baserom.us.z64` (junto al binario o en el directorio de trabajo) o `baserom.us.z64` junto al
+binario/CWD.
 
 ## Ejecutar (nativo)
 

@@ -1,7 +1,7 @@
 name: Release
 
-# Publica binarios listos para usar (Windows .zip y Linux .tar.gz) y, opcionalmente,
-# la imagen de ejecucion en ghcr.io. La ROM NO se incluye: la aporta el usuario.
+# Publica binarios listos para usar (Windows .zip y Linux .tar.gz) y la imagen de ejecucion en
+# ghcr.io. La ROM NO se incluye: el .exe la pide en runtime al usuario.
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 # (o lanzar el workflow a mano con "Run workflow")

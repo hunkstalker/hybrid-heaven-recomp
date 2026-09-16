@@ -1,17 +1,14 @@
 # ---------------------------------------------------------------------------
-# NUNCA versionar: ROMs y contenido DERIVADO de la ROM (copyright).
-# El repo solo lleva NUESTRO codigo; los derivados se generan con la ROM del
-# usuario (ver README y docs/adr/0005).
+# NUNCA versionar: ROM y DATOS del juego (copyright).
+# El repo lleva el codigo del port (incluido el recompilado); el .exe obtiene los
+# datos de la ROM que aporta el usuario en `rom/` (ver README y docs/adr/0005).
 # ---------------------------------------------------------------------------
 work/
+rom/
 *.z64
 *.n64
 *.v64
 baserom.*
-
-# Codigo recompilado y ucode de audio (generados con la ROM; tools/recomp.py + RSPRecomp)
-port/HybridHeavenRecomp/RecompiledFuncs/
-port/HybridHeavenRecomp/rsp/hh_aspMain.cpp
 
 # Assets del juego (imagenes derivadas) y capturas de referencia
 port/HybridHeavenRecomp/assets/HybridHeaven.bmp
