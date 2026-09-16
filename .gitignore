@@ -1,6 +1,12 @@
 # ... ROMs, assets y derivados del usuario (NUNCA versionar)
 work/
 
+# ROMs y contenido derivado con copyright: NUNCA versionar
+*.z64
+*.n64
+*.v64
+baserom.*
+
 # Toolchain descargable/reproducible
 toolchain/
 
