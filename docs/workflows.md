@@ -72,9 +72,11 @@ tools/build_linux.sh --help
   (rt64 + fork del runtime) por el lock; stages `deps` (también devcontainer) / `build` / `runtime`.
   Headless: `HH_HEADLESS=1 docker compose run --rm run` (Xvfb + lavapipe). GUI en host Linux:
   `--device /dev/dri` + socket X11 (ver `port/README_linux.md`).
-- **CI / releases**: `.github/workflows/ci.yml` (docs + build Linux por Docker + build Windows en
-  `windows-latest`) y `.github/workflows/release.yml` (tag `v*` → `.zip`/`.tar.gz` en Releases +
-  imagen runtime en `ghcr.io`). El CI **no** ejecuta el juego: la ROM no se sube nunca.
+- **CI / releases (un solo flujo de compilación)**: `ci.yml` compila en cada push/PR y sube
+  **artefactos** (`HybridHeavenRecomp-Windows.zip`, `HybridHeavenRecomp-Linux.tar.gz`) + valida docs.
+  `release.yml` **no recompila**: localiza el run de CI **verde** de ese commit, descarga sus
+  artefactos, crea el Release (tag `v*` o manual con `version`) y monta la imagen `ghcr.io` desde el
+  binario (`docker/Dockerfile.runtime`). El CI **no** ejecuta el juego: la ROM no se sube nunca.
 - Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md`.
 
 ## 2. Ejecutar headless (Linux)

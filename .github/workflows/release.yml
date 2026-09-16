@@ -1,11 +1,12 @@
 name: Release
 
-# Publica binarios (Windows .zip y Linux .tar.gz) y la imagen de ejecucion en ghcr.io.
-# Dos formas de lanzarlo:
+# NO recompila (build once, promote): descarga los artefactos que CI ya genero y valido para el
+# commit y publica el Release; la imagen ghcr se monta desde ese binario. Ver docs/adr/0005.
+# Dos formas:
 #   1) Con tag:   git tag -a v0.1.1 -m v0.1.1 && git push origin v0.1.1
 #   2) A mano:    Actions -> Release -> Run workflow -> escribe la version (p.ej. v0.1.1)
 #                 (crea el Release y el tag automaticamente en el commit actual)
-# Si lanzas a mano SIN version, solo compila y sube artefactos (no crea Release).
+# Requiere que CI haya pasado para ese commit (si no, el publish falla con un aviso claro).
 # La ROM NO se incluye: el .exe la pide en runtime al usuario.
 
 on:
@@ -14,114 +15,96 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version del release (p.ej. v0.1.1). Vacio = solo compila y sube artefactos.'
-        required: false
-        default: ''
+        description: 'Version del release (p.ej. v0.1.1)'
+        required: true
         type: string
 
 permissions:
   contents: read
 
 env:
-  # Tag empujado -> su nombre; manual -> lo que escribas (vacio = sin release).
-  HH_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name || '') }}
+  # Tag empujado -> su nombre; manual -> lo que escribas.
+  HH_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 
 jobs:
-  windows:
-    name: Windows (zip)
-    runs-on: windows-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - name: Compilar
-        env:
-          CI: '1'
-        run: cmd /c port\build_windows.bat
-      - name: Empaquetar
-        shell: pwsh
-        run: |
-          $dir = "port/HybridHeavenRecomp/build_win/bin/Release"
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "$dir/Hybrid Heaven Recomp.exe" dist/
-          Copy-Item "$dir/*.dll" dist/
-          Copy-Item "port/README_windows.md" dist/LEEME.txt
-          Copy-Item "CREDITS.md" dist/CREDITOS.md
-          Compress-Archive -Path "dist/*" -DestinationPath "dist/HybridHeavenRecomp-Windows.zip" -Force
-      - uses: actions/upload-artifact@v4
-        with:
-          name: HybridHeavenRecomp-Windows
-          path: dist/HybridHeavenRecomp-Windows.zip
-          if-no-files-found: error
-
-  linux:
-    name: Linux (tar.gz)
+  publish:
+    name: Publicar release (artefactos de CI)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Construir imagen (stage "build")
-        run: docker build --target build -t hh-build .
-      - name: Extraer binario y empaquetar
+      - name: Localizar el run de CI de este commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          mkdir -p dist/HybridHeavenRecomp-Linux
-          cid=$(docker create hh-build)
-          docker cp "$cid:/out/Hybrid Heaven Recomp" "dist/HybridHeavenRecomp-Linux/"
-          docker rm "$cid"
-          cp port/README_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
-          cp CREDITS.md dist/HybridHeavenRecomp-Linux/CREDITOS.md
-          tar -C dist -czf dist/HybridHeavenRecomp-Linux.tar.gz HybridHeavenRecomp-Linux
-      - uses: actions/upload-artifact@v4
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" \
+                 --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error::No hay un run de CI exitoso para $GITHUB_SHA. Sube el commit a main y espera a que CI pase antes de publicar."
+            exit 1
+          fi
+          echo "run_id=$id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
         with:
-          name: HybridHeavenRecomp-Linux
-          path: dist/HybridHeavenRecomp-Linux.tar.gz
-          if-no-files-found: error
+          run-id: ${{ steps.ci.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: dist
+          merge-multiple: true
+      - name: Crear release (y su tag si no existia)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$HH_VERSION" dist/* --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"
 
   image:
-    name: Imagen de ejecucion (ghcr.io)
+    name: Imagen ghcr (desde el binario de CI)
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - name: Localizar el run de CI de este commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" \
+                 --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -z "$id" ] || [ "$id" = "null" ]; then
+            echo "::error::No hay un run de CI exitoso para $GITHUB_SHA."
+            exit 1
+          fi
+          echo "run_id=$id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: HybridHeavenRecomp-Linux
+          run-id: ${{ steps.ci.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: dist
+      - name: Preparar contexto (binario + entrypoint)
+        run: |
+          set -e
+          mkdir -p imgctx
+          tar -xzf dist/HybridHeavenRecomp-Linux.tar.gz -C imgctx
+          cp docker/entrypoint.sh imgctx/
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
-      - name: Calcular tags
-        id: tags
-        run: |
-          {
-            echo "tags<<EOF"
-            echo "ghcr.io/${{ github.repository }}:latest"
-            if [ -n "${HH_VERSION}" ]; then echo "ghcr.io/${{ github.repository }}:${HH_VERSION}"; fi
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
-          context: .
-          target: runtime
+          context: imgctx
+          file: ./docker/Dockerfile.runtime
           push: true
-          tags: ${{ steps.tags.outputs.tags }}
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ env.HH_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  publish:
-    name: Publicar release
-    needs: [windows, linux]
-    runs-on: ubuntu-latest
-    # Con tag empujado, o manual habiendo indicado version.
-    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Crear release (y su tag si no existia) con los artefactos
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "$HH_VERSION" dist/* --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"

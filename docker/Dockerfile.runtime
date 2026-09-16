@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+#
+# Imagen de EJECUCION construida a partir del BINARIO de Linux ya compilado (no recompila).
+# La usa el workflow de release (job `image`); el contexto esperado es una carpeta que contiene
+# `HybridHeavenRecomp-Linux/Hybrid Heaven Recomp` (del artefacto de CI) y `entrypoint.sh`.
+#
+# Para compilar+y-ejecutar en local se usa el Dockerfile de la raiz (docker compose).
+
+FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libsdl2-2.0-0 libgtk-3-0 libvulkan1 mesa-vulkan-drivers \
+        libx11-6 libxext6 libxrandr2 libxtst6 \
+        xvfb xauth ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY "HybridHeavenRecomp-Linux/Hybrid Heaven Recomp" "/usr/local/bin/Hybrid Heaven Recomp"
+COPY "HybridHeavenRecomp-Linux/CREDITOS.md" /usr/local/share/doc/hybrid-heaven-recomp/CREDITOS.md
+COPY entrypoint.sh /usr/local/bin/hh-entrypoint
+RUN chmod +x /usr/local/bin/hh-entrypoint && mkdir -p /work
+WORKDIR /work
+ENTRYPOINT ["/usr/local/bin/hh-entrypoint"]

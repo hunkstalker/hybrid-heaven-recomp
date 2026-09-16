@@ -1,6 +1,9 @@
 name: CI
 
-# El repo incluye el codigo del port (recompilado incluido), asi que compila SIN ROM.
+# Flujo unico de compilacion ("build once, promote"):
+#   - CI compila en cada push a main / PR y sube ARTEFACTOS (zip Windows + tar.gz Linux).
+#   - release.yml NO recompila: descarga los artefactos de CI de ESE commit y publica el Release
+#     (y monta la imagen ghcr desde el binario). Ver docs/adr/0005.
 on:
   push:
     branches: [main]
@@ -21,7 +24,7 @@ jobs:
         run: python3 tools/analysis/docs_index.py --check
 
   linux:
-    name: Build Linux (Docker)
+    name: Linux (tar.gz)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,13 +35,30 @@ jobs:
           context: .
           target: build
           push: false
+          load: true
+          tags: hh-build:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Empaquetar (binario + LEEME + creditos)
+        run: |
+          set -e
+          mkdir -p dist/HybridHeavenRecomp-Linux
+          cid=$(docker create hh-build:ci)
+          docker cp "$cid:/out/Hybrid Heaven Recomp" "dist/HybridHeavenRecomp-Linux/"
+          docker rm "$cid"
+          cp port/README_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
+          cp CREDITS.md dist/HybridHeavenRecomp-Linux/CREDITOS.md
+          tar -C dist -czf dist/HybridHeavenRecomp-Linux.tar.gz HybridHeavenRecomp-Linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HybridHeavenRecomp-Linux
+          path: dist/HybridHeavenRecomp-Linux.tar.gz
+          if-no-files-found: error
 
   windows:
-    name: Build Windows (MSVC)
+    name: Windows (zip)
     runs-on: windows-latest
-    # El build de Windows es pesado: solo en push a main (no en PRs).
+    # Build pesado (MSVC): no en PRs.
     if: github.event_name != 'pull_request'
     timeout-minutes: 90
     steps:
