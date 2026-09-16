@@ -84,6 +84,9 @@ setup_rt64() {
     else
         echo "AVISO: no se pudo hacer checkout de $RT64_COMMIT en rt64 (se usa el actual)" >&2
     fi
+    # rt64 tiene submodulos propios (plume, re-spirv, nativefiledialog-extended, zstd...).
+    gitc "$RT64" submodule sync --recursive --quiet
+    gitc "$RT64" submodule update --init --recursive --quiet
 }
 
 setup_nmr() {
