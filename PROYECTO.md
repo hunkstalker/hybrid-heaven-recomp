@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-15**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-16**.
 
 ## 1. Objetivo
 
@@ -49,14 +49,17 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-15)**: se juega en Windows (menús → GAME START → escenas 3D y combate) con
-mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. La **entrega
-del objeto del NPC está arreglada y validada** (dos causas raíz: fallthrough sin encadenar en el
-módulo 55 — fuga de pila `0x48`/frame + animación saltada — y mid-entries sin registrar
-`0x80379954`/`0x803798E8`; el módulo 55 es el overlay de la secuencia de objeto, ver
-`docs/architecture.md` §2.2). Regresión de las escaleras por partir un switch fusionado: detectada y
-corregida. Instrumentación de crash/cuelgue y bats de regresión en el repo. Detalle:
-`notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+**Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D y combate) con
+mando Xbox (perfiles `config.ini`), audio a 43200 Hz y guardado/Controller Pak emulado. Arreglados y
+**validados en Windows**: la **entrega del objeto del NPC** (fallthrough en módulo 55 — fuga `0x48`/
+frame + animación saltada — y mid-entries `0x80379954`/`0x803798E8`; el módulo 55 es el overlay de
+la secuencia de objeto, ver `docs/architecture.md` §2.2), la **regresión de las escaleras** (partir
+un switch fusionado) y el **cuelgue por daño del robot** en dos capas: `s0` (r16) machacado por la
+cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, el personaje que no se levantaba por un
+**fallthrough ausente al final de `M55_FUN_8037a6f4`** (fuga `0x38`/frame + lógica de caída saltada;
+nueva regla de ramas condicionales en `fix_fallthroughs.py`). Instrumentación de crash/cuelgue y
+bats de regresión en el repo. Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`
+y `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -110,6 +113,6 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Foco inmediato: **validar en Windows el fix del cuelgue del NPC** (módulo 9) y, si
-persiste, analizar el volcado del watchdog (`hh_hang.log` + `hh_pi.log`). Después: botón de los menús
-de combate para X, teardown SEGV al cerrar y validación del guardado contra el emulador.
+Ver **`TODO.md`**. Foco inmediato: **abrir cajas de ítem y seguir la partida** (con el ciclo del
+robot re-verificado: daño → caída → levantarse). Después: teardown SEGV al cerrar, limpieza de
+instrumentación, botón de los menús de combate para X y validación del guardado contra el emulador.

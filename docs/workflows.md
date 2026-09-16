@@ -116,6 +116,11 @@ python3 tools/recomp.py --config config/game_combined.toml --force
   `keep_syms.txt` + `module_extras.json`. **No** usar `setup_module.py` para esto: su detección
   automática (`auto_mid`) puede cascar y meter **datos como código** (rompe el build con
   `0 = cop0_register_read`). Ver `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+- `fix_fallthroughs.py` (paso automático del pipeline, §1) encadena además cuando la **última
+  instrucción ROM** es una **rama condicional** (`beq/bne/beql/bnel/bgtz/...`): su fall-through cae
+  al símbolo contiguo aunque la última sentencia C sea un `return`/`goto` dentro del `if` final
+  (caso `M55_FUN_8037a6f4` → `0x8037A884`, fuga `0x38`/frame + lógica saltada. Ver
+  `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`).
 - **Nunca** partir dentro de un rango de jump-table fusionada: el switch pierde sus casos como
   etiquetas locales y pasa a `LOOKUP` (regresión real: crash de las escaleras con
   `0x8037C50C/0x8037C530` → `0x8037C8E4`). La herramienta lo detecta y rechaza.

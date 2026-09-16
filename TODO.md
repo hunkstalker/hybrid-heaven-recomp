@@ -3,13 +3,18 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — Post-fix del objeto del NPC: caja de ítem y teardown
+## Ahora — Cajas de ítem, teardown y limpieza
 
-> **Entrega del objeto del NPC: ARREGLADA y validada en Windows (2026-09-15).** Causas: fallthrough
-> sin encadenar en módulo 55 (fuga `0x48`/frame + animación saltada) y mid-entries sin registrar
-> (`0x80379954`, `0x803798E8`); se registraron además las 22 entradas válidas del módulo 55.
-> Módulo 55 = overlay de la secuencia de objeto del NPC (`docs/architecture.md` §2.2).
-> Detalle completo y método: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+> **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
+> `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no
+> se levantaba por un fallthrough ausente al final de `M55_FUN_8037a6f4` (fuga `0x38`/frame +
+> lógica de caída saltada; nueva regla de ramas condicionales en `fix_fallthroughs.py`).
+> Detalle: `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`.
+>
+> **Entrega del objeto del NPC: ARREGLADA y validada (2026-09-15)**: fallthrough sin encadenar en
+> módulo 55 (fuga `0x48`/frame + animación saltada) y mid-entries sin registrar (`0x80379954`,
+> `0x803798E8`). Módulo 55 = overlay de la secuencia de objeto (`docs/architecture.md` §2.2).
+> Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
 
 1. [•] **Probar abrir cajas/obtener ítems** (usuario, en curso): si crashea con
    `Failed to find function at 0x...`, registrar SOLO esa dirección editando a mano
@@ -45,6 +50,10 @@
   del entrypoint), watchdog de cuelgue (polls y audio), `hh_pi.log` con tiempos, `/MAP` de MSVC,
   `hh_missing.log`, bats de regresión `run_test_*`.
 - [x] **Bisect del cuelgue del NPC**: conclusión documentada (no regresión) + `bisect_build.bat`.
+- [x] **Daño del robot, 2 capas** (2026-09-16, validado en Windows): `s0` machacado → dispatch
+  frame/no-op roto (`HH_S0FIX` en runtime, incondicional, con auto-test `HH_TEST_S0BUG`); y caída que
+  no se levantaba → fallthrough ausente en `M55_FUN_8037a6f4` (continuación `0x8037A884..` y epílogo
+  compartido `0x8037A94C/A950` saltados; fuga `0x38`/frame). Ver `notes/2026-09-16-*.md`.
 
 ## Fundaciones pendientes
 
