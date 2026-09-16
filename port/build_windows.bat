@@ -6,7 +6,7 @@ REM  cuelgues sobre unidades montadas) y compila directamente.
 REM  Runtime: clon del FORK propio (rama hybrid-heaven) en el commit fijado en
 REM  port\runtime.lock. rt64: upstream en su commit fijo. Creditos: CREDITS.md.
 REM  Uso:
-REM    build_windows.bat                 -> Release (recomendado: 3-5x mas rapido)
+REM    build_windows.bat                 Release (recomendado: 3-5x mas rapido)
 REM    build_windows.bat --debug         -> Debug (solo para diagnosticar crashes)
 REM    build_windows.bat --force-libs    -> clonar/actualizar libs antes
 REM =====================================================================
@@ -136,7 +136,7 @@ REM ============ 4) Build ============
 echo.
 echo [4/4] Compilando HybridHeavenRecomp (%BUILDCFG%) ...
 echo       (Release es 3-5x mas rapido que Debug: sin optimizar el juego cae a 30fps
-echo        y el hilo de audio solo produce la mitad de buffers -> petardeo)
+echo        y el hilo de audio solo produce la mitad de buffers: petardeo)
 pushd "%PORT%"
 cmake --build build_win --target HybridHeavenRecomp --config %BUILDCFG%
 if errorlevel 1 goto :err
