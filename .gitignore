@@ -16,8 +16,16 @@ build_*/
 dist/
 *.so
 
+# Visual Studio / editores (cache local, nunca versionar)
+.vs/
+.vscode/
+*.suo
+*.wsuo
+*.user
+
 # Sistema
 .DS_Store
+Thumbs.db
 # Backup temporal de trabajo (no versionar)
 .backup/
 
