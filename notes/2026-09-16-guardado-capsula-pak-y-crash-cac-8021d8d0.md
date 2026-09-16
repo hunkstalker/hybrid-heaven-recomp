@@ -54,32 +54,44 @@ No hay "SAVE" en el menú de pausa. El guardado es **en el mundo**, mediante **c
 
 ## 3. Instrumentación añadida (Fase 1, aprobada)
 
-Runtime (**fork**, commit local `333cdbd`): `HH_PAKLOG=1` traza
-`osPfsInitPak/osPfsInit/osPfsFreeBlocks/osPfsAllocateFile/osPfsFindFile/osPfsDeleteFile/
-osPfsReadWriteFile/osPfsFileState/osPfsNumFiles/osPfsIsPlug/osPfsChecker/osPfsRepairId/osGbpakInit`
-(args + **retorno**), `osMotorInit` (dev/pak/retorno), `pak_load/pak_save` (ruta + nº ficheros) y
-`get_connected_device_info` (una línea por puerto). Sin el env no imprime nada.
+Runtime (**fork**, commit local `2dba299`): volcado a **fichero** (compartido por `pak.cpp` e
+`input.cpp`), **activo por defecto** durante esta fase:
 
-- `port/runtime.lock`: `NMR_COMMIT` → `333cdbdcd3de2872c15b17f075d9b2b0cd1028cc`.
+- `hh_pak.log` en el **directorio del exe** (que es donde `run_windows.bat` pone el CWD). `HH_PAKLOG=0`
+  lo desactiva; `HH_PAKLOG=<ruta>` lo redirige. Flush por línea (el final queda aunque crashee).
+- Cada `osPfs*`/`osGbpakInit` registra: argumentos (incluidos `company`/`game` y los **nombres de
+  fichero en hex**), el `ra` del llamante, el **retorno**, y el estado tras la llamada (nº
+  ficheros/usados/libres + los 4 `OSPfs` del juego en `0x8005CE70 + ch*0x68`). `pak_load/pak_save`
+  escriben ruta y nº de ficheros; `osMotorInit` y `get_connected_device_info` van al mismo fichero.
+- **Autotest de la API PFS** al primer uso (`HH_PAKTEST=0` lo desactiva): init → allocate → find →
+  write → read → filestate → numfiles → freeblocks → delete sobre un pak temporal
+  (`hh_paktest.tmp`) y un rdram de mentira, restaurando el estado real y **sin tocar `saves/`**.
+  **Resultado en Linux: `[selftest] fin: OK (0 fallos)`** → nuestra API PFS es consistente; el
+  problema no está en la aritmética de ficheros, sino en cómo/si el juego la usa.
+
+**Hallazgo colateral**: el `.pak` **no** vive junto al exe, sino en el directorio de config del
+runtime. En Linux el log lo imprime: `/home/<user>/.local/share/HybridHeavenRecomp/saves/hh.us.bin.pak`
+(en Windows, el equivalente bajo `%APPDATA%`). Conviene confirmarlo en el log del usuario antes de
+concluir "no hay `saves/`" mirando junto al exe.
+
+- `port/runtime.lock`: `NMR_COMMIT` → `2dba2993c123f62aeb28690780dbcf6cda72033d`.
 - `port/build_windows.bat` / `tools/build_linux.sh`: si no se puede hacer checkout del commit fijado
-  (p. ej. fork sin publicar) **abortan** con mensaje claro en vez de compilar un runtime distinto.
+  **abortan** con mensaje claro en vez de compilar un runtime distinto. Como la carpeta de trabajo es
+  la compartida, el checkout del commit local funciona **sin publicar el fork**.
 
 ### Para obtener el log
 
 ```bat
-REM 1) publicar el runtime (una vez)
-pushd port\HybridHeavenRecomp\lib\N64ModernRuntime
-git push fork hybrid-heaven
-popd
-REM 2) compilar y ejecutar con el log
 port\build_windows.bat
-set HH_PAKLOG=1
 port\run_windows.bat
-REM 3) reproducir el guardado en una capsula y enviar hh_pak.log (stderr) + saves\*.bin.pak si aparece
+REM ir a una capsula, aceptar el guardado, esperar el aviso final y salir
+REM el volcado queda en port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log
 ```
 
 ## 4. Siguiente paso
 
-- Con el log: identificar la primera llamada que devuelve error tras aceptar el guardado y arreglar
-  la semántica PFS correspondiente (tamaño/reserva, `NumFiles`, `FindFile`, o `PFS_ERR_NEW_PACK` +
-  ruta de formato). Capturas de la secuencia de mensajes: pendientes de recibir.
+- Leer **el final** de `hh_pak.log` (y ver si aparece el `.pak` en la ruta que indique el log) para
+  identificar la primera llamada que falla o el punto donde el juego deja de llamar a PFS tras
+  aceptar el guardado; entonces arreglar la semántica correspondiente (tamaño/reserva `PAK_SIZE`/
+  `PAK_RESERVED`, `NumFiles`, `FindFile`, o `PFS_ERR_NEW_PACK` + ruta de formato). Capturas de la
+  secuencia de mensajes: pendientes de recibir.

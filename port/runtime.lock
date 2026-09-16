@@ -1,8 +1,11 @@
 # Runtime del port (forks propios, rama hybrid-heaven). Lo leen tools/build_linux.sh y
-# port/build_windows.bat. Los SHAs son de commits ya publicados (no cambian con el push).
-# Actualizar aqui si se anaden commits al runtime (y regenerar nada mas: el build clona el SHA).
+# port/build_windows.bat. Actualizar aqui si se anaden commits al runtime (el build hace checkout
+# del SHA; no hay que regenerar nada mas).
+# OJO (2026-09-16, fase de diagnostico del guardado): NMR_COMMIT apunta a un commit LOCAL todavia no
+# publicado (el volcado `hh_pak.log`). Funciona porque se compila en la carpeta compartida (el commit
+# esta en el .git local del runtime); al validar el fix se publica el fork y el pin queda reproducible.
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=333cdbdcd3de2872c15b17f075d9b2b0cd1028cc
+NMR_COMMIT=2dba2993c123f62aeb28690780dbcf6cda72033d
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=63069b9176310ba78b4fe76476d86f0b0d584ae6

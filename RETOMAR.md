@@ -37,8 +37,10 @@
 - **Guardado en cápsula: PENDIENTE y ya acotado**: el juego **detecta** el Controller Pak y pregunta
   si guardar, pero al aceptar **se salta la UI de slots**, **no crea `saves/`** y sale un aviso de
   accesorio. Como `saves/` solo se crea al escribir, ninguna operación de escritura/alocación llegó a
-  ejecutarse. Hay `HH_PAKLOG=1` en el fork del runtime para trazar todas las llamadas PFS y sus
-  retornos. Detalle: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
+  ejecutarse. **Volcado activo por defecto** (`hh_pak.log` junto al exe: llamadas PFS con args,
+  retorno, estado y los `OSPfs` del juego) + **autotest de la API PFS** (en Linux: `OK (0 fallos)`).
+  Ojo: el `.pak` va al **directorio de config** del runtime (lo imprime el log), no junto al exe.
+  Detalle: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 - Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
   módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
   rápida es `python3 tools/analysis/add_mid_entry.py 0xADDR` seguido de
@@ -53,19 +55,18 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-1. **Publicar el runtime del fork** (una vez): `pushd port\HybridHeavenRecomp\lib\N64ModernRuntime`
-   + `git push fork hybrid-heaven`. Sin eso `build_windows.bat` **aborta** (el pin de `runtime.lock`
-   apunta al commit `333cdbd`, que añade `HH_PAKLOG`); es a propósito, para no compilar otro runtime.
-2. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). El árbol trae: objeto del NPC,
-   láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática (`M9_FUN_80203830`) y **primer CaC**
-   (`M10_FUN_8021d8d0`).
-3. Probar: (a) el **combate cuerpo a cuerpo** que crasheaba; (b) el **guardado en cápsula** con el log:
-   ```bat
-   set HH_PAKLOG=1
-   port\run_windows.bat
-   ```
-   y enviarme la salida `[PAK] ...` (secuencia de llamadas PFS + retornos) y, si aparece,
-   `saves\*.bin.pak`. Es lo único que falta para arreglar el guardado con datos y no a ciegas.
+1. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). No hay que publicar nada: se
+   compila en la carpeta compartida y el pin de `runtime.lock` (`2dba299`, el volcado del pak) existe
+   en el `.git` local. Si el checkout fallara, el script **aborta** en vez de compilar otro runtime.
+   El árbol trae: objeto del NPC, láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática
+   (`M9_FUN_80203830`) y **primer CaC** (`M10_FUN_8021d8d0`).
+2. Ejecutar `port\run_windows.bat` y jugar dos cosas:
+   (a) el **combate cuerpo a cuerpo** que crasheaba;
+   (b) el **guardado en cápsula**: aceptar guardar, esperar el aviso final y salir.
+3. Enviarme (o dejarme en la carpeta compartida) **el final de**
+   `port\HybridHeavenRecomp\build_win\bin\Release\hh_pak.log` — el volcado del pak está **activo por
+   defecto** (incluye un autotest de la API PFS al arrancar; en Linux dio `OK`). El log también dice
+   en qué ruta espera el `.pak` (es el directorio de config, no junto al exe).
 4. Si crashea con `Failed to find function at 0x...`: pasarme la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`; ahora con edición mínima y guardián
    `check_syms_overrides.py`).
