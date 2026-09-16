@@ -85,3 +85,36 @@ Verificado: build Linux incremental del port OK tras los cambios.
 - `TODO.md`: anotado el punto del `.bat` local y el pin.
 - CI/Release: el flujo "build once, promote" de ADR 0005 no requiere cambios de código; queda
   pendiente publicar los commits de runtime, dejar el CI verde y etiquetar (`v*`).
+
+## Bloque 6 — Lo que NO se toca
+
+Sin cambios: el proyecto de referencia de Konami y su ROM (fuera del repo), la herramienta local de
+símbolos, los manifiestos y `notes/reference/*` (locales, ignorados), las ROMs y las copias locales
+de los forks.
+
+## Bloque 7 — Verificación
+
+- `git grep` sin `/app/`, `/tmp/`, unidades Windows, identidades locales ni el nombre del tooling
+  local en ficheros publicados: **limpio** (solo quedan `chunk`/`thunk` legítimos y las URLs de los
+  forks).
+- `python3 tools/analysis/docs_index.py --check`: **OK** (76 documentos).
+- Compilación Linux (incremental, `build_dbg`): **OK** tras los cambios de código y del runtime.
+- Icono: `.ico` versionado (idéntico byte a byte al de publicación); el recurso se embebe al compilar
+  en Windows vía `CMakeLists.txt`/`app.rc.in`.
+- Docker: cambios de rutas aplicados; el **smoke headless** queda pendiente (no hay Docker en el
+  entorno de esta sesión). Al validar: `HH_HEADLESS=1` con `rom/` montado en `/work/rom`.
+- `docs/INDEX.md` regenerado; `TODO.md`, `PROYECTO.md`, `RETOMAR.md` y `AGENTS.md` actualizados.
+
+## Bloque 8 — Identidad de los commits
+
+Se prepara **8.B** (aplicar `Denis Anfruns Millán <daanfruns@gmail.com>` a todo el historial propio,
+author y committer) en el orden de la cadena de referencias: N64Recomp → N64ModernRuntime
+(actualizando el puntero del submódulo) → main (actualizando `runtime.lock`). Los `force-push` los
+lanza el usuario. La identidad local de los 3 repos ya queda configurada al nombre objetivo.
+
+## Resumen
+
+Plan ejecutado por bloques 1→7 con un commit por bloque en `main` y un commit en el fork del runtime
+(`ultramodern/src/events.cpp`). Decisión estructural documentada en **ADR 0006**. Pendiente del
+usuario: `force-push` de 8.B y, tras validar el guardado en Windows, publicar el fork + `origin main`
++ subir el pin de `runtime.lock`.

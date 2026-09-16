@@ -1,7 +1,7 @@
 # AGENTS.md — arranque de sesión
 
 Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck.
-Fase actual: **gameplay** (menús → GAME START → escenas 3D y combate) con mando Xbox, audio a 43200 Hz y Controller Pak emulado. **Foco inmediato**: validar en Windows el fix del cuelgue del NPC (símbolo `M9_FUN_802169ac` mal acotado → stub `do_break`; commit `fa02e24`) — si persiste, el watchdog deja `hh_hang.log` + `hh_hang_rdram*.bin` y `hh_pi.log` tras ≥20 s congelado. Estado, evidencia e instrumentación: `notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md`.
+Fase actual: **gameplay** (menús → GAME START → escenas 3D y combate) con mando Xbox, audio a 43200 Hz y Controller Pak emulado. **Foco inmediato**: validar en Windows el **guardado en cápsula** (`osPfsFindFile`→5 con `*file_no=-1`; en `hh_pak.log` debe verse `osPfsAllocateFile ... size=13568` y el `.pak` quedar en `saves/` junto al `.exe`). Después: publicar los commits de runtime en el fork + `origin main` y subir el pin de `runtime.lock` (el bloque 8.B ya está preparado; los `force-push` los lanza el usuario). Detalle: `RETOMAR.md`, `TODO.md` y `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 
 Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, des-stubbing libultra ADR 0002, VI del ROM ADR 0003); transición/burst (strict aliasing + registro dinámico de módulos); menús, Controller Pak y geometría/píxeles; audio `aspMain` del ROM recompilado; perfiles de mando por contexto (`config.ini`, flag de UI `0x802690D0`); diagnóstico automático de crashes y cuelgues.
 

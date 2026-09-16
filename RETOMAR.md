@@ -55,24 +55,21 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-> **Tarea actual**: ejecutar el **plan consolidado** (aprobado) de la nota
-> **`notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md`** — 8 bloques:
-> 1) rutas y referencias, 2) icono, 3) ROM + Docker, 4) arreglos funcionales, 5) pipeline de
-> compilación, 6) lo que no se toca, 7) verificación, 8) identidad de los commits (**8.B**: aplicar
-> `Denis Anfruns Millán <daanfruns@gmail.com>` a **todo** el historial, author y committer, con
-> force-push y actualización de `port/runtime.lock`/referencias).
+> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO (2026-09-16)** — bloques 1→7 +
+> preparación del bloque **8.B**. Detalle:
+> `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
 
-1. Ejecutar el plan por bloques **1 → 7**, documentando antes de cada commit (nota + ADR de rutas).
-2. Bloque **8.B** en el orden de la cadena de referencias: N64Recomp → N64ModernRuntime
-   (actualizar el puntero del submódulo) → main (actualizar `runtime.lock`) → force-push en los 3
-   repos (lo hace el usuario).
-3. En paralelo, la prueba de juego pendiente: `port\build_windows.bat` + `port\run_windows.bat` →
-   GAME START → cápsula; en `hh_pak.log` debe verse `osPfsAllocateFile ... size=13568` y el guardado
-   completar (`.pak` en `saves\` junto al `.exe`).
-4. Al validar el guardado: publicar el fork del runtime + `origin main`, y **subir el pin** de
+1. **[pendiente, usuario]** Lanzar los `force-push` del bloque 8.B en orden: N64Recomp →
+   N64ModernRuntime (con el puntero del submódulo actualizado) → main (con `runtime.lock`
+   actualizado). Más detalle en la nota de la sesión.
+2. **[pendiente, usuario]** Validar en Windows el guardado en cápsula: `port\build_windows.local.bat`
+   (o `build_windows.bat`) + `port\run_windows.bat` → GAME START → cápsula; en `hh_pak.log` debe verse
+   `osPfsAllocateFile ... size=13568` y el guardado completar (`.pak` en `saves\` junto al `.exe`).
+3. Al validar el guardado: publicar el fork del runtime + `origin main`, y **subir el pin** de
    `runtime.lock` al SHA publicado.
-5. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
+4. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`, con el guardián `check_syms_overrides.py`).
+5. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
 
 
 ## Cómo leer los logs

@@ -3,17 +3,13 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — Cajas de ítem, teardown y limpieza
+## Ahora — Guardado, teardown y limpieza
 
-> **TAREA ACTUAL (aprobada, pendiente de ejecutar)**: el **plan consolidado** de la nota
-> `notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md` — 8 bloques: 1) rutas y
-> referencias (sin rutas absolutas/temporales del sistema ni identidades locales), 2) **icono**: publicar solo
-> `assets/HybridHeaven.ico`, 3) **ROM**: `rom/` oficial + salvaguarda junto al `.exe` y adaptación de
-> Docker, 4) arreglos funcionales (rutas de config/tools/runtime), 5) **pipeline de compilación**:
-> `port/build_windows.local.bat` ignorado + pin al SHA publicado (`725a5a8`) + traza del runtime
-> usado, 6) lo que no se toca, 7) verificación, 8) **identidad de commits 8.B**: aplicar
-> `Denis Anfruns Millán <daanfruns@gmail.com>` a **todo** el historial (author y committer) con
-> force-push y actualización de `port/runtime.lock`/referencias.
+> **Plan de limpieza de rutas y pipeline de compilación: EJECUTADO (2026-09-16)** — bloques 1→7 y
+> preparación del 8.B. Detalle: `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y
+> **ADR 0006** (política de rutas relativas y contenido externo). Pendiente fuera del plan: los
+> `force-push` del bloque 8.B (los lanza el usuario) y, al validar el guardado, publicar el fork +
+> `origin main` y subir el pin de `runtime.lock`.
 
 > **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
 > `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no
