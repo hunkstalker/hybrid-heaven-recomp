@@ -2,15 +2,17 @@
 # cap_loop.sh SESSION_DIR [DISPLAY]
 # Captura 1 frame cada 4s. SOLO guarda frames con cambio material (dedupe):
 # - negros (mean=0,std=0) y frames identicos al ultimo guardado se ignoran.
-# Mantiene /app/work/screenshots/<SESH>/live.ppm + /tmp/latest_ascii.txt + /tmp/latest_stats.txt.
+# Mantiene <SESH>/live.ppm + work/debug/latest_ascii.txt + work/debug/latest_stats.txt.
 SESH="$1"
 D="${2:-:99}"
+# Raiz del repo derivada de la ubicacion del propio script (work/ -> raiz).
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 mkdir -p "$SESH"
 n=0
 LAST=""
 while true; do
-  TMP="$(mktemp /tmp/cap.XXXXXX.ppm)"
-  /app/tools/analysis/xshot "$D" "$TMP" >/dev/null 2>&1
+  TMP="$(mktemp "$ROOT/work/debug/cap.XXXXXX.ppm")"
+  "$ROOT/tools/analysis/xshot" "$D" "$TMP" >/dev/null 2>&1
   mv "$TMP" "$SESH/live.ppm"
   PNG="$SESH/live.png"
   convert "$SESH/live.ppm" "$PNG" 2>/dev/null
@@ -33,7 +35,7 @@ while true; do
     n=$((n+1))
     STORED=1
   fi
-  python3 /app/tools/analysis/ppmascii.py "$SESH/live.ppm" 88 > /tmp/latest_ascii.txt 2>/dev/null
-  echo "mean=$MEAN std=$STD colors=$(echo "$STAT" | awk '{print $1}') diff=$DIFF stored_sofar=$n stored_now=$STORED" > /tmp/latest_stats.txt
+  python3 "$ROOT/tools/analysis/ppmascii.py" "$SESH/live.ppm" 88 > "$ROOT/work/debug/latest_ascii.txt" 2>/dev/null
+  echo "mean=$MEAN std=$STD colors=$(echo "$STAT" | awk '{print $1}') diff=$DIFF stored_sofar=$n stored_now=$STORED" > "$ROOT/work/debug/latest_stats.txt"
   sleep 4
 done

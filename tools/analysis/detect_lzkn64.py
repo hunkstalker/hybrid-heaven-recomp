@@ -51,11 +51,11 @@ def scan(path, window=(0x0, 0x100000)):
     for off, n in hits[:30]:
         print(f"  table @ 0x{off:07X}  ({n} entries)  first8: {data[off:off+8].hex()}")
 
-for p in ['/app/baserom.us.z64','/app/baserom.eu.z64']:
+for p in ['rom/baserom.us.z64','rom/baserom.eu.z64']:
     scan(p)
 
 # Also: find any single entry with bit31 set that is plausible as a table start
 print("\n-- First entries of scan in US at fixed offsets --")
-data = open('/app/baserom.us.z64','rb').read()
+data = open('rom/baserom.us.z64','rb').read()
 for base in [0x1000, 0x1050, 0x2000, 0x3000, 0x4000, 0x5000, 0x10000]:
     print(f"  @0x{base:06X}: {' '.join('%08X'%v for v in struct.unpack_from('>8I', data, base))}")

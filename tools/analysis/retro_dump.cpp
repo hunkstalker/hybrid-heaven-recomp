@@ -115,7 +115,7 @@ static bool env_cb(unsigned cmd, void *data) {
         case RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY:
         case RETRO_ENVIRONMENT_GET_CORE_ASSETS_DIRECTORY: {
             const char **d = (const char **)data;
-            *d = "/tmp";
+            *d = "work/debug";
             return true;
         }
         case RETRO_ENVIRONMENT_SET_PIXEL_FORMAT:

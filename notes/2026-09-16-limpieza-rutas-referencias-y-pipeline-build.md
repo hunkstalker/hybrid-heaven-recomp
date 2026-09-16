@@ -23,7 +23,7 @@ Hecho:
   desarrollo"; nombres de fichero del proyecto de referencia → frase neutra.
 - `config/us_module*.syms.toml`: cabeceras `# Módulo: ...` con ruta relativa.
 - `tools/README.md`, `docs/workflows.md`, `work/README_captura.md`: ejemplos relativos.
-- `.dockerignore`: eliminada la entrada del tooling local; **`.opencode/` borrado del repo**
+- `.dockerignore`: eliminada la entrada del tooling local; **esa carpeta borrada del repo**
   (`git rm -r`). Cero cadenas de ese tooling en lo publicado.
 - `docs/documentation.md`: nota sobre datos generados (se producen localmente y no se versionan).
 
@@ -51,3 +51,22 @@ Pendiente en bloques siguientes: los scripts (`tools/analysis/*`, `work/*.sh`) y
   Actualizados `Dockerfile`, `docker/Dockerfile.runtime`, `docker/entrypoint.sh`,
   `docker-compose.yml` (volumen `./rom:/work/rom`) y `port/README_linux.md`. En la documentación de
   Docker se evita citar rutas absolutas del sistema (socket X11 descrito genéricamente).
+
+## Bloque 4 — Arreglos funcionales (sin variables de entorno)
+
+- `config/rsp_hh_aspMain.toml`: rutas relativas al directorio del `.toml` (`../work/...`), tal como
+  resuelve `RSPRecomp` (`concat_if_not_empty(basedir, ...)`).
+- `port/HybridHeavenRecomp/src/main/main.cpp`: el volcado de crash pasa a `hh_crash.log` en el
+  directorio de trabajo (junto al `.exe`), como el resto de logs. Antes: ruta temporal del sistema.
+- `support.cpp`: el fallback de carpeta de datos usa `temp_directory_path()` en vez de una ruta fija.
+- `config/merge_loop.py`: deriva la raíz del repo de la ubicación del propio fichero.
+- `tools/analysis/` (`analyze_rom.py`, `detect_lzkn64.py`, `textseg.py`, `test_lzkn64.py`,
+  `scan_lzkn64_strict.py`, `gen_ghidra_syms.py`, `ghidra_recon.java`, `ghidra_scripts/ExportFuncsX.java`,
+  `emu_ref.sh`, `fbdecode.py`, `r64dump.cpp`, `hhinput.c`, `retro_dump.cpp`): ROMs en `rom/...`, raíz
+  derivada del script donde aplica, salidas en `work/debug/` y rutas relativas.
+- `work/play.sh`, `work/cap_loop.sh`: raíz derivada de la ubicación del script; salidas en
+  `work/...`.
+- Runtime (fork `hunkstalker/N64ModernRuntime`): `ultramodern/src/events.cpp` escribe el volcado
+  `port_vi*.bin` en `work/debug/` (relativo) en vez de una ruta absoluta (commit propio).
+
+Verificado: build Linux incremental del port OK tras los cambios.

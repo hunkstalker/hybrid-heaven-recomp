@@ -11,7 +11,8 @@
 # Uso: emu_ref.sh <out_prefix> <segundos> [dumps_csv]
 #   emu_ref.sh work/debug/emu_ref 60 30,60
 set -e
-cd /app/hybrid-heaven-recomp
+# Raiz del repo derivada de la ubicacion del propio script (tools/analysis/ -> raiz).
+cd "$(dirname "$0")/../.."
 
 PREFIX="$1"
 SECS="${2:-60}"

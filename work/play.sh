@@ -7,7 +7,7 @@
 #   DPad:  WASD          C buttons: IJKL
 #   Start: Enter         R: c   L: x   Z: z
 #   B:     (mouse izq, key 306)   A: (mouse der, key 304)  <- ajustar en
-#   /root/.config/mupen64plus/mupen64plus.cfg -> [Input-SDL-Control1] si no responde
+#   la config de input de mupen64plus -> [Input-SDL-Control1] si no responde
 #
 # Uso:
 #   work/play.sh [segundos] [prefijo_salida]
@@ -19,8 +19,11 @@
 #   <prefijo>           dump final
 #   stderr: lineas "[dbg] stop pc=... valid=YES ... loader pc=..." por cada carga
 
+# Raiz del repo derivada de la ubicacion del propio script (work/ -> raiz).
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
 export SDL_AUDIODRIVER=dummy   # REQUERIDO headless/Xvfb: sin esto audio-sdl falla y FPE (136) a ~6s
-export CORE_SO=/app/work/libmupen64plus-debug.so
+export CORE_SO="$ROOT/work/libmupen64plus-debug.so"
 export RSP_PLUGIN=/usr/lib/mupen64plus/mupen64plus-rsp-hle.so
 export INPUT_PLUGIN=/usr/lib/mupen64plus/mupen64plus-input-sdl.so
 export VIDEO_PLUGIN=/usr/lib/mupen64plus/mupen64plus-video-glide64mk2.so
@@ -29,7 +32,7 @@ export HB_RES_DIR=0x8008DFC0
 export HH_DUMP_TIMES=5,10,20,40,80
 
 SECS="${1:-120}"
-OUT="${2:-/app/work/scratch/live}"
+OUT="${2:-$ROOT/work/scratch/live}"
 echo "> Hybrid Heaven session: ${SECS}s -> ${OUT}  (Ctrl-C para salir antes)"
-mkdir -p /app/work/scratch
-exec /app/work/r64dump /app/work/roms/us_dec.z64 "$OUT" "$SECS" 2>&1 | tee "${OUT}.session.log"
+mkdir -p "$ROOT/work/scratch"
+exec "$ROOT/work/r64dump" "$ROOT/work/roms/us_dec.z64" "$OUT" "$SECS" 2>&1 | tee "${OUT}.session.log"

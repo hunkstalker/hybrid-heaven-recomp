@@ -63,4 +63,4 @@ def main(paths):
         print(f"  high-byte count in first 1MB: {len(chinese)}")
 
 if __name__ == '__main__':
-    main(['/app/baserom.us.z64', '/app/baserom.eu.z64'])
+    main(['rom/baserom.us.z64', 'rom/baserom.eu.z64'])

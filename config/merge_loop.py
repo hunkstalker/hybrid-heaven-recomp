@@ -9,7 +9,9 @@ ignored: they are non-fatal.
 
 Never merges across sections (.entry vs .main).
 """
-import re, subprocess, sys
+import os, re, subprocess, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 CFG = "game.toml"
 SYMS = "us_dec.syms.toml"
@@ -124,7 +126,7 @@ def bogus_func(rom, v, s):
 
 
 def main():
-    rom = open("/app/hybrid-heaven-recomp/work/roms/us_dec.z64", "rb").read()
+    rom = open(os.path.join(ROOT, "work/roms/us_dec.z64"), "rb").read()
     for iteration in range(10000):
         r = subprocess.run([N64RECOMP, CFG], cwd=".", capture_output=True, text=True)
         err = r.stderr + r.stdout

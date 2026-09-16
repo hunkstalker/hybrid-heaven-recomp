@@ -19,8 +19,8 @@ public class ExportFuncsX extends GhidraScript {
                 count++;
             }
         }
-        // write to a file next to the script
-        java.io.File out = new java.io.File("/app/hybrid-heaven-recomp/work/ghidra_funcs.txt");
+        // write to a path relative to the working directory (raiz del repo)
+        java.io.File out = new java.io.File("work/ghidra_funcs.txt");
         java.io.FileWriter w = new java.io.FileWriter(out);
         w.write(sb.toString());
         w.close();

@@ -122,5 +122,5 @@ def scan(path):
                 d = lzkn64_decompress(blob)
                 print(f"    {xo=:07X}->{ye:07X} COMPRESSED -> {len(d) if d else 'FAIL'} bytes, head={d[:8].hex() if d else ''}")
 
-for p in ['/app/baserom.us.z64','/app/baserom.eu.z64']:
+for p in ['rom/baserom.us.z64','rom/baserom.eu.z64']:
     scan(p)

@@ -133,7 +133,7 @@ std::filesystem::path hh::get_app_folder_path() {
             base = std::filesystem::path(home) / ".local" / "share";
         }
         else {
-            base = std::filesystem::path("/tmp");
+            base = std::filesystem::temp_directory_path();
         }
         std::filesystem::path fallback = base / "HybridHeavenRecomp";
 #else

@@ -62,7 +62,7 @@ static uintptr_t get_main_image_base() {
 }
 
 static void crash_dump(const char* what) {
-    FILE* f = fopen("/tmp/hh_crash.log", "a");
+    FILE* f = fopen("hh_crash.log", "a");
     if (f) {
         uintptr_t base = get_main_image_base();
         fprintf(f, "=== %s (pid %d) main_base=0x%" PRIxPTR " ===\n", what, getpid(), base);
@@ -73,7 +73,7 @@ static void crash_dump(const char* what) {
 }
 
 static void crash_handler(int sig, siginfo_t* info, void* ucontext_void) {
-    FILE* f = fopen("/tmp/hh_crash.log", "a");
+    FILE* f = fopen("hh_crash.log", "a");
     if (f) {
         fprintf(f, "signal=%d", sig);
         if (info) {
@@ -93,7 +93,7 @@ static void crash_handler(int sig, siginfo_t* info, void* ucontext_void) {
 static void install_crash_handlers() {
     if (getenv("HH_CRASH_LOG") == nullptr) return;
     std::set_terminate([] {
-        FILE* f = fopen("/tmp/hh_crash.log", "a");
+        FILE* f = fopen("hh_crash.log", "a");
         if (f) {
             if (auto e = std::current_exception()) {
                 try { std::rethrow_exception(e); }
