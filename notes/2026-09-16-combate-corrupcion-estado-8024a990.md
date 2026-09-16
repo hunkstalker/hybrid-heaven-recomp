@@ -44,9 +44,31 @@ luego nodos de lista con mq basura). Hay varios candidatos: una copia con destin
 pila/frame ya conocida (el `[S0FIX]` sigue disparando). Requiere una investigación dedicada
 (comparar con el emulador en el mismo frame y vigilar las estructuras corruptas).
 
+## Ronda 2 — el escritor "invisible" era `osSendMesg`
+
+El watch de la región `+0x18..+0x8C` (163k líneas) confirma que `+0x1C` pasa de `FFFF84CD` a
+`FF7F84CD` **sin ningún acceso `MEM_*` ni DMA** registrado. Causa: `do_send` (runtime) escribe el
+mensaje directamente en RDRAM (`TO_PTR(OSMesg, mq->msg)[last] = msg`) y hace `% mq->msgCount`, sin
+pasar por los `MEM_*` → invisible al watch y con riesgo de división por cero.
+
+Con la validación de campos de `OSMesgQueue` (runtime, local `0806e19`) se ve la cadena real:
+
+```
+[BADMQ] fields mq=80037748 msgCount=0 valid=0 first=0 msg=00000000 (msg=8005C4B0)
+[BADMQ] osSendMesg mq=00040000 ...  0xC0000830 ...  0x3F3851EC ...  0xBB82237A ...
+[BADMQ] fields mq=80250A50 ... msg=80250A84 ; mq=80250A84 ... ; ... (stride 0x34)
+```
+
+- `FUN_80000774` → `FUN_80000a0c` recorren la lista `[struct+0x888]` y hacen
+  `osSendMesg([nodo+0x4], msg=0x8005C4B0, ...)`; `0x8005C4B0` es el **objeto RSP** (broadcast de
+  fin de task).
+- Los "mq" son en realidad **nodos de una lista** con valores float (`0x3F3851EC`, `0xC2C80000`) y
+  el propio frame (`0x80037748`): el recorrido se **pasa del final** (terminador pisado) → la lista
+  está corrupta.
+
 ## Estado
 
-- **Mitigación** (runtime, local `e9a178f`): no-op para targets fuera de rango; evita el crash pero el
-  combate se queda atascado.
-- Pendiente: localizar la escritura que corrompe `+0x1C`/`+0x8C`/los nodos de mq, o el consumo del
-  centinela.
+- Blindado `do_send` (puntero + campos `msgCount`/`msg`): evita la escritura salvaje y la división
+  por cero (ya no crashea), pero el estado sigue corrupto y el combate se atasca.
+- Pendiente (BLOQUEANTE): localizar la escritura que pisa el terminador de la lista / el objeto
+  `0x8024A990`. Es corrupción de estado, no un símbolo ausente.
