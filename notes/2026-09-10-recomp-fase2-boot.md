@@ -101,7 +101,7 @@ utime no sube): el thread principal espera un mesg/evento que no llega.
 
 ### Herramienta nueva
 - `pip install capstone` → disassembler MIPS big-endian fiable para identificar funciones os:
-  `/tmp/mips_dis.py <vram> <nbytes>`. ROM big-endian (CS_MODE_BIG_ENDIAN).
+  `work/debug/mips_dis.py <vram> <nbytes>`. ROM big-endian (CS_MODE_BIG_ENDIAN).
 - El proceso de identificación: desensamblar la función → reconocer su comportamiento (firma de
   args, qué globals/helpers libultra usa: `__osRunningThread` 0x8005-66C0, `__osSetThreadPri`
   0x80032660, `__osDispatchThread` 0x800326D0) → mapear al nombre `os*` en el syms.
@@ -159,9 +159,9 @@ eventos/scheduler/VI: `osSetEventMesg`, `osCreateViManager`, `osCreatePiManager`
 (osCreateThread coincide exactamente). El motor es el mismo (Konami). Método fiable para mapear
 os funcs de HH:
 
-1. `/app/goemon-sourcecode/Goemon64RecompSyms/mnsg.syms.toml` — lista de os funcs de Goemon
+1. `la lista de os funcs del proyecto de referencia (mismo motor Konami)` — lista de os funcs de Goemon
    (75 funciones, con vram y tamaño).
-2. `mnsg.z64` (ROM de Goemon, presente) + `/tmp/mips_dis.py <rom> <vram> <n>` — desensamblar.
+2. `la ROM del proyecto de referencia` (ROM de Goemon, presente) + `work/debug/mips_dis.py <rom> <vram> <n>` — desensamblar.
 3. Buscar el byte-sequence de la os func de Goemon en el ROM de HH (emparejamiento de bytes;
    enmascarando el operando del `jal` y la dirección de tabla cuando difieren).
 
@@ -173,8 +173,8 @@ os funcs de HH:
 **Nota:** las funciones de JUEGO difieren entre Goemon y HH (contenido distinto), así que el
 byte-matching NO sirve para el scheduler del juego (solo para os funcs).
 
-**Herramientas:** `/tmp/mips_dis.py`, `/tmp/match_os3.py`, `/tmp/find_hh_event.py`,
-`/tmp/find_viset.py`, `/tmp/find_mainq.py`.
+**Herramientas:** `work/debug/mips_dis.py`, `work/debug/match_os3.py`, `work/debug/find_hh_event.py`,
+`work/debug/find_viset.py`, `work/debug/find_mainq.py`.
 
 ---
 

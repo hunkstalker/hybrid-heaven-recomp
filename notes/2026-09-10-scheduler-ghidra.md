@@ -56,9 +56,9 @@ principal (FUN_8002AEA0) en Hybrid Heaven, para desbloquear el deadlock de Fase 
   osViSetMode=0x80032360.
 
 ## Herramientas auxiliares (no Ghidra)
-- `/tmp/mips_dis.py <rom> <vram> <n>` — disassembler capstone (ROM por defecto = HH).
-- `/tmp/match_os3.py` — emparejar os funcs de Goemon→HH por bytes.
-- `/tmp/find_viset.py`, `/tmp/find_hh_event.py`, `/tmp/find_mainq.py` — escaneos de patrones.
+- `work/debug/mips_dis.py <rom> <vram> <n>` — disassembler capstone (ROM por defecto = HH).
+- `work/debug/match_os3.py` — emparejar os funcs de Goemon→HH por bytes.
+- `work/debug/find_viset.py`, `work/debug/find_hh_event.py`, `work/debug/find_mainq.py` — escaneos de patrones.
 
 ## Nota
 El scheduler es la tarea pendiente más grande de Fase 2. Este plan con Ghidra (referencias cruzadas

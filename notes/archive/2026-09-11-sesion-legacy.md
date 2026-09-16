@@ -16,8 +16,8 @@
 ## 0. Proyecto y objetivo
 
 Portar **Hybrid Heaven (N64, versión us_dec.z64)** a PC vía recompilación estática
-(N64Recomp/RT64 en WSL/Windows del usuario). El usuario **no puede jugar dentro del contenedor**:
-él guía (conoce el juego a fondo), el agente **conduce el emulador en el contenedor** y le manda
+(N64Recomp/RT64 en WSL/Windows del usuario). El usuario **no puede jugar dentro del entorno de desarrollo**:
+él guía (conoce el juego a fondo), el agente **conduce el emulador en el entorno de desarrollo** y le manda
 **screenshots GUARDADOS EN ARCHIVO** (los adjuntos del chat no le aparecen).
 
 Objetivo inmediato: **tarea #3 — mapa overlay→RAM base** (qué overlay se carga en qué dirección
@@ -42,13 +42,13 @@ Fases del port (referencia):
   `01AA…01B8` + `0125/0127` (captura 15:19:25); menú de pausa (ITEM/TECH LIST/STATUS/OPTIONS)
   = `0113…0121` (captura 15:20:46). Detalle en notes §10.
 - La sesión de prueba (15:10-15:21) está analizada (87 ids nuevos). La **partida larga del
-  usuario aún NO está en el contenedor** (a 13:45 la carpeta sigue en 15:21). El usuario tiene
+  usuario aún NO está en el entorno de desarrollo** (a 13:45 la carpeta sigue en 15:21). El usuario tiene
   un **save state** y puede remontar y capturar combates al instante.
 - **Script v5**: PNG con `client.screenshot(ruta)` + nombre único `…HH.MM.SS.CCC`; F12 por
   flanco (1 captura); dump de `joypad.get(1)` en cada captura (para arreglar el registro del
   **stick**, que hoy NO registra aunque el usuario dice que SÍ lo usa). Anti-thrash de dominios.
 - `session1/` guarda los PNG + logs de la sesión anterior (14:xx).
-- **Cambios sin commit**: `tools/analysis/hhinput.c` (stick 4B en `/tmp/hh_keys.bin`), y este
+- **Cambios sin commit**: `tools/analysis/hhinput.c` (stick 4B en `work/debug/hh_keys.bin`), y este
   doc/README de la vía BizHawk cuando se confirme todo.
 - Últimos datos clave: `work/scratch/sess42.*` (set gameplay 31 entradas),
   `work/gameplay screenshots/session1/` (logs+PNG sesión 14:xx),
@@ -59,28 +59,28 @@ Fases del port (referencia):
 
 ## 2. Tipos de archivo críticos y dónde está cada cosa
 
-`/app` es la raíz del repo (no es git repo? SÍ, inicializado local; ver §11).
+La raíz del repo (no es git repo? SÍ, inicializado local; ver §11).
 
 ### ROM y ejecución
-- ROM: `/app/work/roms/us_dec.z64` (z64 XOR/plana; offset_code = offset_rom + 0x80000000).
-- Harness: `/app/work/r64dump` (+ fuente `/app/tools/analysis/r64dump.cpp`).
-  Core con debugger: `/app/work/libmupen64plus-debug.so`. Input: `/app/work/hhinput.so`.
+- ROM: `work/roms/us_dec.z64` (z64 XOR/plana; offset_code = offset_rom + 0x80000000).
+- Harness: `work/r64dump` (+ fuente `tools/analysis/r64dump.cpp`).
+  Core con debugger: `work/libmupen64plus-debug.so`. Input: `work/hhinput.so`.
   Plugins del sistema: `/usr/lib/mupen64plus/*.so` (glide64mk2, rice, rsp-hle, audio-sdl).
-- Config teclado: `/root/.config/mupen64plus/mupen64plus.cfg` `[Input-SDL-Control1]`.
+- Config teclado: `la config de input de mupen64plus` `[Input-SDL-Control1]`.
 
 ### Herramientas del agente
-- `/app/tools/analysis/r64dump.cpp` — harness (ver §6).
-- `/app/tools/analysis/fbdecode.py` — decodifica framebuffer 16bpp desde dumps (pitch=2B/px).
-- `/app/tools/analysis/xshot(.c)` — captura root de un display X (Xlib XGetImage→PPM).
-- `/app/tools/analysis/ppmascii.py <ppm> [anch]` — preview ASCII (el modelo NO ve imágenes).
-- `/app/work/cap_loop.sh` — looper: captura cada 4s, descarta negros/iguales, último frame →
-  `/tmp/latest_ascii.txt` + `/tmp/latest_stats.txt` (+/devuelve PPM cambiados).
-- `/app/work/play.sh [segundos] [prefijo]` — receta de ejecución normal con glide.
+- `tools/analysis/r64dump.cpp` — harness (ver §6).
+- `tools/analysis/fbdecode.py` — decodifica framebuffer 16bpp desde dumps (pitch=2B/px).
+- `tools/analysis/xshot(.c)` — captura root de un display X (Xlib XGetImage→PPM).
+- `tools/analysis/ppmascii.py <ppm> [anch]` — preview ASCII (el modelo NO ve imágenes).
+- `work/cap_loop.sh` — looper: captura cada 4s, descarta negros/iguales, último frame →
+  `work/debug/latest_ascii.txt` + `work/debug/latest_stats.txt` (+/devuelve PPM cambiados).
+- `work/play.sh [segundos] [prefijo]` — receta de ejecución normal con glide.
 
 ### Notas y screenshots
-- Notas técnicas: `/app/notes/2026-09-08-overlay-directory.md` (byte-order, directorio, write-bp,
+- Notas técnicas: `notes/2026-09-08-overlay-directory.md` (byte-order, directorio, write-bp,
   captura de video, fix FPE). **Este archivo sesion.md es el índice operativo; las notas el detalle.**
-- Screenshots para el usuario: `/app/work/screenshots/sessionNN/` (NUEVA carpeta por sesión).
+- Screenshots para el usuario: `work/screenshots/sessionNN/` (NUEVA carpeta por sesión).
   Últimas: `session02/viva_t9_640x480.png` (0x1C0000, LIVE), `fb_t9_08000032.png`, `contacto_t1_t9.png`.
 
 ---
@@ -91,7 +91,7 @@ Fases del port (referencia):
   como prompt). Percepción visual = ASCII (`ppmascii.py`) + estadísticas (ImageMagick `convert`,
   `%k` colores, `mean`, `std`) + métricas (correlación vecinos, AE entre frames).
 - **El usuario no ve adjuntos del chat**: los screenshots SIEMPRE se guardan en
-  `/app/work/screenshots/...` y él los abre desde su Windows.
+  `work/screenshots/...` y él los abre desde su Windows.
 - **NO usar `pkill -f <patrón>`** (coincide con la cmdline de la propia shell → mata el tool/shell
   y timeout). Usar `pkill -x r64dump` o PIDs. BusyBox: `ps` no soporta `-o etimes` (usar `etime`);
   `pgrep` no tiene `-c`.
@@ -104,16 +104,16 @@ Fases del port (referencia):
 ## 4. Cómo relanzar un run (receta)
 
 ```sh
-cd /app
+cd <raiz-del-repo>
 # Xvfb activo: :99 (640x480x24, GLX, llvmpipe Mesa 26.1.6 GL4.6). Si muere, recrearlo:
-#   Xvfb :99 -screen 0 640x480x24 +extension GLX +render >/tmp/xvfb.log 2>&1 &
+#   Xvfb :99 -screen 0 640x480x24 +extension GLX +render >work/debug/xvfb.log 2>&1 &
 export DISPLAY=:99
 
 # Con GLIDE (default, estable pero NO presenta a X):
 SDL_AUDIODRIVER=dummy \
-CORE_SO=/app/work/libmupen64plus-debug.so \
+CORE_SO=work/libmupen64plus-debug.so \
 RSP_PLUGIN=/usr/lib/mupen64plus/mupen64plus-rsp-hle.so \
-INPUT_PLUGIN=/app/work/hhinput.so \
+INPUT_PLUGIN=work/hhinput.so \
 VIDEO_PLUGIN=/usr/lib/mupen64plus/mupen64plus-video-glide64mk2.so \
 AUDIO_PLUGIN=/usr/lib/mupen64plus/mupen64plus-audio-sdl.so \
 ./work/r64dump work/roms/us_dec.z64 work/scratch/sessNN 1200
@@ -125,14 +125,14 @@ AUDIO_PLUGIN=/usr/lib/mupen64plus/mupen64plus-audio-sdl.so \
 Env vars del harness: `HB_RES_DIR=0x8008DFC0` (directorio), `HH_WP_ARM` (default 8s), `HH_DUMP_TIMES`
 (default "2,4,8,16,32,64,128", pasar "15,20,25,...,120"). Log del run: `<prefijo>_log.txt`.
 
-Input dinámico: escribir mask de 2B a `/tmp/hh_keys.bin` (0x1000=Start; DPad=WASD en config;
+Input dinámico: escribir mask de 2B a `work/debug/hh_keys.bin` (0x1000=Start; DPad=WASD en config;
 dejar en 0 para soltar). Un "tap" = escribir mask y luego 0.
 
 ---
 
 ## 5. El harness y el write-bp (núcleo de la tarea #3)
 
-Ver `/app/notes/2026-09-08-overlay-directory.md` §5-6 para el detalle. Resumen:
+Ver `notes/2026-09-08-overlay-directory.md` §5-6 para el detalle. Resumen:
 
 - El bpx de escritura se añade **DESPUÉS** del resume del boot-halt (`DebugSetRunState(RUNNING)` +
   `DebugStep()`), como **DISABLED** y se arma a `HH_WP_ARM`=8s (el zerofill del directorio al boot
@@ -308,12 +308,12 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 
 ## 11. Git, seguridad y backup
 
-- Repo git inicializado en `/app` (branch `main`); git installado vía `apk add git` (2.54.0);
-  user local `opencode-hh <opencode@local>`, no remoto. `.backup/` en .gitignore.
+- Repo git inicializado en la raíz del proyecto (branch `main`); git instalado en el entorno;
+  user local `la identidad local del entorno de desarrollo`, no remoto. `.backup/` en .gitignore.
 - Commits: `bb7bb96` (harness wp+workflow), `78b8d1f` (fix dummy audio), `cd41ccd` (fbdecode v1),
   `002b1e5` (sesión operativa, notas 7b/7c). **PENDIENTE de commit**: fbdecode.py v2 + este
   sesion.md (hacerlo al cerrar esta sesión).
-- Backup tarball: `/app/.backup/hh-wip-20260908-0139.tgz` (core parcheado + .so + tools + notas;
+- Backup tarball: `.backup/hh-wip-20260908-0139.tgz` (core parcheado + .so + tools + notas;
   sin ROM ni dumps). Regla: ante algo operativo nuevo, commit o backup inmediato.
 - **Solo commitear cuando el usuario lo pida** (ha pedido "haz commit" cuando está operativo).
 
@@ -323,7 +323,7 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
 
 > **NUEVA VISIÓN (ver PROYECTO.md §3.1):** la tarea #3 está **desacoplada** de la Fase 2. El port del
 > **núcleo plano** se puede y debe empezar YA (no espera al mapa de overlays). La tarea #3 avanza en
-> paralelo por la vía BizHawk (el usuario juega en el contenedor; es trabajo del usuario, no del
+> paralelo por la vía BizHawk (el usuario juega en el entorno de desarrollo; es trabajo del usuario, no del
 > agente). Los **bloqueantes** (ucode de audio + LZSS) son independientes del mapa y deben resolver
 > de forma temprana. **Criterio de corte de la tarea #3:** ~6 sets de fase, no exhaustividad total.
 
@@ -350,7 +350,7 @@ visual**. Las imágenes adjuntas se acumulan en el prompt y acaban con el error 
    las os) o B (mantener globals del juego). Detalle en la nota de Fase 2.
 
 ### B. Tarea #3 (desacoplada, vía BizHawk — el usuario juega)
-5. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al contenedor: añade fases nuevas al
+5. **[OPCIONAL/AMPLIAR COBERTURA]** Pasar la partida larga al entorno de desarrollo: añade fases nuevas al
    mapa y permite etiquetar más sets con el usuario. **NO bloquea** la Fase 2: el mecanismo `trans`
    está confirmado y el mapa por orden temporal+tamaño es derivable de los dumps que ya hay (87 ids +
    set 31 entradas gameplay + sesión1).
@@ -409,7 +409,7 @@ Resumen de todo lo hecho hoy (después del handoff anterior). Detalle técnico c
   `work/screenshots/session38/stats_ANOTADO.txt` (168 líneas). Usar SIEMPRE las anotaciones, NO stats.
 
 ### 14.2 Input: stick añadido al plugin `hhinput.c` (SIN commit aún — git diff pendiente)
-- `/tmp/hh_keys.bin` ahora 4 bytes BE: mask(2B) + Y_AXIS + X_AXIS (firmados). Recompilado a
+- `work/debug/hh_keys.bin` ahora 4 bytes BE: mask(2B) + Y_AXIS + X_AXIS (firmados). Recompilado a
   `work/hhinput.so`. Stick: arriba=Y-127, derecha=X+127, abajo=Y+100.
 - D-pad OK para menús, pero el PJ se mueve con STICK (no D-pad). A salta, B acción/abrir. La cámara
   sigue al PJ → caminar recto con stick es inestable (cruzar puertas a ciegas: difícil).
@@ -449,17 +449,17 @@ insuficiente ⇒ hay que capturar dinámico (Write).
 
 ## 13. Índice rápido de archivos
 
-- `/app/sesion.md` — ESTE documento (handoff).
-- `/app/notes/2026-09-08-overlay-directory.md` — notas técnicas detalladas.
-- `/app/tools/analysis/r64dump.cpp` → `/app/work/r64dump` — harness.
-- `/app/tools/analysis/fbdecode.py`, `xshot(.c)`, `ppmascii.py` — análisis.
-- `/app/work/play.sh`, `/app/work/cap_loop.sh` — recetas.
-- `/app/work/libmupen64plus-debug.so`, `/app/work/hhinput.so` — core+input.
-- `/app/work/scratch/sess02.*` — dumps/logs/dir.bin de la sesión reciente.
-- `/app/work/screenshots/session02/` — PNGs entregados al usuario.
-- `/app/work/roms/us_dec.z64` — ROM.
-- `/app/work/mupen-src/` — fuente del core parcheado (respaldo en tarball).
-- `/app/work/wsl_package/` — (a medio hacer; el plan acordado es conducir desde el contenedor,
+- `el indice de sesion historico` — ESTE documento (handoff).
+- `notes/2026-09-08-overlay-directory.md` — notas técnicas detalladas.
+- `tools/analysis/r64dump.cpp` → `work/r64dump` — harness.
+- `tools/analysis/fbdecode.py`, `xshot(.c)`, `ppmascii.py` — análisis.
+- `work/play.sh`, `work/cap_loop.sh` — recetas.
+- `work/libmupen64plus-debug.so`, `work/hhinput.so` — core+input.
+- `work/scratch/sess02.*` — dumps/logs/dir.bin de la sesión reciente.
+- `work/screenshots/session02/` — PNGs entregados al usuario.
+- `work/roms/us_dec.z64` — ROM.
+- `work/mupen-src/` — fuente del core parcheado (respaldo en tarball).
+- `work/wsl_package/` — (a medio hacer; el plan acordado es conducir desde el entorno de desarrollo,
   no usar WSL para el harness).
 
 ---
@@ -585,7 +585,7 @@ Actualización que sustituye el estado de §14. Detalle técnico en `notes/2026-
 
 ### 16.1.1 Arreglos del build (Windows)
 - N64Recomp en Windows compila como `.lib`, NO genera `.exe`: la regeneración de `RecompiledFuncs`
-  se hace en el contenedor con el binario ELF y luego se copia al port. (Decisión clave.)
+  se hace en el entorno de desarrollo con el binario ELF y luego se copia al port. (Decisión clave.)
 - `config/RecompiledFuncs/` original estaba roto (faltaba `funcs.h` y `funcs_0.c`); `RecompiledFuncs_retail`
   tenía una mezcla inconsistente. Se regeneró un set retail limpio desde `us_retail.syms.toml`
   (salida estable: `config/RecompiledFuncs_retail/`, 301 funcs, exit 0) y se copiaron los 10 archivos
@@ -660,17 +660,17 @@ Dificultan la regeneración estas cosas que ahora se resuelven (ver §16.2 para 
 
 Todo esto SIN git (el repo no es git): los cambios están solo en el árbol. No commitear sin pedirlo.
 
-## 16.3 RECETA DE REGENERACIÓN (contenedor)
+## 16.3 RECETA DE REGENERACIÓN (entorno de desarrollo)
 
 ```sh
 # 1) Construir el recompilador (tras tocar toolchain):
-cd /app/hybrid-heaven-recomp/toolchain/src/N64Recomp
+cd toolchain/src/N64Recomp
 cmake --build build_recomp --target N64RecompCLI        # binario → build_recomp/N64Recomp
 
 # 2) Regenerar el set unificado:
-cd /app/hybrid-heaven-recomp/config
+cd config
 rm -rf RecompiledFuncs_unified
-/app/hybrid-heaven-recomp/toolchain/src/N64Recomp/build_recomp/N64Recomp game_unified.toml 2>&1 | tee /tmp/regen_unified.log
+toolchain/src/N64Recomp/build_recomp/N64Recomp game_unified.toml 2>&1 | tee work/debug/regen_unified.log
 # Esperado: "Function count: 301", exit 0, 13 archivos funcs_0..12.c + funcs.h + lookup.cpp + recomp_overlays.inl
 # Varios "[Warn] Stubbing X ..." = funciones con datos absorbidos (trampa do_break). Normal.
 
@@ -727,10 +727,10 @@ En `funcs_5.c`: +2.
   aparte.
 - `0x800E5F40` = `$a0` inicial (end of `.main`, RAM válida). Recordar el sign-extend
   `(gpr)(int32_t)`.
-- Shell en el contenedor es **dash**: no usar `${PIPESTATUS[0]}` (da syntax error). Usar `echo $?`
+- Shell en el entorno de desarrollo es **dash**: no usar `${PIPESTATUS[0]}` (da syntax error). Usar `echo $?`
   o capturar a archivo.
-- No hay python en el contenedor: para leer bytes de la ROM usar `xxd -g4 -s <off> -l <len>`.
-- `sesion.md` real: `/app/hybrid-heaven-recomp/sesion.md` (AGENTS.md dice `/app/sesion.md`; corregir
+- No hay python en el entorno de desarrollo: para leer bytes de la ROM usar `xxd -g4 -s <off> -l <len>`.
+- `sesion.md` real: `sesion.md` (AGENTS.md dice `el indice de sesion historico`; corregir
   esa ruta si se toca AGENTS.md).
 
 ## 16.6 TODO RESTRUCTURADO (2026-09-10, ACTUALIZADO tras sesión de boot) — NUEVO ENFOQUE

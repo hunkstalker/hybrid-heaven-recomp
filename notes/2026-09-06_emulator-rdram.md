@@ -44,5 +44,5 @@ CORE_SO=/usr/lib/libmupen64plus.so.2 RSP_PLUGIN=/usr/lib/mupen64plus/mupen64plus
 HH_SCHED="t:mask;..." HH_DUMP_TIMES="4,15,22,..." \
 ./work/r64dump work/roms/us_dec.z64 work/scratch/hh3 70
 ```
-(dumps => work/scratch/hh3.t*.bin; `/tmp/hh_keys.bin` lo escribe el harness;
+(dumps => work/scratch/hh3.t*.bin; `work/debug/hh_keys.bin` lo escribe el harness;
 dummy_input parcheado).

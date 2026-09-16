@@ -46,7 +46,7 @@ Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **d
 
 ```sh
 python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml
-python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml --fix --out /tmp/fixed.syms.toml
+python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml --fix --out work/debug/fixed.syms.toml
 ```
 
 Regla: **nunca editar a mano el C generado**. Todo fix va a `config/*.syms.toml` y el validador
@@ -96,7 +96,7 @@ contexto**. Por eso NUNCA se adjunta un lote grande: se reduce a pocas y **se re
 ### Paso 1 — Triaje barato (sin visión)
 ```sh
 python3 tools/analysis/triage_screenshots.py "work/gameplay screenshots" --recursive \
-  --max 20 --batch 3 --out /tmp/opencode/triage
+  --max 20 --batch 3 --out work/debug/triage
 ```
 Genera:
 - `triage.csv` — una fila por PNG: `ts, w, h, bytes, bright, hash, flag (selected/dup), dup_of, txt`.
@@ -168,12 +168,12 @@ Es la referencia para saber si una variable/flujo del port diverge. Requisitos: 
 ```sh
 # Dumps completos de 8 MB en t = 5,10,20,40 s
 SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so HH_DUMP_TIMES=5,10,20,40 \
-  timeout 70 ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu 55
-# -> /tmp/opencode/emu.t0.bin, .t1.bin, ... (8 MB cada uno) + volcado final
+  timeout 70 ./work/r64dump work/roms/us_retail.z64 work/debug/emu 55
+# -> work/debug/emu.t0.bin, .t1.bin, ... (8 MB cada uno) + volcado final
 
 # Watchpoint de escritura (rango de 1 KB en una vaddr); loguea PC+tiempo de cada write
 SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so \
-  HB_RES_DIR=0x801CFE00 HH_WP_ARM=3 timeout 20 ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu_wp 15
+  HB_RES_DIR=0x801CFE00 HH_WP_ARM=3 timeout 20 ./work/r64dump work/roms/us_retail.z64 work/debug/emu_wp 15
 ```
 
 **Endianness (CRÍTICO)**: el buffer RDRAM (emulador y port) está **word-swapped**. Para leer el valor
@@ -195,9 +195,9 @@ vuelca RDRAM en ambos lados:
 
 ```sh
 # Emulador: volcado one-shot al primer write del watchpoint (tras HH_WP_ARM)
-HB_RES_DIR=0x801D03DC HB_WP_SIZE=4 HH_WP_ARM=7.9 HB_DUMP_ON_WP=/tmp/opencode/emu_at.bin \
+HB_RES_DIR=0x801D03DC HB_WP_SIZE=4 HH_WP_ARM=7.9 HB_DUMP_ON_WP=work/debug/emu_at.bin \
   SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so timeout 25 \
-  ./work/r64dump work/roms/us_retail.z64 /tmp/opencode/emu 20
+  ./work/r64dump work/roms/us_retail.z64 work/debug/emu 20
 ```
 
 ```gdb
@@ -205,7 +205,7 @@ HB_RES_DIR=0x801D03DC HB_WP_SIZE=4 HH_WP_ARM=7.9 HB_DUMP_ON_WP=/tmp/opencode/emu
 break FUN_80005b98 if (unsigned)ctx->r4 == 0x801D03C0u
 commands
   silent
-  dump binary memory /tmp/opencode/port_at.bin (char*)rdram (char*)rdram+0x800000
+  dump binary memory work/debug/port_at.bin (char*)rdram (char*)rdram+0x800000
   quit
 end
 run

@@ -124,7 +124,7 @@ if (v0>=2) goto 0x80001B24           ; EPÍLOGO: se salta el dispatcher
 # Build y run del port (Xvfb :99 con GLX debe estar vivo)
 cd port/HybridHeavenRecomp/build_dbg
 DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
-  HH_CALLTRACE=/app/hybrid-heaven-recomp/work/debug/port_ct.bin timeout 20 "./Hybrid Heaven Recomp"
+  HH_CALLTRACE=work/debug/port_ct.bin timeout 20 "./Hybrid Heaven Recomp"
 # Trazas: HH_VERBOSE=1 ([RND] cada 60 VIS), HH_QLOG=1 (envíos/recvs), HH_DUMP_VI=N (una sola VI),
 # gdb -x work/debug/gdb_*.gdb (ojo: cambia timing).
 
@@ -146,7 +146,7 @@ python3 tools/recomp.py --config config/game_combined.toml --build
 - Port `HH_DUMP_VI` solo acepta **un** valor (no lista); el emulador sí acepta lista (`HB_DUMP_VI`).
 - RDRAM volcada word-swapped: `u32` = LE en `offset=a&0x1FFFFFFF`; `u16` en `offset=(a^2)`.
 - Los contadores del **loader** (`0x8005D010/18/1C/20`) ya no son el bloqueo; no perseguirlos.
-- Todo artefacto persistente en `/app/hybrid-heaven-recomp/work/debug/` (nunca `/tmp`).
+- Todo artefacto persistente en `work/debug/` (nunca en temporales del sistema).
 
 ## 8. Artefactos ya en disco (gitignored, `work/debug/`)
 

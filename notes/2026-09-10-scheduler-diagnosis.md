@@ -40,10 +40,10 @@ submit tarea) → `FUN_800020b0`, `FUN_80016df0`, `FUN_8000469c`×5 (malloc) →
 (audio buf) → `FUN_80005444`, `FUN_80005624`, `FUN_80133aac` → **bucle `osRecvMesg(0x8005c288)`**.
 
 **OJO con la discrepancia**: el decompile muestra el bucle en `0x8005c288`, pero el log runtime
-(`/tmp/hh_run.log:68`) muestra thread 5 bloqueado en **`0x8005be40`** (cola distinta, count=1,
+(`work/debug/hh_run.log:68`) muestra thread 5 bloqueado en **`0x8005be40`** (cola distinta, count=1,
 creada justo antes). La versión runtime es la autoritativa; Ghidra fusionó/limitó la función.
 
-## 3. Trazas runtime de referencia (`/tmp/hh_run.log`, run headless ~30s)
+## 3. Trazas runtime de referencia (`work/debug/hh_run.log`, run headless ~30s)
 
 Secuencia (recortada):
 ```
@@ -115,7 +115,7 @@ Cambios en `config/us_unified.syms.toml`:
 Regenerado `config/RecompiledFuncs_unified/` (341 funcs, funcs_0..6) + copiado a
 `port/HybridHeavenRecomp/RecompiledFuncs/` + build OK + run headless:
 
-- **DEADLOCK ROTO.** Confirmado en `/tmp/hh_run7.log`:
+- **DEADLOCK ROTO.** Confirmado en `work/debug/hh_run7.log`:
   - Thread 5 pasó de `0x8005be40` y corre su bucle (`osSendMesg mq=0x8005c288 msg=0x8005c4b0`).
   - VI manager reenvía la vblank a thread 19 (`osSendMesg mq=0x8005c560 msg=0x29a`).
   - Los punteros VI swap por frame (`vis=100/200/300/400` → cur alterna 0x8004AEA0/0x8004AE70).

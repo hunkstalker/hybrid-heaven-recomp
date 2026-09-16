@@ -26,7 +26,7 @@
 - `HH_REPLAY=<f>`: reproduce la secuencia **por índice de poll** (una muestra por frame).
   Verificado **RMSE = 0** contra la grabación (píxel a píxel).
 - Uso: grabar una partida real en Windows hasta el fallo, enviar el `.txt`, y reproducirlo en el
-  contenedor para depurar con `boot.log`/`hh_missing.log`.
+  entorno de desarrollo para depurar con `boot.log`/`hh_missing.log`.
 
 ## Frontera
 

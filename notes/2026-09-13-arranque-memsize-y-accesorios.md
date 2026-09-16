@@ -61,7 +61,7 @@ como máquina con Expansion Pak.
 - **Los logs `hh::log` van a `hh.log`** en la carpeta de app (`~/.local/share/HybridHeavenRecomp/`),
   no a stderr. `HH_VERBOSE=1` solo afecta a los logs de consola.
 - El log `[RND]` y `[TBL]` son la instrumentación barata para ver fase/estado/tabla por frame.
-- **Persistencia**: todo artefacto debe quedar bajo `/app` (p. ej. `work/debug/`); `/tmp` se pierde
+- **Persistencia**: todo artefacto debe quedar dentro del repo (p. ej. `work/debug/`); lo temporal se pierde
   entre sesiones. El entorno puede resetearse a Alpine mínima; ver `AGENTS.md` para la lista `apk`.
 
 ## 5. AVISO: accesorios N64 que alteran el arranque (Controller Pak, Rumble Pak, …)

@@ -15,12 +15,10 @@ del usuario. Sub-objetivo obligatorio: **extraer y traducir todo el texto**. Pla
 
 | Ítem | Valor |
 |---|---|
-| Proyecto | `/app/hybrid-heaven-recomp/` |
-| ROM USA | `/app/baserom.us.z64` (z64 BE, ID NHVE, MD5 `da861c4d9202f661575466450a27c412`) |
-| ROM Europa | `/app/baserom.eu.z64` (ID NHVP, MD5 `c47e95bb32ab132c41d67bd243f9e02a`) |
+| Proyecto | raíz de este repo |
 | Toolchain | gcc/g++ 15, cmake 4.2, ninja, SDL2, JDK 21 + Ghidra 12.1.3 + N64LoaderWV |
-| Repos | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp, Goemon64Recomp (en `toolchain/src/`) |
-| Derivados | `work/` y `toolchain/` gitignored (ROMs descomprimidas, Ghidra, builds, artefactos) |
+| Repos de referencia | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp y un port de Konami coetáneo (`toolchain/`, gitignored) |
+| Derivados | `work/` y `toolchain/` gitignored (datos derivados, Ghidra, builds, artefactos) |
 
 ## 3. Arquitectura (resumen)
 
@@ -34,7 +32,7 @@ descomprime módulos de código de la ROM a RAM y los ejecuta vía `trans`. → 
 
 Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
-## 4. Hallazgos técnicos clave (ROM)
+## 4. Hallazgos técnicos clave del binario
 
 - Formato **z64 BE**, entry `0x80000400`, cartucho 16 MB.
 - Símbolos de debug del original (paths `/game/source/*.c`, 62 fuentes) → anclas de análisis.

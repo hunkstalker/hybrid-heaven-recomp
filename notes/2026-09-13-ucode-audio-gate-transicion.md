@@ -26,7 +26,7 @@
   no-opera las tasks de audio (`[SPT] type=2`), así que la petición del motor de audio nunca aparece.
 - `RSPRecomp` **existe** en el toolchain (`toolchain/src/N64Recomp/build_recomp/RSPRecomp`; fuentes
   en `toolchain/src/N64Recomp/RSPRecomp/`), con configs de referencia para `aspMain` en
-  `toolchain/src/Zelda64Recomp/aspMain.us.rev1.toml` y `toolchain/src/goemon64recomp/aspMain.toml`
+  `toolchain/src/Zelda64Recomp/aspMain.us.rev1.toml` y `un proyecto de referencia del mismo motor`
   (p.ej. `text_address = 0x04001000`/`0x04001080`, `text_offset/text_size` del ROM, `extra_indirect_branch_targets`).
 - El ucode de audio del juego: `task->t.ucode = 0x80036530` ⇒ ROM `0x37130` (verificado contra el
   dump; **los dumps de `r64dump` se leen como uint32 LE nativo, sin bswap**: los primeros words N64

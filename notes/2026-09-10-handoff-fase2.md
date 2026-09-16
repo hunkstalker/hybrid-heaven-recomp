@@ -29,16 +29,16 @@ y llegue a gameplay en el runtime (RT64/N64ModernRuntime).
 
 ## 1. Cómo reproducir el build y el run
 
-### Build (Linux, contenedor)
+### Build (Linux, entorno de desarrollo)
 ```sh
-cd /app/hybrid-heaven-recomp/port/HybridHeavenRecomp
+cd port/HybridHeavenRecomp
 cmake --build build_dbg --target HybridHeavenRecomp -j$(nproc)
 ```
 
 ### Regenerar funciones (tras tocar el syms/config)
 ```sh
 # El generador N64Recomp está en port/.../N64Recomp/build3/N64Recomp (target N64RecompCLI)
-cd /app/hybrid-heaven-recomp
+cd 
 rm -rf config/RecompiledFuncs_unified          # SIEMPRE borrar antes (evitar stale files)
 ./port/HybridHeavenRecomp/lib/N64ModernRuntime/N64Recomp/build3/N64Recomp config/game_unified.toml
 rm -rf port/HybridHeavenRecomp/RecompiledFuncs
@@ -50,36 +50,36 @@ cp -r config/RecompiledFuncs_unified port/HybridHeavenRecomp/RecompiledFuncs
 
 ### Run headless (el juego corre pero sin ventana/audio)
 ```sh
-cd /tmp/hh_run
-rm -f boot.log /tmp/hh_crash.log
+cd work/debug/hh_run
+rm -f boot.log hh_crash.log
 DISPLAY=:99 SDL_AUDIODRIVER=dummy HH_CRASH_LOG=1 timeout 40 \
-  "/app/hybrid-heaven-recomp/port/HybridHeavenRecomp/build_dbg/Hybrid Heaven Recomp" >boot.log 2>&1
+  "port/HybridHeavenRecomp/build_dbg/Hybrid Heaven Recomp" >boot.log 2>&1
 ```
 - `boot.log` — salida del juego (init, threads, etc.).
-- `/tmp/hh_crash.log` — crash backtrace (si HH_CRASH_LOG=1).
+- `hh_crash.log` — crash backtrace (si HH_CRASH_LOG=1).
 - `~/.local/share/HybridHeavenRecomp/hh.log` — log de setup RT64.
 - **exit=124** = timeout = el juego corrió los 40s (vivo). Si el proceso está idle (utime no sube,
   threads en `S`), está en deadlock.
 
 ### Script de iteración rápida
-`/tmp/hh_iter.sh` — regenera + build + run + reporta "Failed to find function". Útil para el loop
+`work/debug/hh_iter.sh` — regenera + build + run + reporta "Failed to find function". Útil para el loop
 de mapeo de os funcs.
 
 ---
 
-## 2. Herramientas instaladas (en el contenedor)
+## 2. Herramientas instaladas (en el entorno de desarrollo)
 
 - **capstone** (disassembler MIPS): `pip install --break-system-packages capstone`.
 - **Git**: `apk add git`.
 - **Java 21 + bash**: `apk add openjdk21 bash` (necesarios para Ghidra).
 - **Ghidra 12.1.3**: `toolchain/ghidra/ghidra_12.1.3_PUBLIC`. Proyecto en `work/ghidra/proj` (HH.gpr).
 
-### Scripts de análisis (en `/tmp` y `tools/analysis/`)
-- `/tmp/mips_dis.py <rom> <vram> <n>` — disassembler capstone (ROM default = HH us_retail.z64;
-  pasar `mnsg.z64` de Goemon como primer arg para Goemon).
-- `/tmp/match_os3.py` — empareja os funcs de Goemon→HH por bytes.
-- `/tmp/add_func.py <vram>` — añade una FUN_ al syms.
-- `/tmp/find_hh_event.py`, `/tmp/find_viset.py`, `/tmp/find_mainq.py` — escaneos de patrones.
+### Scripts de análisis (temporales y en `tools/analysis/`)
+- `work/debug/mips_dis.py <rom> <vram> <n>` — disassembler capstone (ROM default = HH us_retail.z64;
+  pasar `la ROM del proyecto de referencia` de Goemon como primer arg para Goemon).
+- `work/debug/match_os3.py` — empareja os funcs de Goemon→HH por bytes.
+- `work/debug/add_func.py <vram>` — añade una FUN_ al syms.
+- `work/debug/find_hh_event.py`, `work/debug/find_viset.py`, `work/debug/find_mainq.py` — escaneos de patrones.
 - `tools/analysis/ghidra_scripts/*.java` — scripts Ghidra (FindMainQ, FindSender, Decomp*).
 
 ---
@@ -89,8 +89,8 @@ de mapeo de os funcs.
 El **libultra es byte-idéntico entre Goemon (Mystical Ninja) y Hybrid Heaven** (osCreateThread
 coincide exactamente). El motor es el mismo (Konami). Para mapear una os func de HH:
 
-1. `Goemon64RecompSyms/mnsg.syms.toml` (en `/app/goemon-sourcecode`) — lista de 75 os funcs con vram.
-2. Desensamblar la os func de Goemon: `python3 /tmp/mips_dis.py /app/goemon-sourcecode/mnsg.z64 <vram> <n>`.
+1. `la lista de os funcs del proyecto de referencia` (en `el proyecto de referencia (mismo motor Konami)`) — lista de 75 os funcs con vram.
+2. Desensamblar la os func de Goemon: `python3 work/debug/mips_dis.py el proyecto de referencia (mismo motor Konami)/la ROM del proyecto de referencia <vram> <n>`.
 3. Buscar el byte-sequence en el ROM de HH (emparejando; enmascarando el operando del `jal` y la
    dirección de tabla que difieren).
 
@@ -203,7 +203,7 @@ reabrir, inspeccionar). Si se retoma, usar la GUI de Ghidra con el proyecto HH.
 
 ## 8. Repos git y estado
 
-- **Main repo** (`/app/hybrid-heaven-recomp`, branch main): limpiar al cerrar. Commits recientes:
+- **Main repo** (``, branch main): limpiar al cerrar. Commits recientes:
   `3ed3570` (Ghidra operativo), `665bacb` (plan Ghidra), `fd01984` (checkpoint), `d884768` (Goemon),
   `1587288` (juego estable).
 - **N64ModernRuntime** (`port/.../lib/N64ModernRuntime`): repo separado; commits de traces/threads.
@@ -236,5 +236,5 @@ reabrir, inspeccionar). Si se retoma, usar la GUI de Ghidra con el proyecto HH.
 > `VK_ICD_FILENAMES`). La ROM retail (16MB) debe estar como `baserom.us.z64` junto al ejecutable.
 
 **Repos clave para el contexto:**
-- `/app/goemon-sourcecode` — ROM + syms + N64Recomp de referencia (mismo motor Konami).
-- `/app/hybrid-heaven-recomp` — el proyecto HH.
+- `el proyecto de referencia (mismo motor Konami)` — ROM + syms + N64Recomp de referencia (mismo motor Konami).
+- `` — el proyecto HH.

@@ -15,7 +15,7 @@ Se adoptó el modelo por capas descrito en `docs/documentation.md`:
 
 - La calibración previa ("No tengo visión, no leer imágenes") provenía de errores de un modelo/config
   anterior (`this model does not support image input`, `At most 4 images per prompt`).
-- **Verificado 2026-09-11**: se leyó `/app/HybridHeaven.png` con éxito y se describió la imagen
+- **Verificado 2026-09-11**: se leyó `el icono del proyecto` con éxito y se describió la imagen
   (retrato estilizado en azul del protagonista: hombre, pelo oscuro puntiagudo, mirada intensa).
 - Regla actualizada en `AGENTS.md`: visión disponible; usarla con criterio (consume contexto);
   el usuario sigue sin ver adjuntos del chat → los PNG se guardan en archivo; re-verificar si cambia

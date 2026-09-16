@@ -19,7 +19,7 @@
 
 - Generador: `Visual Studio 18 2026` (VS 2026, no 2022). `-A x64`.
 - `build_win` aparte de `build` (Linux) — **no reutilizar** el `build/` de Linux (CMakeCache con
-  rutas `/app/...` incompatibles).
+  rutas `...` incompatibles).
 - Los `lib/rt64` y `lib/N64ModernRuntime` son repos vendored (gitignored del repo principal) que hay
   que clonar en sus commits exactos + aplicar el patch (`port/windows_runtime_changes.patch`).
 
@@ -37,7 +37,7 @@
 
 ## 3. Estado de los repos
 
-- **Main repo** (`/app/hybrid-heaven-recomp`): `RecompiledFuncs/` unificado (341 funcs, ya con
+- **Main repo** (``): `RecompiledFuncs/` unificado (341 funcs, ya con
   osCreateViManager/osViSetMode/osVirtualToPhysical) + assets + src versionados. `port/windows_runtime_changes.patch`
   + `port/build_windows.bat` + `port/README_windows.md` para reproducir.
 - **N64ModernRuntime** (repo anidado, gitignored): contiene los fixes de runtime en el working tree

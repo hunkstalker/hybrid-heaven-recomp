@@ -71,12 +71,12 @@ para que el F12 vuelque, además del directorio de overlays, estas estructuras:
 
 ## 4. Herramientas usadas / estado del harness
 
-- El harness del contenedor (`work/r64dump`, fuente `tools/analysis/r64dump.cpp`) **se recompiló** para
+- El harness del entorno de desarrollo (`work/r64dump`, fuente `tools/analysis/r64dump.cpp`) **se recompiló** para
   loguear `ra` (return address) en los hits:
   ```
-  g++ -o work/r64dump tools/analysis/r64dump.cpp -I/tmp/mupinc -ldl -lX11 -lXext -lGL -l:libGLU.so.1
+  g++ -o work/r64dump tools/analysis/r64dump.cpp -Iwork/debug/mupinc -ldl -lX11 -lXext -lGL -l:libGLU.so.1
   ```
-  - `/tmp/mupinc/mupen64plus -> $MUP/src/api` (symlink para el include `<mupen64plus/...>`).
+  - `work/debug/mupinc/mupen64plus -> $MUP/src/api` (symlink para el include `<mupen64plus/...>`).
   - Se instalaron deps: `apk add glu libsamplerate`.
   - Config/plugins: `M64P_CONFIG_DIR=work/wsl_package M64P_PLUGINDIR=.../plugins`, y el ini
     `Glide64mk2.ini` en `work/wsl_package/plugins/` (necesario para que glide inicialice headless).

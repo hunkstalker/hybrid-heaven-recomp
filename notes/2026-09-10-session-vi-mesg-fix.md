@@ -1,7 +1,7 @@
 # SESIÓN 2026-09-10 — FIX deadlock VI + entrega de mensajes externos (verificado en run headless)
 
 > Complemento de `notes/2026-09-10-handoff-fase2.md`. Documenta los dos fixes de runtime aplicados
-> en esta sesión y su **verificación real ejecutando el build de Linux en el contenedor**
+> en esta sesión y su **verificación real ejecutando el build de Linux en el entorno de desarrollo**
 > (Xvfb + Vulkan swrast/lavapipe). La sesión anterior dejó el juego deadlockeado en el VI/timer;
 > esta sesión lo destrabó y demostró que **el scheduler sigue sin postear la primera tarea**.
 
@@ -9,7 +9,7 @@
 
 ## 0. Resumen de lo conseguido (verificado, no teórico)
 
-- **Configurado un run headless REAL del build de Linux** en el contenedor (antes no se podía
+- **Configurado un run headless REAL del build de Linux** en el entorno de desarrollo (antes no se podía
   observar por falta de GPU/Vulkan). Comandos en §4.
 - **FIX A — osSetEventMesg: faltaba el caso `OS_EVENT_VI = 7`.** El juego registra el VI retrace vía
   `osSetEventMesg(OS_EVENT_VI=7, mq=0x800ce920, msg=0x800ce950)` (también `OS_EVENT_COUNTER=3`).
@@ -142,27 +142,27 @@ void ultramodern::enqueue_external_message_src(PTR(OSMesgQueue) mq, OSMesg msg, 
 
 ## 4. Cómo reproducir el run headless (NUEVO — GPU por software)
 
-El contenedor no tiene GPU/Vulkan. Se instaló `mesa-vulkan-swrast` (lavapipe) + `xvfb`:
+El entorno no tiene GPU/Vulkan. Se instaló `mesa-vulkan-swrast` (lavapipe) + `xvfb`:
 
 ```sh
 # Una sola vez:
 apk add mesa-vulkan-swrast xvfb
 
 # Arrancar display virtual (si no está activo):
-rm -f /tmp/.X99-lock
-Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >/tmp/xvfb.log 2>&1 &
+rm -f work/debug/.X99-lock
+Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >work/debug/xvfb.log 2>&1 &
 
 # Correr el build de Linux con Vulkan por software:
-cd /app/hybrid-heaven-recomp/port/HybridHeavenRecomp/build
+cd port/HybridHeavenRecomp/build
 DISPLAY=:99 SDL_VIDEODRIVER=x11 \
   VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
-  ./"Hybrid Heaven Recomp" >/tmp/hh_run.log 2>&1
+  ./"Hybrid Heaven Recomp" >work/debug/hh_run.log 2>&1
 ```
 
 - La ROM retail debe estar como `baserom.us.z64` junto al ejecutable (16MB). Copiarla:
-  `cp /app/baserom.us.z64 <builddir>/baserom.us.z64`.
+  `cp rom/baserom.us.z64 <builddir>/baserom.us.z64`.
   > Ojo: NO usar la ROM *dec* (us_dec.z64, 19782944 bytes). El juego valida hash
-  > `0x0F6A72F2C36A216DULL` (retail 16MB). La retail es `/app/baserom.us.z64` (o
+  > `0x0F6A72F2C36A216DULL` (retail 16MB). La retail es `rom/baserom.us.z64` (o
   > `work/roms/us_retail.z64`).
 - **gdb** para backtrace: instalar `apk add gdb`. Usar `set pagination off`,
   `handle SIGABRT stop print nopass`, y `break std::terminate()`.

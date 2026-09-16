@@ -108,4 +108,4 @@ HH_WPLOG=1 HH_WPLO=0xCBAEC HH_WPHI=0xCBAF4 CORE_SO=work/libmupen64plus-wplog.so 
   configs. El ucode se regenera con `RSPRecomp` (ver `config/rsp_hh_aspMain.toml`).
 - `[AI ] set_next IGNORADO` = defensa; si aparece, investigar por qué el juego calculó un tamaño
   negativo (cola de audio).
-- Artefactos persistentes en `/app/hybrid-heaven-recomp/work/debug/` (nunca `/tmp`).
+- Artefactos persistentes en `work/debug/` (nunca en temporales del sistema).

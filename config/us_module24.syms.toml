@@ -1,4 +1,4 @@
-# Módulo: /app/hybrid-heaven-recomp/work/scratch/module24_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
+# Módulo: work/scratch/module24_be.bin — RECONSTRUIDO desde los .obj de la build Release del usuario
 [[section]]
 name = ".module24"
 rom = 0x4000000

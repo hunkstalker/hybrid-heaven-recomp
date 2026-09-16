@@ -8,7 +8,7 @@ Failed to find function at 0x8021D8D0
 ```
 
 - `add_mid_entry.py 0x8021D8D0` → **módulo idx 10** (base `0x8021B150`); no delay slot; no switch.
-- El contenedor `M10_FUN_8021d8c4` (vram `0x8021D8C4`, size `0x14`) empezaba con **tres `nop`**
+- El entorno `M10_FUN_8021d8c4` (vram `0x8021D8C4`, size `0x14`) empezaba con **tres `nop`**
   (`0x8021D8C4/C8/CC`); la función real arranca en `0x8021D8D0` (`lui $a3,0x801C` /
   `addiu $a3,$a3,-0x4410` = puntero a `0x801BC410`) y **cae** en `M10_FUN_8021d8d8` (cadena de
   fallthrough). Mismo patrón que los mid-entries anteriores (nop/delay slot mal asignado como inicio).

@@ -7,7 +7,7 @@
 
 ## 0. Resumen ejecutivo
 
-- Se puso a funcionar el **harness Linux** (`work/r64dump`, mupen64plus) en el contenedor
+- Se puso a funcionar el **harness Linux** (`work/r64dump`, mupen64plus) en el entorno de desarrollo
   (faltaban deps: xvfb, libx11, glu, libSDL2, libopcodes, python3+capstone, git — reinstaladas).
 - **Confirmado**: el juego inicializa `0x8005be40` como cola y thread 5 recibe de ella. Pero el
   **write-bp en `0x8005be40` está contaminado** (la región se solapa con la pila del thread 5) y el
@@ -22,14 +22,14 @@
 
 ## 1. Puesta en marcha del harness (deps reinstaladas)
 
-El contenedor perdió varias dependencias (probablemente por `apk add`/reset). Se reinstalaron:
+El entorno perdió varias dependencias (probablemente por `apk add`/reset). Se reinstalaron:
 
 ```sh
 apk add --no-cache xvfb libx11 glu libsamplerate sdl2 binutils python3 py3-pip git
 pip install --break-system-packages capstone
 ```
 
-- **Xvfb**: `Xvfb :99 -screen 0 640x480x24 +extension GLX +render >/tmp/xvfb.log 2>&1 &`
+- **Xvfb**: `Xvfb :99 -screen 0 640x480x24 +extension GLX +render >work/debug/xvfb.log 2>&1 &`
 - **Harness**: `work/r64dump` (fuente `tools/analysis/r64dump.cpp`). Plugins en
   `work/wsl_package/plugins/`. El plugin glide necesita `Glide64mk2.ini` en `./plugins/` (relativo al
   CWD) — se copió temporalmente.
@@ -42,7 +42,7 @@ pip install --break-system-packages capstone
     RSP_PLUGIN=.../mupen64plus-rsp-hle.so INPUT_PLUGIN=.../hhinput.so \
     VIDEO_PLUGIN=.../mupen64plus-video-glide64mk2.so AUDIO_PLUGIN=.../mupen64plus-audio-sdl.so \
     HB_RES_DIR=0x8005be40 HH_WP_ARM=2 M64P_CONFIG_DIR=.../work/wsl_package \
-    M64P_PLUGINDIR=.../work/wsl_package/plugins timeout 20 ./work/r64dump work/roms/us_dec.z64 /tmp/harness 15
+    M64P_PLUGINDIR=.../work/wsl_package/plugins timeout 20 ./work/r64dump work/roms/us_dec.z64 work/debug/harness 15
   ```
 
 ## 2. Resultados del write-bp en 0x8005be40
@@ -92,15 +92,15 @@ una discrepancia entre:
 
 **Hipótesis a investigar:** el libultra del juego vive en un **segmento cargado vía el cargador
 `trans`** (no en la región plana), y el mapeo de os funcs del recompilador se hizo por **byte-matching
-con Goemon** pero con una **base de offset incorrecta** (la ROM `mnsg.z64` de Goemon, 32MB, no mapea
+con Goemon** pero con una **base de offset incorrecta** (la ROM `la ROM del proyecto de referencia` de Goemon, 32MB, no mapea
 vram→offset como `vram-0x80000000`; verificado: `osRecvMesg` de Goemon en `0x80040110` no es
 osRecvMesg con ese offset).
 
 ## 5. Método byte-matching con Goemon — NO sirve con el offset actual
 
-- `Goemon64RecompSyms/mnsg.syms.toml` lista os funcs en `0x8003xxxx-0x8004xxxx` (p.ej.
+- `la lista de os funcs del proyecto de referencia` lista os funcs en `0x8003xxxx-0x8004xxxx` (p.ej.
   `osRecvMesg=0x80040110`, `osSendMesg=0x80040250`).
-- Al desensamblar `mnsg.z64` en `vram-0x80000000`, `0x80040110` da el **fin de una función**
+- Al desensamblar `la ROM del proyecto de referencia` en `vram-0x80000000`, `0x80040110` da el **fin de una función**
   (`lw ra; addiu sp; jr ra`), no osRecvMesg → la base de offset de Goemon es distinta.
 - Por tanto **hay que re-derivar las direcciones reales de los os funcs** sin depender del
   byte-matching por offset (o corregir la base de Goemon primero).
@@ -123,7 +123,7 @@ osRecvMesg con ese offset).
   esta sesión (queda limpio salvo el submódulo N64Recomp preexistente).
 - `tools/analysis/ghidra_scripts/TimerScanX.java` — script Ghidra nuevo (escaneo de refs a
   `0x8004ae60` + decompile de `FUN_80031498`/`FUN_80031190`), **sin trackear**.
-- Herramientas temporales en `/tmp`: `mips_dis.py`, `find_mq.py`, `find_mq2.py` (escaneos por
+- Herramientas temporales (antiguas): `mips_dis.py`, `find_mq.py`, `find_mq2.py` (escaneos por
   patrón), `TimerScanX.java` (copia en ghidra_scripts).
 - El repo queda en baseline conocido-bueno (boot OK, thread 5 bloqueado en `0x8005be40`); solo
   `funcs_6.c` modificado (preexistente, diff NAN_CHECK de una sesión anterior, no de esta).

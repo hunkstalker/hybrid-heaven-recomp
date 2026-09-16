@@ -1,7 +1,7 @@
 # Herramientas del proyecto
 
-Todo el workspace vive en `/app/hybrid-heaven-recomp/` (ver `PROYECTO.md` §8). No usar
-`/tmp` para nada del proyecto: eso se borra entre sesiones.
+Todo el proyecto vive en la raíz de este repo (ver `PROYECTO.md` §8). No usar carpetas temporales
+del sistema para nada del proyecto: se borran entre sesiones.
 
 ## Estructura rápida
 
@@ -22,7 +22,7 @@ Todo el workspace vive en `/app/hybrid-heaven-recomp/` (ver `PROYECTO.md` §8). 
 
 ```sh
 PYTHONPATH=tools toolchain/venv/bin/python tools/rommy.py decompress \
-    -i /app/baserom.us.z64 -o work/roms/us_dec.z64 -m work/roms/us_manifest.yaml
+    -i rom/baserom.us.z64 -o work/roms/us_dec.z64 -m work/roms/us_manifest.yaml
 ```
 
 Salidas: ROM descomprimida (assets expandidos) + manifest (`notes/` guarda copia).
@@ -34,11 +34,11 @@ N64LoaderWV está instalada a nivel de usuario
 (`~/.config/ghidra/ghidra_12.1.3_PUBLIC/Extensions/N64LoaderWV`).
 
 ```sh
-G=/app/hybrid-heaven-recomp/toolchain/ghidra/ghidra_12.1.3_PUBLIC
-P=/app/hybrid-heaven-recomp/work/ghidra/proj
+G=toolchain/ghidra/ghidra_12.1.3_PUBLIC
+P=work/ghidra/proj
 
 # Importar una ROM (ya hecho para baserom.us.z64)
-$G/support/analyzeHeadless $P HH -import /app/baserom.us.z64 \
+$G/support/analyzeHeadless $P HH -import rom/baserom.us.z64 \
     -loader N64LoaderWVLoader -overwrite
 
 # Re-procesar/reejecutar scripts sobre el programa ya importado

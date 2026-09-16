@@ -21,25 +21,25 @@
 - `pip install splat` falla: dependencias `numpy` + `tables` (PyTables/HDF5) no compilan en
   Python 3.14 / Alpine (falta `Python.h` al inicio, luego `tables` no construye ni con `hdf5-dev`).
 - Splat requiere además el **toolchain MIPS** (`mips-linux-gnu-*`), no disponible como paquete apk.
-- **Conclusión**: splat no es viable en este contenedor sin resolver las deps de build pesadas.
+- **Conclusión**: splat no es viable en este entorno sin resolver las deps de build pesadas.
 
 ## 2. Ghidra — SÍ funciona (enfoque adoptado para el intento)
 
 ### 2.1 Exportar funciones
-Script `/tmp/ghidra_scripts/ExportFuncsX.java` → recorre `FunctionManager`, exporta
+Script `work/debug/ghidra_scripts/ExportFuncsX.java` → recorre `FunctionManager`, exporta
 `{ name, vram, size }` de cada función en `0x80000400..0x804E5F40` → `work/ghidra_funcs.txt`
 (**1095 funciones**).
 
 ```sh
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk && export PATH=$JAVA_HOME/bin:$PATH
 toolchain/ghidra/ghidra_12.1.3_PUBLIC/support/analyzeHeadless work/ghidra/proj HH \
-  -process -scriptPath /tmp/ghidra_scripts -postScript ExportFuncsX.java
+  -process -scriptPath work/debug/ghidra_scripts -postScript ExportFuncsX.java
 ```
 > OJO: Ghidra requiere `bash` y el JDK (reinstalar si `apk add` los removió). Headless recompila
 > TODOS los scripts del `-scriptPath` → usar un dir aparte solo con los propios.
 
 ### 2.2 Generar syms Ghidra
-Script `/tmp/gen_syms.py`: construye `config/us_ghidra.syms.toml` con:
+Script `work/debug/gen_syms.py`: construye `config/us_ghidra.syms.toml` con:
 - Bloque `[[section]]` `.text` (rom 0x1000, vram 0x80000400, size 0x4E5B40).
 - Funciones de Ghidra (límites), **filtrando al rango** `0x80000400..0x804E5F40` (excluye overlays/datos).
 - **Nombres os correctos** desde n64sym (94 os funcs: osSetTimer, osRecvMesg, osSendMesg,
@@ -49,7 +49,7 @@ Script `/tmp/gen_syms.py`: construye `config/us_ghidra.syms.toml` con:
 Resultado: `us_ghidra.syms.toml` = 867 funciones (vs 351 actuales). Mucho más completo.
 
 ### 2.3 Ajustes aplicados
-- `/tmp/fix_sizes.py`: hace las funciones **contiguas** (size = gap hasta la siguiente función) para
+- `work/debug/fix_sizes.py`: hace las funciones **contiguas** (size = gap hasta la siguiente función) para
   arreglar funciones truncadas (485 corregidas).
 - Fusión manual de `FUN_8001fefc`+`FUN_8001ffac` (Ghidra dividió mal una función; `FUN_8001ffac`
   brancha hacia atrás a `FUN_8001fefc`) → `FUN_8001fefc` size 0x178.
@@ -77,7 +77,7 @@ Resultado: `us_ghidra.syms.toml` = 867 funciones (vs 351 actuales). Mucho más c
   de **largo plazo**, no un cambio rápido.
 - **El repo queda en el estado funcional** (commit `e67490d`/`fbcfb1e`): config → `us_unified.syms.toml`
   + `use_lookup=false`, thread 5 desbloqueado. La syms Ghidra (`config/us_ghidra.syms.toml`) y los
-  scripts (`/tmp/gen_syms.py`, `/tmp/fix_sizes.py`, `/tmp/ghidra_scripts/ExportFuncsX.java`,
+  scripts (`work/debug/gen_syms.py`, `work/debug/fix_sizes.py`, `work/debug/ghidra_scripts/ExportFuncsX.java`,
   `work/ghidra_funcs.txt`) se guardan para el refinamiento futuro.
 
 ## 5. Próximos pasos para el enfoque Ghidra

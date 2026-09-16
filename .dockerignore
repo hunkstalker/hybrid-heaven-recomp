@@ -10,7 +10,6 @@ Dockerfile
 docker-compose.yml
 .devcontainer
 .github
-.opencode
 
 # Pesados e ignorados en git (ROMs, toolchain, builds, capturas)
 work

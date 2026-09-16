@@ -5,7 +5,7 @@
   SIN instrumentacion ruidosa.
 - `work/r64dump`                     harness: ventana opcional, dumps RDRAM, bpx.
 - `work/play.sh`                     lanzamiento con ventana + teclado (input-sdl).
-- Config de input ya mapeada en `/root/.config/mupen64plus/mupen64plus.cfg`.
+- Config de input ya mapeada en `la config de input de mupen64plus`.
 
 ## Como
 1. En un entorno con display: `work/play.sh 180 work/scratch/live`

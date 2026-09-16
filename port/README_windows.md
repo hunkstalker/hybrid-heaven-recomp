@@ -1,7 +1,7 @@
 # Hybrid Heaven Recomp — Build para Windows
 
 Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace
-en el contenedor Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.log`).
+en el entorno Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.log`).
 
 ## Requisitos previos
 
@@ -84,7 +84,7 @@ cmake --build build_win --target HybridHeavenRecomp --config Release
 Doble clic a **`port\run_windows.bat`**: graba tu partida automáticamente en
 `hybrid-heaven-recomp\tests\mi_partida.txt` (no hay que configurar nada; hoy va comentado en
 `run_windows.bat`, descomenta la línea `HH_RECORD` si la quieres). Juega hasta que crashee y
-envía ese `.txt`. El replay en el contenedor es determinista (RMSE=0).
+envía ese `.txt`. El replay en el entorno de desarrollo es determinista (RMSE=0).
 
 ## 3c. Diagnóstico de audio (si suena a tirones)
 
@@ -165,17 +165,17 @@ Valores válidos: `A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT
 ```bat
 REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash.
 REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build_win\bin\Release).
-set HH_RECORD=E:\mi_partida.txt
+set HH_RECORD=mi_partida.txt
 Hybrid Heaven Recomp.exe
 
 REM 2) Reproducirla después (sin mando): el port mete exactamente el input grabado
 set HH_RECORD=
-set HH_REPLAY=E:\mi_partida.txt
+set HH_REPLAY=mi_partida.txt
 Hybrid Heaven Recomp.exe
 ```
 
 El replay es **por índice de poll** (una muestra por frame), así que reproduce la sesión píxel a píxel
-(verificado RMSE=0). Envía el `.txt` grabado y se puede reproducir el fallo en el contenedor Linux.
+(verificado RMSE=0). Envía el `.txt` grabado y se puede reproducir el fallo en el entorno Linux.
 
 ## 4b. Estado anterior (2026-09-10)
 
@@ -189,7 +189,7 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
     D-Pad, stick izquierdo (botón = C-abajo) y eje analógico.
   - Hot-plug soportado (`SDL_CONTROLLERDEVICEADDED/REMOVED`).
   - Rumble no implementado (no-op).
-- Si sale `Failed to find function at 0xXXXX`: apuntar el vram, añadirlo en el contenedor Linux
+- Si sale `Failed to find function at 0xXXXX`: apuntar el vram, añadirlo en el entorno Linux
   (`add_missing_funcs.py` / `config/module_extras.json`), regenerar el set y volver a copiar
   `RecompiledFuncs/` a Windows.
 
