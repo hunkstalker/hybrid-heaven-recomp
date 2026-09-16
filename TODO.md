@@ -118,9 +118,9 @@
   (`Failed to find function at 0x80378C48`) → símbolo contenedor `M55_FUN_80378bb0` partido; el
   hueco hasta `0x80378CD8` era justo `0x90`. Recomp + build OK; usuario sigue avanzando.
   Ver `notes/2026-09-16-crash-menu-midentry-m55-80378c48.md`.
-- [x] **Mid-entry `M55_FUN_8037948C`** (pendiente validar): epílogo compartido de `M55_FUN_80379464`
-  (tres `b` lo buscan vía `LOOKUP_FUNC`); recomp + build OK. Ver `notes/2026-09-16-fix-combate-midentry-m55-8037948c.md`.
-- [ ] **Menú: B físico debe ir atrás** (hoy actúa como aceptar/A).
+- [x] **Mid-entry `M55_FUN_8037948C`** (pendiente validar): epílogo compartido de `M55_FUN_80379464` (tres `b` vía `LOOKUP_FUNC`); recomp + build OK. Ver `notes/2026-09-16-fix-combate-midentry-m55-8037948c.md`.
+- [x] **Menú: B físico = atrás** (pendiente validar): el `[menu]` no se aplicaba en el menú principal; ahora se detecta el front-end por el directorio `0x8008DFC0`. Ver `notes/2026-09-16-fix-menu-b-fisico-atras.md`.
+- [ ] **SEGV en menú multijugador** (aparcado): `exe+0x55DAF` ≈ `FUN_80026f58`, `sp=8005BE78`.
 - [x] **Datos del juego fuera del repo** (2026-09-16): purgados de **todo el historial** los
   assets/capturas (`Referencias screenshots/`, `muestra-menu*.png`, `tests/*.png`), los `assets/`
   del juego y los datos extraídos (manifiestos, mapa de assets, dump de símbolos). El **código del

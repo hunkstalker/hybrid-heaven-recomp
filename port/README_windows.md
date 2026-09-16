@@ -189,7 +189,9 @@ antes de cerrarla para que dé tiempo al volcado.
   identifiquemos el botón del menú de combate se asigna en `config.ini`); **Y = C-Down** (vista en 1ª
   persona, verificado con capturas); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C**
   (digital, umbral 0.5; no emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). En
-  **menús** (pausa/mapa) el B físico pasa a ser **B del N64 (atrás/cancelar)** automáticamente.
+  **menús** (pausa/mapa **y los previos al gameplay**: título/menú principal) el B físico pasa a ser
+  **B del N64 (atrás/cancelar)** automáticamente. La deteccion usa el flag de UI in-game `0x802690D0`
+  y, para el front-end, el directorio de recursos del juego (pocas entradas antes de GAME START).
   Libres: L3 y R3. El port imprime `[PAD]` al arrancar y `[PAD] contexto:` al entrar/salir de menús.
 
 ### config.ini (mapeo configurable)
@@ -203,7 +205,7 @@ back = B          ; Select = mapa
 x = NONE          ; X libre (pendiente botón real del menú de combate)
 y = CDOWN         ; vista en 1ª persona (verificado)
 cstick = on       ; stick derecho -> botones C
-[menu]            ; menús del juego (detección automática por el flag de UI 0x802690D0)
+[menu]            ; menús (pausa/mapa y front-end; detección automática)
 b = B             ; B físico = atrás/cancelar
 ```
 
