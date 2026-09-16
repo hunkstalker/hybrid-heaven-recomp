@@ -98,15 +98,15 @@ Si el juego cae a 30 fps (habitación con mucha carga), el driver produce 720 fr
 juego: a 30 fps solo son 21.6k frames/s y el dispositivo (43.2k) se queda sin datos. Ese es el motivo
 de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el audio no se corta.
 
-## 3c-2. Bats de prueba de regresion (cuelgue del NPC)
+## 3c-2. Bats de diagnóstico (los que quedan)
 
-- **`run_test_input.bat`** — mapeo de mando antiguo (`config_test_oldmap.ini`), sin perfiles.
-- **`run_test_audio.bat`** — audio anterior: `HH_AI_QUEUE_REPORT=full` + `HH_AI_RATE=48000`.
-- **`run_test_both.bat`** — ambos a la vez (si este no cuelga, separa con los otros dos).
-- **`run_test_debug.bat`** — ejecuta el build Debug (requiere `build_windows.bat --debug`).
+- **`run_windows.bat`** — ejecución normal. Admite `noaudio` y/o `audlog` como argumentos.
+- **`run_mqlog.bat`** — traza de colas/eventos + `HH_S0FIX` + grabación de replay (`hh_mq_all.log`...).
+- **`run_watch.bat`** — watchpoint (`HH_WATCH_ADDR`) + volcados `hh_ring`/`hh_ring2` + replay.
 
-Interpretacion: si el cuelgue desaparece con uno de ellos, ese cambio (input o audio) es el
-culpable; si desaparece solo con Debug, es timing/optimizacion.
+> Política: los bats **puntuales** (una regresión concreta) se eliminan tras usarse; solo se quedan
+> los que sirven de forma recurrente (build, run, diagnóstico). Los que probaban configs antiguas
+> (mapeo viejo, 48 kHz) se retiraron al resolverse el cuelgue del NPC.
 
 ## 3d. Si el port crashea (para depurar)
 
