@@ -94,9 +94,9 @@ de los forks.
 
 ## Bloque 7 — Verificación
 
-- `git grep` sin `/app/`, `/tmp/`, unidades Windows, identidades locales ni el nombre del tooling
-  local en ficheros publicados: **limpio** (solo quedan `chunk`/`thunk` legítimos y las URLs de los
-  forks).
+- `git grep` sin rutas absolutas del entorno ni temporales del sistema, unidades Windows, identidades
+  locales ni el nombre del tooling local en ficheros publicados: **limpio** (solo quedan
+  `chunk`/`thunk` legítimos y las URLs de los forks).
 - `python3 tools/analysis/docs_index.py --check`: **OK** (76 documentos).
 - Compilación Linux (incremental, `build_dbg`): **OK** tras los cambios de código y del runtime.
 - Icono: `.ico` versionado (idéntico byte a byte al de publicación); el recurso se embebe al compilar
