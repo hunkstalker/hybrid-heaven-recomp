@@ -120,7 +120,7 @@
   Ver `notes/2026-09-16-crash-menu-midentry-m55-80378c48.md`.
 - [x] **Mid-entry `M55_FUN_8037948C`** (pendiente validar): epílogo compartido de `M55_FUN_80379464` (tres `b` vía `LOOKUP_FUNC`); recomp + build OK. Ver `notes/2026-09-16-fix-combate-midentry-m55-8037948c.md`.
 - [x] **Menú: B físico = atrás** (pendiente validar): el `[menu]` no se aplicaba en el menú principal; ahora se detecta el front-end por el directorio `0x8008DFC0`. Ver `notes/2026-09-16-fix-menu-b-fisico-atras.md`.
-- [ ] **Crash CaC `FF7F84CD`** (mitigado, pendiente validar): centinela con bit23 perdido; `get_function` hace no-op para targets fuera del rango de código. SEGV del menú multijugador (mismo hilo 5, `sp=8005BE78`) aparcado. Ver `notes/2026-09-16-crash-combate-centinela-ff7f84cd.md`.
+- [ ] **CaC: corrupción de estado (mitigado, BLOQUEANTE)** (2026-09-16): tras el mid-entry `M55_FUN_8037948C`, al entrar en combate el objeto `0x8024A990` acaba con el callback `+0x1C=0xFFFF84CD` (el emulador tiene `80135320`) y se corrompen nodos de cola (`[BADMQ] mq=00040000/C0000830` → divide-by-zero en `do_send`). Mitigado el crash (`get_function` no-op fuera de rango) pero el combate se cuelga. Ver `notes/2026-09-16-crash-combate-centinela-ff7f84cd.md` y `notes/2026-09-16-combate-corrupcion-estado-8024a990.md`.
 - [x] **Datos del juego fuera del repo** (2026-09-16): purgados de **todo el historial** los
   assets/capturas (`Referencias screenshots/`, `muestra-menu*.png`, `tests/*.png`), los `assets/`
   del juego y los datos extraídos (manifiestos, mapa de assets, dump de símbolos). El **código del
