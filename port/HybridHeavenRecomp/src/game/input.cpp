@@ -154,7 +154,8 @@ static void hh_pad_write_template(FILE* f) {
         "# Valores: A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE\n"
         "# Contextos: [game] = exploracion/combate, [menu] = menus del juego (pausa/mapa).\n"
         "# Y = CDOWN es la vista en primera persona (verificado); C-Up no hace nada.\n"
-        "# El port detecta el menu automaticamente (flag de UI 0x802690D0).\n"
+        "# El port detecta el menu automaticamente: flag de UI 0x802690D0 (pausa/mapa) o\n"
+        "# front-end (titulo/menu principal) antes de GAME START.\n"
         "[game]\n"
         "a = A\n"
         "b = Z\n"
@@ -246,8 +247,51 @@ static void hh_pad_config_load() {
             hh_pad_menu.cstick ? "on" : "off");
 }
 
+// HH: el flag de UI in-game (0x802690D0) se activa con pausa/mapa, pero NO en los menus previos al
+// gameplay (titulo / menu principal). Para que el B fisico (=B del N64, atras) funcione tambien
+// ahi, se detecta el front-end con el directorio de recursos del juego (guest 0x8008DFC0: 0x100
+// entradas de 8 B, id16 + base32): en el front-end tiene pocas entradas; al entrar en gameplay
+// (GAME START) sube a ~30. Una vez visto gameplay, se queda fijado (no vuelve al perfil de menú).
+static constexpr uint32_t HH_OVERLAY_DIR_ADDR = 0x8DFC0;
+static constexpr uint32_t HH_OVERLAY_DIR_ENTRIES = 0x100;
+static constexpr unsigned HH_FRONTEND_DIR_MAX = 16;
+
+static bool hh_frontend_menu() {
+    static bool gameplay_seen = false;
+    if (gameplay_seen || hh_game_rdram == nullptr) {
+        return !gameplay_seen;
+    }
+    unsigned count = 0;
+    for (uint32_t e = 0; e < HH_OVERLAY_DIR_ENTRIES && count < HH_FRONTEND_DIR_MAX; ++e) {
+        uint32_t off = (HH_OVERLAY_DIR_ADDR + e * 8) ^ 2;  // id16 leido con el word-swap del buffer
+        uint16_t id = *(uint16_t*)&hh_game_rdram[off & 0x1FFFFFFF];
+        if (id != 0) {
+            ++count;
+        }
+    }
+    if (count >= HH_FRONTEND_DIR_MAX) {
+        gameplay_seen = true;
+    }
+    return !gameplay_seen;
+}
+
+static bool hh_ui_menu_open() {
+    return (hh_game_rdram != nullptr) && (*(uint32_t*)&hh_game_rdram[HH_MENU_FLAG_ADDR] != 0);
+}
+
 static const PadProfile& hh_active_profile() {
-    bool menu = (hh_game_rdram != nullptr) && (*(uint32_t*)&hh_game_rdram[HH_MENU_FLAG_ADDR] != 0);
+    // Override manual para pruebas/diagnostico: HH_PAD_CONTEXT=menu | juego.
+    const char* ov = getenv("HH_PAD_CONTEXT");
+    bool menu;
+    if (ov != nullptr && (*ov == 'm' || *ov == 'M')) {
+        menu = true;
+    }
+    else if (ov != nullptr && (*ov == 'g' || *ov == 'G' || *ov == 'j' || *ov == 'J')) {
+        menu = false;
+    }
+    else {
+        menu = hh_ui_menu_open() || hh_frontend_menu();
+    }
     static bool last_menu = false;
     static bool logged = false;
     if (!logged || menu != last_menu) {
