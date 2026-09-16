@@ -3,6 +3,8 @@ REM =====================================================================
 REM  Hybrid Heaven Recomp - Build para Windows
 REM  Si lib\rt64 y lib\N64ModernRuntime ya existen, NO hace git (evita
 REM  cuelgues sobre unidades montadas) y compila directamente.
+REM  Runtime: clon del FORK propio (rama hybrid-heaven) en el commit fijado en
+REM  port\runtime.lock. rt64: upstream en su commit fijo. Creditos: CREDITS.md.
 REM  Uso:
 REM    build_windows.bat                 -> Release (recomendado: 3-5x mas rapido)
 REM    build_windows.bat --debug         -> Debug (solo para diagnosticar crashes)
@@ -28,10 +30,23 @@ if "%ROOT%"=="NONE" (
 set "PORT=%ROOT%\port\HybridHeavenRecomp"
 set "RT64=%PORT%\lib\rt64"
 set "NMR=%PORT%\lib\N64ModernRuntime"
-set "PATCH=%ROOT%\port\windows_runtime_changes.patch"
-
 set "RT64_COMMIT=43373749dac9bbc1b653e6a02aed40a9e1783bed"
-set "NMR_BASE=fd6b0d0eedc922700f67bab8b770d3986187f3e9"
+
+REM --- URL/SHA del runtime desde port\runtime.lock ---
+set "NMR_URL="
+set "NMR_COMMIT="
+if exist "%ROOT%\port\runtime.lock" for /f "usebackq tokens=1,* delims==" %%a in ("%ROOT%\port\runtime.lock") do (
+    if /i "%%a"=="NMR_URL" set "NMR_URL=%%b"
+    if /i "%%a"=="NMR_COMMIT" set "NMR_COMMIT=%%b"
+)
+if not defined NMR_URL (
+    echo ERROR: falta NMR_URL en %ROOT%\port\runtime.lock
+    goto :err
+)
+if not defined NMR_COMMIT (
+    echo ERROR: falta NMR_COMMIT en %ROOT%\port\runtime.lock
+    goto :err
+)
 
 echo.
 echo === Hybrid Heaven Recomp - build Windows ===
@@ -64,12 +79,18 @@ if errorlevel 1 echo AVISO: no se pudo hacer checkout de %RT64_COMMIT% en rt64
 popd
 
 :step2
-REM ============ 2) lib/N64ModernRuntime ============
+REM ============ 2) lib/N64ModernRuntime (fork propio, commit fijado) ============
 if exist "%NMR%\CMakeLists.txt" goto :nmr_present
-echo [2/4] Clonando lib/N64ModernRuntime (recursivo) ...
-git clone --recursive https://github.com/N64Recomp/N64ModernRuntime.git "%NMR%"
+echo [2/4] Clonando lib/N64ModernRuntime (fork) ...
+git clone "%NMR_URL%" "%NMR%"
 if errorlevel 1 goto :err
-goto :patch
+pushd "%NMR%"
+git -c safe.directory=* checkout %NMR_COMMIT%
+if errorlevel 1 echo AVISO: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime
+git -c safe.directory=* submodule sync --recursive
+git -c safe.directory=* submodule update --init --recursive
+popd
+goto :cmake
 
 :nmr_present
 echo [2/4] lib/N64ModernRuntime ya existe. Comprobando repo git ...
@@ -79,51 +100,16 @@ if not exist "%NMR%\.git" (
     goto :err
 )
 pushd "%NMR%"
-git -c safe.directory=* checkout %NMR_BASE% >nul 2>&1
+git -c safe.directory=* checkout %NMR_COMMIT%
+if errorlevel 1 echo AVISO: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime
+git -c safe.directory=* submodule sync --recursive
 git -c safe.directory=* submodule update --init --recursive
 popd
-goto :patch
+goto :cmake
 
 :libs_ok
 echo [1-2/4] lib\rt64 y lib\N64ModernRuntime ya existen: se OMITE git.
 echo          Usa --force-libs si quieres clonar/actualizar.
-
-:patch
-REM ============ Patch de runtime (solo si no esta aplicado) ============
-echo.
-echo [2b/4] Comprobando patch de runtime ...
-if not exist "%PATCH%" (
-    echo ERROR: no encuentro el patch: %PATCH%
-    goto :err
-)
-pushd "%NMR%"
-git -c safe.directory=* apply --check "%PATCH%" >nul 2>&1
-if errorlevel 1 goto :patch_maybe_applied
-git -c safe.directory=* apply "%PATCH%"
-if errorlevel 1 goto :patch_failed
-echo        Patch aplicado.
-popd
-goto :cmake
-
-:patch_maybe_applied
-git -c safe.directory=* apply --reverse --check "%PATCH%" >nul 2>&1
-if errorlevel 1 goto :patch_unknown
-echo        Patch YA aplicado (se omite).
-popd
-goto :cmake
-
-:patch_unknown
-echo ERROR: el patch de runtime no aplica ni revierte. El arbol del runtime no coincide con
-echo        base+patch (fd6b0d0 + windows_runtime_changes.patch). Revisa git status en:
-echo        %NMR%
-echo        (regenerar el patch: git -C %NMR% diff fd6b0d0 --ignore-submodules=all ^> port\windows_runtime_changes.patch)
-popd
-goto :err
-
-:patch_failed
-echo ERROR aplicando el patch.
-popd
-goto :err
 
 :cmake
 REM ============ 3) CMake configure ============
@@ -156,11 +142,11 @@ echo === LISTO ===
 echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
 echo Copia baserom.us.z64 junto al .exe y ejecutalo.
 echo.
-pause
+if not defined CI pause
 goto :eof
 
 :err
 echo.
 echo *** Se detuvo con errores. Revisa los mensajes de arriba. ***
-pause
+if not defined CI pause
 exit /b 1

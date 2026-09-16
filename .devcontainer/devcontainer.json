@@ -1,0 +1,20 @@
+// Entorno de desarrollo listo para usar (VS Code / Dev Containers / Codespaces).
+// Usa el stage "deps" del Dockerfile (solo dependencias de compilacion; sin coste).
+// Compila con: tools/build_linux.sh
+{
+  "name": "Hybrid Heaven Recomp (Linux)",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "deps"
+  },
+  "postCreateCommand": "git config --global --add safe.directory '*' || true",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ]
+    }
+  }
+}

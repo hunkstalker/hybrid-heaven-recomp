@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Docs (indice y enlaces)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar docs/INDEX.md (enlaces y presupuestos)
+        run: python3 tools/analysis/docs_index.py --check
+
+  linux:
+    name: Build Linux (Docker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Compilar el port (stage "build")
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: build
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  windows:
+    name: Build Windows (MSVC)
+    runs-on: windows-latest
+    # El build de Windows es pesado: solo en push a main (no en PRs).
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar (clona deps por runtime.lock + MSVC)
+        env:
+          CI: '1'
+        run: cmd /c port\build_windows.bat
+      - name: Empaquetar (exe + DLLs + LEEME)
+        shell: pwsh
+        run: |
+          $dir = "port/HybridHeavenRecomp/build_win/bin/Release"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "$dir/Hybrid Heaven Recomp.exe" dist/
+          Copy-Item "$dir/*.dll" dist/
+          Copy-Item "port/README_windows.md" dist/LEEME.txt
+          Copy-Item "CREDITS.md" dist/CREDITOS.md
+          Compress-Archive -Path "dist/*" -DestinationPath "dist/HybridHeavenRecomp-Windows.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HybridHeavenRecomp-Windows
+          path: dist/HybridHeavenRecomp-Windows.zip
+          if-no-files-found: error

@@ -1,0 +1,35 @@
+# Hybrid Heaven Recomp — contenedores de build y ejecucion (Linux).
+#
+# La ROM NO se distribuye: coloca tu `baserom.us.z64` en la raiz del repo.
+#
+#   docker compose build run                       # construye la imagen
+#   docker compose run --rm build                  # (opcional) compila y deja el binario en la imagen
+#   docker compose run --rm run                    # ejecuta (GUI; en Linux: ver README para X11/GPU)
+#   HH_HEADLESS=1 docker compose run --rm run      # smoke headless (Xvfb + lavapipe)
+#
+# Para GPU/X11 en un host Linux, anadir al servicio `run`:
+#   devices: ["/dev/dri"]
+#   environment: [DISPLAY, ...]
+#   volumes: ["/tmp/.X11-unix:/tmp/.X11-unix:rw"]
+
+services:
+  build:
+    build:
+      context: .
+      target: build
+    image: hybrid-heaven-recomp-builder
+
+  run:
+    build:
+      context: .
+      target: runtime
+    image: hybrid-heaven-recomp
+    environment:
+      - HH_HEADLESS=${HH_HEADLESS:-0}
+      - SDL_AUDIODRIVER=${SDL_AUDIODRIVER:-}
+    volumes:
+      - type: bind
+        source: ./baserom.us.z64
+        target: /work/baserom.us.z64
+        read_only: true
+      - ./saves:/work/saves
