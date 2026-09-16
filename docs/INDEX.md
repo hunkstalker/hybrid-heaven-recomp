@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 87 | 2026-09-16 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 127 | 2026-09-16 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 149 | 2026-09-16 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 152 | 2026-09-16 |
 
 ## Técnico y guías (vivos)
 
@@ -38,7 +38,7 @@
 |---|---|---|---|
 | [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
 | [2026-09-16 — Limpieza del repo: purga de `.vs/` e inventario de candidatos](../notes/2026-09-16-limpieza-repo-inventario.md) | Contexto: el usuario crea el repo en GitHub (`hunkstalker/hybrid-heaven-recomp`) y pide limpiar | 67 | 2026-09-16 |
-| [2026-09-16 — Guardado en cápsula (Controller Pak) sin UI de slots + crash de CaC `0x8021D8D0`](../notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md) | ``` | 85 | 2026-09-16 |
+| [2026-09-16 — Guardado en cápsula (Controller Pak) sin UI de slots + crash de CaC `0x8021D8D0`](../notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md) | ``` | 97 | 2026-09-16 |
 | [2026-09-16 — Fix del estado de caída: fallthrough M55 `0x8037A6F4` → `0x8037A884` (fuga `0x38`/frame)](../notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md) | Continúa `2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md` (ronda 14). Ahí quedó: láser | 94 | 2026-09-16 |
 | [2026-09-16 — Crash en menú: mid-entry `M55_FUN_80378c48` (módulo 55)](../notes/2026-09-16-crash-menu-midentry-m55-80378c48.md) | En una partida avanzada, al entrar en un **menú**: | 54 | 2026-09-16 |
 | [2026-09-16 — Crash al cruzar una puerta (cinemática): mid-entry `M9_FUN_80203830` (módulo 9)](../notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md) | Al cruzar una **puerta que lanza una cinemática** (transición juego → menú): | 76 | 2026-09-16 |

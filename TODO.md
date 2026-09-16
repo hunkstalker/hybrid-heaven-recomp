@@ -29,12 +29,15 @@
    `recomp.py`; aborta si se pierde un override). Ver
    `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
 2. [•] **Guardado en cápsula (Controller Pak)**: el juego detecta el pak y pregunta si guardar, pero
-   al aceptar **se salta la UI de slots**, no se crea `saves/` y sale un aviso de accesorio.
-   Instrumentado `HH_PAKLOG=1` en el fork (commit `333cdbd`, pin `runtime.lock` actualizado; hay que
-   **publicar el fork**: `git push fork hybrid-heaven`) para trazar todas las llamadas PFS + retornos.
-   Con ese log: corregir la semántica que falle (reserva/tamaño `PAK_SIZE`/`PAK_RESERVED`, `NumFiles`,
-   `FindFile` o `PFS_ERR_NEW_PACK` + formato). Proceso del juego y análisis:
-   `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
+   al aceptar **se salta la UI de slots** y no escribe. **Volcado listo** (runtime `2dba299`, pin
+   actualizado): *activo por defecto* → `hh_pak.log` **junto al exe** con todas las llamadas PFS
+   (args, retorno, estado y los `OSPfs` del juego) + `pak_load/pak_save` + `osMotorInit` +
+   `get_connected_device_info`; y **autotest de la API PFS** (en Linux: `OK (0 fallos)`). No hace
+   falta publicar el fork para compilar: la carpeta es la compartida y el commit está en su `.git`.
+   Ojo: el `.pak` va al directorio de config del runtime (lo imprime el log), no junto al exe.
+   Siguiente: leer el final de `hh_pak.log` y corregir la semántica que falle
+   (`PAK_SIZE`/`PAK_RESERVED`, `NumFiles`, `FindFile` o `PFS_ERR_NEW_PACK` + formato).
+   Proceso del juego y análisis: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
 3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).
