@@ -118,10 +118,9 @@
   completo con cuidado (ver nota del 2026-09-15 §4).
 - [ ] **Textos/traducción**: encoding + extracción + re-inserción (requisito de producto).
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco (+ Rumble).
-- [ ] **Builds/empaquetado**: **validar** los workflows en GitHub tras el primer push (build Linux
-  por Docker, build Windows en CI, release con tag `v*` y subida a ghcr.io), y empaquetado para
-  **Steam Deck** (AppImage/paquete nativo). Hecho ya: receta Linux + Docker + CI + Releases
-  (`docs/adr/0005-build-reproducible-y-artefactos.md`).
+- [ ] **Builds/empaquetado**: **validar** el flujo "build once, promote" en GitHub (CI compila y
+  sube artefactos; el Release los descarga y publica + imagen ghcr) y empaquetado para **Steam Deck**
+  (AppImage/paquete nativo). Hecho: receta Linux + Docker + CI + Releases (`docs/adr/0005`).
 - [ ] **Tarea #3** (mapa overlay→RAM por BizHawk): complementa la medición empírica de bases.
 - [ ] Limpiar data-as-code (189 sospechosas) → habilita re-evaluar
   `use_lookup_for_all_function_calls=false`.

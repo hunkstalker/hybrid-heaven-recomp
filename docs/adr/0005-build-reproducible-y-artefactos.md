@@ -55,8 +55,10 @@ en runtime.
 - Repositorio **sin datos del juego** (ROM/assets/textos extraídos) y **con el código del port**: el
   `.exe` se compila sin ROM; para **jugar** basta con descargar el binario de *Releases* y aportar la
   ROM. Nadie está obligado a compilar.
-- **CI compila** Linux (Docker) y Windows, y un tag `v*` publica `.zip`/`.tar.gz` (+ imagen en
-  `ghcr.io`), sin ROM.
+- **Un solo flujo de compilación** ("build once, promote"): `ci.yml` compila (Linux por Docker y
+  Windows) y sube **artefactos**; `release.yml` los descarga y publica (exige un run de CI **verde**
+  de ese commit) más la imagen `ghcr.io` montada desde el propio binario. No se compila dos veces
+  (ahorra minutos, que en repo privado cuentan).
 - Crédito y lineage conservados: los forks muestran “forked from …”, incluyen su `COPYING`
   (NMR, GPL-3.0) y se documentan en `CREDITS.md`.
 - Mantenimiento: los cambios del runtime se hacen en el árbol local y se **pushean al fork**, y luego
@@ -83,6 +85,7 @@ en runtime.
   por `port/runtime.lock`.
 - El `.exe`/binario arranca pidiendo la ROM (`rom/baserom.us.z64` o junto al ejecutable/CWD).
 - `git log --name-only` no muestra datos del juego (assets/capturas/manifiestos/dumps).
-- CI compila Linux (Docker) y Windows; un tag `v*` publica `.zip`/`.tar.gz` e imagen `ghcr.io`.
+- CI compila Linux (Docker) y Windows y sube artefactos; un tag `v*` (o el lanzamiento manual)
+  publica `.zip`/`.tar.gz` e imagen `ghcr.io` reutilizando esos artefactos (sin recompilar).
 - **Pendiente**: para que terceros regeneren el C (si tocan símbolos), publicar la rama
   `hybrid-heaven-tool` del toolchain; y, opcional, selector de ROM tipo menú (hoy `rom/`).
