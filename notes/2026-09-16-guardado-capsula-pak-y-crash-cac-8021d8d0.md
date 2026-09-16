@@ -54,7 +54,7 @@ No hay "SAVE" en el menú de pausa. El guardado es **en el mundo**, mediante **c
 
 ## 3. Instrumentación añadida (Fase 1, aprobada)
 
-Runtime (**fork**, commit local `dc22060`): volcado a **fichero** (compartido por `pak.cpp` e
+Runtime (**fork**, commits locales `dc22060`+`4e1ee0a`): volcado a **fichero** (compartido por `pak.cpp` e
 `input.cpp`), **activo por defecto** durante esta fase:
 
 - `hh_pak.log` en el **directorio del exe** (que es donde `run_windows.bat` pone el CWD). `HH_PAKLOG=0`
@@ -74,7 +74,7 @@ runtime. En Linux el log lo imprime: `/home/<user>/.local/share/HybridHeavenReco
 (en Windows, el equivalente bajo `%APPDATA%`). Conviene confirmarlo en el log del usuario antes de
 concluir "no hay `saves/`" mirando junto al exe.
 
-- `port/runtime.lock`: `NMR_COMMIT` → `dc220601e11ccfc6f4d95665296587d66fb9cd80`.
+- `port/runtime.lock`: `NMR_COMMIT` → `4e1ee0a892aee41d778e4f578e7e5f9457e5a5a2`.
 - `port/build_windows.bat` / `tools/build_linux.sh`: si no se puede hacer checkout del commit fijado
   **abortan** con mensaje claro en vez de compilar un runtime distinto. Como la carpeta de trabajo es
   la compartida, el checkout del commit local funciona **sin publicar el fork**.
@@ -117,10 +117,56 @@ el juego espera el camino **"pak nuevo → formatear → crear ficheros"** (`PFS
 como nuestro pak se declara "formateado y vacío", se salta ese camino. El volcado del flujo de la
 **cápsula** (el que importa) se capturará en la siguiente partida.
 
-## 5. Siguiente paso
+## 5. Secuencia real del guardado (capturas) y volcado de la cápsula
 
-- Leer **el final** de `hh_pak.log` (y ver si aparece el `.pak` en la ruta que indique el log) para
-  identificar la primera llamada que falla o el punto donde el juego deja de llamar a PFS tras
-  aceptar el guardado; entonces arreglar la semántica correspondiente (tamaño/reserva `PAK_SIZE`/
-  `PAK_RESERVED`, `NumFiles`, `FindFile`, o `PFS_ERR_NEW_PACK` + ruta de formato). Capturas de la
-  secuencia de mensajes: pendientes de recibir.
+Capturas (`Referencias screenshots/Captura de pantalla 2026-09-16 1552xx.png`):
+
+1. `DATA SAVE / CONTROLLER PAK`, **panel de slots vacío**, `Save play data? Yes/No`.
+2. `Please connect Controller Pak to Controller 1 now. Do not remove Controller Pak.`
+3. `Select location in which to save play data.` (panel vacío: no hay filas seleccionables).
+4. `Saving current play data here. Yes/No`.
+5. `Could not save. Canceling saving data.`
+6. `Please connect a Rumble Pak now if you wish to use it. Please push A Button to continue.`
+7. De vuelta en el mundo (sale de la cápsula).
+
+Volcado final de `hh_pak.log` en la cápsula (lo esencial):
+
+```
+osPfsInitPak ch=0 -> 0
+osPfsFindFile co=4134 game=4E485645 ("NHVE") -> 10   (NO_FILE)
+osPfsReadWriteFile file_no=237 WRITE off=256 size=3328 -> 5   (INVALID: file_no basura)
+osMotorInit ch=0 -> 1 (NOPACK)
+```
+
+**Nunca aparece `osPfsAllocateFile`**: el juego da por hecho que su fichero existe y escribe con un
+`file_no` no inicializado porque `osPfsFindFile` falló.
+
+## 6. Causa raíz y fix: el pak virgen debe ser "nuevo" (`PFS_ERR_NEW_PACK`)
+
+El dispatcher del juego **`FUN_800183D0`** (comando en los bits altos de `a0`, tabla `0x8005CD60`)
+tiene la **operación 2 = crear los ficheros de guardado**: `M7_FUN_801414B0(1)` → `FUN_80002EF0` →
+`osPfsAllocateFile` con **`size = 0x3500`** (13568 B = **53 páginas** = el fichero que contiene los
+4 slots; encaja con la nota antigua "53 páginas, 4 slots"). Esa operación se elige según el estado
+que devuelve `FUN_80002BE0`, que a su vez mapea el retorno de `osPfsInitPak`: **0 = mempak OK,
+2 = `PFS_ERR_NEW_PACK`**.
+
+Como nuestro pak se declaraba "ya formateado" (`0`), el juego asumía que el fichero existía y se
+saltaba la creación (y así salía todo lo de arriba).
+
+**Fix** (runtime `4e1ee0a`):
+- `PakState.formatted`: `false` mientras el `.pak` no exista con nuestro magic ni se haya escrito;
+  pasa a `true` en `pak_save()` y al cargar un `.pak` válido.
+- `osPfsInitPak` devuelve **`PFS_ERR_NEW_PACK (2)`** si el pak es virgen (`HH_PAK_NEWPACK=0` lo
+  desactiva para volver al comportamiento anterior).
+- `pak_init_fields` rellena campos como libultra (`status = PFS_INITIALIZED`, `version = 2`,
+  `dir_size = 16`, `inode_start_page = 2`).
+- Autotest: acepta `NEW_PACK` en el primer init y comprueba que tras escribir el segundo init da 0 →
+  **`[selftest] fin: OK (0 fallos)`** (Linux). En el arranque de Linux ya se ve
+  `osPfsInitPak ch=0 -> 2` (`formatted=0`).
+
+## 7. Siguiente paso
+
+- **Windows**: recompilar y **empezar partida (GAME START)** (o ir a una cápsula) y mirar el final de
+  `hh_pak.log`: debe aparecer `osPfsAllocateFile ... size=13568` (la creación) y luego el guardado en
+  la cápsula debe completar. Si el arranque/menús se comportara raro por el estado "pak nuevo",
+  `set HH_PAK_NEWPACK=0` revierte sin recompilar.

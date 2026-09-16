@@ -5,7 +5,7 @@
 # publicado (el volcado `hh_pak.log`). Funciona porque se compila en la carpeta compartida (el commit
 # esta en el .git local del runtime); al validar el fix se publica el fork y el pin queda reproducible.
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=dc220601e11ccfc6f4d95665296587d66fb9cd80
+NMR_COMMIT=4e1ee0a892aee41d778e4f578e7e5f9457e5a5a2
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=63069b9176310ba78b4fe76476d86f0b0d584ae6
