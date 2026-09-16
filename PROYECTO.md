@@ -49,10 +49,10 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 **Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
 cuerpo a cuerpo y cinemáticas) con mando Xbox (perfiles `config.ini`) y audio a 43200 Hz. El
-**guardado está acotado y corregido en el fork del runtime, pendiente de validar en Windows**: en la
-cápsula el juego detectaba el Controller Pak y preguntaba, pero se saltaba la UI de slots; la causa
-raíz era `osPfsFindFile` devolviendo 10 en vez de **5** con `*file_no=-1`, ya corregida (nota
-`notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`). Arreglados y
+**guardado en cápsula está VALIDADO en Windows**: la causa raíz era `osPfsFindFile` devolviendo 10 en
+vez de **5** con `*file_no=-1`, ya corregida; el juego muestra la UI de slots y escribe el `.pak`
+(notas `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
+`notes/2026-09-16-guardado-capsula-validado.md`). Arreglados y
 **validados en Windows**: la **entrega del objeto del NPC** (fallthrough en módulo 55 — fuga `0x48`/
 frame + animación saltada — y mid-entries `0x80379954`/`0x803798E8`; el módulo 55 es el overlay de
 la secuencia de objeto, ver `docs/architecture.md` §2.2), la **regresión de las escaleras** (partir
@@ -79,7 +79,7 @@ Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`,
 | 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
-| 5. Guardado | en curso | PFS emulado (`pak.cpp`); en la cápsula el juego detecta el pak y pregunta, pero se salta la UI de slots y no escribe → `HH_PAKLOG` (nota 2026-09-16) |
+| 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 

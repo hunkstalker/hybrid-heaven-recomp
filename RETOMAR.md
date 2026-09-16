@@ -34,13 +34,12 @@
 - **Primer combate cuerpo a cuerpo (CaC): ARREGLADO (2026-09-16; pendiente de validar en Windows)**:
   `M10_FUN_8021d8d0` era frontera real de función (su contenedor arrancaba con tres `nop`s) y cae en
   `M10_FUN_8021d8d8`. Igual que la cinemática de puerta (`M9_FUN_80203830`).
-- **Guardado en cápsula: PENDIENTE y ya acotado**: el juego **detecta** el Controller Pak y pregunta
-  si guardar, pero al aceptar **se salta la UI de slots**, **no crea `saves/`** y sale un aviso de
-  accesorio. Como `saves/` solo se crea al escribir, ninguna operación de escritura/alocación llegó a
-  ejecutarse. **Volcado activo por defecto** (`hh_pak.log` junto al exe: llamadas PFS con args,
-  retorno, estado y los `OSPfs` del juego) + **autotest de la API PFS** (en Linux: `OK (0 fallos)`).
-  El `.pak` se guarda en `saves/` **junto al ejecutable** (portada portable; lo imprime el log).
-  Detalle: `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
+- **Guardado en cápsula: VALIDADO en Windows (2026-09-16)**: causa raíz `osPfsFindFile`→10 (debe ser
+  **5** con `*file_no=-1`); el juego muestra la **UI de slots** y escribe el `.pak` en `saves\` junto al
+  `.exe`. Instrumentación activa por defecto (`hh_pak.log`: PFS con args/retorno/estado) + autotest de
+  la API PFS (en Linux: `OK (0 fallos)`). Detalle:
+  `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
+  `notes/2026-09-16-guardado-capsula-validado.md`.
 - Quedan **huecos conocidos** de `LOOKUP` sin registrar (5 delay slots en el módulo 55 + otros
   módulos y plana; lista en la nota). Si crashea con `Failed to find function at 0x...`, la vía
   rápida es `python3 tools/analysis/add_mid_entry.py 0xADDR` seguido de
@@ -60,17 +59,13 @@
 > `cab94d9`, main `0d283d5`). Build **Linux y Windows OK**, **CI en verde**. Detalle:
 > `notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` y **ADR 0006**.
 
-1. **[pendiente, usuario]** Validar en Windows el guardado en cápsula: `port\build_windows.local.bat`
-   (o `build_windows.bat`) + `port\run_windows.bat` → GAME START → cápsula; al aceptar debe salir la
-   **UI de slots** y escribirse `saves\hh.us.bin.pak` junto al `.exe`, con `osPfsAllocateFile ...
-   size=13568` en `hh_pak.log`. Es lo único que falta para cerrar el guardado.
-2. **[opcional, usuario]** Smoke de arranque con la ROM en `rom\` junto al `.exe` (y en Docker:
+1. **[opcional, usuario]** Smoke de arranque con la ROM en `rom\` junto al `.exe` (y en Docker:
    `HH_HEADLESS=1` con `rom/` montado en `/work/rom`): comprobar que encuentra la ROM y que no hay
    `Failed to find function`.
-3. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
+2. Si crashea con `Failed to find function at 0x...`: pasar la dirección (misma vía:
    `add_mid_entry.py` + `recomp --force`, con el guardián `check_syms_overrides.py`).
-4. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
-5. Pendientes varios: teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de
+3. Seguir la partida (cajas de ítem, menús de combate) con el ciclo del robot ya re-verificado.
+4. Pendientes varios: teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de
    combate para **X** (ver `TODO.md`).
 
 

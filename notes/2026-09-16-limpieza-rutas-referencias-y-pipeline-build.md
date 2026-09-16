@@ -148,5 +148,5 @@ Cadena de SHAs (antes → después), con copias de seguridad en ramas `backup/pr
 
 Plan ejecutado por bloques 1→7, con un commit por bloque en `main` y un commit en el fork del runtime
 (`ultramodern/src/events.cpp`); decisión estructural en **ADR 0006**. **8.B publicado** y build
-Linux/Windows + CI verificados. Pendiente de gameplay: validar el guardado en cápsula en Windows
-(UI de slots + `saves\hh.us.bin.pak` + `osPfsAllocateFile ... size=13568`).
+Linux/Windows + CI verificados. Además, **el guardado en cápsula quedó validado en Windows**
+(2026-09-16): `notes/2026-09-16-guardado-capsula-validado.md`.
