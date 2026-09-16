@@ -56,7 +56,7 @@
 ## TU TAREA AHORA (pasos exactos)
 
 1. Recompilar: `port\build_windows.bat` (Release; sin `--force-libs`). No hay que publicar nada: se
-   compila en la carpeta compartida y el pin de `runtime.lock` (`2dba299`, el volcado del pak) existe
+   compila en la carpeta compartida y el pin de `runtime.lock` (`dc22060`, el volcado del pak) existe
    en el `.git` local. Si el checkout fallara, el script **aborta** en vez de compilar otro runtime.
    El árbol trae: objeto del NPC, láser, caída, menú (`M55_FUN_80378c48`), puerta/cinemática
    (`M9_FUN_80203830`) y **primer CaC** (`M10_FUN_8021d8d0`).
