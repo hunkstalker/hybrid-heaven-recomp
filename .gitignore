@@ -20,6 +20,10 @@ port/HybridHeavenRecomp/assets/HybridHeaven.png
 port/HybridHeavenRecomp/assets/icon_bmp.inc
 Referencias screenshots/
 
+# Capturas/replays de test (imagenes del juego)
+muestra-menu-hybrid-heaven.png
+tests/
+
 # Datos extraidos de la ROM (tablas, textos, simbolos)
 notes/us_manifest.yaml
 notes/eu_manifest.yaml
