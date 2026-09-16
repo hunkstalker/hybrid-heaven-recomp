@@ -5355,6 +5355,7 @@ void M55_FUN_80378b48(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378b74(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378b90(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378bb0(uint8_t* rdram, recomp_context* ctx);
+void M55_FUN_80378c48(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378cd8(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378cf0(uint8_t* rdram, recomp_context* ctx);
 void M55_FUN_80378f64(uint8_t* rdram, recomp_context* ctx);
