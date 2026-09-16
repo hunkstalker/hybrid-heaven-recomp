@@ -70,7 +70,7 @@ Runtime (**fork**, commits locales `dc22060`+`4e1ee0a`): volcado a **fichero** (
   el juego la usa. Se dejó opt-in para no arriesgar el arranque tras el susto de abajo.
 
 **Hallazgo colateral**: el `.pak` **no** vive junto al exe, sino en el directorio de config del
-runtime. En Linux el log lo imprime: `/home/<user>/.local/share/HybridHeavenRecomp/saves/hh.us.bin.pak`
+runtime. En Linux el log lo imprime: `~/.local/share/HybridHeavenRecomp/saves/hh.us.bin.pak`
 (en Windows, el equivalente bajo `%APPDATA%`). Conviene confirmarlo en el log del usuario antes de
 concluir "no hay `saves/`" mirando junto al exe.
 

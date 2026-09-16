@@ -49,9 +49,9 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 **Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
 cuerpo a cuerpo y cinemáticas) con mando Xbox (perfiles `config.ini`) y audio a 43200 Hz. El
-**guardado sigue pendiente**: en la cápsula el juego detecta el Controller Pak y pregunta si guardar,
-pero al aceptar se salta la UI de slots y no escribe (`saves/` no se crea); hay instrumentación
-`HH_PAKLOG=1` en el fork del runtime para trazar el corte (nota
+**guardado está acotado y corregido en el fork del runtime, pendiente de validar en Windows**: en la
+cápsula el juego detectaba el Controller Pak y preguntaba, pero se saltaba la UI de slots; la causa
+raíz era `osPfsFindFile` devolviendo 10 en vez de **5** con `*file_no=-1`, ya corregida (nota
 `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`). Arreglados y
 **validados en Windows**: la **entrega del objeto del NPC** (fallthrough en módulo 55 — fuga `0x48`/
 frame + animación saltada — y mid-entries `0x80379954`/`0x803798E8`; el módulo 55 es el overlay de
@@ -64,9 +64,13 @@ bats de regresión en el repo. La **partida avanza** (menús, escenas 3D, NPC); 
 `Failed to find function at 0x…` se resuelven con **mid-entries** (`add_mid_entry.py` +
 `recomp --force`; p. ej. `M55_FUN_80378c48` en un menú). **Build reproducible**: receta Linux +
 Docker (Debian/glibc) + CI y Releases en GitHub (`docs/adr/0005-build-reproducible-y-artefactos.md`).
+Además, **limpieza de rutas/referencias y pipeline de compilación** ejecutada (2026-09-16): solo
+rutas relativas al repo, icono versionado, ROM en `rom/` junto al ejecutable + salvaguarda,
+`port/build_windows.local.bat` local y pin del runtime a un SHA publicado (`docs/adr/0006-*.md`).
 Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`,
-`notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md` y
-`notes/2026-09-16-crash-menu-midentry-m55-80378c48.md`.
+`notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`,
+`notes/2026-09-16-crash-menu-midentry-m55-80378c48.md` y
+`notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md`.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -120,6 +124,8 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Foco inmediato: **abrir cajas de ítem y seguir la partida** (con el ciclo del
-robot re-verificado: daño → caída → levantarse). Después: teardown SEGV al cerrar, limpieza de
-instrumentación, botón de los menús de combate para X y validación del guardado contra el emulador.
+Ver **`TODO.md`**. Foco inmediato: **validar el guardado en cápsula en Windows** (el fix ya está en el
+runtime local) y, al validarlo, publicar el fork + `origin main` + pin; en paralelo, lanzar los
+`force-push` del bloque 8.B (identidad de commits). Después: seguir la partida (cajas de ítem, menús
+de combate), teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de combate
+para X.
