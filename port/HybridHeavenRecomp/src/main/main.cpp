@@ -585,6 +585,13 @@ int main(int argc, char** argv) {
     recomp::Version version = recomp::Version(0, 1, 0);
     recomp::register_config_path(app_folder_path);
 
+    // Portada: la carpeta de datos es la del .exe, asi que `saves/` queda al lado del ejecutable
+    // (o en el fallback de usuario si esa carpeta no es escribible). Se crea ya para que se vea.
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(app_folder_path / "saves", ec);
+    }
+
     hh::log("=== Hybrid Heaven Recomp starting ===\n");
     hh::log("version %s\n", hh::get_version_string());
     hh::log("app folder: %s\n", app_folder_path.string().c_str());

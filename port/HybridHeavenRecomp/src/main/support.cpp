@@ -81,36 +81,69 @@ static std::filesystem::path get_executable_path() {
     GetModuleFileNameW(NULL, module_name, MAX_PATH);
     return std::filesystem::path(module_name);
 #else
+    // OJO: "/proc/self/exe" es un enlace; hay que resolverlo para que parent_path() sea la carpeta
+    // real del ejecutable (si no, parent_path() da "/proc/self" y cualquier sonda de escritura falla).
+    std::error_code ec;
+    std::filesystem::path resolved = std::filesystem::canonical("/proc/self/exe", ec);
+    if (!ec && !resolved.empty()) {
+        return resolved;
+    }
     return std::filesystem::path("/proc/self/exe");
 #endif
 }
 
+static bool hh_dir_writable(const std::filesystem::path& dir) {
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    const std::filesystem::path probe = dir / ".hh_write_probe";
+    if (FILE* f = std::fopen(probe.string().c_str(), "wb")) {
+        std::fputc('x', f);
+        std::fclose(f);
+        std::filesystem::remove(probe, ec);
+        return true;
+    }
+    return false;
+}
+
+// Carpeta de datos del port (saves/, hh.log, mods/ del runtime). **Portable por defecto**: junto al
+// .exe, creando ahí `saves/`. Si esa carpeta no es escribible (p. ej. Program Files, un USB de solo
+// lectura), cae a la carpeta de datos del usuario. HH_DATA_DIR=<ruta> lo fuerza.
 std::filesystem::path hh::get_app_folder_path() {
+    static const std::filesystem::path folder = []() -> std::filesystem::path {
+        if (const char* env = std::getenv("HH_DATA_DIR"); env != nullptr && *env != '\0') {
+            std::filesystem::path forced(env);
+            std::error_code ec;
+            std::filesystem::create_directories(forced, ec);
+            return forced;
+        }
+        const std::filesystem::path exe_dir = std::filesystem::path(get_executable_path()).parent_path();
+        if (!exe_dir.empty() && hh_dir_writable(exe_dir)) {
+            return exe_dir;
+        }
 #ifdef _WIN32
-    const char* appdata = std::getenv("APPDATA");
-    std::filesystem::path base = (appdata != nullptr) ? std::filesystem::path(appdata) : std::filesystem::path(get_executable_path().parent_path());
-    std::filesystem::path folder = base / "HybridHeavenRecomp";
-    std::error_code ec;
-    std::filesystem::create_directories(folder, ec);
-    return folder;
+        const char* appdata = std::getenv("APPDATA");
+        std::filesystem::path base = (appdata != nullptr) ? std::filesystem::path(appdata) : exe_dir;
+        std::filesystem::path fallback = base / "HybridHeavenRecomp";
 #elif defined(__linux__) || defined(__APPLE__)
-    std::filesystem::path base;
-    if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg != nullptr && *xdg != '\0') {
-        base = std::filesystem::path(xdg);
-    }
-    else if (const char* home = std::getenv("HOME"); home != nullptr) {
-        base = std::filesystem::path(home) / ".local" / "share";
-    }
-    else {
-        base = std::filesystem::path("/tmp");
-    }
-    std::filesystem::path folder = base / "HybridHeavenRecomp";
-    std::error_code ec;
-    std::filesystem::create_directories(folder, ec);
-    return folder;
+        std::filesystem::path base;
+        if (const char* xdg = std::getenv("XDG_DATA_HOME"); xdg != nullptr && *xdg != '\0') {
+            base = std::filesystem::path(xdg);
+        }
+        else if (const char* home = std::getenv("HOME"); home != nullptr) {
+            base = std::filesystem::path(home) / ".local" / "share";
+        }
+        else {
+            base = std::filesystem::path("/tmp");
+        }
+        std::filesystem::path fallback = base / "HybridHeavenRecomp";
 #else
 #error "Unsupported platform"
 #endif
+        std::error_code ec;
+        std::filesystem::create_directories(fallback, ec);
+        return fallback;
+    }();
+    return folder;
 }
 
 static std::vector<std::filesystem::path> get_rom_candidates() {
