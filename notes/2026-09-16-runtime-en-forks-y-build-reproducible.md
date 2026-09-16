@@ -53,10 +53,26 @@ clonándose de upstream en commit fijo (sin modificar). Ver ADR 0005.
 - Pendiente de validar en CI (primer push del port): build Linux por Docker y Windows en
   `windows-latest` (clon limpio de los forks).
 
+## Modelo final: qué va y qué no va en el repo (aclarado por el usuario)
+
+Igual que Zelda64Recomp/Goemon64Recomp: **el `.exe` se compila SIN ROM** y, **al ejecutarse, busca la
+ROM del usuario y extrae de ella los datos**. Nadie está obligado a compilar (hay binarios en
+*Releases*).
+
+- **Sí se versiona**: el código del port, **incluido el C recompilado** (`RecompiledFuncs/`) y el
+  ucode (`rsp/hh_aspMain.cpp`), más `config/*.syms.toml`/`keep_syms*`/`rsp_hh_aspMain.toml`
+  (configuración/metadatos del recompilador).
+- **No se versiona**: la ROM ni **datos del juego** (capturas, iconos/logo, textos/manifiestos
+  extraídos, dumps de símbolos). Se **purgaron de todo el historial** (filter-branch + `gc`; `.git`
+  284 MB → 1 MB). El `.exe` carga la ROM de `rom/baserom.us.z64` (o junto al ejecutable/CWD).
+- `.gitignore` bloquea `work/`, `rom/`, `*.z64` y los datos/assets; CMake avisa si faltara el C del
+  port. CI vuelve a compilar (Linux Docker + Windows) y los releases son automáticos por tag.
+
 ## Pendiente / diferido
 
 - **Regeneración** (syms→C): rama `hybrid-heaven-tool` en el fork de N64Recomp (la herramienta tiene
   13 archivos modificados) + ROM; fuera del build reproducible.
 - **`LICENSE`** GPL-3.0-compatible del proyecto (los binarios enlazan NMR).
+- (Opcional) selector de ROM tipo menú; hoy se carga de `rom/`.
 - Identidad de los commits de los forks: `opencode-hh <opencode@local>` (igual que los 23 previos);
   si se quiere atribuir a la cuenta de GitHub, reescribir antes de nuevos push.

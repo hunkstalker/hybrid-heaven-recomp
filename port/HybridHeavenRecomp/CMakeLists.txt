@@ -56,22 +56,18 @@ add_subdirectory(lib/N64ModernRuntime)
 
 file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS RecompiledFuncs/funcs_*.c)
 
-# El repo NO versiona contenido derivado de la ROM (codigo recompilado ni ucode). Hay que
-# generarlo con TU ROM antes de compilar. Ver README / docs/workflows.md.
+# El codigo recompilado viene en el repo (compilar NO necesita la ROM). Si falta (p.ej. tras un
+# borrado), se regenera con la ROM del mantenedor. Ver README / docs/adr/0005.
 if(NOT RECOMPILED_FUNCS)
     message(FATAL_ERROR
-        "Faltan los archivos generados desde la ROM (RecompiledFuncs/funcs_*.c).\n"
-        "Genera el port con tu copia de la ROM:\n"
+        "Faltan RecompiledFuncs/funcs_*.c (deberian venir en el repo).\n"
+        "Si los has borrado, regenera con TU ROM:\n"
         "  python3 tools/setup_module.py --build\n"
-        "  python3 tools/recomp.py --config config/game_combined.toml --force\n"
-        "y vuelve a configurar. (El C recompilado es derivado de la ROM: no se versiona.)")
+        "  python3 tools/recomp.py --config config/game_combined.toml --force")
 endif()
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
     message(FATAL_ERROR
-        "Falta rsp/hh_aspMain.cpp (ucode de audio recompilado de TU ROM).\n"
-        "Regeneralo con RSPRecomp:\n"
-        "  toolchain/src/N64Recomp/build_recomp/RSPRecomp config/rsp_hh_aspMain.toml\n"
-        "  cp work/rsp/hh_aspMain.cpp port/HybridHeavenRecomp/rsp/hh_aspMain.cpp")
+        "Falta rsp/hh_aspMain.cpp (deberia venir en el repo; se regenera con RSPRecomp de tu ROM).")
 endif()
 
 add_executable(HybridHeavenRecomp

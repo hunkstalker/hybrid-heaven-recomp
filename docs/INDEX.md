@@ -10,8 +10,8 @@
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 84 | 2026-09-15 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 120 | 2026-09-16 |
-| [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 47 | 2026-09-10 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 120 | 2026-09-16 |
+| [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | Port a PC de **Hybrid Heaven** (N64, Konami Computer Entertainment Osaka, proyecto interno | 58 | 2026-09-16 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 130 | 2026-09-16 |
 
 ## Técnico y guías (vivos)
 
@@ -30,13 +30,13 @@
 | [ADR 0002 — Generar funciones de init de libultra del ROM (des-stubbing)](adr/0002-des-stub-libultra.md) | - **Estado**: Aceptado (2026-09-13). | 66 | 2026-09-13 |
 | [ADR 0003 — Subsistema VI: libultra del ROM, runtime solo como hardware](adr/0003-vi-libultra-del-rom.md) | - **Estado**: Aceptado (2026-09-13). | 72 | 2026-09-13 |
 | [ADR 0004 — Registro dinámico de módulos de código en bases reutilizadas](adr/0004-registro-dinamico-modulos.md) | - **Estado**: Aceptado (2026-09-14). | 54 | 2026-09-14 |
-| [ADR 0005 — Runtime en forks propios y build reproducible](adr/0005-build-reproducible-y-artefactos.md) | - **Estado**: Aceptado (2026-09-16). | 70 | 2026-09-16 |
+| [ADR 0005 — Runtime en forks propios y build reproducible](adr/0005-build-reproducible-y-artefactos.md) | - **Estado**: Aceptado (2026-09-16). | 88 | 2026-09-16 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 62 | 2026-09-16 |
+| [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
 | [2026-09-16 — Limpieza del repo: purga de `.vs/` e inventario de candidatos](../notes/2026-09-16-limpieza-repo-inventario.md) | Contexto: el usuario crea el repo en GitHub (`hunkstalker/hybrid-heaven-recomp`) y pide limpiar | 67 | 2026-09-16 |
 | [2026-09-16 — Fix del estado de caída: fallthrough M55 `0x8037A6F4` → `0x8037A884` (fuga `0x38`/frame)](../notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md) | Continúa `2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md` (ronda 14). Ahí quedó: láser | 94 | 2026-09-16 |
 | [2026-09-15 — Cuelgue del NPC: bisect, causa raíz (módulo 9) y punto de retomada](../notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md) | Nota de sesión. **Estado: fix aplicado y compilado en Linux; PENDIENTE validar en Windows** con la | 105 | 2026-09-15 |

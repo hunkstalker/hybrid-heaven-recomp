@@ -17,22 +17,33 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 
 ## Compilar y ejecutar
 
-La ROM **no** se distribuye: necesitas tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
-`0x0F6A72F2C36A216DULL`) como `baserom.us.z64` junto al ejecutable o en el directorio de trabajo.
+Modelo (igual que Zelda64Recomp/Goemon64Recomp): el repositorio incluye **todo lo necesario para
+compilar el `.exe`** (el código del port, incluido el recompilado) y **no incluye datos del juego**
+(ni la ROM, ni assets/capturas, ni textos extraídos). El `.exe`, **al ejecutarse, busca la ROM del
+usuario y la procesa** para extraer los datos.
 
-**Binarios listos**: descarga el `.zip` (Windows) o `.tar.gz` (Linux) de *Releases* y aporta tu ROM.
+- **Compilar NO requiere la ROM.**
+- **Ejecutar sí**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
+  `0x0F6A72F2C36A216DULL`) como `rom/baserom.us.z64` (junto al ejecutable o en el directorio de
+  trabajo) o `baserom.us.z64` junto al `.exe`/CWD. Nunca se distribuye la ROM ni una compilación con
+  datos de ella.
+- **No hace falta compilar para jugar**: descarga el `.zip` (Windows) o `.tar.gz` (Linux) de
+  *Releases*.
 
 | Plataforma | Comando | Requisitos |
 |---|---|---|
 | Windows | `port\build_windows.bat` | Visual Studio 2022/2026 (C++), CMake, Git |
 | Linux | `tools/build_linux.sh` | gcc, CMake, Ninja, SDL2-dev, Vulkan-dev, X11-dev, GTK3-dev |
-| Docker (Linux) | `docker compose build run` | Docker (la imagen clona las libs y compila) |
+| Docker (Linux) | `docker compose build run` | Docker |
 
-Ambos scripts **clonan las dependencias por URL+SHA fijados en `port/runtime.lock`**: `rt64` de
-su upstream y `N64ModernRuntime` de un **fork propio** (rama `hybrid-heaven`) que incluye
-nuestros cambios y cuyo submódulo `N64Recomp` también sale de un fork. Esos directorios están en
-`.gitignore`, así que los scripts son la forma de reproducirlos. Guías:
-`port/README_windows.md`, `port/README_linux.md`, `docs/workflows.md` §1.
+Los scripts **clonan las dependencias por URL+SHA fijados en `port/runtime.lock`**: `rt64` de su
+upstream y `N64ModernRuntime` de un **fork propio** (rama `hybrid-heaven`, con nuestros cambios y su
+submódulo `N64Recomp`). Guías: `port/README_windows.md`, `port/README_linux.md`,
+`docs/workflows.md` §1, `docs/adr/0005`.
+
+> Solo para **mantenedores**: si tocas los símbolos del recompilador, regenera el C con tu ROM
+> (`tools/setup_module.py --build`, `tools/recomp.py --config config/game_combined.toml --force` y
+> `RSPRecomp`); el resultado sí se versiona porque es el código del port.
 
 ## Estado
 

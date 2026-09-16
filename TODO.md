@@ -81,21 +81,31 @@
   de CI/release y en la imagen Docker.
 - [ ] **`LICENSE` del proyecto**: los binarios enlazan N64ModernRuntime (**GPL-3.0**) → decidir una
   licencia GPL-3.0-compatible y añadir `LICENSE` a los artefactos.
+- [x] **Datos del juego fuera del repo** (2026-09-16): purgados de **todo el historial** los
+  assets/capturas (`Referencias screenshots/`, `muestra-menu*.png`, `tests/*.png`), los `assets/`
+  del juego y los datos extraídos (manifiestos, mapa de assets, dump de símbolos). El **código del
+  port** (incluido `RecompiledFuncs/` y `rsp/hh_aspMain.cpp`) **sí se versiona** → el `.exe` compila
+  **sin ROM** y busca la ROM del usuario en runtime (`rom/baserom.us.z64`). Ver ADR 0005.
+- [ ] **Sanear menciones a la ROM en docs/notas**: hay notas/`PROYECTO.md` que citan textos/anclas
+  del juego (p. ej. `WASHINGTON D.C. @0x...`). Son frases cortas/hechos, pero si quieres “cero
+  menciones”, hay que reescribirlas.
 
 ## Higiene del repo (candidatos de limpieza)
 
 > Inventario y criterios: `notes/2026-09-16-limpieza-repo-inventario.md`. Ya hecho: purga de `.vs/`
-> de toda la historia (`.git` 284→24 MB) y borrado de `port/petardeo)` + `tools/analysis/xshot`.
+> de toda la historia, borrado de `port/petardeo)` + `tools/analysis/xshot`, y **eliminación de los
+> datos del juego del repo/historial** (capturas, assets, manifiestos; `port/bisect_*`).
 
-- [ ] Decidir sacar del repo las **capturas con copyright** (`Referencias screenshots/`, 4,7 MB).
 - [ ] **Archivar** (`tools/archive/`) los scripts de una sola vez de `tools/analysis/` (62 `.java`
   de Ghidra + helpers de diagnóstico), conservando los vivos de `docs/workflows.md` §6.
 - [ ] Revisar **variantes de `config/`** obsoletas (`game*.toml`, `us_*.syms.toml` no activas) y
   archivar las que no se usen (activa: `game_combined.toml`).
-- [ ] Decidir el **`work/` rastreado** (3 scripts de captura) y `port/bisect_*` (bisect del NPC ya
-  concluido).
+- [ ] Decidir el **`work/` rastreado** (3 scripts de captura).
 - [ ] **NO borrar** `config/*.syms.toml.keep` (los usa `gen_module_syms`/`setup_module`) ni
   `keep_syms*.txt`/`module_extras.json` ni `config/n64recomp_changes/*`.
+- [ ] (Opcional) Selector de ROM tipo menú (Zelda64Recomp/Goemon64Recomp); hoy se carga de `rom/`.
+- [ ] **Regeneración por terceros**: publicar la rama `hybrid-heaven-tool` del fork de N64Recomp
+  (la herramienta tiene 13 archivos modificados).
 
 ## Backlog
 
