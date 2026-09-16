@@ -29,7 +29,7 @@
    `recomp.py`; aborta si se pierde un override). Ver
    `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
 2. [•] **Guardado en cápsula (Controller Pak)**: el juego detecta el pak y pregunta si guardar, pero
-   al aceptar **se salta la UI de slots** y no escribe. **Volcado listo** (runtime `2dba299`, pin
+   al aceptar **se salta la UI de slots** y no escribe. **Volcado listo** (runtime `dc22060`, pin
    actualizado): *activo por defecto* → `hh_pak.log` **junto al exe** con todas las llamadas PFS
    (args, retorno, estado y los `OSPfs` del juego) + `pak_load/pak_save` + `osMotorInit` +
    `get_connected_device_info`; y **autotest de la API PFS** (en Linux: `OK (0 fallos)`). No hace
