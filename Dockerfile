@@ -49,6 +49,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build /out/hybrid-heaven-recomp /usr/local/bin/hybrid-heaven-recomp
 COPY docker/entrypoint.sh /usr/local/bin/hh-entrypoint
 COPY CREDITS.md /usr/local/share/doc/hybrid-heaven-recomp/CREDITOS.md
+COPY LICENSE /usr/local/share/doc/hybrid-heaven-recomp/LICENSE
 RUN chmod +x /usr/local/bin/hh-entrypoint && mkdir -p /work
 WORKDIR /work
 ENTRYPOINT ["/usr/local/bin/hh-entrypoint"]

@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY hh-bin /usr/local/bin/hybrid-heaven-recomp
 COPY CREDITOS.md /usr/local/share/doc/hybrid-heaven-recomp/CREDITOS.md
+COPY LICENCIA.txt /usr/local/share/doc/hybrid-heaven-recomp/LICENCIA.txt
 COPY entrypoint.sh /usr/local/bin/hh-entrypoint
 RUN chmod +x /usr/local/bin/hybrid-heaven-recomp /usr/local/bin/hh-entrypoint && mkdir -p /work
 WORKDIR /work

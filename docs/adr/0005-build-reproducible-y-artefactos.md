@@ -64,8 +64,8 @@ en runtime.
 - Mantenimiento: los cambios del runtime se hacen en el árbol local y se **pushean al fork**, y luego
   se actualiza el SHA del lock. Actualizar desde upstream = `merge upstream/main` en el fork.
 - El primer clon necesita red (los forks son públicos). Para offline habría que cachear el clon.
-- Los binarios enlazan NMR (**GPL-3.0**): la distribución debe cumplir la licencia (fuente + avisos).
-  Pendiente decidir/añadir el `LICENSE` del proyecto (`TODO.md`).
+- Los binarios enlazan NMR (**GPL-3.0**): el proyecto se distribuye bajo **GPL-3.0** (`LICENSE`),
+  que cumple los requisitos (fuente + avisos). Proyecto **público y comunitario**.
 
 ## Alternativas descartadas
 
