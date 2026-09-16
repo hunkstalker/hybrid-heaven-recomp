@@ -34,17 +34,14 @@
    (edición mínima + overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de
    `recomp.py`; aborta si se pierde un override). Ver
    `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-2. [•] **Guardado en cápsula (Controller Pak)**: el panel de slots salía vacío y "Saving current
-   play data here" acababa en "Could not save". **Causa raíz** (desensamblando la libultra del ROM):
+2. [x] **Guardado en cápsula (Controller Pak): VALIDADO (2026-09-16)**. Causa raíz (libultra del ROM):
    `osPfsFindFile` devuelve **5** con `*file_no = -1` cuando no hay fichero, no 10; el wrapper del
    juego (`FUN_80002DBC`) trata **>=6 como éxito sin rellenar el file_no** → usaba un `file_no` basura
    (95/233/237) y el juego nunca creaba su fichero. **Fix** (runtime `0619945`): FindFile→5 con
-   `*file_no=-1`, DeleteFile→5, AllocateFile sin espacio→9. Intento previo de "pak nuevo"
-   (`PFS_ERR_NEW_PACK`) descartado y dejado opt-in (`HH_PAK_NEWPACK=1`) porque colgaba GAME START.
-   En Linux: `osPfsInitPak -> 0` y `osPfsFindFile -> 5`. **Pendiente**: validar en Windows (recompilar
-   + GAME START + cápsula; el log debe mostrar `AllocateFile size=13568` y guardar; el `.pak` queda en
-   `saves\` junto al .exe). Detalle:
-   `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md`.
+   `*file_no=-1`, DeleteFile→5, AllocateFile sin espacio→9. Verificado en Windows por el usuario: el
+   guardado completa (UI de slots + `.pak` en `saves\`). Detalle:
+   `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
+   `notes/2026-09-16-guardado-capsula-validado.md`.
 3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).
@@ -72,8 +69,10 @@
   `fix_fallthroughs`, `gen_module_syms --filter-data`, `keep_syms_flat`).
 - [x] **Memoria segura**: `MEM_*`/`TO_PTR` con mapeo no-mapeado → scratch (fix del callback de menú);
   `-fno-strict-aliasing` (fix de la transición).
-- [x] **Controller Pak (PFS mínimo en RAM)** con persistencia `saves/*.bin.pak`; 13 entradas en
-  `reimplemented_funcs`.
+- [x] **Guardado en cápsula (Controller Pak): VALIDADO en Windows** (2026-09-16): fix
+  `osPfsFindFile`→5 con `*file_no=-1`; el juego muestra la UI de slots y escribe el `.pak` en
+  `saves\` junto al `.exe`. PFS mínimo en RAM en `reimplemented_funcs`. Ver
+  `notes/2026-09-16-guardado-capsula-validado.md`.
 - [x] **Audio**: ucode `aspMain` del ROM recompilado; dispositivo WASAPI abierto; tasa 43200 Hz (720
   frames/VI) con feedback de cola; Release por defecto (Debug caía a 30 fps y rompía el pacing).
 - [x] **Mando**: perfiles por contexto (`config.ini` [game]/[menu]) con detección automática por el
