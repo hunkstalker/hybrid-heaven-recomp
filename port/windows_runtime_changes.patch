@@ -217,7 +217,7 @@ index 7ad6c21..e7a68be 100644
  
  extern "C" void osContStartQuery_recomp(uint8_t * rdram, recomp_context * ctx) {
 diff --git a/librecomp/src/overlays.cpp b/librecomp/src/overlays.cpp
-index 20e07d9..af5ac96 100644
+index 20e07d9..96b9f5d 100644
 --- a/librecomp/src/overlays.cpp
 +++ b/librecomp/src/overlays.cpp
 @@ -1,9 +1,12 @@
@@ -335,7 +335,7 @@ index 20e07d9..af5ac96 100644
  static void load_special_overlay(const SectionTableEntry& section, int32_t ram) {
      for (size_t function_index = 0; function_index < section.num_funcs; function_index++) {
          const FuncEntry& func = section.funcs[function_index];
-@@ -378,16 +444,582 @@ recomp_func_t* recomp::overlays::get_func_by_section_rom_function_vram(uint32_t
+@@ -378,16 +444,583 @@ recomp_func_t* recomp::overlays::get_func_by_section_rom_function_vram(uint32_t
  // funciones faltantes en un solo run. Solo para depuración de símbolos.
  static void soft_missing_func(uint8_t*, recomp_context*) {}
  
@@ -788,7 +788,8 @@ index 20e07d9..af5ac96 100644
 +    static FILE* ff = nullptr;
 +    if (ff == nullptr) ff = fopen("hh_s0fix.log", "w");
 +    if (ff != nullptr) { fprintf(ff, "[S0FIX] r16 %08X -> 80037748 (work del bucle principal)\n", r16); fflush(ff); }
-+    fprintf(stderr, "[S0FIX] r16 %08X -> 80037748 (work del bucle principal)\n", r16);
++    static int hh_s0fix_console = 0;
++    if (hh_s0fix_console < 20) { hh_s0fix_console++; fprintf(stderr, "[S0FIX] r16 %08X -> 80037748 (work del bucle principal)\n", r16); }
 +}
 +
  extern "C" recomp_func_t * get_function(int32_t addr) {
