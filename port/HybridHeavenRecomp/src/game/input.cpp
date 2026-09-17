@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -25,6 +26,12 @@
 #include "ultramodern/ultramodern.hpp"
 
 #include "hh.h"
+
+// HH: reloj de juego esclavo del replay (runtime ultramodern/src/timer.cpp). Ver
+// notes/2026-09-17-cac-timeline-modulo24-periodo.md §5.
+extern "C" void hh_replay_clock_set(double t_seconds);
+extern "C" bool hh_replay_clock_on();
+extern "C" void hh_replay_set_sample(uint64_t idx);
 
 using n64_button = uint16_t;
 
@@ -292,9 +299,11 @@ static const PadProfile& hh_active_profile() {
     else {
         menu = hh_ui_menu_open() || hh_frontend_menu();
     }
+    // HH: el cambio de contexto solo se imprime con HH_PADLOG=1 (por defecto es ruido en consola).
     static bool last_menu = false;
     static bool logged = false;
-    if (!logged || menu != last_menu) {
+    static const bool hh_padlog = getenv("HH_PADLOG") != nullptr;
+    if (hh_padlog && (!logged || menu != last_menu)) {
         logged = true;
         last_menu = menu;
         fprintf(stderr, "[PAD] contexto: %s\n", menu ? "menu" : "juego");
@@ -516,23 +525,74 @@ static const std::vector<HHRec>& hh_replay_data() {
     return data;
 }
 
+// HH: log opcional de las muestras aplicadas (HH_REPLAYLOG=1) -> hh_replay.log, para comparar 1:1
+// con la grabacion (poll, VI actual, botones, x, y).
+static void hh_replay_log_sample(size_t poll, uint64_t vi, const HHRec& r) {
+    if (getenv("HH_REPLAYLOG") == nullptr) return;
+    static FILE* f = nullptr;
+    if (f == nullptr) {
+        f = fopen("hh_replay.log", "w");
+        if (f == nullptr) return;
+    }
+    fprintf(f, "%zu %llu %04X %.4f %.4f\n", poll, (unsigned long long)vi,
+            (unsigned)r.buttons, r.x, r.y);
+    fflush(f);
+}
+
+// HH: reproduccion de input.
+//   HH_REPLAY_MODE=poll (DEFECTO): una muestra por poll (exacto por frame de juego; robusto al
+//     jitter de timing porque no depende del VI).
+//   HH_REPLAY_MODE=vi: elige la ultima muestra con vis <= VI actual (tolera maquinas distintas,
+//     pero es sensible al jitter: un VI de diferencia aplica la muestra vecina).
+//   HH_REPLAY_SYNC=vi (solo en modo poll): en el primer poll, salta al primer sample con
+//     vis >= VI actual (sincroniza si el arranque consume distinto numero de polls/VI).
 static void hh_replay_apply(double elapsed, n64_button& buttons, float& x, float& y) {
     (void)elapsed;
     const std::vector<HHRec>& data = hh_replay_data();
     if (data.empty()) return;
-    // Reproducción por ÍNDICE de poll (no por tiempo): el juego poll-ea una vez por frame, así que
-    // la misma secuencia de muestras produce la misma entrada por frame (determinista).
     static size_t idx = 0;
-    // Alineado por VI (frames). Si el fichero no trae contador, se estima vis=t*60.
+    static size_t polls = 0;
+    static bool inited = false;
+    static const bool mode_vi = [] {
+        const char* m = getenv("HH_REPLAY_MODE");
+        return m != nullptr && strcmp(m, "vi") == 0;
+    }();
+    static const bool sync_vi = [] {
+        const char* s = getenv("HH_REPLAY_SYNC");
+        return s != nullptr && strcmp(s, "vi") == 0;
+    }();
+    static const bool clock_mode = [] {
+        const char* c = getenv("HH_REPLAY_CLOCK");
+        return c != nullptr && *c != '\0' && strcmp(c, "0") != 0;
+    }();
     uint64_t cur = hh_get_vi_count();
     auto sample_vis = [&](const HHRec& r) -> uint64_t {
         return hh_replay_has_vis ? r.vis : (uint64_t)(r.t * 60.0 + 0.5);
     };
-    while (idx + 1 < data.size() && sample_vis(data[idx + 1]) <= cur) idx++;
+    if (!inited) {
+        inited = true;
+        if (sync_vi && hh_replay_has_vis) {
+            while (idx + 1 < data.size() && sample_vis(data[idx]) < cur) idx++;
+        }
+        fprintf(stderr, "[REPLAY] modo=%s sync=%d clock=%d muestras=%zu primer_vis=%llu primer_t=%.4f VI_actual=%llu\n",
+                mode_vi ? "vi" : "poll", sync_vi ? 1 : 0, clock_mode ? 1 : 0, data.size(),
+                (unsigned long long)sample_vis(data[0]), data[0].t, (unsigned long long)cur);
+    }
+    if (mode_vi) {
+        while (idx + 1 < data.size() && sample_vis(data[idx + 1]) <= cur) idx++;
+    }
     size_t use = idx < data.size() ? idx : data.size() - 1;
+    hh_replay_set_sample((uint64_t)use);
+    if (clock_mode) {
+        // HH: el tiempo de juego sigue la marca temporal de la muestra grabada (fidelidad replay).
+        hh_replay_clock_set(data[use].t);
+    }
     buttons = data[use].buttons;
     x = data[use].x;
     y = data[use].y;
+    hh_replay_log_sample(polls, cur, data[use]);
+    polls++;
+    if (!mode_vi && idx + 1 < data.size()) idx++;
 }
 
 static void hh_record_write(double elapsed, n64_button buttons, float x, float y) {

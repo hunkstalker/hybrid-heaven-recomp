@@ -392,23 +392,25 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
 
-    // Dump de audio siempre activo (acotado a 4 MB) en hh_audio_dump.bin del CWD, para poder
-    // analizar la tasa/formato real desde fuera. HH_AUDIODUMP=<f> cambia la ruta.
+    // Dump de audio OPT-IN: con HH_AUDIODUMP=<f> escribe hasta 4 MB de PCM en ese fichero (o
+    // hh_audio_dump.bin). Por defecto NO se escribe: eran ~4 MB con fflush por buffer al arrancar
+    // (I/O innecesario; el log textual hh_audio.log sigue activo siempre).
     {
         const char* dump_env = getenv("HH_AUDIODUMP");
-        const char* dump = (dump_env != nullptr && *dump_env != '\0') ? dump_env : "hh_audio_dump.bin";
-        static FILE* df = nullptr;
-        static size_t dtotal = 0;
-        static const char* dpath = nullptr;
-        if (dpath == nullptr) {
-            dpath = dump;
-            df = fopen(dpath, "wb");
-            if (df != nullptr) fprintf(stderr, "[AUD] dump en %s\n", dpath);
-        }
-        if (df != nullptr && dtotal < (4u << 20)) {
-            fwrite(audio_data, 1, byte_len, df);
-            fflush(df);
-            dtotal += byte_len;
+        if (dump_env != nullptr && *dump_env != '\0') {
+            static FILE* df = nullptr;
+            static size_t dtotal = 0;
+            static const char* dpath = nullptr;
+            if (dpath == nullptr) {
+                dpath = dump_env;
+                df = fopen(dpath, "wb");
+                if (df != nullptr) fprintf(stderr, "[AUD] dump en %s\n", dpath);
+            }
+            if (df != nullptr && dtotal < (4u << 20)) {
+                fwrite(audio_data, 1, byte_len, df);
+                fflush(df);
+                dtotal += byte_len;
+            }
         }
     }
 
@@ -510,10 +512,15 @@ bool hh::reset_audio(uint32_t output_freq) {
 // notes/2026-09-13-ucode-audio-gate-transicion.md).
 extern RspExitReason hh_aspMain(uint8_t* rdram, uint32_t ucode_addr);
 
+// HH: diagnostico del runtime (definido en recomp.cpp). Sin HH_DIAG=1 no se escribe hh_rsp.log.
+extern "C" int hh_diag_enabled(void);
+
 // Diagnostico: cuanto tarda la task de audio (RSP recompilado, en CPU). Si supera ~16.7 ms el
 // driver del juego solo produce un buffer por VI de cada dos (audio a tirones). Se vuelca al
 // fichero hh_rsp.log (CWD) cada 60 tasks para poder verlo tambien en la maquina del usuario.
+// Gated por HH_DIAG=1 (el cronometro en si es barato, pero evita el I/O periodico por defecto).
 static RspExitReason hh_aspMain_timed(uint8_t* rdram, uint32_t ucode_addr) {
+    if (!hh_diag_enabled()) return hh_aspMain(rdram, ucode_addr);
     const auto t0 = std::chrono::steady_clock::now();
     RspExitReason r = hh_aspMain(rdram, ucode_addr);
     const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();

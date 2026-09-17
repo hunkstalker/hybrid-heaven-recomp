@@ -155,8 +155,28 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
 ## 3c-2. Bats de diagnóstico (los que quedan)
 
 - **`run_windows.bat`** — ejecución normal. Admite `noaudio` y/o `audlog` como argumentos.
+- **`run_pacing.bat`** — pasada de pacing: lanza el port y guarda los logs de la sesión en
+  `logs_pacing_<fecha_hora>\` junto al `.exe`, e imprime las últimas líneas de `hh_state.log`.
+  Modos: `run_pacing.bat trace` (traza frame/disp) y `run_pacing.bat gate` (~20-30 s con
+  `HH_VERBOSE`+`HH_GATELOG` para `[GATE]`/`cd4c`). Protocolo:
+  `notes/2026-09-17-logdiag-y-comparacion-linux-windows.md`.
+- **`run_corrupt.bat`** — repro del cuelgue de combate **con grabación del gameplay**
+  (`hh_replay_fight.txt`, determinista por VI) y volcado al freeze (`hh_hang.log` +
+  `hh_hang_rdram_*.bin`). Empezar **partida nueva** y, al congelarse, **esperar ~20 s** antes de
+  cerrar. La pasada anterior se aparta a `logs_prev_corrupt\`.
+- **`run_replay.bat`** — reproduce un replay de input (`hh_replay_fight.txt` por defecto, o
+  `run_replay.bat <fichero.txt> [diag]`) para validar que llega hasta el final/freeze. No graba y no
+  toca el replay; aparta logs previos a `logs_prev_replay\`.
 - **`run_mqlog.bat`** — traza de colas/eventos + `HH_S0FIX` + grabación de replay (`hh_mq_all.log`...).
 - **`run_watch.bat`** — watchpoint (`HH_WATCH_ADDR`) + volcados `hh_ring`/`hh_ring2` + replay.
+
+> **Logs de diagnóstico (2026-09-17)**: los logs always-on (`hh_sched`, `hh_pi`, `hh_mq`, `hh_cmds`,
+> `hh_ovl`, `hh_rsp`) ahora requieren **`HH_DIAG=1`** (su I/O con `fflush` degradaba el pacing).
+> Por defecto solo se escriben `hh_state.log` (`HH_STATE_SECS`), crash/hang y `hh_audio.log`.
+> `run_pacing.bat` usa los defaults (sin `HH_DIAG`); los bats de diagnóstico lo activan.
+> Otros ruidos opt-in (2026-09-17): `[PAD] contexto:` → **`HH_PADLOG=1`**; dump PCM
+> `hh_audio_dump.bin` (4 MB) → **`HH_AUDIODUMP=<f>`** (ya no se escribe por defecto).
+> `run_pacing.bat` aparta los logs previos a `logs_prev\` y recoge `boot.log` + dumps de hang/crash.
 
 > Política: los bats **puntuales** (una regresión concreta) se eliminan tras usarse; solo se quedan
 > los que sirven de forma recurrente (build, run, diagnóstico). Los que probaban configs antiguas
