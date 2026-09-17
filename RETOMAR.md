@@ -9,39 +9,113 @@
 - Se **juega** en Windows (menús → GAME START → escenas 3D y combate, mando Xbox, audio 43200 Hz,
   Controller Pak emulado). Fixes previos validados: **guardado en cápsula**, cuelgue por daño del
   robot, objeto del NPC y regresión de las escaleras (ver `TODO.md` → "Hecho" y `notes/`).
-- **Sesión actual (2026-09-17) — nuevo foco: PACING/CADENCIA**. El port ejecuta la **lógica** de
-  juego a ~16–28/s con VI/audio a 60/s; el original (emulador) a ~32–70/s (ambiguo: resolver).
-  Pista documentada: el gate `[0x8005CD4C]` (si `>=2`, `FUN_80001454` se salta el dispatcher).
-  Work order: **`notes/2026-09-17-workorder-pacing-cadencia.md`**.
-- **BLOQUEANTE de fondo (CaC)**: al entrar en combate el juego corrompe estructuras (objeto
-  `0x8024A990`; callback `0xFFFF84CD`→`0xFF7F84CD`; lista de broadcast fuera de rango). Hipótesis
-  nueva: la **cadencia divergente** hace que los state machines por-frame/temporizador no lleguen al
-  estado que arma el combate (`M23_FUN_801c1dc0`, `case 2`). Plan:
-  `notes/2026-09-17-plan-revision-bloqueo-cac.md`.
+- **Sesión actual (2026-09-17) — PACING/CADENCIA: CERRADO (validado en Windows)**. Original = 30 fps
+  lógicos (`notes/2026-09-17-fase0-*.md`); el limitador eran los logs de diagnóstico always-on
+  (ahora opt-in con `HH_DIAG=1`). Windows (RTX 4080) con `port\run_pacing.bat`: **polls 27,1-28,4/s,
+  audio 60,0/s, VI 60,0/s**; Linux: 28,9/s y 32,9 disp. Detalle:
+  `notes/2026-09-17-fase2-*.md`, `logdiag-y-comparacion-linux-windows` y
+  `validacion-windows-pacing-y-cac`.
+- **BLOQUEANTE (CaC)**: freeze al entrar en combate (cadencia descartada como causa). Repro Linux con
+  replay corto desde guardado (PFS carga, `mode=0004`, polls parados). **Diferencial port↔emulador con
+  el MISMO input HECHO**. **Cadena de la divergencia RESUELTA hasta el mecanismo** (2026-09-17, ronda
+  nueva): la ráfaga #22 son pasos de guion de la **línea temporal de escena del módulo 24** (driver
+  `M24_FUN_801bfaa0`, periodos `g2=[0x801D8CE8]`); en el emulador `g2 0→1` en **VI 2187** (espera por
+  tiempo `osGetTime-epoch`, 3/11/20 s) y de ahí sale la ráfaga; en el port el driver corre pero
+  **`M24_FUN_801bffac` (avance de periodo) nunca se ejecuta** (esperas siempre 0) y en su lugar la vía
+  alterna de cambio de escena (`M24_FUN_801bf508` → `M24_FUN_801c0254`) dispara en **VI≈799-840** y
+  carga los módulos 8/9/10/12 sobre el módulo 24 → la ráfaga se pierde. **Rondas 2-3**: base de tiempo
+  **refutada** (port `osGetTime` == tiempo VI) y **causa raíz encontrada**: el disparo es el bit
+  `0x1000` de `[0x80089478]` = **START recién pulsado** (registro de flancos de input, `FUN_800021b4`).
+  El emulador no lo pulsa durante la transición; el port sí porque **aplica el replay por frame**
+  (samples 412-431 = START de menú con `vis` 1092-1135 caen en VI 766-803) y su relación frame↔VI
+  (~1.86) difiere de la de la grabación (~2.65). **Fix en curso (WIP)**: `HH_REPLAY_CLOCK=1`
+  implementado (reloj esclavo + interpolación; evita el deadlock) pero la transición sigue
+  adelantada → el replay **aún no es fiel**; no cerrar conclusiones del CaC con el diferencial
+  actual. **El test de juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev
+  solo hace pasadas headless. Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`**
+  (§4b-5) y **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (estado WIP).
+  - Evidencia previa (veneno/llamante): `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md` (§1-10).
+    Contexto: `notes/2026-09-17-cac-ownership-resuelto.md`. Replay Linux fiel;
+    `run_corrupt.bat clean` para grabar estable. El freeze en Windows se graba/reproduce con
+    `run_corrupt.bat` / `run_replay.bat`.
 - **Runtime (fork) con cambios LOCALES sin push** (`e9a178f`, `efc5f17`, `0806e19`), por encima del
   pin publicado `feae2d5`. En Windows usar **`port\build_windows.local.bat`** (no `--force-libs`,
   que resetea `lib\` al pin y perdería las mitigaciones).
 
 ## TU TAREA AHORA (pasos exactos)
 
-> Work order completo y autocontenido (mecanismo del gate, instrumentación, comandos):
-> **`notes/2026-09-17-workorder-pacing-cadencia.md`**. Objetivo: cadencia y **ratio eventos/VI**
-> **1:1 con el original** (subir a 60+ solo después, si acaso). Evidencia previa:
-> `notes/2026-09-17-plan-revision-bloqueo-cac.md` (Parte A) y
-> `notes/2026-09-13-cadena-boot-y-progreso-fe00.md` §5.
+> **Nota operativa actual (CaC)**: **`notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md`** (diferencial
+> completo; §10 = primera divergencia de flujo). El plan antiguo
+> `notes/2026-09-17-plan-revision-bloqueo-cac.md` está **superado** (su premisa "case 2 arma combate"
+> quedó refutada; se conserva como historial).
+> Pacing cerrado: `notes/2026-09-17-workorder-pacing-cadencia.md` y
+> `notes/2026-09-17-validacion-windows-pacing-y-cac.md`.
 
-1. **[Fase 0 — referencia del original]** medir con hits/VI (independiente del throttling):
-   `HB_TRACE_EXEC=0x80001454,0x80005270,0x80000ed0 tools/analysis/emu_ref.sh work/debug/emu_rate2 60 60`
-   → contar hits por dirección + `[dbg] vi_count`. Resolver si HH corre a **30 o 60 fps lógicos**.
-2. **[Fase 1 — limitador del port]** con `HH_VERBOSE=1 HH_GATELOG=1 HH_TBLTRACE=1 HH_MQLOG_ALL=1`
-   (`hh_mq_all.log`, `hh_sched.log`): ¿en qué espera se va el tiempo entre frames?, ¿quién deja
-   `[0x8005CD4C]` en 1–2?
-3. **[Fase 2 — fix]** uno por pasada: (a) gate `0x8005CD4C`/completaciones SP-DP, (b) scheduler/lock
-   single-CPU, (c) handshake audio/SP (`HH_SP_SHARED`, `HH_AI_QUEUE_REPORT=full`). Si no mueve la
-   métrica de Fase 1, revertir.
-4. **[Fase 3 — validar]** 1:1 (hits/s o hits/VI) y **re-test del CaC**; si sigue atascado, volver a
-   la Parte B de `notes/2026-09-17-plan-revision-bloqueo-cac.md` con la cadencia ya correcta.
-5. Si crashea con `Failed to find function at 0x...` (dirección **válida**): `python3
+> **Los logs de diagnóstico now requieren `HH_DIAG=1`** (default off). Para medir pacing, usar
+> `port\run_pacing.bat` (Windows) o los defaults (Linux). No hace falta tmpfs desde el gating.
+
+1. **[SIGUIENTE — CaC: causa raíz encontrada = alineación del replay (input en fase de juego errónea)]**.
+   `[0x80089478]` es el registro de **flancos de input** (`FUN_800021b4`, `sh t8,0x4(s0)` con
+   `t8=(prev^nuevo)&nuevo` desde `[0x8005CE50]`); bit `0x1000` = **START recién pulsado**. Emulador
+   (watchpoint `0x89474-0x8947C`): el bit solo se pone en boot y **a partir de VI ~3400** (nunca
+   durante la transición) → la cadena no se completa. Port: se pone en VI 765/783/798 porque el
+   replay (mode=poll, por frame) aplica ahí los samples 412-431, que en la grabación son START de
+   menú (`vis` 1092-1135, t=16.8-17.5 s). Con `HH_REPLAY_MODE=vi` el START cae en VI 1092 (correcto)
+   pero el port ya está en la transición (llegó en ~330 frames vs ~576 del original) → mismo disparo.
+   **Causa**: la relación frame↔VI del port (~1.86) ≠ la de la grabación (~2.65), así que los waits
+   dependientes de tiempo consumen otros frame counts y el input cae en otra fase.
+   - **Fix propuesto (dónde va)**: al reproducir, **esclavizar el reloj de juego a la grabación**:
+     env `HH_REPLAY_CLOCK=1` que actualiza `ostime_offset` en `ultramodern/src/timer.cpp` por frame con
+     la muestra aplicada (Δ`vis`/Δ`t`) en vez del reloj de pared. Alternativa B: gatear el frame loop
+     por la columna `vis` de la muestra (scheduler). Validar con `[TL] ADVANCE` (g2 0→1),
+     `M24C@2420 idx=601` y las 56 cargas del emulador.
+   - **WIP (a medias, documentado)**: `HH_REPLAY_CLOCK=1` ya implementado (reloj esclavo +
+     interpolación intra-frame; sin ella había deadlock a las 158 muestras). Con interpolación el
+     juego corre pero **la transición sigue adelantada** (muestra ~341 vs ~582) → el desfase de
+     frames no es solo de waits por tiempo; pendiente localizar dónde se pierden ~240 frames
+     (`[LD384] … s=` vs emulador) y decidir gatear el frame loop por `vis` (scheduler). **El test de
+     juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev solo hace pasadas
+     headless. No cerrar conclusiones del CaC hasta que el replay sea fiel.
+   - Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`** (§4b-5) y
+     **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (estado WIP).
+   - Instrumentación (runtime, en el fork local): `[DT]`, `[LST]`, `[TL]` (`P89478`, `CMD`, `SCENEFN`,
+     `BFA58`, checks, `osGetTime`, `[LD384] s=`, driver/funciones de escena) en
+     `port/HybridHeavenRecomp/lib/N64ModernRuntime/librecomp/src/overlays.cpp` + `timer.cpp`.
+   - **Comando emulador** (desde la raíz del repo):
+     `mkdir -p work/debug/cac/emu_loader_trace && DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1
+     SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so
+     VIDEO_PLUGIN=work/wsl_package/plugins/mupen64plus-video-rice.so INPUT_PLUGIN=work/hhinput.so
+     RSP_PLUGIN=work/wsl_package/plugins/mupen64plus-rsp-hle.so
+     HH_KEYS_REPLAY=work/debug/cac/20260917_1146_windows_replay/hh_replay_fight.txt
+     HB_TRACE_EXEC=0x80003824 timeout 400 ./work/r64dump work/roms/us_retail.z64
+     work/debug/cac/emu_loader_trace/emu 380 > work/debug/cac/emu_loader_trace/stdout.log 2>&1`
+   - **Comando port Linux** (desde `port/HybridHeavenRecomp/build_dbg`; sustituir `R=`
+     por la raíz del repo):
+     `DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+     HH_NOAUDIO=1 HH_REPLAY=$R/work/debug/cac/20260917_1146_windows_replay/hh_replay_fight.txt
+     HH_REPLAY_MODE=poll HH_TBLTRACE=1 timeout -s KILL 420 "./Hybrid Heaven Recomp" >
+     $R/work/debug/cac/linux_loader_long/consola.log 2>&1`
+   - **Evidencia de referencia**: `work/debug/cac/emu_loader_trace/` (56 cargas, replay largo) vs
+     `work/debug/cac/linux_loader_long/` (43); diff alineado por índice: primera divergencia #22.
+     (Con el replay corto: `linux_loader_trace/`.)
+   - **Fallback de apoyo**: `.mpk` de **mupen con el mismo guardado** (**no** savestate; `r64dump` no
+     los carga) para comparación estado-contra-estado.
+   - **Instrumentación de esta ronda** (evidencia en `work/debug/cac/`): `emu_longreplay_wp2/` (WP del
+     callback), `emu_longreplay_end{,2}/` (dumps finales), `emu_setter_trace/` y `emu_setter2_trace/`
+     (trazas del setter), `emu_gate_trace/` (gate), `linux_m7_trace/` (MODTRACE + `hh_watch.log`),
+     `linux_gdb_poison/` (gdb con backtrace del veneno), `work/debug/wptest/` (validación WP).
+2. **[Pacing — CERRADO]** validación Windows hecha (27,1-28,4 polls/s, audio 60,0/s). Afinar a 30/s
+   exactos es opcional y no bloqueante (knobs `HH_NO_MQYIELD`/`HH_MQYIELD` disponibles).
+3. **[Verificado]** gating completo (`pi.cpp` incluido, tras el reinicio de Windows): por defecto
+   solo `hh_state` + volcados; con `HH_DIAG=1` reaparecen todos.
+4. **Knobs e instrumentación nuevos** (runtime local, sin commitear): `HH_DIAG=1`,
+   `HH_NO_MQYIELD`, `HH_MQYIELD=wake|QUANTUM_MS`, `HH_YIELD_STRICT`, `hh_wait.log` (`HH_WAITLOG=1`),
+   `[TRACE]` con `t=`/`tid=`, `[GATE]/[GATE2]/[SUBM]` con `t=`, sched con `ra=`.
+   **No usar `HH_MQLOG_ALL` para pacing** (atasca aun filtrado).
+5. **[Backlog documentado, posterior]** estabilidad de cadencia (28,4 vs 30) y hitches de puertas:
+   plan de medición y fixes en `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`
+   (TODO → Backlog). No es la causa del CaC.
+6. Si crashea con `Failed to find function at 0x...` (dirección **válida**): `python3
    tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config config/game_combined.toml
    --force` (el guardián `check_syms_overrides.py` aborta si se pierde un override; la herramienta
    rechaza delay slots y switches fusionados).
@@ -50,7 +124,7 @@
 
 - `hh_sched.log`: `queue`/`next`/`signal`/`park`/`wake`/`rntw`/`swap` de cada hilo. Un `park tid=N`
   sin `next/wake tid=N` posterior = hilo encolado que nunca corre.
-- **Pacing** (foco actual): `hh_mq_all.log` (`HH_MQLOG_ALL=1`) = **todas** las colas con `t=`, `tid`,
+- **Pacing** (cerrado; referencia): `hh_mq_all.log` (`HH_MQLOG_ALL=1`) = **todas** las colas con `t=`, `tid`,
   `mq`, `msg` y `valid`; `[GATE]` (`HH_VERBOSE=1`) y `[GATE2]` (`HH_GATELOG=1`) = cambios de
   `0x8005CD4C` y recv/send del gate RSP; `[SUBM]` (`HH_TBLTRACE=1`) = submits con contador antes/después.
 - `hh_mq.log`: eventos de la cola del loader (`0x8005C268`): `send-in`, `send-wake`, `recv-in`,
@@ -62,8 +136,17 @@
   `build_win/HybridHeavenRecomp-Release.map`.
 - `hh_badlookup.log` (nuevo): al fallar un lookup, volcado del objeto del llamante (`s0`) y dónde
   aparece el valor malo.
-- `hh_watch.log` (watchpoint, `run_watch.bat`): accesos a un rango; ahora incluye `val=` y admite
-  `HH_WATCH_SIZE`. **Ojo**: no ve las escrituras directas del runtime (p. ej. `do_send`).
+- `hh_watch.log` (watchpoint, `run_watch.bat`; env `HH_WATCH_ADDR`/`HH_WATCH_SIZE`): accesos de código
+  recompilado a un rango, con `val=`, `ra`, `a0..a3` y `ret=(exe+0x…)` (simbolizar con `addr2line -e
+  "Hybrid Heaven Recomp"`). **Ojo**: no ve las escrituras directas del runtime (p. ej. `do_send`).
+- `[LD384]` (`HH_TBLTRACE=1`): cada carga del loader `FUN_80003824` (`a0`=src ROM, `a1`=dst,
+  `a2`=size, `a3`=fin) + `0x801CC8C4` post-carga. `[SETCB]`: cada llamada al setter `FUN_800058dc`
+  (`obj`, `cb`). `[MODT]` (`HH_MODTRACE=[rom:]offset:label,…`): entrada a funciones por offset de
+  módulo (base-aware; incluye `vi`, `mode`, `ra`). `[SUBM]`: submits del RSP.
+- Emulador: `[MPIW] wr 0x… val=… pc=…` = watchpoint de escritura del core
+  `work/libmupen64plus-wplog.so` (`HH_WPLO`/`HH_WPHI` **físicas**); `[dbg] stop pc=… vi_count=… a0=…`
+  = breakpoint de ejecución de `HB_TRACE_EXEC=<csv de PCs>` en `r64dump`; `[HHR] idx=N/M` = progreso
+  del replay del plugin `work/hhinput.so` (`HH_KEYS_REPLAY=<txt>`, mismo formato que el port).
 
 ## Entorno / git
 
@@ -74,6 +157,8 @@
   Flujo: editar `lib/N64ModernRuntime` → commit → push al fork → actualizar el SHA del lock.
   `N64Recomp` es submódulo (fork propio) del runtime.
 - Bats: `build_windows.bat` (clona/actualiza por lock), **`build_windows.local.bat`** (compila `lib\`
-  tal cual, sin git; no versionado), `run_windows.bat` (admite `noaudio`/`audlog`), `run_mqlog.bat`
-  (traza + s0fix) y `run_watch.bat` (watchpoint; ahora en `0x8024A9A8` tamaño `0x80`).
+  tal cual, sin git; no versionado), `run_windows.bat` (admite `noaudio`/`audlog`),
+  **`run_pacing.bat`** (pacing: movidos a `logs_pacing_<fecha>\`; modos `trace` y `gate`),
+  `run_mqlog.bat` (traza + s0fix) y `run_watch.bat` (watchpoint; ahora en `0x8024A9A8` tamaño `0x80`).
+  Los tres últimos ponen `HH_DIAG=1` (los logs always-on son opt-in).
 - Docs vivos: `AGENTS.md` (arranque) · `TODO.md` · `PROYECTO.md` · `notes/` (evidencia por ronda).
