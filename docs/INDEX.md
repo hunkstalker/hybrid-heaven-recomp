@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-16 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 133 | 2026-09-16 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 135 | 2026-09-17 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 168 | 2026-09-16 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 166 | 2026-09-17 |
 
 ## Técnico y guías (vivos)
 
@@ -38,7 +38,23 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Work order — Pacing/cadencia: cuadrar la lógica del port con el original](../notes/2026-09-17-workorder-pacing-cadencia.md) | Documento operativo **autocontenido** para retomar ESTA tarea en una sesión nueva. | 179 | 2026-09-17 |
+| [Validación Windows (RTX 4080): cadencia corregida y el freeze del CaC persiste](../notes/2026-09-17-validacion-windows-pacing-y-cac.md) | Fase 3 del work order de pacing + arranque de la Parte B del plan del CaC. Fecha: 2026-09-17. | 57 | 2026-09-17 |
+| [Replay preciso: modo poll-exacto (el modo VI derivaba)](../notes/2026-09-17-replay-preciso-modo-poll.md) | Arreglo del replay que el mantenedor reportó como impreciso (2026-09-17): | 39 | 2026-09-17 |
+| [2026-09-17 — Replay: reloj esclavo (`HH_REPLAY_CLOCK`) y desfase de frames — **WIP**](../notes/2026-09-17-replay-clock-y-desfase-frames-wip.md) | Continúa `2026-09-17-cac-timeline-modulo24-periodo.md` (§4b-5). **Trabajo a medias, parado a | 74 | 2026-09-17 |
+| [Ralentizaciones en puertas y 30 Hz lógicos vs refresco (pendiente, posterior al CaC)](../notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md) | Registro de una observación del mantenedor (2026-09-17) para atacar **después** de las tareas en | 50 | 2026-09-17 |
 | [2026-09-17 — Plan de revisión del bloqueo al entrar en combate (CaC)](../notes/2026-09-17-plan-revision-bloqueo-cac.md) | Documento de trabajo. Resume lo **probado**, lo que **falta revisar** y el orden propuesto. | 134 | 2026-09-17 |
+| [HH_DIAG (logs de diagnóstico opcionales) y protocolo de comparación Linux ↔ Windows](../notes/2026-09-17-logdiag-y-comparacion-linux-windows.md) | Cierre de la Fase 2 (limpieza de instrumentación) y preparación de la Fase 3 en la máquina real. | 88 | 2026-09-17 |
+| [Fase 2 — A/B de cesión de turno y descubrimiento: el I/O de los logs always-on dominaba las medidas](../notes/2026-09-17-fase2-ablacion-yield-y-descubrimiento-io.md) | Evidencia de la Fase 2 del work order `notes/2026-09-17-workorder-pacing-cadencia.md`. | 94 | 2026-09-17 |
+| [Fase 1 — Limitador del pacing en el port: cesiones del scheduler en cada osSendMesg/osRecvMesg](../notes/2026-09-17-fase1-limitador-pacing-port.md) | Evidencia de la Fase 1 del work order `notes/2026-09-17-workorder-pacing-cadencia.md`. | 111 | 2026-09-17 |
+| [Fase 0 — Referencia de cadencia del original (emulador): HH = 30 fps lógicos](../notes/2026-09-17-fase0-referencia-cadencia-emulador.md) | Evidencia de la Fase 0 del work order `notes/2026-09-17-workorder-pacing-cadencia.md`. | 57 | 2026-09-17 |
+| [2026-09-17 — CaC: veneno `0xFFFF84CD` del objeto 0x8024A990 — escritor y cadena exacta](../notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md) | Continúa `2026-09-17-cac-ownership-resuelto.md`. Tarea: identificar **quién** escribe el callback | 168 | 2026-09-17 |
+| [2026-09-17 — CaC: por qué el port se salta la ráfaga #22 — LÍNEA TEMPORAL del módulo 24 (periodo g2)](../notes/2026-09-17-cac-timeline-modulo24-periodo.md) | Continúa `2026-09-17-cac-veneno-ffff84cd-y-llamante.md` (§10 = primera divergencia de flujo). Esta | 160 | 2026-09-17 |
+| [CaC — Pasada Windows con replay (partida nueva) y firma del objeto `0x8024AAF8`](../notes/2026-09-17-cac-replay-windows-y-firma-8024aaf8.md) | Evidencia de la grabación del repro del CaC (2026-09-17) y del flujo de validación por replay. | 45 | 2026-09-17 |
+| [CaC — Ownership resuelto (Linux) y repro funcional del freeze](../notes/2026-09-17-cac-ownership-resuelto.md) | Iteración autónoma 2026-09-17. Continúa `notes/2026-09-17-cac-b2-switch-y-bases-reales.md`. | 236 | 2026-09-17 |
+| [CaC — B2 avanzado: switch del selector (s0=0x801CC8C4) y análisis de bases reales](../notes/2026-09-17-cac-b2-switch-y-bases-reales.md) | Ronda 2026-09-17 tras refutar B1 (`notes/2026-09-17-cac-b1-refutado-base-real-modulos.md`). | 76 | 2026-09-17 |
+| [CaC Parte B (B1) — Solape de módulos 23/8 y entry interior `0x801C1EE0`](../notes/2026-09-17-cac-b1-solape-modulos-23-8.md) | Evidencia de la ronda B1 del plan `notes/2026-09-17-plan-revision-bloqueo-cac.md`. | 59 | 2026-09-17 |
+| [CaC — B1 REFUTADO: el callback `0x801C1EE0` es del módulo residente (base real ≠ base link-time)](../notes/2026-09-17-cac-b1-refutado-base-real-modulos.md) | Corrección del diagnóstico de `notes/2026-09-17-cac-b1-confirmado-callback-801c1ee0.md`. | 52 | 2026-09-17 |
+| [CaC B1 confirmado — el callback del objeto es `0x801C1EE0` (función de módulo 23) y lo resuelve el módulo equivocado](../notes/2026-09-17-cac-b1-confirmado-callback-801c1ee0.md) | Evidencia directa del bug de propiedad de `func_map`. Fecha: 2026-09-17. | 61 | 2026-09-17 |
 | [2026-09-16 — Sesión: B en menús + mid-entry CaC `0x8037948C` + corrupción al entrar en combate](../notes/2026-09-16-sesion-b-menus-combate-corrupcion.md) | Resumen de la sesión para retomar. Estado del build, cambios de runtime y por dónde seguir. | 73 | 2026-09-16 |
 | [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
 | [2026-09-16 — Plan de la próxima sesión: limpieza de rutas/referencias y pipeline de compilación](../notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md) | Plan consolidado y **aprobado por el usuario** (queda ejecutarlo). Es la tarea que `RETOMAR.md` debe | 231 | 2026-09-16 |
