@@ -11,6 +11,9 @@ set HH_WATCH_ADDR=0x8024A9A8
 set HH_WATCH_SIZE=0x80
 REM set HH_WATCH_ADDR=0x80059D80
 
+REM HH_DIAG=1 reactiva los logs always-on (hh_sched/hh_pi/hh_mq/hh_cmds/hh_ovl/hh_rsp).
+set HH_DIAG=1
+
 REM Graba los inputs de la sesion (para poder reproducir localmente la secuencia del NPC).
 set HH_RECORD=hh_replay_npc.txt
 

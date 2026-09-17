@@ -11,6 +11,9 @@ set HH_MQLOG_ALL=1
 set HH_S0FIX=1
 set HH_RECORD=hh_replay_dmg.txt
 
+REM HH_DIAG=1 reactiva los logs always-on (hh_sched/hh_pi/hh_mq/hh_cmds/hh_ovl/hh_rsp).
+set HH_DIAG=1
+
 if /i "%~1"=="noaudio" set HH_NOAUDIO=1
 
 set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Release"
