@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-16**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-17**.
 
 ## 1. Objetivo
 
@@ -127,7 +127,9 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Foco inmediato: **desbloquear el combate cuerpo a cuerpo** (corrupción de estado al
-entrar; ver `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`) y validar en Windows el B en
-menús y el mid-entry `0x8037948C`. Después: decidir la publicación de las mitigaciones de runtime,
-teardown SEGV al cerrar, limpieza de instrumentación y botón de los menús de combate para X.
+Ver **`TODO.md`**. Foco inmediato (2026-09-17): **cuadrar el pacing/cadencia** del port con el
+original (la lógica corre a ~16–28/s con VI/audio a 60/s; work order:
+`notes/2026-09-17-workorder-pacing-cadencia.md`). Después: re-test y **desbloqueo del combate cuerpo
+a cuerpo** (corrupción de estado al entrar; ver `notes/2026-09-17-plan-revision-bloqueo-cac.md`),
+publicación de las mitigaciones de runtime, teardown SEGV al cerrar, limpieza de instrumentación y
+botón de los menús de combate para X.

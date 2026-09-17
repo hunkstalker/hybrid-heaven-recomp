@@ -3,7 +3,7 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — Combate CaC (bloqueante), teardown y limpieza
+## Ahora — Pacing/cadencia (foco), combate CaC (bloqueante), teardown y limpieza
 
 > **Sesión 2026-09-16 (B en menús + CaC)**: **B físico = atrás en menús VALIDADO** y mid-entry
 > `M55_FUN_8037948C` (crash al iniciar CaC). **BLOQUEANTE**: corrupción de estado al entrar en CaC
@@ -20,8 +20,10 @@
 > módulo 55 (fuga `0x48`/frame + animación saltada) y mid-entries sin registrar (`0x80379954`,
 > `0x803798E8`). Módulo 55 = overlay de la secuencia de objeto (`docs/architecture.md` §2.2).
 > Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
-
-1. [•] **Seguir la partida** (usuario, en curso; ya llega lejos): ante un
+1. [•] **Pacing/cadencia (foco actual, 2026-09-17)**: la lógica del port corre a ~16–28/s con
+   VI/audio a 60/s (original ~32–70/s; confirmar si HH es 30 o 60 fps lógicos) → **ratio eventos/VI
+   1:1**. Work order: `notes/2026-09-17-workorder-pacing-cadencia.md`; luego, re-test del CaC.
+2. [•] **Seguir la partida** (usuario, en curso; ya llega lejos): ante un
    `Failed to find function at 0x...` (se ve en consola y en `hh_missing.log`), registrarlo con
    `python3 tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config
    config/game_combined.toml --force` (ver nota, "Ronda 9"; **no** usar `setup_module.py`: cascado
@@ -33,7 +35,7 @@
    (edición mínima + overrides) y protegido por `tools/analysis/check_syms_overrides.py` (paso 1b de
    `recomp.py`; aborta si se pierde un override). Ver
    `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-2. [x] **Guardado en cápsula (Controller Pak): VALIDADO (2026-09-16)**. Causa raíz (libultra del ROM):
+3. [x] **Guardado en cápsula (Controller Pak): VALIDADO (2026-09-16)**. Causa raíz (libultra del ROM):
    `osPfsFindFile` devuelve **5** con `*file_no = -1` cuando no hay fichero, no 10; el wrapper del
    juego (`FUN_80002DBC`) trata **>=6 como éxito sin rellenar el file_no** → usaba un `file_no` basura
    (95/233/237) y el juego nunca creaba su fichero. **Fix** (runtime `0619945`): FindFile→5 con
@@ -41,19 +43,19 @@
    guardado completa (UI de slots + `.pak` en `saves\`). Detalle:
    `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
    `notes/2026-09-16-guardado-capsula-validado.md`.
-3. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
+4. [ ] **Teardown SEGV** al cerrar en Windows (`Hybrid Heaven Recomp.exe +0x12A602`):
    mapear con `build_win/HybridHeavenRecomp-Release.map`, reproducir en Linux (cierre ordenado) y
    arreglar (orden de deinit/destructores estáticos).
-4. [ ] **Limpieza de instrumentación** (tras estabilizar): silenciar `hh_sched.log`/`hh_mq.log`/`hh_ovl.log`
+5. [ ] **Limpieza de instrumentación** (tras estabilizar): silenciar `hh_sched.log`/`hh_mq.log`/`hh_ovl.log`
    tras un env, y decidir si se quedan `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*` y el watchpoint.
-5. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
+6. [ ] **Mando**: identificar el botón N64 que abre los menús de combate cuerpo a cuerpo y asignarlo a
    **X** (`config.ini`). Decidir también `LB` (¿L?) y el atajo futuro de cámara/1ª persona.
-6. [x] **Pipeline de compilación** (2026-09-16): `port/runtime.lock` apunta a commits **publicados**
+7. [x] **Pipeline de compilación** (2026-09-16): `port/runtime.lock` apunta a commits **publicados**
    (runtime `feae2d5`, N64Recomp `cab94d9`). Verificado: build Linux (`tools/build_linux.sh
    --force-libs`) hace checkout de los pins y compila; build **Windows OK**; **CI verde**. Para
    commits locales sin publicar: `port/build_windows.local.bat` (no versionado; contenido en
    `port/README_windows.md` §2b). `build_windows.bat` imprime siempre el runtime usado.
-7. [ ] **Smoke de arranque** (opcional, requiere ROM): con la ROM en `rom\` junto al `.exe`, arrancar
+8. [ ] **Smoke de arranque** (opcional, requiere ROM): con la ROM en `rom\` junto al `.exe`, arrancar
    y comprobar que el binario la encuentra (`hh.log`/consola) y que no hay `Failed to find function`.
    En Docker: `HH_HEADLESS=1` con `rom/` montado en `/work/rom`.
 

@@ -9,38 +9,38 @@
 - Se **juega** en Windows (menús → GAME START → escenas 3D y combate, mando Xbox, audio 43200 Hz,
   Controller Pak emulado). Fixes previos validados: **guardado en cápsula**, cuelgue por daño del
   robot, objeto del NPC y regresión de las escaleras (ver `TODO.md` → "Hecho" y `notes/`).
-- **Sesión actual**: **B físico = atrás en menús** (VALIDADO por el usuario) y **mid-entry
-  `M55_FUN_8037948C`** (crash al iniciar CaC). Detalle:
-  `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
-- **BLOQUEANTE**: al entrar en **combate cuerpo a cuerpo** el juego **corrompe estructuras**
-  (objeto `0x8024A990` con callback basura `0xFFFF84CD`→bit23 perdido; lista de broadcast
-  `[struct+0x888]` recorrida fuera de rango). No es un símbolo ausente. El runtime tiene
-  mitigaciones **locales** (no publicadas) que evitan el crash pero el combate se atasca.
+- **Sesión actual (2026-09-17) — nuevo foco: PACING/CADENCIA**. El port ejecuta la **lógica** de
+  juego a ~16–28/s con VI/audio a 60/s; el original (emulador) a ~32–70/s (ambiguo: resolver).
+  Pista documentada: el gate `[0x8005CD4C]` (si `>=2`, `FUN_80001454` se salta el dispatcher).
+  Work order: **`notes/2026-09-17-workorder-pacing-cadencia.md`**.
+- **BLOQUEANTE de fondo (CaC)**: al entrar en combate el juego corrompe estructuras (objeto
+  `0x8024A990`; callback `0xFFFF84CD`→`0xFF7F84CD`; lista de broadcast fuera de rango). Hipótesis
+  nueva: la **cadencia divergente** hace que los state machines por-frame/temporizador no lleguen al
+  estado que arma el combate (`M23_FUN_801c1dc0`, `case 2`). Plan:
+  `notes/2026-09-17-plan-revision-bloqueo-cac.md`.
 - **Runtime (fork) con cambios LOCALES sin push** (`e9a178f`, `efc5f17`, `0806e19`), por encima del
   pin publicado `feae2d5`. En Windows usar **`port\build_windows.local.bat`** (no `--force-libs`,
   que resetea `lib\` al pin y perdería las mitigaciones).
 
 ## TU TAREA AHORA (pasos exactos)
 
-> Contexto completo de esta sesión: `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
-> Notas del bloqueo: `notes/2026-09-16-crash-combate-centinela-ff7f84cd.md` y
-> `notes/2026-09-16-combate-corrupcion-estado-8024a990.md`.
+> Work order completo y autocontenido (mecanismo del gate, instrumentación, comandos):
+> **`notes/2026-09-17-workorder-pacing-cadencia.md`**. Objetivo: cadencia y **ratio eventos/VI**
+> **1:1 con el original** (subir a 60+ solo después, si acaso). Evidencia previa:
+> `notes/2026-09-17-plan-revision-bloqueo-cac.md` (Parte A) y
+> `notes/2026-09-13-cadena-boot-y-progreso-fe00.md` §5.
 
-1. **[usuario] Validar en Windows** con `port\build_windows.local.bat` + `port\run_windows.bat`:
-   - **B en menús**: en el menú principal el B físico debe ir atrás (en juego sigue = agacharse).
-   - **`0x8037948C`**: iniciar combate y aguantar sin el `Failed to find function`.
-2. **[BLOQUEANTE] Corrupción al entrar en CaC**. Ya acotada pero sin causa raíz:
-   - El objeto `0x8024A990` acaba con `+0x1C=0xFFFF84CD` (bit23 perdido → `0xFF7F84CD`) y el
-     dispatcher `FUN_80005270` intenta llamarlo. El **emulador** tiene `+0x1C=0x80135320` válido.
-   - La escritura que corrompe **no pasa por `MEM_*`**: `do_send` escribe el mensaje directo en
-     RDRAM. La "lista de colas" de `FUN_80000774`→`FUN_80000a0c` (`[struct+0x888]`) se recorre fuera
-     de rango (nodos con floats → terminador pisado).
-   - Vías: (a) **comparar con el emulador en el mismo frame** (alinear por VI y diff de RDRAM);
-     (b) cazar el **wild write** con watchpoints sobre la estructura (el `struct` es dinámico).
-3. **Decidir publicación del runtime**: las mitigaciones son locales; publicarlas requiere push al
-   fork (orden N64Recomp → NMR → main) + subir el pin de `port/runtime.lock`.
-4. **Pendientes varios**: teardown SEGV al cerrar, limpieza de instrumentación y botón **X** de los
-   menús de combate (`TODO.md`).
+1. **[Fase 0 — referencia del original]** medir con hits/VI (independiente del throttling):
+   `HB_TRACE_EXEC=0x80001454,0x80005270,0x80000ed0 tools/analysis/emu_ref.sh work/debug/emu_rate2 60 60`
+   → contar hits por dirección + `[dbg] vi_count`. Resolver si HH corre a **30 o 60 fps lógicos**.
+2. **[Fase 1 — limitador del port]** con `HH_VERBOSE=1 HH_GATELOG=1 HH_TBLTRACE=1 HH_MQLOG_ALL=1`
+   (`hh_mq_all.log`, `hh_sched.log`): ¿en qué espera se va el tiempo entre frames?, ¿quién deja
+   `[0x8005CD4C]` en 1–2?
+3. **[Fase 2 — fix]** uno por pasada: (a) gate `0x8005CD4C`/completaciones SP-DP, (b) scheduler/lock
+   single-CPU, (c) handshake audio/SP (`HH_SP_SHARED`, `HH_AI_QUEUE_REPORT=full`). Si no mueve la
+   métrica de Fase 1, revertir.
+4. **[Fase 3 — validar]** 1:1 (hits/s o hits/VI) y **re-test del CaC**; si sigue atascado, volver a
+   la Parte B de `notes/2026-09-17-plan-revision-bloqueo-cac.md` con la cadencia ya correcta.
 5. Si crashea con `Failed to find function at 0x...` (dirección **válida**): `python3
    tools/analysis/add_mid_entry.py 0xADDR` + `tools/recomp.py --config config/game_combined.toml
    --force` (el guardián `check_syms_overrides.py` aborta si se pierde un override; la herramienta
@@ -50,6 +50,9 @@
 
 - `hh_sched.log`: `queue`/`next`/`signal`/`park`/`wake`/`rntw`/`swap` de cada hilo. Un `park tid=N`
   sin `next/wake tid=N` posterior = hilo encolado que nunca corre.
+- **Pacing** (foco actual): `hh_mq_all.log` (`HH_MQLOG_ALL=1`) = **todas** las colas con `t=`, `tid`,
+  `mq`, `msg` y `valid`; `[GATE]` (`HH_VERBOSE=1`) y `[GATE2]` (`HH_GATELOG=1`) = cambios de
+  `0x8005CD4C` y recv/send del gate RSP; `[SUBM]` (`HH_TBLTRACE=1`) = submits con contador antes/después.
 - `hh_mq.log`: eventos de la cola del loader (`0x8005C268`): `send-in`, `send-wake`, `recv-in`,
   `recv-block`, `recv-ok` con `tid`, `sender`, `valid` y `blockedHead`.
 - `hh_state.log`: si `polls` se congela con `audio` subiendo, hay hilo(s) de juego aparcados.

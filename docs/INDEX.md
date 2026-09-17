@@ -37,6 +37,8 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Work order — Pacing/cadencia: cuadrar la lógica del port con el original](../notes/2026-09-17-workorder-pacing-cadencia.md) | Documento operativo **autocontenido** para retomar ESTA tarea en una sesión nueva. | 179 | 2026-09-17 |
+| [2026-09-17 — Plan de revisión del bloqueo al entrar en combate (CaC)](../notes/2026-09-17-plan-revision-bloqueo-cac.md) | Documento de trabajo. Resume lo **probado**, lo que **falta revisar** y el orden propuesto. | 134 | 2026-09-17 |
 | [2026-09-16 — Sesión: B en menús + mid-entry CaC `0x8037948C` + corrupción al entrar en combate](../notes/2026-09-16-sesion-b-menus-combate-corrupcion.md) | Resumen de la sesión para retomar. Estado del build, cambios de runtime y por dónde seguir. | 73 | 2026-09-16 |
 | [2026-09-16 — Runtime en forks propios y build reproducible (sustituye el snapshot)](../notes/2026-09-16-runtime-en-forks-y-build-reproducible.md) | Consolida el trabajo del día: receta de build (script + Docker + CI), hallazgo del commit local y | 78 | 2026-09-16 |
 | [2026-09-16 — Plan de la próxima sesión: limpieza de rutas/referencias y pipeline de compilación](../notes/2026-09-16-plan-proxima-sesion-limpieza-rutas-y-build.md) | Plan consolidado y **aprobado por el usuario** (queda ejecutarlo). Es la tarea que `RETOMAR.md` debe | 231 | 2026-09-16 |
