@@ -28,13 +28,17 @@
   `0x1000` de `[0x80089478]` = **START recién pulsado** (registro de flancos de input, `FUN_800021b4`).
   El emulador no lo pulsa durante la transición; el port sí porque **aplica el replay por frame**
   (samples 412-431 = START de menú con `vis` 1092-1135 caen en VI 766-803) y su relación frame↔VI
-  (~1.86) difiere de la de la grabación (~2.65). **Vía elegida (2026-09-17)**: grabar el input
-  **en el emulador (BizHawk, el usuario juega desde boot)** con `bizhawk_hh_tracker_v3.lua` y
-  consumirlo con `HH_REPLAY_MODE=vi` (input keyed por VI → sin desfase frame↔tiempo); conversor
-  `tools/analysis/bizhawk_to_replay.py` (validado con replay sintético). Mientras: `HH_REPLAY_CLOCK`
-  (WIP) queda como fallback. **El test de juego del port nativo lo hace el usuario (mantenedor)**;
-  el entorno de dev solo hace pasadas headless. Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`**
-  (§4b-5) y **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (§4b).
+  (~1.86) difiere de la de la grabación (~2.65). **Reproducido y acotado (2026-09-17)**: con el
+  replay de **BizHawk** (mantenedor jugó; `bizhawk_hh_tracker_v3.lua` + `bizhawk_to_replay.py`,
+  `--vis-offset -100`; el reloj VI del emulador va ~100 VI por delante) el port **se cuelga igual**
+  (`[BADMQ] mq=8005C084`, watchdog VI=32122, `work/debug/cac/bizhawk1/hh_hang_rdram_20526_0.bin`) y el
+  emulador no. **Clave: la ráfaga #22 SÍ se ejecuta** (cargas #23-35 idénticas) → **la teoría del
+  "burst saltado" queda refutada**; el primer desvío nuevo es la **carga #49 (~VI 20500)** (el port
+  sigue con ráfaga de escena y el emulador recarga menú/módulo). **Siguiente**: rebuild para `[LD384]
+  s=`, dumps finos 20400-20800 en ambos lados y comparar estado de la línea temporal/directorio.
+  `HH_REPLAY_CLOCK` queda de fallback. **El test de juego del port nativo lo hace el usuario
+  (mantenedor)**; dev solo hace pasadas headless. Detalle:
+  **`notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md`**.
   - Evidencia previa (veneno/llamante): `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md` (§1-10).
     Contexto: `notes/2026-09-17-cac-ownership-resuelto.md`. Replay Linux fiel;
     `run_corrupt.bat clean` para grabar estable. El freeze en Windows se graba/reproduce con
@@ -55,59 +59,20 @@
 > **Los logs de diagnóstico now requieren `HH_DIAG=1`** (default off). Para medir pacing, usar
 > `port\run_pacing.bat` (Windows) o los defaults (Linux). No hace falta tmpfs desde el gating.
 
-1. **[SIGUIENTE — CaC: causa raíz encontrada = alineación del replay (input en fase de juego errónea)]**.
-   `[0x80089478]` es el registro de **flancos de input** (`FUN_800021b4`, `sh t8,0x4(s0)` con
-   `t8=(prev^nuevo)&nuevo` desde `[0x8005CE50]`); bit `0x1000` = **START recién pulsado**. Emulador
-   (watchpoint `0x89474-0x8947C`): el bit solo se pone en boot y **a partir de VI ~3400** (nunca
-   durante la transición) → la cadena no se completa. Port: se pone en VI 765/783/798 porque el
-   replay (mode=poll, por frame) aplica ahí los samples 412-431, que en la grabación son START de
-   menú (`vis` 1092-1135, t=16.8-17.5 s). Con `HH_REPLAY_MODE=vi` el START cae en VI 1092 (correcto)
-   pero el port ya está en la transición (llegó en ~330 frames vs ~576 del original) → mismo disparo.
-   **Causa**: la relación frame↔VI del port (~1.86) ≠ la de la grabación (~2.65), así que los waits
-   dependientes de tiempo consumen otros frame counts y el input cae en otra fase.
-   - **Fix propuesto (dónde va)**: al reproducir, **esclavizar el reloj de juego a la grabación**:
-     env `HH_REPLAY_CLOCK=1` que actualiza `ostime_offset` en `ultramodern/src/timer.cpp` por frame con
-     la muestra aplicada (Δ`vis`/Δ`t`) en vez del reloj de pared. Alternativa B: gatear el frame loop
-     por la columna `vis` de la muestra (scheduler). Validar con `[TL] ADVANCE` (g2 0→1),
-     `M24C@2420 idx=601` y las 56 cargas del emulador.
-   - **WIP (a medias, documentado)**: `HH_REPLAY_CLOCK=1` implementado (reloj esclavo +
-     interpolación intra-frame; sin ella había deadlock a las 158 muestras), pero la transición
-     sigue adelantada con el replay de Windows (del port, 22,6 fps) → ese replay no es fiel.
-     **Vía elegida**: grabar el input **en el emulador (BizHawk)** desde boot y usarlo para ambos
-     lados con `HH_REPLAY_MODE=vi` (input keyed por VI; elimina el desfase frame↔tiempo).
-     Herramientas hechas: `tools/analysis/bizhawk_hh_tracker_v3.lua` (replay.log por frame +
-     state.log) y `tools/analysis/bizhawk_to_replay.py` (conversor; validado con replay sintético).
-     **Siguiente (usuario)**: muestra corta boot→menú y después partida completa hasta el CaC.
-     **El test de juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev solo
-     hace pasadas headless. No cerrar conclusiones del CaC hasta cerrar el input.
-   - Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`** (§4b-5) y
-     **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (estado WIP).
-   - Instrumentación (runtime, en el fork local): `[DT]`, `[LST]`, `[TL]` (`P89478`, `CMD`, `SCENEFN`,
-     `BFA58`, checks, `osGetTime`, `[LD384] s=`, driver/funciones de escena) en
-     `port/HybridHeavenRecomp/lib/N64ModernRuntime/librecomp/src/overlays.cpp` + `timer.cpp`.
-   - **Comando emulador** (desde la raíz del repo):
-     `mkdir -p work/debug/cac/emu_loader_trace && DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1
-     SDL_AUDIODRIVER=dummy CORE_SO=work/libmupen64plus-debug.so
-     VIDEO_PLUGIN=work/wsl_package/plugins/mupen64plus-video-rice.so INPUT_PLUGIN=work/hhinput.so
-     RSP_PLUGIN=work/wsl_package/plugins/mupen64plus-rsp-hle.so
-     HH_KEYS_REPLAY=work/debug/cac/20260917_1146_windows_replay/hh_replay_fight.txt
-     HB_TRACE_EXEC=0x80003824 timeout 400 ./work/r64dump work/roms/us_retail.z64
-     work/debug/cac/emu_loader_trace/emu 380 > work/debug/cac/emu_loader_trace/stdout.log 2>&1`
-   - **Comando port Linux** (desde `port/HybridHeavenRecomp/build_dbg`; sustituir `R=`
-     por la raíz del repo):
-     `DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-     HH_NOAUDIO=1 HH_REPLAY=$R/work/debug/cac/20260917_1146_windows_replay/hh_replay_fight.txt
-     HH_REPLAY_MODE=poll HH_TBLTRACE=1 timeout -s KILL 420 "./Hybrid Heaven Recomp" >
-     $R/work/debug/cac/linux_loader_long/consola.log 2>&1`
-   - **Evidencia de referencia**: `work/debug/cac/emu_loader_trace/` (56 cargas, replay largo) vs
-     `work/debug/cac/linux_loader_long/` (43); diff alineado por índice: primera divergencia #22.
-     (Con el replay corto: `linux_loader_trace/`.)
-   - **Fallback de apoyo**: `.mpk` de **mupen con el mismo guardado** (**no** savestate; `r64dump` no
-     los carga) para comparación estado-contra-estado.
-   - **Instrumentación de esta ronda** (evidencia en `work/debug/cac/`): `emu_longreplay_wp2/` (WP del
-     callback), `emu_longreplay_end{,2}/` (dumps finales), `emu_setter_trace/` y `emu_setter2_trace/`
-     (trazas del setter), `emu_gate_trace/` (gate), `linux_m7_trace/` (MODTRACE + `hh_watch.log`),
-     `linux_gdb_poison/` (gdb con backtrace del veneno), `work/debug/wptest/` (validación WP).
+1. **[SIGUIENTE — CaC: primer desvío con la ráfaga hecha = carga #49 (~VI 20500)]**.
+   El replay de BizHawk reproduce el freeze en el port CON la ráfaga #22 → refutada la teoría del
+   burst saltado. El primer desvío de flujo es la **carga #49** (`~VI 20500`): el port sigue cargando
+   recursos de escena (`00B7EF20@8025D168`, …) y el emulador recarga menú/módulo (`005F1190@801BF1A0`,
+   …); 14 cargas después el port engancha la cadena del emulador (port #63 = emu #49).
+   - **Pasos**: (a) rebuild (`make -C build_dbg`) para tener `[LD384] … s=<muestra>`; (b) dumps finos
+     (20400/20500/20600/20800) en port (`HH_DUMP_VI`) y emulador (`HB_DUMP_VI`) con el mismo replay;
+     (c) comparar línea temporal módulo 24 (`0x801D8CE8`, `0x801D8DA8`, `0x801D8D00`, `0x801D8CFC`),
+     directorio `0x8008DFC8`, objeto de transición `0x801FDA70` y colas; (d) seguir el primer campo que
+     diverja, aguas arriba.
+   - Detalle: **`notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md`** y
+     **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`** (§4b-5).
+   - Instrumentación: `[DT]`, `[LST]`, `[TL]`, `[LD384] s=` en el runtime (fork local, commit
+     `948279f`); `bizhawk_hh_tracker_v3.lua` + `bizhawk_to_replay.py` (main, commit `1491836`).
 2. **[Pacing — CERRADO]** validación Windows hecha (27,1-28,4 polls/s, audio 60,0/s). Afinar a 30/s
    exactos es opcional y no bloqueante (knobs `HH_NO_MQYIELD`/`HH_MQYIELD` disponibles).
 3. **[Verificado]** gating completo (`pi.cpp` incluido, tras el reinicio de Windows): por defecto
