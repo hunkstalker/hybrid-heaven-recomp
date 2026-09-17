@@ -52,6 +52,28 @@
    g2 0→1, ráfaga `0x00B7BAF0…`, cargas de módulos como el emulador, y ver si el veneno
    `0xFFFF84CD`/`[BADMQ]` persiste).
 
+## 4b. Vía elegida (2026-09-17): input capturado EN EL EMULADOR (BizHawk) — mejora al replay del port
+
+Decisión del mantenedor: en vez de pelear con la fidelidad del replay de Windows (del propio port,
+22,6 fps), se graba una partida **en BizHawk (Windows, mando Xbox, desde boot)** y se usa ese input
+para ambos lados.
+
+- Por qué es mejor: el emulador corre el juego a su ritmo nativo (30 fps lógicos / 2 VI por frame) y
+  la grabación va **keyed por frame/VI**; el port la consume con `HH_REPLAY_MODE=vi` (elige la
+  muestra por VI), de modo que el input deja de depender del frame rate del port y desaparece el
+  desfase frame↔tiempo que bloqueaba el diferencial.
+- Herramientas (este commit):
+  - `tools/analysis/bizhawk_hh_tracker_v3.lua` (copia en `work/gameplay screenshots/`): v2 +
+    `replay.log` (una línea por frame: `frame buttons_hex stick_x stick_y`, encoding del port) +
+    `state.log` (`0x80089478`, `0x801D8DA8`, `0x801D8CE8`, `0x801D8D00`, `0x801D8CFC`, `0x801D8CE4`).
+  - `tools/analysis/bizhawk_to_replay.py`: convierte `replay.log` al formato del port
+    (`<t> <vis> <buttons_hex> <x> <y>`, stick normalizado, `--vis-offset`/`--invert-y`/`--scale`).
+- Validado en Linux con un replay sintético: el port lo carga (`[REPLAY] modo=vi muestras=1200`).
+- **Pendiente (usuario)**: (1) muestra corta (boot→menú, ~1 min) para validar escala/signo del stick
+  y el offset de `vis`; (2) partida completa desde boot hasta el combate cuerpo a cuerpo.
+- **Pendiente (dev)**: con la muestra corta, fijar el env exacto (`vi` vs `poll`, con/sin
+  `HH_REPLAY_CLOCK`) y correr el diferencial (referencia r64dump + port) con `[LD384] s=`.
+
 ## 5. Estado y reparto de tareas (IMPORTANTE)
 
 - **El replay todavía NO es fiel** (transición adelantada). No cerrar conclusiones del CaC con el

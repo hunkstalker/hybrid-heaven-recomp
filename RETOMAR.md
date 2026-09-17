@@ -28,12 +28,13 @@
   `0x1000` de `[0x80089478]` = **START recién pulsado** (registro de flancos de input, `FUN_800021b4`).
   El emulador no lo pulsa durante la transición; el port sí porque **aplica el replay por frame**
   (samples 412-431 = START de menú con `vis` 1092-1135 caen en VI 766-803) y su relación frame↔VI
-  (~1.86) difiere de la de la grabación (~2.65). **Fix en curso (WIP)**: `HH_REPLAY_CLOCK=1`
-  implementado (reloj esclavo + interpolación; evita el deadlock) pero la transición sigue
-  adelantada → el replay **aún no es fiel**; no cerrar conclusiones del CaC con el diferencial
-  actual. **El test de juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev
-  solo hace pasadas headless. Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`**
-  (§4b-5) y **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (estado WIP).
+  (~1.86) difiere de la de la grabación (~2.65). **Vía elegida (2026-09-17)**: grabar el input
+  **en el emulador (BizHawk, el usuario juega desde boot)** con `bizhawk_hh_tracker_v3.lua` y
+  consumirlo con `HH_REPLAY_MODE=vi` (input keyed por VI → sin desfase frame↔tiempo); conversor
+  `tools/analysis/bizhawk_to_replay.py` (validado con replay sintético). Mientras: `HH_REPLAY_CLOCK`
+  (WIP) queda como fallback. **El test de juego del port nativo lo hace el usuario (mantenedor)**;
+  el entorno de dev solo hace pasadas headless. Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`**
+  (§4b-5) y **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (§4b).
   - Evidencia previa (veneno/llamante): `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md` (§1-10).
     Contexto: `notes/2026-09-17-cac-ownership-resuelto.md`. Replay Linux fiel;
     `run_corrupt.bat clean` para grabar estable. El freeze en Windows se graba/reproduce con
@@ -69,13 +70,16 @@
      la muestra aplicada (Δ`vis`/Δ`t`) en vez del reloj de pared. Alternativa B: gatear el frame loop
      por la columna `vis` de la muestra (scheduler). Validar con `[TL] ADVANCE` (g2 0→1),
      `M24C@2420 idx=601` y las 56 cargas del emulador.
-   - **WIP (a medias, documentado)**: `HH_REPLAY_CLOCK=1` ya implementado (reloj esclavo +
-     interpolación intra-frame; sin ella había deadlock a las 158 muestras). Con interpolación el
-     juego corre pero **la transición sigue adelantada** (muestra ~341 vs ~582) → el desfase de
-     frames no es solo de waits por tiempo; pendiente localizar dónde se pierden ~240 frames
-     (`[LD384] … s=` vs emulador) y decidir gatear el frame loop por `vis` (scheduler). **El test de
-     juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev solo hace pasadas
-     headless. No cerrar conclusiones del CaC hasta que el replay sea fiel.
+   - **WIP (a medias, documentado)**: `HH_REPLAY_CLOCK=1` implementado (reloj esclavo +
+     interpolación intra-frame; sin ella había deadlock a las 158 muestras), pero la transición
+     sigue adelantada con el replay de Windows (del port, 22,6 fps) → ese replay no es fiel.
+     **Vía elegida**: grabar el input **en el emulador (BizHawk)** desde boot y usarlo para ambos
+     lados con `HH_REPLAY_MODE=vi` (input keyed por VI; elimina el desfase frame↔tiempo).
+     Herramientas hechas: `tools/analysis/bizhawk_hh_tracker_v3.lua` (replay.log por frame +
+     state.log) y `tools/analysis/bizhawk_to_replay.py` (conversor; validado con replay sintético).
+     **Siguiente (usuario)**: muestra corta boot→menú y después partida completa hasta el CaC.
+     **El test de juego del port nativo lo hace el usuario (mantenedor)**; el entorno de dev solo
+     hace pasadas headless. No cerrar conclusiones del CaC hasta cerrar el input.
    - Detalle: **`notes/2026-09-17-cac-timeline-modulo24-periodo.md`** (§4b-5) y
      **`notes/2026-09-17-replay-clock-y-desfase-frames-wip.md`** (estado WIP).
    - Instrumentación (runtime, en el fork local): `[DT]`, `[LST]`, `[TL]` (`P89478`, `CMD`, `SCENEFN`,
