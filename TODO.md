@@ -33,10 +33,11 @@
   congela); primera divergencia = **timing** del loader (carga #12: port vis 413 vs emu vi 1535).
   **VENENO CAPTURADO EN VIVO (watchpoint en `0x8024AB14`)**: `FUN_800058dc` escribe `0xFFFF84CD` con
   `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume.
-  **Siguiente**: identificar al llamante del setter (`a2/a3`), atacar el desfase de timing del loader
-  #12, e investigar `0x8005C4F0`/`0x8005C268` (port a cero vs emu). Detalle:
-  `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (incluye bug de instrumentación corregido:
-  `hh_ring2_n` desbordaba `int` a ~50 s).
+  **CONTRALADO EMULADOR (decisivo)**: con el mismo replay, el emu ejecuta `FUN_800058dc` 1426 veces
+  pero **0 con el veneno** y **0 veces** `M10_FUN_8022c7ac`/`M55_FUN_80379410` → **la ruta correcta es
+  NO ejecutar el disable**; el callback sano es `801CB71C`. **Siguiente**: quién invoca
+  `M10_FUN_8022c7ac` (callback por puntero; buscar su tabla/state machine) y por qué el port llega ahí.
+  Detalle: `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2d/§2e).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
 - [ ] **Builds/empaquetado**: validar "build once, promote" en GitHub y empaquetado **Steam Deck**.

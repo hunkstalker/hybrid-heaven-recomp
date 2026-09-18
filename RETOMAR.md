@@ -17,6 +17,9 @@
 - **VENENO CAPTURADO EN VIVO** (watchpoint en `0x8024AB14`): `FUN_800058dc` escribe `0xFFFF84CD` con
   `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume. Cadena
   del setter **confirmada con evidencia directa**.
+- **CONTRALADO EMULADOR (decisivo)**: mismo replay, el emu ejecuta `FUN_800058dc` **1426 veces sin el
+  veneno** y **0 veces** `M10_FUN_8022c7ac`/`M55_FUN_80379410`. La forma correcta es **NO ejecutar el
+  disable**: el callback sano del objeto es `801CB71C`.
 - **Síntoma del bug**: el objeto `0x8024A990` acaba con callback `+0x1C=0xFFFF84CD` y colas `[BADMQ]`;
   `tid5` parado en `osRecvMesg` de `0x8005C288`. En el emulador ese objeto sigue vivo (`801CB71C`).
 - **Lección de replay**: con el port ya a 30 ticks/s, `mode=vi` **sesga** el input (síntoma: "el PJ se
@@ -26,34 +29,37 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-**Objetivo: identificar al llamante de `FUN_800058dc`** (`a2=0x801BC23A`, `a3=0x801BBBF0`) para saber
-**por qué** el port toma la ruta del veneno, y atacar el **desfase de timing del loader #12** (semilla
-de la carrera). El veneno ya está capturado en vivo (ver §2d de la nota del diferencial).
+**Objetivo: saber por qué el port llega a `M10_FUN_8022c7ac`** (que dispara el disable) y el emulador
+**nunca**. El veneno y el contralado del emulador ya están capturados (ver §2d/§2e de la nota del
+diferencial). La ruta correcta es **no ejecutar** `M10_FUN_8022c7ac`/`M55_FUN_80379410`.
 
 ### Datos de partida (fijos)
 
 - Replay: `port/HybridHeavenRecomp/build_win/bin/Release/logs_pacing_20260918_210956/cac_rec.txt`
   (9815 muestras). **No re-grabar** salvo que se cambie algo del port.
 - **Captura del veneno (headless)**: `build_dbg/hh_watch.log` (con `HH_WATCH_ADDR=0x8024AB14`),
-  `hh_hang_rdram_50636/50826_*.bin`. El watchpoint **mueve el freeze** (VI≈20170 vs 20949 sin él):
-  es una carrera sensible al timing.
+  `hh_hang_rdram_50826_*.bin`. El watchpoint **mueve el freeze** (VI≈20170 vs 20949 sin él): es una
+  carrera sensible al timing; el trace (`HH_TRACE`) a veces lo evita.
+- **Contralado emulador**: `HB_TRACE_EXEC=0x800058DC` → 1426 llamadas, 0 con veneno; `HB_TRACE_EXEC=`
+  `0x8022C7AC,0x80379410` → 0 ejecuciones. Volcados: `work/debug/cac/emu_trace_*`.
 - Dumps del diferencial (paridad): `work/debug/cac/diff_vi_20260918/`.
 - **Bug corregido**: `hh_ring2_n`/`hh_ring_n` desbordaban `int` a ~50 s (43 M llamadas/s) → SEGV en
   `hh_ring2_record`. Ya son `uint64_t` (runtime NMR, commit pendiente de push).
 
-### 1. Identificar el llamante de `FUN_800058dc`
+### 1. Localizar quién invoca `M10_FUN_8022c7ac`
 
-- `FUN_800058dc` recibe `a0=0x8024AAF8` (objeto), `a1=0xFFFF84CD` (callback), `a2=0x801BC23A`,
-  `a3=0x801BBBF0`. La nota previa ya traza la cadena:
-  `M10_FUN_8021b280 → M10_FUN_8022c7ac (gate 0x8017DD92) → M55_FUN_80379410 → FUN_800058dc`.
-  Confirmar **cuál** de esos caminos ocurre en esta grabación y con qué gate (`0x8017DD92`).
-- Herramienta: watchpoint adicional o `HH_CALLTRACE`/`HH_MQLOG_ALL` en una pasada que congele.
+- Es **callback por puntero** (no aparece ningún `LOOKUP_FUNC(0x8022C7AC)` en el C recompilado). Buscar
+  la tabla/estructura que lo contiene: su VRAM es `0x8022C7AC` (módulo 10, base real `0x8021B150`).
+- En el port, con el watch de `0x8024AB14` activo (que sí congela), capturar el **primer** instante en
+  que se entra a `M10_FUN_8022c7ac` (trace `HH_TRACE=0x8022c7ac:M10`) y ver la pila/estado previo.
+- Comparar con el emulador: **no lo ejecuta**; ¿qué condición lo evita? (el gate `0x8017DD92` vale 0 en
+  ambos; debe ser otra cosa aguas arriba — estado de la state machine M12 / directorio de escena).
 
 ### 2. Atacar el desfase de timing del loader #12
 
 La **secuencia** coincide 1:1; el **timing** no: la carga #12 (`005FBEC6→801BF1A0`) ocurre en el port a
-**vis 413** y en el emu a **vi 1535** (~18 s de espera de escena que el port no consume). Identificar
-qué espera/tarea (AI/SP/DP, cutscene) resuelve el port en ~3.5 s y el emulador en ~18 s.
+**vis 413** y en el emu a **vi 1535** (~18 s de espera de escena que el port no consume). Es el
+candidato nº1 a explicar por qué el port ejecuta un camino que el emu no.
 
 ### 3. Investigar `0x8005C4F0`/`0x8005C268`
 

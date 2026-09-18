@@ -106,6 +106,36 @@ t=333.138  FUN_800058dc+0x75  escribe  a1=FF7F84CD -> 0x8024AB14  (lo que ve hh_
 - **La instrumentación mueve el freeze**: con watchpoint congeló a VI≈20170 (antes que sin él,
   VI≈20949) — otra evidencia de que es una carrera sensible al timing.
 
+## 2e. CONTRALADO DEL EMULADOR (decisivo): nunca toma la ruta del disable
+
+Trazas en el emulador con el **mismo replay** (`HB_TRACE_EXEC`, que captura PC **y registros**):
+
+| función | emulador | port (freeze) |
+|---|---|---|
+| `FUN_800058dc` (setter) | **1426 llamadas, 0 con `a1=0xFFFF84CD`** (a0 siempre otros objetos: `801BF1B0`, `801CFE20`…) | escribe `FFFF84CD` en `0x8024AB14` (a0=`8024AAF8`) |
+| `M10_FUN_8022c7ac` (gate del disable) | **0 ejecuciones** | ejecuta la cadena |
+| `M55_FUN_80379410` (trampolín del disable) | **0 ejecuciones** | llama a `FUN_800058dc(a1=1-0x7B34)` |
+| callback final `0x8024AB14` | `801CB71C` (sano) | `FFFF84CD` (veneno) |
+
+⇒ **El emulador NO ejecuta jamás el camino del disable** (`M10_FUN_8022c7ac` → `M55_FUN_80379410`);
+el port **sí**. La "forma correcta de funcionar" es: el objeto `0x8024AAF8` **conserva** su callback
+M7 `801CB71C` durante el CaC. La pregunta que queda es **por qué el port llega a `M10_FUN_8022c7ac`**
+(callback por puntero: buscar quién lo invoca / en qué tabla de la state machine está).
+
+### Vida del callback en el port (watch completo, run con freeze)
+
+```
+t=9.6    callback = 801CB71C (sano, M7)
+t=222-273  M12 state machine escribe 22 callbacks: 8024160C, 80241948, 802419B4, ..., 802425F4
+t=333.099  FUN_800058dc escribe FFFF84CD  (via M55_FUN_80379410 <- M10_FUN_8022c7ac; gate 0x8017DD92==0)
+t=333.13+  M7_FUN_8012e774 lee el callback -> 0xFF7F84CD -> "Failed to find" -> freeze
+```
+
+- La state machine **M12** (`8024xxxx`) precede al veneno; su último callback (`802425F4`) coincide con
+  las funciones que las notas previas citaban (`M12_FUN_802425F4`). Es el hilo conductor a investigar.
+- El gate `0x8017DD92` vale **0 en ambos** lados (no distingue); la diferencia está en **si se llega a
+  ejecutar** `M10_FUN_8022c7ac`.
+
 ## 3. El freeze no se reprodujo (dos pasadas)
 
 | run | TBLTRACE | resultado | último VI visto |
