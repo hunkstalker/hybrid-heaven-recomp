@@ -8,18 +8,18 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-17 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 140 | 2026-09-17 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-18 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 116 | 2026-09-18 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 170 | 2026-09-17 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 60 | 2026-09-18 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [Hybrid Heaven: Recompiled — Plan Maestro (documentación detallada)](README.md) | Port a PC por **recompilación estática** (N64 → C → nativo) siguiendo el modelo de proyectos como | 233 | 2026-09-11 |
+| [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-11 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 236 | 2026-09-16 |
-| [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 82 | 2026-09-16 |
+| [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-16 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 239 | 2026-09-16 |
 
 ## Decisiones (ADR, inmutables)
@@ -134,6 +134,7 @@
 |---|---|---|---|
 | [PROYECTO — Hybrid Heaven: Recompiled (Contexto maestro)](../notes/archive/2026-09-11-proyecto-legacy.md) | **ARCHIVO HISTÓRICO — NO es fuente de verdad operativa.** | 381 | 2026-09-11 |
 | [SESIÓN — Hybrid Heaven (N64) → PC: mano de obra y contexto completo para retomar](../notes/archive/2026-09-11-sesion-legacy.md) | **ARCHIVO HISTÓRICO — NO es fuente de verdad operativa.** | 790 | 2026-09-11 |
+| [Hybrid Heaven: Recompiled — Plan Maestro (documentación detallada)](../notes/archive/2026-09-18-plan-maestro-legacy.md) | ARCHIVO HISTÓRICO (congelado 2026-09-18). No editar. Contenido del antiguo `docs/README.md` | 240 | 2026-09-18 |
 
 ## Datos generados (`notes/reference/`)
 

@@ -18,8 +18,9 @@ histórico que no compite con la verdad actual. El objetivo es que una sesión n
 | Arranque de sesión (reglas, comandos, orden de lectura) | `../AGENTS.md` | vivo, ≤1 pantalla |
 | Contexto, estado y roadmap del proyecto | `../PROYECTO.md` | vivo, ≤2 pantallas |
 | Tareas (única lista priorizada) | `../TODO.md` | vivo, corto |
+| Punto de retomada de la sesión actual | `../RETOMAR.md` | vivo, corto (handoff) |
 | Modelo técnico (memoria, `trans`, runtime) | `architecture.md` | vivo |
-| Plan de alto nivel por fases | `README.md` | vivo (puede quedar genérico) |
+| Visión y roadmap a largo plazo (no vinculante) | `README.md` | vivo (puede quedar genérico) |
 | Índice de toda la documentación | `INDEX.md` | **generado** (`tools/analysis/docs_index.py`) |
 | Decisiones de arquitectura | `adr/NNNN-*.md` | **inmutable** |
 | Evidencia, diagnósticos, sesiones | `../notes/YYYY-MM-DD-*.md` | **histórico, no se edita** |
@@ -34,8 +35,8 @@ Regla: **`../notes/` nunca es fuente operativa.** No se corrige una nota antigua
 ## 3. Ciclo de sesión
 
 **Al empezar** (solo esto):
-1. `../AGENTS.md` → 2. `../PROYECTO.md` → 3. `../TODO.md` → 4. `architecture.md` si hay trabajo técnico.
-   Bajo demanda: `adr/`, `../notes/` (solo la nota relevante).
+1. `../AGENTS.md` → 2. `../RETOMAR.md` (tarea de la sesión) → 3. `../PROYECTO.md` → 4. `../TODO.md`
+→ 5. `architecture.md` si hay trabajo técnico. Bajo demanda: `adr/`, `../notes/` (solo la relevante).
 
 **Durante**: los hallazgos van a la **nota del día** (`../notes/YYYY-MM-DD-<tema>.md`), no a los docs
 vivos. Las decisiones, a un ADR (ver §4). Los cambios de estado, a `../PROYECTO.md`/`../TODO.md`.
@@ -55,7 +56,9 @@ plataforma** y son **costosas de revertir** (p. ej. modelo de módulos, pipeline
 de runtime). Formato: *Estado · Contexto · Decisión · Consecuencias · Alternativas · Criterio de salida*.
 
 - Un ADR **aceptado no se edita**; se supersede con otro que lo referencie.
-- Una idea o plan no es un ADR hasta que se decide.
+- Una idea o plan no es un ADR hasta que se decide. Si se prevé una decisión futura (p. ej. la
+  estrategia de cobertura nativa en `README.md`), se anota como **tarea en `../TODO.md`** ("definir
+  ADR NNNN cuando…") y el ADR se crea el día que se decide. No se crean ADRs "en borrador".
 
 ## 5. Estilo y tamaño
 
