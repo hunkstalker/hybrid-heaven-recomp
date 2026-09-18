@@ -6,9 +6,9 @@ REM  Uso:  run_cac_replay.bat RUTA\cac_rec.txt
 REM        (la ruta de la grabacion; p.ej.
 REM         HybridHeavenRecomp\build_win\bin\Release\logs_pacing_20260918_033912\cac_rec.txt)
 REM
-REM  Lanza el port con HH_REPLAY=<ruta> y HH_REPLAY_MODE=vi (el input se elige por el contador VI
-REM  del port y se auto-corrige ante slips). HH_REPLAY_PACE se deja VACIO: el PLL de pace=vi provoca
-REM  busy-wait/log y tirones (medido 2026-09-18) y mode=vi ya es estable. Sirve para
+REM  Lanza el port con HH_REPLAY=<ruta> y HH_REPLAY_MODE=poll (1 muestra por tick; exacto). Tras el
+REM  fix de get_function el port va a 30 ticks/s, asi que poll es fiel; mode=vi introducia un sesgo.
+REM  HH_REPLAY_PACE se deja VACIO (el PLL de pace=vi provoca tirones). Sirve para
 REM  comparar el replay en Windows (RT64/WASAPI) con el replay headless
 REM  (lavapipe/dummy, ya validado canonico):
 REM    - si en Windows tambien se cuelga -> el factor es el entorno;
@@ -53,11 +53,11 @@ echo termine o se cuelgue (el watchdog volcara si se cuelga).
 echo.
 
 set "HH_REPLAY=%REC%"
-REM Modo vi: la muestra se elige por el CONTADOR VI del port (no 1 por tick). El input queda como
-REM funcion del reloj del juego: si el port pierde un VI (slip), la muestra se salta/duplica igual
-REM que en la sesion original y el desfase NO acumula (con mode=poll cualquier slip acumulaba y la
-REM ruta se perdia; medido 2026-09-18: mode=vi -> d2=28-29/d3=1-2 = 30 ticks/s, ruta canonica).
-set "HH_REPLAY_MODE=vi"
+REM Modo poll: 1 muestra por tick (exacto por frame de juego). Se eligio vi cuando el port era
+REM work-bound y peridia ticks; tras el fix de get_function el port va a 30 ticks/s estables, y vi
+REM introducia un sesgo (input desalineado: el PJ se iba ligeramente a un lado). Medido 2026-09-18:
+REM con poll la grabacion nueva reproduce el CaC (freeze + veneno 0xFF7F84CD) en headless; con vi no.
+set "HH_REPLAY_MODE=poll"
 set "HH_REPLAY_PACE="
 "Hybrid Heaven Recomp.exe"
 set "RC=%ERRORLEVEL%"
