@@ -25,14 +25,12 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: corrupción de estado (BLOQUEANTE, en espera)**. Al entrar en combate el objeto
-  `0x8024A990` acaba con callback `+0x1C=0xFFFF84CD` y se corrompen colas (`[BADMQ]`). Reproducido en
-  Linux con replay; **no es rendimiento**. Ronda 2026-09-18: `HH_VI_EVERY=2` no lo arregla en vivo;
-  `HH_REPLAY_PACE=vi` descartado (tirones); **reloj de replay hecho determinista por VI** (fix en
-  `timer.cpp`) pero el freeze **no se reproduce por replay** (depende de timing/jitter del entorno).
-  **Siguiente**: (a) grabación nueva **limpia (sin golpes)** con el build actual y probar el replay;
-  (b) en paralelo, instrumentar el **vivo** (`HH_WATCH_ADDR=0x8024A9AC` + `HH_MQLOG_ALL`) para cazar
-  quién escribe `FFFF84CD`. Detalle: `notes/2026-09-18-cac-replay-en-vivo-no-reproduce.md`,
+- [ ] **CaC: corrupción de estado (BLOQUEANTE)**. Al entrar en combate el objeto `0x8024A990` acaba con
+  callback `+0x1C=0xFFFF84CD` y se corrompen colas (`[BADMQ]`). **HITO 2026-09-18**: el replay **reproduce
+  el CaC de forma fiable** en port (Windows VI≈20710 y Linux VI≈20949) con `HH_REPLAY_MODE=poll`; el
+  **emulador pasa el CaC con el mismo input** (objeto sano `801CB71C`). **Siguiente**: diferencial
+  port↔emu en el mismo VI alrededor del envenenamiento (~20.2-20.9k). Detalle:
+  `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md` y
   `notes/2026-09-17-cac-ownership-resuelto.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
