@@ -77,6 +77,7 @@ add_executable(HybridHeavenRecomp
     src/main/register_overlays.cpp
     src/main/support.cpp
     src/game/input.cpp
+    src/game/trans_cache.cpp
     src/game/firmware.c
 
     # Recompiled functions.
@@ -115,6 +116,9 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
     )
+
+    # timeBeginPeriod (pacing preciso del replay en Windows; ver main.cpp).
+    target_link_libraries(HybridHeavenRecomp PRIVATE winmm)
 
     # Embed the app icon into the .exe as a Windows resource (assets/HybridHeaven.ico,
     # versionado en el repo). Si falta, se compila sin icono embebido.
