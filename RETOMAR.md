@@ -38,6 +38,12 @@ En `librecomp/src/overlays.cpp` y `librecomp/src/recomp.cpp` (ver §6c de la not
 - `hh_watch_log` (recomp.cpp) también sabe volcar pila al veneno, pero **gated por `HH_WATCH_VENOM=1`** y
   el watchpoint **enmascara el freeze** → preferir el wrapper del setter (sin watchpoint).
 
+> **OJO (aprendizaje de la última pasada)**: el run **sí congeló** pero `hh_venom.log` quedó **vacío**.
+> El store del veneno se hace con `ret=exe+0xA3D15` = **`FUN_800058f4+0x5D`** (una continuación por
+> **fallthrough** del setter), y `FUN_800058f4` **no** pasa por el wrapper de `0x800058DC` (el C lo
+> llama directo: `funcs_1.c:8283`). ⇒ Para capturar el llamante hay que **envolver también
+> `FUN_800058f4`** (o usar el watchpoint con `HH_WATCH_VENOM=1`), no solo `FUN_800058dc`.
+
 ### 1. Capturar `hh_venom.log` (pasada que congele)
 
 ```
