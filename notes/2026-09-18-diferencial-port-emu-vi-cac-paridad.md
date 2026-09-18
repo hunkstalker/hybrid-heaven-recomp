@@ -207,3 +207,61 @@ Lo que **sí** diverge es **cuándo** ocurre cada carga:
 - `work/debug/cac/diff_vi_20260918/emu/` (`emu_diff3.vi*.bin` + `emu_run.log`).
 - Herramientas: `tools/analysis/diff_state_at_vi.py`, `tools/analysis/diff_rdram.py`,
   `tools/analysis/emu_ref.sh` (`r64dump`).
+
+## 6. Ronda posterior: cadena del disable y comparación con otro port
+
+### 6a. Cadena completa del disable (leída en el C recompilado)
+
+`M10_FUN_8021b280` (módulo 10, base real `0x8021B150`) llama en `0x8021B328` a `M10_FUN_8022C7A4`
+(→ `M10_FUN_8022C7AC`) pasándole `a2 = 0x801C0000 - 0x4410 = 0x801BBBF0` (**exactamente** el `a3` que
+el watch capturó en el veneno). Y `M10_FUN_8022C7AC` (por fallthrough desde `...C7A4`) llama a
+`M55_FUN_80379410` (trampolín `a1-0x7B34`) → `FUN_800058dc`. **Cadena confirmada**:
+`M10_FUN_8021b280 → M10_FUN_8022c7a4 → M10_FUN_8022c7ac → M55_FUN_80379410 → FUN_800058dc`.
+
+- `M10_FUN_8021b280` **no se llama por `jal`** (0 hits) ni aparece su puntero en los volcados: es
+  **callback por puntero** (o se alcanza por un camino indirecto). `M10_FUN_8022C7AC` es
+  **fallthrough** de `M10_FUN_8022C7A4`.
+- La llamada en `0x8021B69C` está condicionada por `lhu [objeto+0x2C]` ∈ {0xA,0xB}; en los dumps ese
+  `+0x2C` vale 0 en ambos lados, así que el discriminante no es ese (o el objeto es otro).
+
+### 6b. Otro port de Hybrid Heaven (danielgomesvieira2000/hybrid-heaven-recomp)
+
+Port independiente (Wave Race 64: Recompiled como base, MIT, con RecompFrontend/launcher). **Estado
+mucho más temprano** (`0.1.0`: logos, menús, guardado, cinemática, exploración; **no ha llegado al
+CaC**). No tiene el fix, pero su documentación (`docs/GAME-INTERNALS.md`, `docs/PORTING.md`) aporta:
+
+- **Confirma identidad/hashes** (SHA-1, XXH3 `0x0F6A72F2C36A216D`), tabla Nisitenma, LZKN64 y
+  `aspMain` stock (coincide con lo nuestro).
+- **`0x801CC8C4` = "level/battle select"** (lead de cheat DB): coincide con el estado que nuestras
+  notas veían ir `0→1→0xAF` y nunca `2`.
+- **Timing**: el frame limiter `0x80001A88` busy-waitea en `osGetTime`; ellos le ponen un
+  `[[patches.hook]]` de **yield** (`src/spin_yield.cpp`). Nosotros **no** tenemos ese hook, pero
+  `osGetTime` es **reimplementado por el runtime** (`0x80031190`), así que no es un busy-wait de la
+  copia del juego. Aun así, el acoplamiento tiempo↔VI es el candidato de la divergencia de §4.
+- **libultra `__d_to_ll`/`__d_to_ull`/`__f_to_ull`/`__ll_to_d`**: el frame limiter llama a
+  `0x80026E58`/`0x80026F58`/`0x80034C24`/`0x80034AB8` (rutinas `__ll_*`). En el otro port son
+  *port-supplied* (no recompiladas); en el nuestro están en `symbol_lists.cpp` (ignored set) — verificar
+  que **nuestro runtime las implementa bien** (si no, el frame limiter calcularía mal el `target`).
+
+### 6c. Instrumentación nueva para capturar el llamante (en curso)
+
+El **watchpoint** (`HH_WATCH_ADDR`) perturba el freeze (lo enmascara: con él, a veces no congela) y
+además escribe+`fflush` por cada acceso. Alternativa barata implementada (runtime NMR, **sin commitear**):
+**enganchar SIEMPRE `FUN_800058dc`** (~1400 llamadas, no millones) y, al ver el veneno en `a1`,
+volcar a `hh_venom.log` la **pila guest** (palabras RA en `[sp, sp+0x600)`) + el anillo de llamadas.
+Es el camino para obtener **quién invoca** el setter con el veneno (la pila de `M10_FUN_8021b280`).
+Pendiente: una pasada que **sí congele** (el freeze es intermitente y la instrumentación lo mueve).
+
+Ficheros tocados (NMR, sin commitear): `librecomp/src/overlays.cpp` (wrapper del setter),
+`librecomp/src/recomp.cpp` (volcado de pila en `hh_watch_log` bajo `HH_WATCH_VENOM=1`).
+
+## 7. Próximo paso exacto
+
+1. **Capturar `hh_venom.log`**: relanzar headless `HH_REPLAY_MODE=poll` (sin watchpoint; el wrapper del
+   setter es barato) hasta que congele. La pila dirá **quién** llama a `FUN_800058dc` con `0xFFFF84CD`
+   (esperado: `M55_FUN_80379410` ← `M10_FUN_8022C7AC` ← `M10_FUN_8022C7A4` ← **`M10_FUN_8021b280`**).
+2. Con el llamante confirmado, comparar **en el emulador** por qué **no** se ejecuta `M10_FUN_8021b280`
+   (ya verificado: 0 veces en todo el replay): ¿qué condición lo evita? Candidato: la **espera de
+   escena** de §4 (el port llega antes a la transición y ejecuta un camino que el emu no).
+3. Atacar el desfase de timing (frame limiter / espera de escena) y/o verificar las `__ll_*` del
+   frame limiter (6b).
