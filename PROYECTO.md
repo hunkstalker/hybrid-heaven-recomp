@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-17**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-18**.
 
 ## 1. Objetivo
 
@@ -47,7 +47,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
+**Estado actual (2026-09-18)**: se juega en Windows; **live a 30 ticks/s** y **replay fiel con
+`HH_REPLAY_MODE=vi`**. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo (cargas
+0,2-15 ms). **Causa raíz de los tirones arreglada**: `get_function` hacía 4-5 `getenv()` por llamada
+recompilada; cachear los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta
+a `d2=29-30` (30/s). **CaC** en espera; quedan ~4-6 ms/tick y el warm-up RT64 (nota Fase B).
+**Estado anterior (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
 cuerpo a cuerpo y cinemáticas) con mando Xbox (perfiles `config.ini`) y audio a 43200 Hz. El
 **guardado en cápsula está VALIDADO en Windows**: la causa raíz era `osPfsFindFile` devolviendo 10 en
 vez de **5** con `*file_no=-1`, ya corregida; el juego muestra la UI de slots y escribe el `.pak`

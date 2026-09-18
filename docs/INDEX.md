@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-17 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 135 | 2026-09-17 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 140 | 2026-09-17 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 166 | 2026-09-17 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 170 | 2026-09-17 |
 
 ## Técnico y guías (vivos)
 
@@ -32,14 +32,19 @@
 | [ADR 0004 — Registro dinámico de módulos de código en bases reutilizadas](adr/0004-registro-dinamico-modulos.md) | - **Estado**: Aceptado (2026-09-14). | 54 | 2026-09-14 |
 | [ADR 0005 — Runtime en forks propios y build reproducible](adr/0005-build-reproducible-y-artefactos.md) | - **Estado**: Aceptado (2026-09-16). | 91 | 2026-09-16 |
 | [ADR 0006 — Política de rutas relativas y contenido externo](adr/0006-politica-de-rutas-relativas-y-contenido-externo.md) | - **Estado**: Aceptado (2026-09-16). | 48 | 2026-09-16 |
+| [ADR 0007 — Cache de assets y loader LZKN64 nativo (la ROM solo la primera vez)](adr/0007-cache-assets-y-loader-nativo.md) | - **Estado**: **Implementado v1** (2026-09-18; validado headless; pendiente validación Windows) | 71 | 2026-09-18 |
+| [ADR 0008 — Menú in-game de opciones PC (reutilizando el menú del Expansion Pak)](adr/0008-menu-ingame-opciones-pc.md) | - **Estado**: Aceptado (2026-09-18; implementación pendiente, tras el cache de assets) | 55 | 2026-09-18 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-18 — Suavizado (Fase 1): instrumentación de ticks, fixes de AI/audio y plan de cache de assets](../notes/2026-09-18-suavizado-fase1-y-cache-loader.md) | Continúa `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (que recoge, en sus §5b-5i, el detalle | 141 | 2026-09-18 |
+| [2026-09-18 — Fase B: cache de assets + loader LZKN64 nativo (implementado y validado headless)](../notes/2026-09-18-faseb-cache-trans-implementado.md) | Implementa ADR 0007. Continúa `notes/2026-09-18-suavizado-fase1-y-cache-loader.md` y el perfil de | 150 | 2026-09-18 |
 | [Work order — Pacing/cadencia: cuadrar la lógica del port con el original](../notes/2026-09-17-workorder-pacing-cadencia.md) | Documento operativo **autocontenido** para retomar ESTA tarea en una sesión nueva. | 179 | 2026-09-17 |
 | [Validación Windows (RTX 4080): cadencia corregida y el freeze del CaC persiste](../notes/2026-09-17-validacion-windows-pacing-y-cac.md) | Fase 3 del work order de pacing + arranque de la Parte B del plan del CaC. Fecha: 2026-09-17. | 57 | 2026-09-17 |
 | [Replay preciso: modo poll-exacto (el modo VI derivaba)](../notes/2026-09-17-replay-preciso-modo-poll.md) | Arreglo del replay que el mantenedor reportó como impreciso (2026-09-17): | 39 | 2026-09-17 |
+| [2026-09-17 — Replay: bug de `mode=vi` (vis negativos), ruta real con `mode=poll`+stride 2, freeze reproducido y sensibilidad a la cuantización de tick](../notes/2026-09-17-replay-mode-vi-vis-negativo.md) | Corrección de método sobre `2026-09-17-bizhawk-replay-freeze-con-rafaga.md` y continuación del | 303 | 2026-09-17 |
 | [2026-09-17 — Replay: reloj esclavo (`HH_REPLAY_CLOCK`) y desfase de frames — **WIP**](../notes/2026-09-17-replay-clock-y-desfase-frames-wip.md) | Continúa `2026-09-17-cac-timeline-modulo24-periodo.md` (§4b-5). **Trabajo a medias, parado a | 96 | 2026-09-17 |
 | [Ralentizaciones en puertas y 30 Hz lógicos vs refresco (pendiente, posterior al CaC)](../notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md) | Registro de una observación del mantenedor (2026-09-17) para atacar **después** de las tareas en | 50 | 2026-09-17 |
 | [2026-09-17 — Plan de revisión del bloqueo al entrar en combate (CaC)](../notes/2026-09-17-plan-revision-bloqueo-cac.md) | Documento de trabajo. Resume lo **probado**, lo que **falta revisar** y el orden propuesto. | 134 | 2026-09-17 |

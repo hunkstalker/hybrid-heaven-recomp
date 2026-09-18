@@ -3,23 +3,27 @@
 > **Única fuente de verdad de tareas.** Estado: `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` (arquitectura/ADRs) y `notes/` (histórico). No duplicar.
 
-## Ahora — Pacing/cadencia (foco), combate CaC (bloqueante), teardown y limpieza
+## Ahora — Suavizado ("una N64 que nunca se ahogue") + cache de assets (ROM solo la 1ª vez)
 
-> **Sesión 2026-09-16 (B en menús + CaC)**: **B físico = atrás en menús VALIDADO** y mid-entry
-> `M55_FUN_8037948C` (crash al iniciar CaC). **BLOQUEANTE**: corrupción de estado al entrar en CaC
-> (objeto `0x8024A990`, lista de broadcast recorrida fuera de rango); runtime con mitigaciones
-> **locales**. Detalle: `notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`.
+> **Sesión 2026-09-18** (detalle: `notes/2026-09-18-*.md`): live a **30 ticks/s**; replay fiel con
+> **`HH_REPLAY_MODE=vi`**. Instrumentación de tirones siempre activa. **CaC en espera**.
 
-> **Cuelgue por daño del robot: ARREGLADO y validado en Windows (2026-09-16)**, en dos capas:
-> `s0` (r16) machacado por la cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, personaje que no
-> se levantaba por un fallthrough ausente al final de `M55_FUN_8037a6f4` (fuga `0x38`/frame +
-> lógica de caída saltada; nueva regla de ramas condicionales en `fix_fallthroughs.py`).
-> Detalle: `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`.
->
-> **Entrega del objeto del NPC: ARREGLADA y validada (2026-09-15)**: fallthrough sin encadenar en
-> módulo 55 (fuga `0x48`/frame + animación saltada) y mid-entries sin registrar (`0x80379954`,
-> `0x803798E8`). Módulo 55 = overlay de la secuencia de objeto (`docs/architecture.md` §2.2).
-> Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
+0. [x] **(MANTENEDOR) Perfilado Fase 1** (2026-09-18, `logs_pacing_20260918_114105`): **`guest_busy`
+   domina** (99,7%) y los stalls de 0,25-4,2 s son 100% `guest_busy` -> Fase B. El `0xC0000005` de cierre es el teardown.
+0b. [x] **(DEV) Cache de assets / loader nativo** (ADR 0007): v1 hecha y validada headless (2026-09-18).
+   `src/game/trans_cache.cpp` + wrapper en `overlays.cpp`: hit -> `memcpy` de `cache/trans.bin`; miss ->
+   LZKN64 nativo (validado con `HH_TRANS_VERIFY`; `validate_trans_cache.py`); si no -> loader original.
+   Knobs `HH_TRANS_*`. Detalle: `notes/2026-09-18-faseb-cache-trans-implementado.md`.
+0c. [x] **(DEV) Stalls y "régimen 2" — CAUSA RAÍZ + FIX VALIDADO**: `get_function` (en CADA llamada
+   recompilada) hacía 4-5 `getenv()` + `func_map.find` por llamada. Cachear los flags: stalls >200 ms
+   **8 -> 0** (máx 4265 -> 77 ms) y cadencia tras la puerta a **`d2=29-30` (30/s)**. Nota Fase B §8/§8b.
+0d. [ ] **(DEV) Audio: sync de tasa** (feedback del error de cola SDL en `osAiGetLength`).
+0e. [ ] **Menú IN-GAME (decidido)**: reutilizar el `expansionram` (Expansion Pak) para opciones PC; **primero spike go/no-go** (nota 09-18 §6) y ADR 0008.
+0f. [ ] **(OPCIONAL) Warm-up RT64**: primer DL del boot ~843 ms (pipelines).
+
+> **Histórico 09-15/16** (detalle en `notes/`): B físico=atrás en menús y mid-entry
+> `M55_FUN_8037948C`; CaC corrompe estado (`0x8024A990`); cuelgue del robot y objeto del NPC
+> arreglados. Ver `notes/2026-09-16-*` y `notes/2026-09-15-*`.
 1. [x] **Pacing/cadencia (2026-09-17)**: **Fases 0-2, gating y validación Windows HECHAS**.
    Original = 30 fps lógicos (`fase0`). Causa dominante: **I/O de los logs always-on** → ahora
    opt-in con `HH_DIAG=1`. Windows (RTX 4080) con `run_pacing.bat`: **polls 27,1-28,4/s, audio
