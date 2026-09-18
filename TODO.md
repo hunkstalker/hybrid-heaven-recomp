@@ -28,10 +28,15 @@
 - [ ] **CaC: corrupción de estado (BLOQUEANTE)**. Al entrar en combate el objeto `0x8024A990` acaba con
   callback `+0x1C=0xFFFF84CD` y se corrompen colas (`[BADMQ]`). **HITO 2026-09-18**: el replay **reproduce
   el CaC de forma fiable** en port (Windows VI≈20710 y Linux VI≈20949) con `HH_REPLAY_MODE=poll`; el
-  **emulador pasa el CaC con el mismo input** (objeto sano `801CB71C`). **Siguiente**: diferencial
-  port↔emu en el mismo VI alrededor del envenenamiento (~20.2-20.9k). Detalle:
-  `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md` y
-  `notes/2026-09-17-cac-ownership-resuelto.md`.
+  **emulador pasa el CaC con el mismo input** (objeto sano `801CB71C`). **Diferencial por VI (2026-09-18)**:
+  en 20200/20500/20700/20900 port y emu son **idénticos** en el estado del CaC (cuando el port no
+  congela); primera divergencia = **timing** del loader (carga #12: port vis 413 vs emu vi 1535).
+  **VENENO CAPTURADO EN VIVO (watchpoint en `0x8024AB14`)**: `FUN_800058dc` escribe `0xFFFF84CD` con
+  `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume.
+  **Siguiente**: identificar al llamante del setter (`a2/a3`), atacar el desfase de timing del loader
+  #12, e investigar `0x8005C4F0`/`0x8005C268` (port a cero vs emu). Detalle:
+  `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (incluye bug de instrumentación corregido:
+  `hh_ring2_n` desbordaba `int` a ~50 s).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
 - [ ] **Builds/empaquetado**: validar "build once, promote" en GitHub y empaquetado **Steam Deck**.
