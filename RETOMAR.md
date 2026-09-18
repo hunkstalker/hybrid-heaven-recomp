@@ -11,6 +11,12 @@
 - **HITO de la última ronda**: el **replay reproduce el CaC de forma fiable** en el port (Windows
   VI≈20710 y Linux VI≈20949) usando **`HH_REPLAY_MODE=poll`**; y el **emulador pasa el CaC con el mismo
   input** (objeto sano). Por primera vez tenemos los dos lados con **input idéntico**.
+- **Diferencial por VI hecho (20200–20900)**: port y emu **idénticos** en el estado del CaC (cuando el
+  port no congela). Primera divergencia = **timing** del loader (carga #12: port vis 413 vs emu vi 1535),
+  no la secuencia (verificada 1:1 con argumentos: 43/43 cargas idénticas).
+- **VENENO CAPTURADO EN VIVO** (watchpoint en `0x8024AB14`): `FUN_800058dc` escribe `0xFFFF84CD` con
+  `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume. Cadena
+  del setter **confirmada con evidencia directa**.
 - **Síntoma del bug**: el objeto `0x8024A990` acaba con callback `+0x1C=0xFFFF84CD` y colas `[BADMQ]`;
   `tid5` parado en `osRecvMesg` de `0x8005C288`. En el emulador ese objeto sigue vivo (`801CB71C`).
 - **Lección de replay**: con el port ya a 30 ticks/s, `mode=vi` **sesga** el input (síntoma: "el PJ se
@@ -20,42 +26,49 @@
 
 ## TU TAREA AHORA (pasos exactos)
 
-**Objetivo: diferencial port↔emulador en el MISMO VI, alrededor del envenenamiento**, con el mismo
-`cac_rec.txt` de la última grabación. La grabación y el build ya son fieles, así que no hace falta
-grabar de nuevo.
+**Objetivo: identificar al llamante de `FUN_800058dc`** (`a2=0x801BC23A`, `a3=0x801BBBF0`) para saber
+**por qué** el port toma la ruta del veneno, y atacar el **desfase de timing del loader #12** (semilla
+de la carrera). El veneno ya está capturado en vivo (ver §2d de la nota del diferencial).
 
 ### Datos de partida (fijos)
 
 - Replay: `port/HybridHeavenRecomp/build_win/bin/Release/logs_pacing_20260918_210956/cac_rec.txt`
   (9815 muestras). **No re-grabar** salvo que se cambie algo del port.
-- Envenenamiento en el port: **~VI 20.7k (Win) / 20.9k (Linux)**. Dumps del cuelgue ya guardados.
-- Emulador: pasa el CaC; volcado final en `work/debug/cac/emu_nodump`.
+- **Captura del veneno (headless)**: `build_dbg/hh_watch.log` (con `HH_WATCH_ADDR=0x8024AB14`),
+  `hh_hang_rdram_50636/50826_*.bin`. El watchpoint **mueve el freeze** (VI≈20170 vs 20949 sin él):
+  es una carrera sensible al timing.
+- Dumps del diferencial (paridad): `work/debug/cac/diff_vi_20260918/`.
+- **Bug corregido**: `hh_ring2_n`/`hh_ring_n` desbordaban `int` a ~50 s (43 M llamadas/s) → SEGV en
+  `hh_ring2_record`. Ya son `uint64_t` (runtime NMR, commit pendiente de push).
 
-### 1. Port (Linux headless) con dumps en VI coordinados
+### 1. Identificar el llamante de `FUN_800058dc`
 
-Desde `port/HybridHeavenRecomp/build_dbg` (ver "Comandos"):
-```
-HH_REPLAY=<...>/cac_rec.txt HH_REPLAY_MODE=poll HH_DUMP_VI=20200,20500,20700,20900 HH_M24LOG=1
-```
-Genera `build_dbg/work/debug/port_vi<VI>.bin`. (El freeze es ~VI 20.9k; los dumps caen antes.)
+- `FUN_800058dc` recibe `a0=0x8024AAF8` (objeto), `a1=0xFFFF84CD` (callback), `a2=0x801BC23A`,
+  `a3=0x801BBBF0`. La nota previa ya traza la cadena:
+  `M10_FUN_8021b280 → M10_FUN_8022c7ac (gate 0x8017DD92) → M55_FUN_80379410 → FUN_800058dc`.
+  Confirmar **cuál** de esos caminos ocurre en esta grabación y con qué gate (`0x8017DD92`).
+- Herramienta: watchpoint adicional o `HH_CALLTRACE`/`HH_MQLOG_ALL` en una pasada que congele.
 
-### 2. Emulador con dumps en los MISMOS VI
+### 2. Atacar el desfase de timing del loader #12
 
-```
-tools/analysis/emu_ref.sh work/debug/cac/emu_diff 340
-```
-y, para dumps por VI, usar `HH_REPLAY_VI=20200,20500,20700,20900` (y/o `HH_REPLAY_VI_OFF`) en `r64dump`.
-Genera `work/debug/cac/emu_diff.vi<VI>.bin`. **Ejecutar port y emulador de uno en uno** (evitar
-contención de CPU: es lo que hacía parecer lento al emulador).
+La **secuencia** coincide 1:1; el **timing** no: la carga #12 (`005FBEC6→801BF1A0`) ocurre en el port a
+**vis 413** y en el emu a **vi 1535** (~18 s de espera de escena que el port no consume). Identificar
+qué espera/tarea (AI/SP/DP, cutscene) resuelve el port en ~3.5 s y el emulador en ~18 s.
 
-### 3. Comparar y seguir aguas arriba
+### 3. Investigar `0x8005C4F0`/`0x8005C268`
 
-Comparar en cada VI: `0x8024A990`, `0x8024AAF8`, `0x8024AB14` (callback), directorio `0x8008DFC0/DFC4`,
-M24 (`0x801D8CE8`/`DA8`), colas. La primera diferencia marca dónde seguir (dumps en el VI previo).
-**Recordatorio**: el volcado del port del cuelgue es 15 s posterior → comparar en VI iguales, no el dump
-del hang. Ayuda: `tools/analysis/diff_rdram.py <port> <emu> [base size]`.
+En el port (sin freeze) están a **cero**; en el emu valen `80049930`. Watchpoint para ver quién las
+escribe (o debería) y si su valor nulo explica la espera de #2.
 
-> Detalle completo del hito: `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md`.
+> **Informe del diferencial: `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md`.**
+
+### (Contexto) Reproducir el freeze
+
+- In-vivo (Windows, mantenedor): `run_cac_replay.bat` (poll) con `HH_WATCH_ADDR=0x8024AB14`
+  `HH_MQLOG_ALL=1`. Es donde el freeze es ~100 %.
+- Headless: `HH_REPLAY_MODE=poll` **sin** `HH_DUMP_VI`/`HH_M24LOG` (la instrumentación perturba el
+  freeze); el watchpoint `0x8024AB14` sí lo capturó (aunque lo mueve de VI).
+> Hito previo: `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md`.
 
 ## Contexto del CaC (lo ya sabido; no repetir)
 
@@ -102,6 +115,7 @@ del hang. Ayuda: `tools/analysis/diff_rdram.py <port> <emu> [base size]`.
 
 ## Documentación de esta sesión
 
+- **`notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md`** (informe del diferencial; paridad + timing loader).
 - **`notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md`** (HITO: replay fiel + emulador).
 - **`notes/2026-09-18-cac-replay-en-vivo-no-reproduce.md`** (ronda previa: reloj determinista, test).
 - **`notes/2026-09-18-faseb-cache-trans-implementado.md`** (Fase B + fix de `get_function`).
