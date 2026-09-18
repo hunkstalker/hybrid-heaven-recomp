@@ -6,6 +6,7 @@
 // Necesarios antes de los handlers de crash (pid para nombres de volcado unicos).
 #ifdef _WIN32
 #include <windows.h>
+#include <timeapi.h>  // timeBeginPeriod (pacing preciso del replay; requiere winmm)
 #else
 #include <unistd.h>
 #endif
@@ -211,6 +212,7 @@ extern "C" int hh_get_thread_ctxs_tids(recomp_context** out, int* tids, int max)
 extern "C" int hh_get_thread_ctxs_full(recomp_context** out, int* tids, uintptr_t* thrs, int max);
 extern "C" int hh_thread_info(uintptr_t t, uint32_t* out);
 extern "C" int hh_get_callring(recomp_context* c, uint32_t* out, int max);
+extern "C" uint64_t hh_busy_active_ms(void);
 
 // HH: pila de un hilo que esta CORRIENDO (busy-loop de codigo guest): palabras que parecen
 // direcciones de codigo (RA guardadas) en [sp, sp+0x400). Ayuda a identificar el bucle culpable.
@@ -314,6 +316,41 @@ static void hh_hang_watchdog() {
     const double state_secs = (senv != nullptr && *senv != '\0') ? strtod(senv, nullptr) : 5.0;
     fprintf(stderr, "[HANG] watchdog activo (limite %.0fs%s); snapshots cada %.0fs\n", limit,
             force > 0.0 ? ", force-test" : "", state_secs);
+    // HH: watchdog minimo e independiente: SOLO vigila los polls de input y vuelca RDRAM.
+    // El watchdog principal puede bloquearse al recorrer contextos de hilo si el hilo de logica
+    // queda atascado dentro de una seccion con lock (visto el 2026-09-17: los snapshots de
+    // hh_state.log se pararon en el cuelgue y no hubo volcado). Este no toca locks.
+    std::thread([limit] {
+        using namespace std::chrono_literals;
+        const auto start = std::chrono::steady_clock::now();
+        unsigned long long last_polls = hh_get_input_polls();
+        auto last_change = start;
+        bool dumped = false;
+        while (true) {
+            std::this_thread::sleep_for(1s);
+            unsigned long long polls = hh_get_input_polls();
+            auto now = std::chrono::steady_clock::now();
+            if (polls != last_polls) {
+                last_polls = polls;
+                last_change = now;
+                dumped = false;
+                continue;
+            }
+            const double stuck = std::chrono::duration<double>(now - last_change).count();
+            if (!dumped && last_polls > 0 && stuck >= limit) {
+                dumped = true;
+                FILE* f = fopen("hh_hang_ram.log", "a");
+                if (f != nullptr) {
+                    fprintf(f, "=== HH cuelgue (watchdog RAM): polls parados %.1fs VI=%llu polls=%llu ===\n",
+                            stuck, (unsigned long long)hh_get_vi_count(), (unsigned long long)polls);
+                    hh_dump_rdram_dmem(f, "hh_hang");
+                    fclose(f);
+                    fprintf(stderr, "[HANG] volcado RAM (watchdog minimo) escrito (polls %.1fs, VI=%llu)\n",
+                            stuck, (unsigned long long)hh_get_vi_count());
+                }
+            }
+        }
+    }).detach();
     std::thread([limit, force, state_secs] {
         using namespace std::chrono_literals;
         const auto start = std::chrono::steady_clock::now();
@@ -419,6 +456,11 @@ static void hh_hang_watchdog() {
                 fprintf(f, "[HANG] vi_ticks=%llu pending_ext_msgs=%llu (si vi_ticks no sube: hilo VI del runtime parado)\n",
                         (unsigned long long)hh_get_vi_ticks(),
                         (unsigned long long)hh_get_pending_ext_msgs());
+                fflush(f);
+                // Volcar RDRAM ANTES de recorrer contextos: el recorrido puede bloquearse si el
+                // hilo atascado tiene tomado un lock interno del runtime.
+                hh_dump_rdram_dmem(f, "hh_hang");
+                fflush(f);
                 recomp_context* ctxs[32];
                 int tids[32];
                 uintptr_t thrs[32];
@@ -443,12 +485,55 @@ static void hh_hang_watchdog() {
                     }
                 }
                 fflush(f);
-                hh_dump_rdram_dmem(f, "hh_hang");
-                fflush(f);
                 fclose(f);
                 fprintf(stderr, "[HANG] volcado escrito (polls %.1fs, audio %.1fs, VI=%llu)\n",
                         stuck, audio_stuck, vi);
             }
+        }
+    }).detach();
+    // HH: sampler de stalls -> hh_slice.log. Cuando el latido de input (polls) se detiene >200 ms
+    // (un tick que se atasca, p. ej. el de boot/puerta de 1-4 s), vuelca contexto + anillo de
+    // ultimas llamadas de cada hilo registrado. Identifica la funcion guest culpable sin depender
+    // de instrumentacion pesada. Acotado a 80 muestras por episodio.
+    std::thread([] {
+        using namespace std::chrono_literals;
+        unsigned long long last_polls = hh_get_input_polls();
+        auto last_change = std::chrono::steady_clock::now();
+        int dumped = 0;
+        while (true) {
+            std::this_thread::sleep_for(250ms);
+            const auto now = std::chrono::steady_clock::now();
+            const unsigned long long polls = hh_get_input_polls();
+            if (polls != last_polls) {
+                last_polls = polls;
+                last_change = now;
+                dumped = 0;
+                continue;
+            }
+            const double stuck = std::chrono::duration<double>(now - last_change).count();
+            if (stuck < 0.2 || dumped >= 30) continue;
+            dumped++;
+            FILE* f = std::fopen("hh_slice.log", "a");
+            if (f == nullptr) continue;
+            std::fprintf(f, "=== stall %.2fs VI=%llu polls=%llu (muestra %d) ===\n", stuck,
+                         (unsigned long long)hh_get_vi_count(), (unsigned long long)polls, dumped);
+            recomp_context* ctxs[32];
+            int tids[32];
+            int n = hh_get_thread_ctxs_tids(ctxs, tids, 32);
+            std::fprintf(f, "hilos con contexto: %d\n", n);
+            for (int i = 0; i < n; i++) {
+                hh_dump_ctx_regs(f, i, tids[i], ctxs[i]);
+                hh_dump_stack_scan(f, (uint32_t)ctxs[i]->r29);
+                uint32_t ring[16];
+                int rn = hh_get_callring(ctxs[i], ring, 16);
+                if (rn > 0) {
+                    std::fprintf(f, "[SLICE]   ultimas llamadas:");
+                    for (int k = 0; k < rn; k++) std::fprintf(f, " %08X", ring[k]);
+                    std::fprintf(f, "\n");
+                }
+            }
+            std::fflush(f);
+            std::fclose(f);
         }
     }).detach();
 }
@@ -576,6 +661,13 @@ int main(int argc, char** argv) {
     sigaction(SIGBUS, &hh_sa, nullptr);
 #elif !defined(__SANITIZE_ADDRESS__)
     SetUnhandledExceptionFilter(hh_win_exc_handler);
+#endif
+#ifdef _WIN32
+    // HH: subir la resolucion del timer del proceso (por defecto ~15,6 ms). Necesario para que el
+    // pacing del replay (HH_REPLAY_PACE) sea exacto en Windows: sin esto, sleep_for de 5-10 ms
+    // duerme ~15 ms y el replay corre mas lento que la grabacion (ruta distinta). Ver §5e de la
+    // nota 2026-09-17-replay-mode-vi-vis-negativo.
+    timeBeginPeriod(1);
 #endif
     auto app_folder_path = hh::get_app_folder_path();
 #ifndef _WIN32

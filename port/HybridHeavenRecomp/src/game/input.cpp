@@ -2,12 +2,14 @@
 #include <cctype>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #ifdef _WIN32
@@ -489,6 +491,12 @@ struct HHRec {
 };
 
 extern "C" uint64_t hh_get_vi_count(void);
+// Diagnostico de ticks lentos (hh_slow.log): tiempos del ultimo trabajo del hilo de gfx y cola
+// de mensajes externos pendientes. Ver notas de pacing / Fase 1 del plan de suavizado.
+extern "C" double hh_gfx_last_send_dl_ms(void);
+extern "C" double hh_gfx_last_update_ms(void);
+extern "C" unsigned long long hh_get_pending_ext_msgs(void);
+extern "C" unsigned long long hh_guest_busy_ms(void);
 static bool hh_replay_has_vis = false;
 
 static const std::vector<HHRec>& hh_replay_data() {
@@ -587,6 +595,148 @@ static void hh_replay_apply(double elapsed, n64_button& buttons, float& x, float
         // HH: el tiempo de juego sigue la marca temporal de la muestra grabada (fidelidad replay).
         hh_replay_clock_set(data[use].t);
     }
+    // HH_REPLAY_PACE: marca el ritmo con la linea temporal grabada.
+    //   1 / "wall": espera a que el reloj de pared alcance el `t` de la muestra. Fiel en tiempo
+    //     real, pero en Windows el plus de espera (sub-VI) empuja el tick fuera de la ventana de
+    //     2 VI -> 3 VI (50 ms) casi siempre -> 20 ticks/s y desvio (medido 2026-09-18).
+    //   "vi": espera a que el contador VI del port alcance el `vis` grabado (el reloj propio del
+    //     juego). Alinea el tick con la MISMA rejilla VI que la sesion original y no lo desplaza.
+    static const int pace_mode = [] {
+        const char* p = getenv("HH_REPLAY_PACE");
+        if (p == nullptr || *p == '\0' || strcmp(p, "0") == 0) return 0;
+        return (strcmp(p, "vi") == 0) ? 2 : 1;
+    }();
+    if (pace_mode == 2 && hh_replay_has_vis) {
+        static int64_t vi_off = 0;
+        static bool vi_off_set = false;
+        static std::chrono::steady_clock::time_point t0;
+        static bool t0_set = false;
+        if (!t0_set) {
+            t0_set = true;
+            t0 = std::chrono::steady_clock::now();
+        }
+        if (!vi_off_set) {
+            vi_off_set = true;
+            // Offset CON SIGNO: el boot del replay puede terminar en menos VI que el de la sesion
+            // original (cur_vi < vis0). Con offset 0 el primer tick esperaba los VIs que faltaban
+            // (medido: 1,33 s de golpe). El objetivo es alinear el timeline RELATIVO al primer
+            // poll: target_vi = vis_i + (cur_vi_0 - vis_0).
+            vi_off = (int64_t)cur - (int64_t)sample_vis(data[0]);
+            fprintf(stderr, "[PACE] primer ciclo: cur_vi=%llu vis0=%llu off=%lld\n",
+                    (unsigned long long)cur, (unsigned long long)sample_vis(data[0]), (long long)vi_off);
+        }
+        const int64_t target_vi = (int64_t)sample_vis(data[use]) + vi_off;
+        const auto wait_t0 = std::chrono::steady_clock::now();
+        while ((int64_t)hh_get_vi_count() < target_vi) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        const double wait_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - wait_t0).count();
+        {
+            const double t_now = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            const double late = t_now - data[use].t;
+            static FILE* pf = fopen("hh_pace.log", "w");
+            static int n = 0, n_late = 0, n_adj = 0;
+            static double acc = 0.0, mx = -1e9, last_log = 0.0;
+            static double acc_wait = 0.0, acc_work = 0.0, last_call = 0.0;
+            const double period = (last_call > 0.0) ? (t_now - last_call) : 0.0;
+            if (period > 0.0) {
+                acc_work += (period * 1000.0) - wait_ms;
+            }
+            acc_wait += wait_ms;
+            last_call = t_now;
+            n++;
+            if (late > 0.005) {
+                n_late++;
+            }
+            acc += late;
+            if (late > mx) {
+                mx = late;
+            }
+            if (t_now - last_log >= 1.0 && pf != nullptr) {
+                // Correccion de fase (PLL suave): ajusta vi_off hasta que el desfase de pared
+                // (late) quede cerca de 0. Sin esto, el primer tick largo del boot deja un
+                // desplazamiento constante (~1 s) que adelanta los waits por tiempo.
+                const double avg = acc / (double)n;
+                int adj = (int)std::lround(avg * 60.0);
+                if (adj > 5) {
+                    adj = 5;
+                }
+                if (adj < -5) {
+                    adj = -5;
+                }
+                // late > 0 = el replay va por detras del timeline grabado -> aplicar antes -> bajar
+                // el offset (target_vi mas pequeno). late < 0 -> subirlo.
+                vi_off -= adj;
+                n_adj += (adj != 0) ? (adj > 0 ? 1 : -1) : 0;
+                fprintf(pf, "t=%.1f ticks=%d late_avg=%.2fms late_max=%.2fms llegadas_tarde=%d vi_off=%lld adj=%d wait_avg=%.1fms work_avg=%.1fms\n",
+                        t_now, n, avg * 1000.0, mx * 1000.0, n_late, (long long)vi_off, adj,
+                        acc_wait / (double)n, acc_work / (double)n);
+                fflush(pf);
+                n = 0;
+                n_late = 0;
+                acc = 0.0;
+                mx = -1e9;
+                acc_wait = 0.0;
+                acc_work = 0.0;
+                last_log = t_now;
+            }
+        }
+    }
+    if (pace_mode == 1 && hh_replay_has_vis) {
+        static std::chrono::steady_clock::time_point t0;
+        static bool t0_set = false;
+        const auto now = std::chrono::steady_clock::now();
+        if (!t0_set) {
+            t0_set = true;
+            t0 = now;
+        }
+        const double target = data[use].t;
+        const double since = std::chrono::duration<double>(now - t0).count();
+        const bool arrived_late = since > target;
+        if (target > since) {
+            // HH: espera hibrida. En Windows sleep_for tiene granularidad ~15,6 ms: dormir el grueso
+            // y girar el tramo final evita que el pacing se pase (~5-10 ms por tick -> el replay
+            // corria a 22 ticks/s cuando la grabacion iba a 26, y la ruta divergia). Requiere
+            // timeBeginPeriod(1) (main.cpp); sin el, el propio sleep se pasa del objetivo.
+            const double remain = target - since;
+            if (remain > 0.003) {
+                std::this_thread::sleep_for(std::chrono::duration<double>(remain - 0.003));
+            }
+            while (std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() < target) {
+                // espera activa corta (precision de microsegundos)
+            }
+        }
+        // Diagnostico del pacing (hh_pace.log, 1 linea/s): retraso por tick y cuantas veces el
+        // tick llego ya tarde (work-bound). Sirve para ver en la maquina del mantenedor por que el
+        // replay no sigue la grabacion.
+        {
+            const double after = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            const double late = after - target;
+            static FILE* pf = fopen("hh_pace.log", "w");
+            static int n = 0, n_late = 0;
+            static double acc = 0.0, mx = -1e9, last_log = 0.0;
+            if (pf != nullptr) {
+                n++;
+                if (arrived_late) {
+                    n_late++;
+                }
+                acc += late;
+                if (late > mx) {
+                    mx = late;
+                }
+                if (after - last_log >= 1.0) {
+                    fprintf(pf, "t=%.1f ticks=%d late_avg=%.2fms late_max=%.2fms llegadas_tarde=%d\n",
+                            after, n, acc / n * 1000.0, mx * 1000.0, n_late);
+                    fflush(pf);
+                    n = 0;
+                    n_late = 0;
+                    acc = 0.0;
+                    mx = -1e9;
+                    last_log = after;
+                }
+            }
+        }
+    }
     buttons = data[use].buttons;
     x = data[use].x;
     y = data[use].y;
@@ -631,6 +781,85 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     static bool cfg_logged = false;
     if (controller_num == 0) {
         hh_input_polls.fetch_add(1, std::memory_order_relaxed);
+        // HH: diagnostico de cuantizacion de tick (hh_tick.log, 1 linea/s): cuantos ticks caen en
+        // 1/2/3/4+ VI y el periodo maximo. Mide si la logica clava el presupuesto del original
+        // (2 VI/tick = 30,0/s) o pierde el deadline (3 VI = 50 ms). Ver notas de pacing y §5e de
+        // 2026-09-17-replay-mode-vi-vis-negativo.
+        {
+            static FILE* tf = fopen("hh_tick.log", "w");
+            if (tf != nullptr) {
+                static uint64_t last_vi = 0;
+                static bool vi_init = false;
+                static uint64_t counts[5] = {0, 0, 0, 0, 0};
+                static double max_dt = 0.0;
+                static auto last_t = std::chrono::steady_clock::now();
+                static auto last_log = std::chrono::steady_clock::now();
+                static auto t0 = std::chrono::steady_clock::now();
+                const uint64_t vi = hh_get_vi_count();
+                const auto now = std::chrono::steady_clock::now();
+                const double dt = std::chrono::duration<double, std::milli>(now - last_t).count();
+                last_t = now;
+                uint64_t d = 0;
+                static unsigned long long last_busy = 0;
+                if (vi_init) {
+                    d = vi - last_vi;
+                    counts[d < 4 ? (int)d : 4]++;
+                    if (dt > max_dt) {
+                        max_dt = dt;
+                    }
+                    // Tiempo guest ejecutado EN ESTE tick (delta respecto al tick anterior).
+                    const unsigned long long busy = hh_guest_busy_ms();
+                    const unsigned long long busy_tick = (last_busy != 0 && busy >= last_busy) ? (busy - last_busy) : 0;
+                    last_busy = busy;
+                    // Tick lento (>36 ms): desglose a hh_slow.log para saber si el tiempo se va en
+                    // el hilo de gfx (send_dl/update_screen), en codigo guest o en esperas/colas.
+                    if (dt > 36.0) {
+                        static FILE* sf = fopen("hh_slow.log", "w");
+                        if (sf != nullptr) {
+                            const double t_slow = std::chrono::duration<double>(now - t0).count();
+                            fprintf(sf, "t=%.1f dt=%.1fms dvi=%llu send_dl=%.1fms update_screen=%.1fms guest_busy=%llums pending_ext=%llu\n",
+                                    t_slow, dt, (unsigned long long)d,
+                                    hh_gfx_last_send_dl_ms(), hh_gfx_last_update_ms(),
+                                    busy_tick, hh_get_pending_ext_msgs());
+                            fflush(sf);
+                        }
+                    }
+                }
+                else {
+                    vi_init = true;
+                }
+                last_vi = vi;
+                const double since_log = std::chrono::duration<double>(now - last_log).count();
+                if (since_log >= 1.0) {
+                    const double t_log = std::chrono::duration<double>(now - t0).count();
+                    const uint64_t n = counts[1] + counts[2] + counts[3] + counts[4];
+                    fprintf(tf, "t=%.1f ticks=%llu d1=%llu d2=%llu d3=%llu d4+=%llu max_dt=%.1fms\n",
+                            t_log, (unsigned long long)n,
+                            (unsigned long long)counts[1], (unsigned long long)counts[2],
+                            (unsigned long long)counts[3], (unsigned long long)counts[4], max_dt);
+                    fflush(tf);
+                    counts[1] = counts[2] = counts[3] = counts[4] = 0;
+                    max_dt = 0.0;
+                    last_log = now;
+                }
+            }
+        }
+        // HH: log de cadencia por frame de juego (HH_FRAMELOG=1) -> hh_framelog.log.
+        // Formato: t_segundos dt_microsegundos vi_actual (para ver si los frames que se pasan de
+        // 33,3 ms consumen 3 VI en vez de 2; ver notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md).
+        if (getenv("HH_FRAMELOG") != nullptr) {
+            static FILE* ff = fopen("hh_framelog.log", "w");
+            if (ff != nullptr) {
+                static auto t0 = std::chrono::high_resolution_clock::now();
+                static auto tprev = t0;
+                auto now = std::chrono::high_resolution_clock::now();
+                double dus = std::chrono::duration<double, std::micro>(now - tprev).count();
+                double t = std::chrono::duration<double>(now - t0).count();
+                fprintf(ff, "%.4f %.1f %llu\n", t, dus, (unsigned long long)hh_get_vi_count());
+                fflush(ff);
+                tprev = now;
+            }
+        }
     }
     hh_pad_config_load();
     if (!cfg_logged && controller_num == 0) {
