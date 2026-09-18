@@ -52,33 +52,10 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 0,2-15 ms). **Causa raíz de los tirones arreglada**: `get_function` hacía 4-5 `getenv()` por llamada
 recompilada; cachear los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta
 a `d2=29-30` (30/s). **CaC** en espera; quedan ~4-6 ms/tick y el warm-up RT64 (nota Fase B).
-**Estado anterior (2026-09-16)**: se juega en Windows (menús → GAME START → escenas 3D, primer combate
-cuerpo a cuerpo y cinemáticas) con mando Xbox (perfiles `config.ini`) y audio a 43200 Hz. El
-**guardado en cápsula está VALIDADO en Windows**: la causa raíz era `osPfsFindFile` devolviendo 10 en
-vez de **5** con `*file_no=-1`, ya corregida; el juego muestra la UI de slots y escribe el `.pak`
-(notas `notes/2026-09-16-guardado-capsula-pak-y-crash-cac-8021d8d0.md` y
-`notes/2026-09-16-guardado-capsula-validado.md`). Arreglados y
-**validados en Windows**: la **entrega del objeto del NPC** (fallthrough en módulo 55 — fuga `0x48`/
-frame + animación saltada — y mid-entries `0x80379954`/`0x803798E8`; el módulo 55 es el overlay de
-la secuencia de objeto, ver `docs/architecture.md` §2.2), la **regresión de las escaleras** (partir
-un switch fusionado) y el **cuelgue por daño del robot** en dos capas: `s0` (r16) machacado por la
-cadena del frame (fix runtime `HH_S0FIX`) y, ya caído, el personaje que no se levantaba por un
-**fallthrough ausente al final de `M55_FUN_8037a6f4`** (fuga `0x38`/frame + lógica de caída saltada;
-nueva regla de ramas condicionales en `fix_fallthroughs.py`). Instrumentación de crash/cuelgue y
-bats de regresión en el repo. La **partida avanza** (menús, escenas 3D, NPC); los
-`Failed to find function at 0x…` se resuelven con **mid-entries** (`add_mid_entry.py` +
-`recomp --force`; p. ej. `M55_FUN_80378c48` en un menú). En la sesión actual se arregló el **B físico
-= atrás en menús** (VALIDADO) y el mid-entry `M55_FUN_8037948C`; **bloqueante**: al entrar en CaC el
-juego **corrompe estructuras** (objeto `0x8024A990` y lista de broadcast) — no es un símbolo ausente
-(`notes/2026-09-16-sesion-b-menus-combate-corrupcion.md`). **Build reproducible**: receta Linux +
-Docker (Debian/glibc) + CI y Releases en GitHub (`docs/adr/0005-build-reproducible-y-artefactos.md`).
-Además, **limpieza de rutas/referencias y pipeline de compilación** ejecutada (2026-09-16): solo
-rutas relativas al repo, icono versionado, ROM en `rom/` junto al ejecutable + salvaguarda,
-`port/build_windows.local.bat` local y pin del runtime a un SHA publicado (`docs/adr/0006-*.md`).
-Detalle: `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`,
-`notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`,
-`notes/2026-09-16-crash-menu-midentry-m55-80378c48.md` y
-`notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md`.
+**Estado anterior (2026-09-16)**: gameplay en Windows (menús → escenas 3D → combate y cinemáticas) con
+mando Xbox y audio a 43200 Hz; **guardado en cápsula validado**; entrega de objeto del NPC, regresión
+de escaleras y cuelgue por daño del robot arreglados (fallthroughs de M55 + `HH_S0FIX`); mid-entries
+resueltos con `add_mid_entry.py`. Detalle: `notes/2026-09-15-*` y `notes/2026-09-16-*`.
 
 | Fase | Estado | Nota |
 |---|---|---|
@@ -114,8 +91,9 @@ Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
 /AGENTS.md          # arranque de sesión (1 pantalla)
 /PROYECTO.md        # ESTE archivo: contexto + estado (vivo, corto)
 /TODO.md            # única lista de tareas (viva, corta)
+/RETOMAR.md         # punto de retomada de la sesión actual (handoff, corto)
 /docs/
-  README.md         # plan de alto nivel por fases
+  README.md         # visión y roadmap a largo plazo
   architecture.md   # modelo técnico canónico (vivo)
   documentation.md  # cómo documentar (normativo, leer cada sesión)
   workflows.md      # procedimientos (build, regen, protocolo de imágenes)
@@ -132,9 +110,7 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`**. Foco inmediato (2026-09-17): **cuadrar el pacing/cadencia** del port con el
-original (la lógica corre a ~16–28/s con VI/audio a 60/s; work order:
-`notes/2026-09-17-workorder-pacing-cadencia.md`). Después: re-test y **desbloqueo del combate cuerpo
-a cuerpo** (corrupción de estado al entrar; ver `notes/2026-09-17-plan-revision-bloqueo-cac.md`),
-publicación de las mitigaciones de runtime, teardown SEGV al cerrar, limpieza de instrumentación y
-botón de los menús de combate para X.
+Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-18): audio (sync de tasa), menú in-game
+(ADR 0008, con spike), ADR 0009 (formalizar la estrategia de cobertura nativa) y el teardown SEGV.
+**CaC/veneno** sigue en espera (ver Backlog y `notes/2026-09-17-cac-*.md`). Visión a largo plazo:
+`docs/README.md`.
