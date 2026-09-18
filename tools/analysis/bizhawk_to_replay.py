@@ -50,6 +50,9 @@ def main():
     ap.add_argument("--vis-offset", type=int, default=0)
     ap.add_argument("--scale", type=float, default=128.0)
     ap.add_argument("--invert-y", action="store_true")
+    ap.add_argument("--stride", type=int, default=1,
+                    help="conservar 1 de cada N muestras (p. ej. 2 para pasar de 60 VI/s a 1 "
+                         "muestra por frame de juego; usar con HH_REPLAY_MODE=poll)")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -57,6 +60,11 @@ def main():
     if not samples:
         print("ERROR: no hay muestras validas en", args.entrada, file=sys.stderr)
         return 1
+
+    if args.stride > 1:
+        # Reindexa: cada N frames de VI -> una muestra (frame de juego n = frame VI n*N).
+        samples = {f: v for f, v in samples.items() if f % args.stride == 0}
+        samples = {f // args.stride: v for f, v in samples.items()}
 
     frames = sorted(samples)
     if frames[0] != 0:
@@ -83,6 +91,13 @@ def main():
             miny, maxy = min(miny, ny), max(maxy, ny)
             buttons_count[buttons] += 1
             vis = f + args.vis_offset
+            # Nunca negativo: el modo vi del port lee los vis como uint64 (el bucle de seleccion
+            # compara <= VI) y un vis negativo se vuelve un valor gigante -> la muestra 0 queda
+            # fijada para siempre y el replay no aplica input. Con el relleno inicial (frames
+            # previos a la grabacion) todos esos samples son neutros, asi que clamp a 0 no cambia
+            # la reproduccion (y el mapeo deseado vis=f+offset se mantiene para f > |offset|).
+            if vis < 0:
+                vis = 0
             out.write(f"{vis / 60.0:.4f} {vis} {buttons:04X} {nx:.4f} {ny:.4f}\n")
             written += 1
 
