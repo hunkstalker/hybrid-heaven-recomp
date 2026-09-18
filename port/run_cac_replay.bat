@@ -6,8 +6,9 @@ REM  Uso:  run_cac_replay.bat RUTA\cac_rec.txt
 REM        (la ruta de la grabacion; p.ej.
 REM         HybridHeavenRecomp\build_win\bin\Release\logs_pacing_20260918_033912\cac_rec.txt)
 REM
-REM  Lanza el port con HH_REPLAY=<ruta>, HH_REPLAY_MODE=poll y
-REM  HH_REPLAY_PACE=1 (mismo timing de tick que la grabacion). Sirve para
+REM  Lanza el port con HH_REPLAY=<ruta> y HH_REPLAY_MODE=vi (el input se elige por el contador VI
+REM  del port y se auto-corrige ante slips). HH_REPLAY_PACE se deja VACIO: el PLL de pace=vi provoca
+REM  busy-wait/log y tirones (medido 2026-09-18) y mode=vi ya es estable. Sirve para
 REM  comparar el replay en Windows (RT64/WASAPI) con el replay headless
 REM  (lavapipe/dummy, ya validado canonico):
 REM    - si en Windows tambien se cuelga -> el factor es el entorno;

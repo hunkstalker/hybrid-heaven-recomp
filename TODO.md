@@ -27,10 +27,13 @@
 
 - [ ] **CaC: corrupción de estado (BLOQUEANTE, en espera)**. Al entrar en combate el objeto
   `0x8024A990` acaba con callback `+0x1C=0xFFFF84CD` y se corrompen colas (`[BADMQ]`). Reproducido en
-  Linux con replay; **no es rendimiento**. Próximo paso: localizar la **primera divergencia de flujo**
-  port↔emulador (el replay de BizHawk ya la ejercita). Detalle:
-  `notes/2026-09-17-cac-ownership-resuelto.md`, `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md`,
-  `notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md`.
+  Linux con replay; **no es rendimiento**. Ronda 2026-09-18: `HH_VI_EVERY=2` no lo arregla en vivo;
+  `HH_REPLAY_PACE=vi` descartado (tirones); **reloj de replay hecho determinista por VI** (fix en
+  `timer.cpp`) pero el freeze **no se reproduce por replay** (depende de timing/jitter del entorno).
+  **Siguiente**: (a) grabación nueva **limpia (sin golpes)** con el build actual y probar el replay;
+  (b) en paralelo, instrumentar el **vivo** (`HH_WATCH_ADDR=0x8024A9AC` + `HH_MQLOG_ALL`) para cazar
+  quién escribe `FFFF84CD`. Detalle: `notes/2026-09-18-cac-replay-en-vivo-no-reproduce.md`,
+  `notes/2026-09-17-cac-ownership-resuelto.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
 - [ ] **Builds/empaquetado**: validar "build once, promote" en GitHub y empaquetado **Steam Deck**.
