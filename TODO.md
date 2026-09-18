@@ -14,8 +14,10 @@
   de `docs/README.md`. Incluye el **manifiesto de reimplementadas** + **métrica de cobertura** (§5).
 - [ ] **Teardown SEGV** al cerrar en Windows (`exe +0x12A602`): mapear con el `.map`, reproducir en
   Linux y arreglar el orden de deinit (respuesta a `EXCEPTION_EXECUTE_HANDLER`).
-- [ ] **Mando**: identificar el botón N64 que abre los menús de combate y asignarlo a **X**
-  (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
+- [ ] **Mando**: identificar el botón N64 que abre el menú de **acciones/lucha en CaC** y asignarlo a
+  **X** (`config.ini`). **Bloqueado por el CaC** (el juego se congela antes del combate): revisar cuando
+  se resuelva la entrada al combate. Lo normal (pausa/inventario) sale con **Start** y está bien.
+  Decidir también `LB` y el atajo de cámara/1ª persona.
 - [ ] **Limpieza de instrumentación**: decidir sobre `requeue_pi=true`, los `[MQDROP]`, la sombra
   `hh_sh_*` y el watchpoint (ya está todo gated tras `HH_DIAG`).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): con la ROM en `rom\` junto al `.exe`, comprobar
