@@ -372,7 +372,15 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         // (command lists runaway que pisan los contextos de voz). Con la reproduccion virtual
         // (headless) un burst de ticks puede superar la ventana; se acota a ~1 VI.
         const double cap = static_cast<double>(sample_rate) / 60.0;
-        if (virtual_frames > cap) {
+        // HH_AI_NOCLAMP=1: experimento de fidelidad. El clamp de la cola virtual es un parche que
+        // solo existe sin dispositivo; el camino con dispositivo (Windows/SDL) no lo tiene y por
+        // eso su driver de audio/eventos progresa distinto. Con esto se puede comparar la ruta
+        // virtual "sin clamp" contra la del dispositivo (ver notes/2026-09-17-replay-*).
+        static const bool hh_no_clamp = [] {
+            const char* e = getenv("HH_AI_NOCLAMP");
+            return e != nullptr && *e != '\0' && strcmp(e, "0") != 0;
+        }();
+        if (!hh_no_clamp && virtual_frames > cap) {
             if (getenv("HH_VERBOSE") != nullptr) {
                 static int hh_n = 0;
                 if (hh_n++ < 20) fprintf(stderr, "[AI ] cola virtual acotada: %.0f -> %.0f frames\n", virtual_frames, cap);
@@ -423,10 +431,15 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
     }
 
-    // Backpressure: si ya hay mas de ~1 s encolados, descartar (evita crecimientos enormes).
+    // Backpressure: cola acotada (watermark) para que la latencia no crezca sin limite por el
+    // desajuste de reloj juego<->dispositivo (medido ~0.8% en un caso real: 38k frames de cola a
+    // los 2 min). Al superar el limite se descarta el buffer entrante (pequeno clic) y la cola
+    // vuelve a bajar. HH_AI_MAX_MS ajusta el limite (por defecto 150 ms).
     {
+        const char* mx = getenv("HH_AI_MAX_MS");
+        const double max_ms = (mx != nullptr && *mx != '\0') ? strtod(mx, nullptr) : 150.0;
         const Uint32 queued = SDL_GetQueuedAudioSize(audio_device);
-        const Uint32 limit = sample_rate * bytes_per_frame;
+        const Uint32 limit = (Uint32)((double)sample_rate * bytes_per_frame * max_ms / 1000.0);
         if (queued > limit) {
             if (hh_audlog != nullptr && *hh_audlog != '\0') {
                 static int hh_drop_n = 0;
