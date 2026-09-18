@@ -6,7 +6,7 @@
 # Es valido en cuanto el usuario haga force-push de los forks (N64Recomp y despues N64ModernRuntime).
 # Para probar el arbol local sin publicar, usar port/build_windows.local.bat (no toca git).
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=3b231b32631aa1352d363822610751bcc83b7d62
+NMR_COMMIT=a3a434ff5cec86bff1ac480414f60719e4409ebc
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=cab94d912ff858d6574974cead7dbbcca09e282f
