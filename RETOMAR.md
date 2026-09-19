@@ -2,11 +2,12 @@
 
 > Handoff para arrancar rápido. **Fuentes de verdad**: `TODO.md` (tareas), `PROYECTO.md` (estado),
 > `docs/README.md` (visión) y la nota de la sesión. **Detalle completo**: **empieza por
-> `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`** (verificación nocturna-3, tras el
-> cuelgue de la sesión anterior), y después
+> `notes/2026-09-19-causa-raiz-cadencia-frames.md`** (causa raíz probable: cadencia de frames 1 vs 2
+> VI/tick, y el camino de fix), y después
+> `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` (verificación del harness),
 > `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md` (inventario completo),
-> `notes/2026-09-19-clasificacion-adelanto-fase-previa.md` y
-> `notes/2026-09-19-bat-stall-check.md` (y `notes/2026-09-19-veneno-capturado-bug-signo-extension.md`).
+> `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5: `HH_VI_EVERY` y el fix de tick),
+> `notes/2026-09-19-clasificacion-adelanto-fase-previa.md` y `notes/2026-09-19-bat-stall-check.md`.
 > Última sesión: **2026-09-19 (noche-3)**. Sesión de reanudación; continuar en una nueva.
 
 ## Aviso importante (leer antes de nada)
@@ -23,16 +24,19 @@ que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referenci
   **softlock**; en el CaC el port toma una rama que el emulador **nunca** toma.
 - **Confirmado (verificado 2026-09-19 noche-3)**:
   - El port ejecuta el frame `FUN_80001454` a **~58/s · 1,03 VI/frame**; el emulador a **~30/s ·
-    2,0 VI/frame**. El bucle `FUN_800011b0` espera en la cola `0x80063D78` y llama a `FUN_80001454`
-    (frame) o al no-op `FUN_80001BB0`.
+    2,0 VI/frame**. El bucle `FUN_800011b0` espera en la cola **`0x8005C288`** y decide con
+    `[0x80037748]`: `0` → `FUN_80001454` (frame); `!=0` → `FUN_80001BB0` (no-op).
+  - El port **nunca** pone `[0x80037748]` a 1 (sin `[NOOP]`), así que hace frame cada VI.
   - El port consume el replay a la tasa de la grabación (**~0,5 muestras/VI**); el emulador
-    **~2× más rápido** (~1,0/VI). Ambos harnesses son **poll-indexed**.
-  - **`HH_VI_EVERY=2` corrige la cadencia** (deja 2,0 VI/frame) pero #12 solo pasa de **vi 436 →
-    516**: la cadencia de frames **no** es la causa del adelanto.
+    **~1,8-2× más rápido** (~0,9-1,0/VI). Ambos harnesses son **poll-indexed**.
+  - **Objeto de transición `0x801D0474`**: port `vi 218`; con **`HH_VI_EVERY=2` → `vi 328`**; emu
+    `vi 347`. ⇒ La **cadencia de frames** explica el adelanto del front-end; `HH_VI_EVERY=2` lo
+    corrige.
 - **En cuestión (no fiable tal cual)**: el "port ~20 s (~1200 VI) adelantado" y el "emu no toma la
-  rama M10/M12" dependen del harness del emulador. Con el input mal temporizado (START del front-end
-  aplicado antes de su `vis`), el emulador se lo "pierde" y sus hitos se alargan de forma no robusta:
-  #12 pasa de `vi 1535` (original) a `vi 2959` (`cac_pad163`) a >70 s (`cac_dup` stride 2).
+  rama M10/M12" se midieron con el harness del emulador, que consume el replay ~2× rápido y es muy
+  inestable al padding: #12 pasa de `vi 1535` (original) a `vi 2959` (`cac_pad163`) a no llegar
+  (`cac_dup` stride 2); y con input vis-fiel (1/VI) el emulador **ni llega a #12**. La divergencia
+  real del front-end es la **cadencia de frames**, no un misterio de 20 s.
 - **Cadena causal dentro del port (sí en pie)**: en el CaC el port llama al **instalador M10/M12 del
   disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock; enmascarar el START
   (`HH_MASK_START=400:700`) lo evita (`objCB=801CB71C`, `m188=0`). El cambio de escena prematuro
@@ -43,30 +47,35 @@ que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referenci
 
 ## TU TAREA AHORA — PLAN ÚNICO (no proponer variantes hasta cerrarlo)
 
-**Objetivo**: decidir si el adelanto del front-end es **real** o **artefacto del harness**; y en
-cualquiera de los dos casos, que el CaC entre al combate por el mismo camino que el emulador.
+**Objetivo**: que el port deje de **adelantarse en el front-end** (el objeto de transición nace en
+`vi 218` vs emu `347`) y que el CaC entre al combate por el mismo camino, sin freeze ni softlock.
 
-**Paso 0 — hecho**: verificación de cadencia y del harness
-(`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`).
+**Causa raíz probable (verificada 2026-09-19 noche-3b, `notes/2026-09-19-causa-raiz-cadencia-frames.md`)**:
+el port ejecuta el frame `FUN_80001454` a **1,03 VI/frame** y el emulador a **2,0**. El bucle
+`FUN_800011b0` decide con `[0x80037748]`: el port **nunca lo pone a 1** (no toma la rama no-op), así
+que hace frame cada VI. `HH_VI_EVERY=2` (entrega del evento VI cada 2 VI) **corrige la cadencia** y
+mueve el objeto de `vi 218` a **`vi 328`** (≈ emu `347`). El "port ~20 s adelantado" era un artefacto
+compuesto (el emulador consume el replay ~2× rápido y es inestable: #12 = `vi 1535` → `2959` → no llega).
 
 **Pasos restantes:**
+1. **Localizar por qué el port no procesa el mensaje de tipo 3 de la cola `0x8005C288`** (el que pone
+   `[0x80037748]=1`): quién lo publica (probable retrace/VI) y comparar con lo que espera el ROM. El
+   runtime reimplementa `osSendMesg`/`osRecvMesg` (`ultramodern/src/mesgqueue.cpp`) → primer
+   sospechoso. Log: `HH_LOG("[MQ] osSendMesg …")` filtrando `0x8005C288`.
+2. **Fix correcto** (no `HH_VI_EVERY`): garantizar la cuantización del tick del original (**2 VI/tick**,
+   con slips a 3 VI solo si el trabajo no cabe), como describe
+   `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5.2.
+3. **Reproducir el CaC con `HH_REPLAY_MODE=vi`** (no solo `poll`) para validar el replay sin depender
+   de la elección poll/vis.
+4. **Validar**: objeto `0x801D0474` en su `vi` (~347); loader #12 (`005FBEC6`) en su `vi`; `CHAIN` sin
+   completar antes; CaC con `objCB=801CB71C`/`m188=0`; **entra al combate**; y sin softlock en vivo.
 
-1. **Alinear el input del emulador al `vis` grabado** (harness vis-fiel). Construir un replay
-   re-muestreado a la tasa de poll real del emulador (empezar por estirar/duplicar cada muestra
-   para que su índice de aplicación ≈ su `vis`) y **re-medir M23 `005F1190`, #11 `0005D280`,
-   #12 `005FBEC6`, M8 `0053C77C`**. Criterio: con input alineado, ¿el emulador entra al CaC sano y
-   el port no?
-2. **Reproducir el CaC con `HH_REPLAY_MODE=vi`** (no solo `poll`) para validar el replay
-   independientemente de la elección poll/vis.
-3. **Decidir la referencia**: si el emulador no se puede hacer vis-fiel de forma fiable, depurar el
-   port contra **su propio** criterio (la cadena causal A→B ya está establecida) en vez de contra un
-   emulador mal temporizado.
-4. **Validar**: objeto `0x801D0474` y carga #12 en su `vi`; `CHAIN` sin completar antes; CaC con
-   `objCB=801CB71C`/`m188=0`; **entra al combate**; y en vivo (save) sin softlock.
+**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE` y sin `HH_VI_EVERY`, el port entra al combate
+por el **mismo camino** que el emulador.
 
-**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE`, el port entra al combate por el **mismo
-camino** que el emulador (o se demuestra que el replay no puede reproducir la sesión original y se
-corrige el harness).
+**Advertencia de método**: el emulador **no** es una referencia válida con este replay (consumo
+poll-indexed ~2× y sensibilidad extrema al padding). Para comparar, o harness vis-fiel real, o el
+`state.log` original del mantenedor (nota 09-17), o el propio replay del port en modo `vi`.
 
 ## Datos de partida (fijos)
 
@@ -74,7 +83,8 @@ corrige el harness).
   `work/debug/replays/cac_full_20260918_210956.txt` (9815 muestras; copia de
   `port/.../logs_pacing_20260918_210956/cac_rec.txt`). **No re-grabar** salvo cambio del port.
 - **Replays re-muestreados de la sesión anterior** (para diagnóstico del harness):
-  `work/debug/replays/cac_dup_20260919.txt` (stride 2) y `cac_pad163_20260919.txt` (1,63×).
+  `work/debug/replays/cac_dup_20260919.txt` (stride 2), `cac_pad163_20260919.txt` (1,63×) y
+  `cac_vi1_20260919.txt` (1 muestra/VI, vis-fiel; el emulador se cuelga con él antes de #12).
 - **Replay save→softlock** (solo port; NO válido para emu):
   `work/debug/replays/cac_save_nob280_20260919_112932.txt` (4457). Save del port (formato propio):
   `work/debug/replays/hh.us.bin.pak.bak`.
@@ -171,8 +181,12 @@ Estado verificado 2026-09-19 noche-3 (tras commitear la documentación de esta s
 
 ## Documentación de la sesión
 
-- **`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`** — **empezar aquí**: verificación
-  independiente (cadencia de frames, tasa de poll port↔emu, sensibilidad al padding, cadena causal).
+- **`notes/2026-09-19-causa-raiz-cadencia-frames.md`** — **empezar aquí**: causa raíz probable
+  (cadencia de frames 1 vs 2 VI/tick), el flag `0x80037748` que nunca cambia y el camino de fix.
+- `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` — verificación independiente
+  (cadencia, tasa de poll port↔emu, sensibilidad al padding, cadena causal).
+- `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5) — `HH_VI_EVERY=2` como candidato a fix y
+  la cuantización de tick del original.
 - `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md` — inventario de lo probado y
   corrección de `[0x801BBD56]`.
 - `notes/2026-09-19-bat-stall-check.md` — medida de stalls, M7/M12, driver M24, epoch y test A→B.
