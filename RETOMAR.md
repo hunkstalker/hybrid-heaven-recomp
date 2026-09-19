@@ -135,9 +135,10 @@ poll-indexed ~2× y sensibilidad extrema al padding). Para comparar, o harness v
 - **Port** (`src/game/input.cpp`): `HH_MASK_START=lo:hi` (enmascara el bit START 0x1000 en una ventana
   de VI; **diagnóstico, no fix**). `HH_REPLAY_MODE=poll` (1 muestra/poll) o `vi` (última con
   `vis<=VI`).
-- **Bats**: `port/run_stall_check.bat [det] [nob280]`, `port/run_stall_check_nob280.bat`,
-  `port/run_cac_nob280.bat` (replay + `HH_NO_B280=1`), `port/run_cac_record_nob280.bat`,
-  `port/stall_summary.ps1`.
+- **Bats**: `port/run_cac_tick2.bat` (**doble clic**, sin flags: lanza en vivo con `HH_VI_EVERY=2`
+  para validar el tick a 2 VI), `port/run_stall_check.bat [det] [nob280]`,
+  `port/run_stall_check_nob280.bat`, `port/run_cac_nob280.bat` (replay + `HH_NO_B280=1`),
+  `port/run_cac_record_nob280.bat`, `port/stall_summary.ps1`.
 - **Tool**: `tools/analysis/ring_syms.py` (simboliza anillos de `hh_hang.log`/`hh_slice.log`).
 
 ## Cómo reproducir las medidas clave (headless)
