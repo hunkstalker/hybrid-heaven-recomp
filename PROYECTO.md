@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-18**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-19**.
 
 ## 1. Objetivo
 
@@ -47,11 +47,17 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-18)**: se juega en Windows; **live a 30 ticks/s** y **replay fiel con
-`HH_REPLAY_MODE=vi`**. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo (cargas
-0,2-15 ms). **Causa raíz de los tirones arreglada**: `get_function` hacía 4-5 `getenv()` por llamada
-recompilada; cachear los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta
-a `d2=29-30` (30/s). **CaC** en espera; quedan ~4-6 ms/tick y el warm-up RT64 (nota Fase B).
+**Estado actual (2026-09-19)**: se juega en Windows; **live a 30 ticks/s** y replay con
+`HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
+**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. Demostrado: (a) el **input grabado
+es correcto** (el replay aplica cada muestra en su `vi`/`vis`); (b) el port va **~20 s por delante** en
+la fase pre-transición (arranque del timeline M24 en `vi 421` vs emu `1625`; loader #12 en `vi 417` vs
+emu `1535`), lo que hace la **transición prematura** y lleva a la **rama M10/M12 del disable**
+(freeze/softlock); (c) el emulador **nunca** ejecuta el instalador `M10_FUN_8021b240`. Descartados como
+causa: reloj (`HH_DET_CLOCK`/`quant`), limiter (3 % de ticks de 3 VI), fase del replay y cache de
+assets. **Plan único en `RETOMAR.md`**; detalle: `notes/2026-09-19-bat-stall-check.md`.
+**Estado anterior (2026-09-18)**: `get_function` hacía 4-5 `getenv()` por llamada recompilada; cachear
+los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta a `d2=29-30` (30/s).
 **Estado anterior (2026-09-16)**: gameplay en Windows (menús → escenas 3D → combate y cinemáticas) con
 mando Xbox y audio a 43200 Hz; **guardado en cápsula validado**; entrega de objeto del NPC, regresión
 de escaleras y cuelgue por daño del robot arreglados (fallthroughs de M55 + `HH_S0FIX`); mid-entries

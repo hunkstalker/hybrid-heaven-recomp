@@ -5,8 +5,10 @@
 # apunta al tip reescrito de la rama hybrid-heaven (incluye los commits de runtime de la sesion).
 # Es valido en cuanto el usuario haga force-push de los forks (N64Recomp y despues N64ModernRuntime).
 # Para probar el arbol local sin publicar, usar port/build_windows.local.bat (no toca git).
+# NMR_COMMIT: tip de `hybrid-heaven` con los hooks de diagnostico del CaC (HH_M7GATE/HH_GATE_A/
+# HH_EPOCHTRACE/HH_LDTRACE/HH_NO_B280, HH_DET_CLOCK=quant). Valido tras el push del fork.
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=c765217648f9b235f3926e4c11a609dcd80574d2
+NMR_COMMIT=15f920d5e29ecb59d811988ea69e78ee09547d89
 # Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=cab94d912ff858d6574974cead7dbbcca09e282f

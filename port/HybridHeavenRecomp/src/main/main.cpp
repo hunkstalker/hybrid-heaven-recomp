@@ -384,12 +384,56 @@ static void hh_hang_watchdog() {
                             t, (unsigned long long)vi, (unsigned long long)hh_get_vi_ticks(),
                             (unsigned long long)polls, (unsigned long long)audio,
                             (unsigned long long)hh_get_pending_ext_msgs());
+                    // HH: variables clave de la transicion al CaC, para ver cual se queda clavada
+                    // cuando el "frame" (FUN_80001454) no avanza. Ver notes/2026-09-19-bat-stall-check.md.
+                    {
+                        uint8_t* rdram = hh::get_game_rdram();
+                        auto r32 = [&](uint32_t a) -> uint32_t {
+                            return rdram ? *(uint32_t*)(rdram + (a - 0x80000000u)) : 0;
+                        };
+                        auto r16 = [&](uint32_t a) -> uint32_t {
+                            return rdram ? *(uint16_t*)(rdram + (a - 0x80000000u)) : 0;
+                        };
+                        // a8 = contador u16 [obj+0xA8] del callback M12_FUN_80242e90 (obj 0x8024AAF8);
+                        // si es 0, el callback no dispara FUN_800208C4(0x63) y la transicion no avanza.
+                        fprintf(state_file,
+                                "[STATE] trans 42D0=%08X 7730=%08X 7738=%08X 7748=%08X 7750=%08X "
+                                "g2=%08X cnt30=%08X objCB=%08X a8=%04X a8b=%04X q4F0=%08X q268=%08X "
+                                "m188=%08X m181=%02X\n",
+                                r32(0x8008D580), r32(0x80037730), r32(0x80037738), r32(0x80037748),
+                                r32(0x80037750), r32(0x801D8CE8), r32(0x801D8DA8), r32(0x8024AB14),
+                                r16(0x8024ABA0), r16(0x8024AA38), r32(0x8005C4F0), r32(0x8005C268),
+                                r32(0x801BBD78), r32(0x801BBD71) & 0xFFu);
+                        // HH: estado de las colas sospechosas (1 vez cada HH_STATE_SECS, sin perturbar):
+                        // addr=bOR/bOS/msg/validCount. Localiza la cola donde se atasca el softlock.
+                        {
+                            static const uint32_t qs[] = {0x8005C268, 0x8005C4F0, 0x8005C560,
+                                                          0x8005C288, 0x8005C4B8, 0x8005C598, 0x8005C528};
+                            fprintf(state_file, "[STATE] mq:");
+                            for (uint32_t q : qs) {
+                                fprintf(state_file, " %08X=%08X/%08X/%08X/%d", q,
+                                        r32(q), r32(q + 4), r32(q + 8), (int)r32(q + 0xC));
+                            }
+                            fprintf(state_file, "\n");
+                        }
+                    }
                     recomp_context* ctxs[32];
                     int tids[32];
                     int n = hh_get_thread_ctxs_tids(ctxs, tids, 32);
                     fprintf(state_file, "[STATE] hilos de juego con contexto: %d\n", n);
                     for (int i = 0; i < n; i++) {
                         hh_dump_ctx_regs(state_file, i, tids[i], ctxs[i]);
+                        // HH: anillo de ultimas llamadas por hilo. El contexto guardado no cambia si
+                        // el hilo sigue corriendo, pero el anillo si registra sus llamadas: localiza
+                        // softlocks de logica sin depender del watchdog (que no dispara si polls/audio
+                        // siguen vivos). Ver notes/2026-09-19-bat-stall-check.md.
+                        uint32_t ring[16];
+                        int rn = hh_get_callring(ctxs[i], ring, 16);
+                        if (rn > 0) {
+                            fprintf(state_file, "[HANG]   ultimas llamadas:");
+                            for (int k = 0; k < rn; k++) fprintf(state_file, " %08X", ring[k]);
+                            fprintf(state_file, "\n");
+                        }
                     }
                     fflush(state_file);
                     state_bytes += 320 + (long)n * 330;

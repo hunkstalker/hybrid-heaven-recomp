@@ -845,8 +845,9 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             }
         }
         // HH: log de cadencia por frame de juego (HH_FRAMELOG=1) -> hh_framelog.log.
-        // Formato: t_segundos dt_microsegundos vi_actual (para ver si los frames que se pasan de
-        // 33,3 ms consumen 3 VI en vez de 2; ver notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md).
+        // Formato: t_segundos dt_microsegundos vi_actual dvi guest_busy_ms (para ver si los frames
+        // que se pasan de 33,3 ms consumen 3 VI en vez de 2 y cuanto tiempo guest llevan dentro;
+        // ver notes/2026-09-17-bizhawk-replay-freeze-con-rafaga.md y port\run_stall_check.bat).
         if (getenv("HH_FRAMELOG") != nullptr) {
             static FILE* ff = fopen("hh_framelog.log", "w");
             if (ff != nullptr) {
@@ -855,7 +856,19 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
                 auto now = std::chrono::high_resolution_clock::now();
                 double dus = std::chrono::duration<double, std::micro>(now - tprev).count();
                 double t = std::chrono::duration<double>(now - t0).count();
-                fprintf(ff, "%.4f %.1f %llu\n", t, dus, (unsigned long long)hh_get_vi_count());
+                // HH: ademas del periodo, el avance de VI (dvi) y el tiempo guest ejecutado en el
+                // tick (delta de hh_guest_busy_ms) para medir la alineacion frame<->VI.
+                static uint64_t fl_last_vi = 0;
+                static unsigned long long fl_last_busy = 0;
+                const uint64_t vi = hh_get_vi_count();
+                const unsigned long long busy = hh_guest_busy_ms();
+                const uint64_t dvi = (fl_last_vi != 0 && vi >= fl_last_vi) ? (vi - fl_last_vi) : 0;
+                const unsigned long long busy_tick =
+                    (fl_last_busy != 0 && busy >= fl_last_busy) ? (busy - fl_last_busy) : 0;
+                fl_last_vi = vi;
+                fl_last_busy = busy;
+                fprintf(ff, "%.4f %.1f %llu %llu %llu\n", t, dus, (unsigned long long)vi,
+                        (unsigned long long)dvi, busy_tick);
                 fflush(ff);
                 tprev = now;
             }
@@ -979,6 +992,21 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
         else if (getenv("HH_RECORD") != nullptr && *getenv("HH_RECORD") != '\0') {
             hh_record_write(hh_elapsed, input, axis_x, axis_y);
+        }
+        // HH: diagnostico de causalidad del cambio de escena prematuro: enmascara el bit START
+        // (0x1000) dentro de una ventana de VI (HH_MASK_START=lo:hi). Sirve para ver si, sin el
+        // START que dispara la cadena en la transicion, el port llega al CaC y si sigue colgando.
+        {
+            static const char* ms = getenv("HH_MASK_START");
+            static long mlo = -2, mhi = -2;
+            if (ms != nullptr && *ms != '\0' && mlo == -2) {
+                mlo = 0; mhi = 0;
+                const char* c = strchr(ms, ':');
+                if (c != nullptr) { mlo = strtol(ms, nullptr, 0); mhi = strtol(c + 1, nullptr, 0); }
+            }
+            if (mlo != -2 && (long)hh_get_vi_count() >= mlo && (long)hh_get_vi_count() <= mhi) {
+                input = (n64_button)((unsigned)input & ~0x1000u);
+            }
         }
     }
 

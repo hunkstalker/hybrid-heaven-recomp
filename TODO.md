@@ -25,31 +25,24 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: corrupción de estado (BLOQUEANTE)**. Al entrar en combate el objeto `0x8024A990` acaba con
-  callback `+0x1C=0xFFFF84CD` y se corrompen colas (`[BADMQ]`). **HITO 2026-09-18**: el replay **reproduce
-  el CaC de forma fiable** en port (Windows VI≈20710 y Linux VI≈20949) con `HH_REPLAY_MODE=poll`; el
-  **emulador pasa el CaC con el mismo input** (objeto sano `801CB71C`). **Diferencial por VI (2026-09-18)**:
-  en 20200/20500/20700/20900 port y emu son **idénticos** en el estado del CaC (cuando el port no
-  congela); primera divergencia = **timing** del loader (carga #12: port vis 413 vs emu vi 1535).
-  **VENENO CAPTURADO EN VIVO (watchpoint en `0x8024AB14`)**: `FUN_800058dc` escribe `0xFFFF84CD` con
-  `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume.
-  **CONTRALADO EMULADOR (decisivo)**: con el mismo replay, el emu ejecuta `FUN_800058dc` 1426 veces
-  pero **0 con el veneno** y **0 veces** `M10_FUN_8021b280`/`M55_FUN_80379410` → **la ruta correcta es
-  NO ejecutar el disable**; el callback sano es `801CB71C`. **Cadena confirmada (2026-09-19)**: capturado
-  `hh_venom.log` con el wrapper del setter (bug de signo-extensión corregido): el callring da
-  `M10_FUN_8021b280 → M10_FUN_8022c7a4 → M10_FUN_8022c5ac → M10_FUN_8022c314 → M10_FUN_8022c478 →
-  M55_FUN_80379410 → FUN_800058dc`; `M10_FUN_8021b280` es **callback por puntero** (12 resoluciones,
-  `ra=0`). **INSTALADOR Y PUERTA (2026-09-19)**: `M10_FUN_8021b240` publica `0x8021B280` en el slot
-  `0x8024C950` (obj `0x8024C934`) vía `FUN_800058dc`, solo si `M7_FUN_80126A0C(obj,0x39,1) != 0`
-  (puerta: timer `0x8008D580 < 0x3001` + `FUN_801267B8(lhu[sp+0x1E])==1` + `[0x801BBD71]==0`). Ocurre
-  al final del replay (sample ~9803, VI 20006). **Reloj determinista `HH_DET_CLOCK` implementado**
-  (`osGetTime = total_vis*781250 + sub-VI`): da **30 fps** pero **NO** arregla la carrera (con watchpoint
-  vuelve a aparecer 3/4) → el trigger son los **parones del hilo de juego**, no el origen del reloj.
-  **Workaround `HH_NO_DISABLE=1` PROBADO EN VIVO (Windows): NO funciona** (sigue el cuelgue antes del
-  CaC) → el disable no es el único bloqueo. Evidencia: en vivo hay ticks de **3 VI** con `guest_busy`
-  ~34 ms desde el principio (`logs_nodisable_20260919_081332/hh_slow.log`). **Siguiente (prioridad
-  única)**: **alinear frame↔VI** (limiter que reanude en la rejilla VI o desacoplar stalls de
-  render/audio/IO). Detalle: `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` y
+- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-19; **detalle y plan único**:
+  `RETOMAR.md` y `notes/2026-09-19-bat-stall-check.md`.
+  - **El input grabado es CORRECTO** (el replay aplica cada muestra en su `vis`); el problema es que el
+    port va **~20 s (≈1200 VI) por delante** en la fase pre-transición: epoch M24 (`M24_FUN_801c0a30`)
+    en **vi 421** vs emu **1625**; loader #12 en **vi 417** vs emu **1535**.
+  - ⇒ La transición es **prematura** (port vi ~549 vs emu ~3660) y en el CaC el port llama al
+    **instalador M10/M12 del disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock. El
+    emulador **NUNCA** ejecuta `M10_FUN_8021b240` (0 veces) con el mismo replay.
+  - **Test de causalidad A→B**: enmascarar el START (`HH_MASK_START=400:700`) lleva el CaC a
+    `objCB=801CB71C`/`m188=0` (como el emu), **sin instalador ni crash** ⇒ el cambio de escena prematuro
+    (A) **causa** la rama M10/M12 (B).
+  - **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`/`quant`/`quant+bias`), deslizamiento del
+    limiter (3 % de ticks de 3 VI), fase del replay (`HH_REPLAY_PACE=vi`), cache (`HH_TRANS_CACHE=0`),
+    y los parches `HH_NO_DISABLE`/`HH_NO_B280`.
+  - **Plan único** (`RETOMAR.md`): localizar el primer punto del adelanto en **boot→timeline**; decidir
+    si es **cadencia del replay** (mapeo muestra↔tick) o **timing del motor** (A2); validar (epoch y
+    carga #12 en su `vi`, `CHAIN` sin completar antes, CaC sin rama M10/M12 y entra al combate).
+  Detalle: `notes/2026-09-19-bat-stall-check.md` y
   `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2d/§2e/§6).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
