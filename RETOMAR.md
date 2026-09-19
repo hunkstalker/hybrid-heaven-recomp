@@ -146,23 +146,25 @@ corrige el harness).
 `HH_MQLOG_ALL`/`HH_MQLOG_MQ`, `HH_WAITLOG`/`HH_WAITLOG_MQ`, `HH_DUMP_VI`/`HH_DUMP_SAMPLE`, `HH_STATE_SECS`,
 `HH_TRANS_CACHE`, `HH_TRANS_NATIVE`, `HH_TRANS_VERIFY`, `HH_TRANS_DUMP`.
 
-## Estado de repos/branches (PENDIENTE DE PUSH)
+## Estado de repos/branches (listo para push)
 
-Commits **hechos**; **falta pushear** (no se ha hecho por indicación).
+Estado verificado 2026-09-19 noche-3 (tras commitear la documentación de esta sesión):
 
 - **Main repo** (`https://github.com/hunkstalker/hybrid-heaven-recomp.git`, `origin`, rama `main`):
-  commit **`9163f11`** `diag(cac): herramienta de stalls, instrumentacion de estado y reanalisis`.
-  Push: `cd /app/hybrid-heaven-recomp && git push origin main`.
+  `origin/main` ya tiene `9163f11` y `e4fac49`. **Pendiente de push: 1 commit** (la documentación de
+  esta sesión). Push: `cd /app/hybrid-heaven-recomp && git push origin main`.
+- **N64Recomp fork** (`https://github.com/hunkstalker/N64Recomp.git`, remote `origin`, rama
+  `hybrid-heaven`): commit `cab94d9` **ya pusheado** (`origin/hybrid-heaven == HEAD`). Sin cambios.
 - **Runtime fork** (`https://github.com/hunkstalker/N64ModernRuntime.git`, remote **`fork`**, rama
-  `hybrid-heaven`): commit **`15f920d`** `diag(cac): hooks de diagnostico M7/epoch/loader ...`.
-  Push: `cd port/HybridHeavenRecomp/lib/N64ModernRuntime && git push fork hybrid-heaven`
-  (si el remoto rechaza por historial reescrito: `git push fork hybrid-heaven --force-with-lease`).
-- **`port/runtime.lock`**: `NMR_COMMIT` ya apunta a **`15f920d5e29ecb59d811988ea69e78ee09547d89`**
-  (válido **tras** el push del fork). Incluido en el commit `9163f11`. El `N64RECOMP_COMMIT` no cambió;
-  recordar que **ambos** forks deben estar pusheados para que el pin funcione en un clone limpio.
-- **Pendiente**: hay cambios de documentación **sin commitear** (este archivo, `TODO.md`,
-  `PROYECTO.md` y las notas nuevas de 2026-09-19) y un **diff de instrumentación sin commitear** en
-  `librecomp/src/overlays.cpp` (`HH_FRAMERATE`/`gframe`). Decidir qué se commitea.
+  `hybrid-heaven`): commit `15f920d` **ya pusheado** (`fork/hybrid-heaven == HEAD`); commit-wise no
+  falta push. **Solo queda un diff de instrumentación sin commitear** en
+  `librecomp/src/overlays.cpp` (`HH_FRAMERATE`/`gframe`), **fuera del commit por decisión de esta
+  sesión** (no había tarea validada). Decidir si se commitea más adelante:
+  `cd port/HybridHeavenRecomp/lib/N64ModernRuntime && git push fork hybrid-heaven`.
+- **`port/runtime.lock`**: `NMR_COMMIT` apunta a
+  **`15f920d5e29ecb59d811988ea69e78ee09547d89`** (ya pusheado) y `N64RECOMP_COMMIT` a
+  **`cab94d912ff858d6574974cead7dbbcca09e282f`** (ya pusheado). El pin es válido en un clone limpio.
+- **Orden de push** (ver `AGENTS.md`): N64Recomp → N64ModernRuntime → main.
 - En Windows, rutas: main `E:\dev\docker\hybrid-heaven-pc-port\hybrid-heaven-recomp`; fork
   `...\port\HybridHeavenRecomp\lib\N64ModernRuntime`. Alternativa sin push: `port\build_windows.local.bat`
   (compila el árbol local tal cual).
