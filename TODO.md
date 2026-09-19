@@ -35,11 +35,21 @@
   `a0=0x8024AAF8` (llamante con `a2=0x801BC23A`/`a3=0x801BBBF0`); `M7_FUN_8012e774` lo consume.
   **CONTRALADO EMULADOR (decisivo)**: con el mismo replay, el emu ejecuta `FUN_800058dc` 1426 veces
   pero **0 con el veneno** y **0 veces** `M10_FUN_8021b280`/`M55_FUN_80379410` → **la ruta correcta es
-  NO ejecutar el disable**; el callback sano es `801CB71C`. **Cadena confirmada**:
-  `M10_FUN_8021b280 → M10_FUN_8022c7a4 → M10_FUN_8022c7ac → M55_FUN_80379410 → FUN_800058dc`.
-  **Siguiente**: capturar `hh_venom.log` (wrapper del setter ya listo: vuelca la pila guest al ver el
-  veneno) en una pasada que congele → confirma quién dispara `M10_FUN_8021b280`; y atacar el desfase de
-  timing (frame limiter `0x80001A88`/`__ll_*`). Detalle:
+  NO ejecutar el disable**; el callback sano es `801CB71C`. **Cadena confirmada (2026-09-19)**: capturado
+  `hh_venom.log` con el wrapper del setter (bug de signo-extensión corregido): el callring da
+  `M10_FUN_8021b280 → M10_FUN_8022c7a4 → M10_FUN_8022c5ac → M10_FUN_8022c314 → M10_FUN_8022c478 →
+  M55_FUN_80379410 → FUN_800058dc`; `M10_FUN_8021b280` es **callback por puntero** (12 resoluciones,
+  `ra=0`). **INSTALADOR Y PUERTA (2026-09-19)**: `M10_FUN_8021b240` publica `0x8021B280` en el slot
+  `0x8024C950` (obj `0x8024C934`) vía `FUN_800058dc`, solo si `M7_FUN_80126A0C(obj,0x39,1) != 0`
+  (puerta: timer `0x8008D580 < 0x3001` + `FUN_801267B8(lhu[sp+0x1E])==1` + `[0x801BBD71]==0`). Ocurre
+  al final del replay (sample ~9803, VI 20006). **Reloj determinista `HH_DET_CLOCK` implementado**
+  (`osGetTime = total_vis*781250 + sub-VI`): da **30 fps** pero **NO** arregla la carrera (con watchpoint
+  vuelve a aparecer 3/4) → el trigger son los **parones del hilo de juego**, no el origen del reloj.
+  **Workaround `HH_NO_DISABLE=1` PROBADO EN VIVO (Windows): NO funciona** (sigue el cuelgue antes del
+  CaC) → el disable no es el único bloqueo. Evidencia: en vivo hay ticks de **3 VI** con `guest_busy`
+  ~34 ms desde el principio (`logs_nodisable_20260919_081332/hh_slow.log`). **Siguiente (prioridad
+  única)**: **alinear frame↔VI** (limiter que reanude en la rejilla VI o desacoplar stalls de
+  render/audio/IO). Detalle: `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` y
   `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2d/§2e/§6).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
