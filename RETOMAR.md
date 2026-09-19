@@ -58,13 +58,15 @@ mueve el objeto de `vi 218` a **`vi 328`** (≈ emu `347`). El "port ~20 s adela
 compuesto (el emulador consume el replay ~2× rápido y es inestable: #12 = `vi 1535` → `2959` → no llega).
 
 **Pasos restantes:**
-1. **Por qué el port no toma la rama no-op** (parcial, ver nota §5): la cola `0x8005C288` la consume el
-   bucle principal (**tid 5**) y la alimenta el **tid 19** con `msg=0x8005C4B0`; el tipo está en
-   **`[0x8005C4B0]`** y nunca es 3 en el port (el evento VI va a otra cola, `0x800CE920`). Falta:
-   instrumentar de forma ligera el valor/escritores de `[0x8005C4B0]` y comparar el patrón de tipos
-   con el emulador. (El runtime reimplementa `osSendMesg`/`osRecvMesg`; `HH_MQLOG_ALL` frena el juego.)
-2. **Fix correcto** (no `HH_VI_EVERY`): garantizar la cuantización del tick del original (**2 VI/tick**,
-   con slips a 3 VI solo si el trabajo no cabe), como describe
+1. **Rama no-op: causa localizada** (nota §5/§6). El tipo está en `[0x8005C4B0]` y **siempre es 1**
+   (nunca 3); lo publica el productor (`FUN_8001fba8`, tid 19) en la cola `0x8005C288`, que consume
+   el bucle principal (`FUN_800011b0`, tid 5). La raíz está en la **entrega del evento VI**:
+   `ultramodern/src/events.cpp:364-392` lo entrega **cada VI**; el original entrega 60 VI/s y el
+   juego marca tick cada 2 VI.
+2. **Fix correcto** (no `HH_VI_EVERY` global): auditar la ruta ROM `osCreateViManager`/`viMgrMain` →
+   `retrace_count` y por qué en el port se satisface cada VI; tocar la entrega/contabilidad del
+   retrace en `events.cpp` (`load_vi_regs`/`update_vi`) para que el juego marque **2 VI/tick** con
+   fase estable (slips a 3 VI si el trabajo no cabe), como
    `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5.2.
 3. **Reproducir el CaC con `HH_REPLAY_MODE=vi`** (no solo `poll`) para validar el replay sin depender
    de la elección poll/vis.

@@ -79,3 +79,26 @@ escribe) con una traza ligera (no `HH_MQLOG_ALL`), y comparar con el emulador el
 ese mensaje. Candidato: el productor (tid 19) debería emitir el tipo 3 con la cadencia del original
 (1 de cada 2) y en el port no lo hace. Alternativa: comparar el `state.log` original del mantenedor
 (nota 09-17) para el tramo del front-end, que es la referencia que sí es fiel.
+
+## 6. Cadena completa verificada (2026-09-19 noche-3d)
+
+Con `HH_WATCH_ADDR=0x8005C4B0 HH_WATCH_SIZE=4` (`hh_watch.log`) y `addr2line` sobre el binario:
+
+- El "tipo" que decide frame/no-op vive en el halfword de **`0x8005C4B0`** (en el port, por el
+  word-swap, se accede al host `0x5C4B2`). **Se escribe siempre 1** (nunca 3) ⇒ el port nunca toma la
+  rama no-op.
+- Lectores del tipo: el bucle principal (`FUN_800011b0`, 656 accesos) y **`FUN_8001fba8`**
+  (686 accesos) — este último es un hilo que recibe de la cola `0x80091DA0` y procesa tipos
+  1/3/0x20; es el **productor** que publica en `0x8005C288` (tid 19).
+- **La raíz está en la entrega del evento VI del runtime** (`ultramodern/src/events.cpp:364-392`):
+  por defecto entrega `OS_EVENT_VI` **cada VI** (60 Hz). El comentario del propio código lo dice: el
+  original entrega 60 VI/s y el juego marca tick cada 2 VI; el port, al recibir el VI cada vez,
+  publica el frame cada VI. `HH_VI_EVERY=2` (línea 389) lo parchea globalmente.
+- ⇒ **El fix correcto** es garantizar la cuantización **2 VI/tick** con fase estable (y slips a 3 VI
+  si el trabajo no cabe), como describe `2026-09-17-replay-mode-vi-vis-negativo.md` §5.2 — no el
+  `HH_VI_EVERY` global (bajaría el frame en todo el juego).
+
+**Siguiente paso concreto**: auditar la ruta ROM `osCreateViManager`/`viMgrMain` → `retrace_count`
+(el ROM está recompilado) y por qué en el port se satisface cada VI; comparar con el N64. El punto a
+tocar es la entrega/contabilidad del retrace en `events.cpp` (`load_vi_regs`/`update_vi`) para que el
+propio juego marque 2 VI/tick, sin alterar la semántica del guest.
