@@ -47,19 +47,18 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-19 noche-3b)**: se juega en Windows; **live a 30 ticks/s** y replay con
+**Estado actual (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
 `HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
-**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. Dentro del port está demostrado
-que la **rama M10/M12 del disable** (freeze/softlock) la causa el **cambio de escena prematuro**.
-**Causa raíz probable del adelanto del front-end**: el port ejecuta el frame `FUN_80001454` a
-**1,03 VI/frame** y el emulador a **2,0**; el bucle `FUN_800011b0` decide con `[0x80037748]` (cola
-`0x8005C288`) y el port **nunca lo pone a 1** ⇒ frame cada VI. Objeto de transición `0x801D0474`:
-port `vi 218`; con `HH_VI_EVERY=2` → `vi 328`; emu `vi 347`. El "port ~20 s adelantado" de la
-sesión anterior era un **artefacto** (el emulador consume el replay ~2× rápido y es inestable al
-padding: #12 = `vi 1535` → `2959` → no llega). **Siguiente paso**: por qué el port no procesa el
-mensaje de tipo 3 que pone `[0x80037748]=1` (runtime `mesgqueue.cpp`), y fix de cuantización de tick
-(2 VI/tick, nota 09-17 §5.2). Detalle:
-`notes/2026-09-19-causa-raiz-cadencia-frames.md`, `RETOMAR.md`.
+**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa del freeze (vigente)**:
+**stalls/alineación frame↔VI** del hilo de juego (un frame abarca 3 VI por stalls reales de
+RT64/WASAPI/IO y desplaza el estado respecto a la rejilla VI;
+`notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8). **Descartados como fix**: reloj
+(`HH_DET_CLOCK`), `HH_NO_DISABLE`, `HH_NO_B280` y **`HH_VI_EVERY=2`** (validado en vivo 2026-09-20:
+el CaC vuelve a congelarse en `VI=20829`, veneno `0xFF7F84CD`). El adelanto del front-end (frame a
+1,03 vs 2,0 VI/frame; objeto `0x801D0474` en `vi 218` vs emu `347`) es real pero **ortogonal** al
+freeze. **Siguiente paso**: alinear frame↔VI con compensación de stalls. Detalle y plan:
+`notes/2026-09-19-causa-raiz-cadencia-frames.md` §7, `notes/2026-09-19-veneno-...md` §8/§9,
+`RETOMAR.md`.
 **Estado anterior (2026-09-19 noche-2)**: (era la lectura de la sesión anterior, hoy en cuestión)
 se creía el port **~20 s por delante** en la fase pre-transición (objeto de transición `0x801D0474`
 en `vi 200` vs emu `347`; loader #12/M24 en `vi 417` vs emu `1535`), con el START capturado por el

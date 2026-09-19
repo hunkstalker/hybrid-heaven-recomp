@@ -32,49 +32,53 @@ que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referenci
   - **Objeto de transición `0x801D0474`**: port `vi 218`; con **`HH_VI_EVERY=2` → `vi 328`**; emu
     `vi 347`. ⇒ La **cadencia de frames** explica el adelanto del front-end; `HH_VI_EVERY=2` lo
     corrige.
+  - **REFUTADO como fix (2026-09-20, en vivo)**: con `HH_VI_EVERY=2` el CaC **vuelve a congelarse**
+    (`VI=20829`, veneno `0xFF7F84CD`). El adelanto del front-end es real pero **ortogonal** al freeze.
+- **Causa del freeze (vigente)**: **stalls/alineación frame↔VI** del hilo de juego: con stalls reales
+  (RT64/WASAPI/IO) un frame abarca **3 VI** y desplaza el estado respecto a la rejilla VI
+  (`notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8). `HH_DET_CLOCK` y `HH_VI_EVERY` no
+  lo arreglan.
 - **En cuestión (no fiable tal cual)**: el "port ~20 s (~1200 VI) adelantado" y el "emu no toma la
   rama M10/M12" se midieron con el harness del emulador, que consume el replay ~2× rápido y es muy
   inestable al padding: #12 pasa de `vi 1535` (original) a `vi 2959` (`cac_pad163`) a no llegar
-  (`cac_dup` stride 2); y con input vis-fiel (1/VI) el emulador **ni llega a #12**. La divergencia
-  real del front-end es la **cadencia de frames**, no un misterio de 20 s.
+  (`cac_dup` stride 2); y con input vis-fiel (1/VI) el emulador **ni llega a #12**.
 - **Cadena causal dentro del port (sí en pie)**: en el CaC el port llama al **instalador M10/M12 del
   disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock; enmascarar el START
-  (`HH_MASK_START=400:700`) lo evita (`objCB=801CB71C`, `m188=0`). El cambio de escena prematuro
-  (A) **causa** la rama del CaC (B).
+  (`HH_MASK_START=400:700`) lo evita (`objCB=801CB71C`, `m188=0`). El cambio de escena (A) **causa**
+  la rama del CaC (B); pero **cuándo** se dispara depende del alineamiento frame↔VI, no de la
+  cadencia global de frames.
 - **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`, `quant`, `quant+bias`), deslizamiento
   del limiter, fase del replay (`HH_REPLAY_PACE=vi`), cache de assets (`HH_TRANS_CACHE=0`), y los
-  parches `HH_NO_DISABLE`/`HH_NO_B280` (solo mueven el síntoma).
+  parches `HH_NO_DISABLE`/`HH_NO_B280` (solo mueven el síntoma). **Añadido: `HH_VI_EVERY=2`**.
 
 ## TU TAREA AHORA — PLAN ÚNICO (no proponer variantes hasta cerrarlo)
 
-**Objetivo**: que el port deje de **adelantarse en el front-end** (el objeto de transición nace en
-`vi 218` vs emu `347`) y que el CaC entre al combate por el mismo camino, sin freeze ni softlock.
+**Objetivo**: que el CaC **no congele** (ni softlock) y el port **entre al combate**.
 
-**Causa raíz probable (verificada 2026-09-19 noche-3b, `notes/2026-09-19-causa-raiz-cadencia-frames.md`)**:
-el port ejecuta el frame `FUN_80001454` a **1,03 VI/frame** y el emulador a **2,0**. El bucle
-`FUN_800011b0` decide con `[0x80037748]`: el port **nunca lo pone a 1** (no toma la rama no-op), así
-que hace frame cada VI. `HH_VI_EVERY=2` (entrega del evento VI cada 2 VI) **corrige la cadencia** y
-mueve el objeto de `vi 218` a **`vi 328`** (≈ emu `347`). El "port ~20 s adelantado" era un artefacto
-compuesto (el emulador consume el replay ~2× rápido y es inestable: #12 = `vi 1535` → `2959` → no llega).
+**Hechos verificados (2026-09-19/20)**:
+- El front-end del port se adelanta: `FUN_80001454` a **1,03 VI/frame** vs emu **2,0** → objeto de
+  transición `0x801D0474` en `vi 218` vs emu `347`. Es **real**, pero **ortogonal al freeze**.
+- **`HH_VI_EVERY=2` NO arregla el freeze** (validado en vivo por el mantenedor, 2026-09-20): con el
+  banner `[VI] HH_VI_EVERY=2 activo`, el CaC **volvió a congelarse** en `VI=20829` (veneno
+  `0xFF7F84CD`, `[S0FIX]`, `[BADMQ]`). ⇒ La cadencia de frames **no** es la causa del freeze.
+- La causa del freeze son los **stalls/alineación frame↔VI** del hilo de juego
+  (`notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8): con stalls reales (RT64/WASAPI/IO)
+  un frame abarca **3 VI** y desplaza el estado respecto a la rejilla VI. `HH_DET_CLOCK` y
+  `HH_VI_EVERY` no lo arreglan.
 
 **Pasos restantes:**
-1. **Rama no-op: causa localizada** (nota §5/§6). El tipo está en `[0x8005C4B0]` y **siempre es 1**
-   (nunca 3); lo publica el productor (`FUN_8001fba8`, tid 19) en la cola `0x8005C288`, que consume
-   el bucle principal (`FUN_800011b0`, tid 5). La raíz está en la **entrega del evento VI**:
-   `ultramodern/src/events.cpp:364-392` lo entrega **cada VI**; el original entrega 60 VI/s y el
-   juego marca tick cada 2 VI.
-2. **Fix correcto** (no `HH_VI_EVERY` global): auditar la ruta ROM `osCreateViManager`/`viMgrMain` →
-   `retrace_count` y por qué en el port se satisface cada VI; tocar la entrega/contabilidad del
-   retrace en `events.cpp` (`load_vi_regs`/`update_vi`) para que el juego marque **2 VI/tick** con
-   fase estable (slips a 3 VI si el trabajo no cabe), como
-   `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5.2.
-3. **Reproducir el CaC con `HH_REPLAY_MODE=vi`** (no solo `poll`) para validar el replay sin depender
-   de la elección poll/vis.
-4. **Validar**: objeto `0x801D0474` en su `vi` (~347); loader #12 (`005FBEC6`) en su `vi`; `CHAIN` sin
-   completar antes; CaC con `objCB=801CB71C`/`m188=0`; **entra al combate**; y sin softlock en vivo.
+1. **Alinear frame↔VI con compensación de stalls (PRIORIDAD ÚNICA)**: que cada frame abarque 2 VI
+   pase lo que pase (limiter que reanude sobre la rejilla VI, o desacoplar render/audio/IO). Ver
+   `notes/2026-09-19-veneno-...md` §8/§9 y el handoff 2026-09-18 §1 (`0x80001A88`, `__ll_*`).
+2. **Analizar la pasada en vivo del mantenedor** (`logs_tick2_20260920_012011/`): `hh_hang.log`
+   (contextos en el cuelgue), `hh_slow.log` (`guest_busy`/`dvi`), `hh_state.log`, `hh_s0fix.log`; y
+   comparar con una pasada sin flag.
+3. **Comparar la puerta del disable** (`0x188`/`0x181`/timer `0x42D0`) port↔emu en el mismo VI con
+   `HH_B280TRACE`, para localizar la primera divergencia exacta.
+4. **Validar en Windows en vivo** (el freeze es ~100 % allí; headless es intermitente).
 
-**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE` y sin `HH_VI_EVERY`, el port entra al combate
-por el **mismo camino** que el emulador.
+**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE` (y sin `HH_VI_EVERY`), el port entra al
+combate por el mismo camino que el emulador.
 
 **Advertencia de método**: el emulador **no** es una referencia válida con este replay (consumo
 poll-indexed ~2× y sensibilidad extrema al padding). Para comparar, o harness vis-fiel real, o el

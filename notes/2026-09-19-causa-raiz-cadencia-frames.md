@@ -102,3 +102,27 @@ Con `HH_WATCH_ADDR=0x8005C4B0 HH_WATCH_SIZE=4` (`hh_watch.log`) y `addr2line` so
 (el ROM está recompilado) y por qué en el port se satisface cada VI; comparar con el N64. El punto a
 tocar es la entrega/contabilidad del retrace en `events.cpp` (`load_vi_regs`/`update_vi`) para que el
 propio juego marque 2 VI/tick, sin alterar la semántica del guest.
+
+## 7. Validación en Windows (2026-09-20): `HH_VI_EVERY=2` **NO arregla el freeze**
+
+Prueba del mantenedor con `port/run_cac_tick2.bat` (en vivo, RTX 4080, WASAPI), banner
+`[VI] HH_VI_EVERY=2 activo` confirmado:
+
+- Jugó hasta la zona del combate y **se congeló** (no softlock) en **VI=20829** (polls 15 s).
+- Consola: **veneno** `Failed to find function at 0xFF7F84CD`, caller `r4=8024AAF8`;
+  `[S0FIX] r16 00000000 -> 80037748` (fix de `s0` activo); corrupción de colas
+  `[BADMQ] fields mq=80000000 valid=54525960`, `[BADMQ] osSendMesg mq=00040000/C0000830`.
+- ⇒ **El tick a 2 VI no cura el CaC**. La hipótesis "la cadencia de frames es la causa" queda
+  **refutada como fix** (el adelanto del front-end es real pero **ortogonal** al freeze: en vivo el
+  jugador marca el ritmo, no el front-end).
+- Coincide con `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8: el disparador son los
+  **stalls/alineación frame↔VI** del hilo de juego (RT64/WASAPI/I/O), no el reloj ni la entrega del
+  tick. `HH_VI_EVERY=2` alinea la entrega del evento VI pero **no** evita que un frame abarque 3 VI
+  por un stall real.
+
+**Reorientación**: el fix de raíz es **alinear frame↔VI con compensación de stalls** (que cada frame
+abarque 2 VI pase lo que pase: limiter que reanude en la rejilla VI, o desacoplar los stalls), como
+dice la nota del veneno §8/§9. `HH_VI_EVERY` no es la vía.
+
+**Datos a analizar del run**: `logs_tick2_20260920_012011/` (Windows) — `hh_hang.log` (contextos de
+hilo en el cuelgue), `hh_state.log`, `hh_slow.log` (`guest_busy`/`dvi`), `hh_s0fix.log`.

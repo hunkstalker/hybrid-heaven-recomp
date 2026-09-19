@@ -30,30 +30,16 @@
   `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5),
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` y
   `notes/2026-09-19-bat-stall-check.md`.
-  - **CAUSA RAÍZ PROBABLE (noche-3b)**: el port ejecuta el frame `FUN_80001454` a **1,03 VI/frame** y
-    el emulador a **2,0**. El bucle `FUN_800011b0` decide con `[0x80037748]` (cola `0x8005C288`); el
-    port **nunca lo pone a 1** (no toma la rama no-op) ⇒ frame cada VI. Objeto de transición `0x801D0474`:
-    port `vi 218`; con `HH_VI_EVERY=2` → `vi 328`; emu `vi 347`. El "port ~20 s adelantado" era un
-    artefacto compuesto (el emulador consume el replay ~2× rápido y es inestable al padding).
-  - **AVISO (noche-3)**: el emulador **no** es referencia válida con este replay; hay que usar un
-    harness vis-fiel real o el `state.log` original del mantenedor.
-  - **CAUSA ACOTADA (2026-09-19 noche-2; sigue en pie dentro del port)**: el adelanto nace en el
-    **front-end** (logos/título/menús), antes de que M24 se cargue. `ADVANCE=0`/`EVQCHECK=0`/transición
-    prematura/veneno son **síntomas aguas abajo**.
-  - ⇒ La transición es **prematura** y en el CaC el port llama al **instalador M10/M12 del disable**
-    (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock. El emulador **NUNCA** ejecuta
-    `M10_FUN_8021b240` (0 veces) con el mismo replay.
-  - **Test de causalidad A→B**: enmascarar el START (`HH_MASK_START=400:700`) lleva el CaC a
-    `objCB=801CB71C`/`m188=0` (como el emu), **sin instalador ni crash** ⇒ el cambio de escena prematuro
-    (A) **causa** la rama M10/M12 (B).
-  - **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`/`quant`/`quant+bias`), deslizamiento del
-    limiter (3 % de ticks de 3 VI), fase del replay (`HH_REPLAY_PACE=vi`), cache (`HH_TRANS_CACHE=0`),
-    y los parches `HH_NO_DISABLE`/`HH_NO_B280`.
-  - **Plan restante** (`RETOMAR.md`): (1) localizar por qué el port no procesa el mensaje de tipo 3 de
-    la cola `0x8005C288` (el que pone `[0x80037748]=1`); (2) fix correcto de cuantización de tick
-    (2 VI/tick; nota 09-17 §5.2), no `HH_VI_EVERY`; (3) reproducir el CaC con `HH_REPLAY_MODE=vi`;
-    (4) validar: objeto `0x801D0474` y #12 en su `vi`, `CHAIN` sin completar antes, CaC sin rama M10/M12
-    y entra al combate.
+  - **CAUSA RAÍZ DEL FREEZE (vigente, 2026-09-20)**: **stalls/alineación frame↔VI** del hilo de juego:
+    con stalls reales (RT64/WASAPI/IO) un frame abarca **3 VI** y desplaza el estado respecto a la
+    rejilla VI (`notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8). **`HH_VI_EVERY=2` NO
+    arregla el freeze** (validado en vivo 2026-09-20: CaC congelado en `VI=20829`, veneno `0xFF7F84CD`).
+    El adelanto del front-end (frame 1,03 vs 2,0 VI/frame; objeto `vi 218` vs emu `347`) es real pero
+    **ortogonal** al freeze.
+  - **Plan restante** (`RETOMAR.md`): (1) **alinear frame↔VI con compensación de stalls** (que cada
+    frame abarque 2 VI pase lo que pase: limiter que reanude en la rejilla VI, o desacoplar
+    render/audio); (2) analizar `logs_tick2_20260920_012011/` (`hh_hang.log`/`hh_slow.log`); (3)
+    comparar la puerta del disable port↔emu con `HH_B280TRACE`; (4) validar en **Windows en vivo**.
   Detalle: `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
   `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,
