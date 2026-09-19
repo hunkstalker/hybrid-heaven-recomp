@@ -58,10 +58,11 @@ mueve el objeto de `vi 218` a **`vi 328`** (≈ emu `347`). El "port ~20 s adela
 compuesto (el emulador consume el replay ~2× rápido y es inestable: #12 = `vi 1535` → `2959` → no llega).
 
 **Pasos restantes:**
-1. **Localizar por qué el port no procesa el mensaje de tipo 3 de la cola `0x8005C288`** (el que pone
-   `[0x80037748]=1`): quién lo publica (probable retrace/VI) y comparar con lo que espera el ROM. El
-   runtime reimplementa `osSendMesg`/`osRecvMesg` (`ultramodern/src/mesgqueue.cpp`) → primer
-   sospechoso. Log: `HH_LOG("[MQ] osSendMesg …")` filtrando `0x8005C288`.
+1. **Por qué el port no toma la rama no-op** (parcial, ver nota §5): la cola `0x8005C288` la consume el
+   bucle principal (**tid 5**) y la alimenta el **tid 19** con `msg=0x8005C4B0`; el tipo está en
+   **`[0x8005C4B0]`** y nunca es 3 en el port (el evento VI va a otra cola, `0x800CE920`). Falta:
+   instrumentar de forma ligera el valor/escritores de `[0x8005C4B0]` y comparar el patrón de tipos
+   con el emulador. (El runtime reimplementa `osSendMesg`/`osRecvMesg`; `HH_MQLOG_ALL` frena el juego.)
 2. **Fix correcto** (no `HH_VI_EVERY`): garantizar la cuantización del tick del original (**2 VI/tick**,
    con slips a 3 VI solo si el trabajo no cabe), como describe
    `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5.2.

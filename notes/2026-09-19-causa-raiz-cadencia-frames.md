@@ -57,3 +57,25 @@ el primer sospechoso. Log útil: `HH_LOG("[MQ] osSendMesg …")` filtrando la co
 El emulador **no es una referencia válida** para este replay (consumo poll-indexed y sensibilidad
 extrema al padding). Para comparar, o se le da un harness vis-fiel de verdad, o se usa el `state.log`
 original del mantenedor (como en la nota 09-17) y el propio replay del port en modo `vis`.
+
+## 5. Trazado de la cola `0x8005C288` (2026-09-19 noche-3c)
+
+Con `HH_MQLOG_ALL=1 HH_MQLOG_MQ=0x8005C288` (log `hh_mq_all.log`) y `hh_evt.log`:
+
+- **Consumidor**: el bucle principal, **tid 5** (thread `0x80059D80`), hace `recv-block`/`recv-ok` en
+  `mq=0x8005C288`.
+- **Productor**: **tid 19** (thread `0x8005C678`) hace `send mq=0x8005C288 msg=0x8005C4B0`
+  (siempre el mismo mensaje). En senders: `funcs_0.c` (~0x80001800/0x80001824) llama a
+  `FUN_80000EC8(0x8005C4B0)`.
+- El bucle lee el "tipo" como **`[0x8005C4B0]`** (`lh v1, 0(t9)`, `t9` = mensaje recibido): 1 →
+  frame/no-op; 2 → loop; 3 → pone `[0x80037748]=1` (`L_80001428`). En el port **nunca es 3**.
+- El **evento VI del runtime va a OTRA cola** (`vi-deliver-ok … mq=800CE920 msg=800CE950`), no a
+  `0x8005C288`; es decir, el bucle de frames **no** espera directamente al evento VI.
+- Nota de instrumentación: con `HH_MQLOG_ALL` el juego se frena (I/O); no usar las tasas del log como
+  absolutas. El queue `0x8005C288` se ve llenarse (valid sube) en rachas → confirmar con traza ligera.
+
+**Siguiente acción concreta**: instrumentar el **valor y los cambios de `[0x8005C4B0]`** (y quién lo
+escribe) con una traza ligera (no `HH_MQLOG_ALL`), y comparar con el emulador el **patrón de tipos** de
+ese mensaje. Candidato: el productor (tid 19) debería emitir el tipo 3 con la cadencia del original
+(1 de cada 2) y en el port no lo hace. Alternativa: comparar el `state.log` original del mantenedor
+(nota 09-17) para el tramo del front-end, que es la referencia que sí es fiel.
