@@ -122,17 +122,23 @@ que el emulador.
 `HH_WAITLOG`/`HH_WAITLOG_MQ`, `HH_DUMP_VI`/`HH_DUMP_SAMPLE`, `HH_STATE_SECS`, `HH_TRANS_CACHE`,
 `HH_TRANS_NATIVE`, `HH_TRANS_VERIFY`, `HH_TRANS_DUMP`.
 
-## Estado de repos/branches (¡ojo antes de tocar!)
+## Estado de repos/branches (PENDIENTE DE PUSH)
 
-- **Main repo**: sin commitear: `RETOMAR.md`, `TODO.md`, `docs/INDEX.md`,
-  `port/HybridHeavenRecomp/src/game/input.cpp`, `port/HybridHeavenRecomp/src/main/main.cpp`, y nuevos:
-  `notes/2026-09-19-bat-stall-check.md`, `port/run_cac_nob280.bat`, `port/run_cac_record_nob280.bat`,
-  `port/run_stall_check.bat`, `port/run_stall_check_nob280.bat`, `port/stall_summary.ps1`,
-  `tools/analysis/ring_syms.py`.
-- **Runtime fork** (`port/HybridHeavenRecomp/lib/N64ModernRuntime`, repo aparte): `hybrid-heaven` con
-  **`librecomp/src/overlays.cpp` y `ultramodern/src/timer.cpp` modificados sin commitear** (hooks de
-  arriba + `HH_DET_CLOCK=quant`). Para Windows: `port\build_windows.local.bat` (árbol local) o
-  sincronizar/commitear el fork. **No commitear sin pedir.**
+Commits **hechos** esta sesión; **falta pushear** (no se ha hecho por indicación).
+
+- **Main repo** (`https://github.com/hunkstalker/hybrid-heaven-recomp.git`, `origin`, rama `main`):
+  commit **`9163f11`** `diag(cac): herramienta de stalls, instrumentacion de estado y reanalisis`.
+  Push: `cd /app/hybrid-heaven-recomp && git push origin main`.
+- **Runtime fork** (`https://github.com/hunkstalker/N64ModernRuntime.git`, remote **`fork`**, rama
+  `hybrid-heaven`): commit **`15f920d`** `diag(cac): hooks de diagnostico M7/epoch/loader ...`.
+  Push: `cd port/HybridHeavenRecomp/lib/N64ModernRuntime && git push fork hybrid-heaven`
+  (si el remoto rechaza por historial reescrito: `git push fork hybrid-heaven --force-with-lease`).
+- **`port/runtime.lock`**: `NMR_COMMIT` ya apunta a **`15f920d5e29ecb59d811988ea69e78ee09547d89`**
+  (válido **tras** el push del fork). Incluido en el commit `9163f11`. El `N64RECOMP_COMMIT` no cambió;
+  recordar que **ambos** forks deben estar pusheados para que el pin funcione en un clone limpio.
+- En Windows, rutas: main `E:\dev\docker\hybrid-heaven-pc-port\hybrid-heaven-recomp`; fork
+  `...\port\HybridHeavenRecomp\lib\N64ModernRuntime`. Alternativa sin push: `port\build_windows.local.bat`
+  (compila el árbol local tal cual).
 
 ## Documentación de la sesión
 
