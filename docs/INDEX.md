@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-18 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 116 | 2026-09-18 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 72 | 2026-09-18 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 82 | 2026-09-18 |
 
 ## Técnico y guías (vivos)
 
@@ -39,6 +39,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-19 — Veneno capturado: bug de signo-extensión en el wrapper (hh_venom.log) y cadena confirmada](../notes/2026-09-19-veneno-capturado-bug-signo-extension.md) | Ejecuta el paso 1 de `RETOMAR.md` (ronda del `2026-09-18-diferencial-port-emu-vi-cac-paridad.md`): | 163 | 2026-09-19 |
 | [2026-09-18 — Suavizado (Fase 1): instrumentación de ticks, fixes de AI/audio y plan de cache de assets](../notes/2026-09-18-suavizado-fase1-y-cache-loader.md) | Continúa `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (que recoge, en sus §5b-5i, el detalle | 141 | 2026-09-18 |
 | [2026-09-18 (bis) — HITO: el replay reproduce el CaC en port (Win+Linux); el emulador lo pasa con el mismo input](../notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md) | Continúa `2026-09-18-cac-replay-en-vivo-no-reproduce.md`. Grabación nueva del mantenedor: | 70 | 2026-09-18 |
 | [2026-09-18 — Fase B: cache de assets + loader LZKN64 nativo (implementado y validado headless)](../notes/2026-09-18-faseb-cache-trans-implementado.md) | Implementa ADR 0007. Continúa `notes/2026-09-18-suavizado-fase1-y-cache-loader.md` y el perfil de | 150 | 2026-09-18 |
