@@ -1,62 +1,80 @@
 # RETOMAR — punto de retomada de la sesión
 
 > Handoff para arrancar rápido. **Fuentes de verdad**: `TODO.md` (tareas), `PROYECTO.md` (estado),
-> `docs/README.md` (visión) y la nota de la sesión. **Detalle completo de esta sesión**:
+> `docs/README.md` (visión) y la nota de la sesión. **Detalle completo**: **empieza por
+> `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`** (verificación nocturna-3, tras el
+> cuelgue de la sesión anterior), y después
+> `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md` (inventario completo),
+> `notes/2026-09-19-clasificacion-adelanto-fase-previa.md` y
 > `notes/2026-09-19-bat-stall-check.md` (y `notes/2026-09-19-veneno-capturado-bug-signo-extension.md`).
-> Última sesión: **2026-09-19**. Sesión cerrada; continuar en una nueva.
+> Última sesión: **2026-09-19 (noche-3)**. Sesión de reanudación; continuar en una nueva.
+
+## Aviso importante (leer antes de nada)
+
+La sesión anterior (`crisp-circuit`, #18) **se colgó en bucle** al final. Su tramo 17:03–18:00 no
+quedó documentado y su último razonamiento es **contradictorio**. La verificación independiente
+(`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`) confirma una cadena causal dentro
+del port, pero **cuestiona la comparación port↔emu**: el emulador consume el replay ~2× más rápido
+que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referencia estable**.
 
 ## Estado en pocas líneas (síntesis corregida)
 
-- **El CaC no entra**: el replay reproduce el freeze clásico (veneno) y, con `HH_NO_B280`, un **softlock**;
-  en el CaC el port toma una rama que el emulador **nunca** toma.
-- **El input grabado es CORRECTO**: el replay aplica cada muestra en su `vis` (p. ej. el START de
-  `vis 508-517` se aplica en `vi 511`). El problema **no** es tu grabación.
-- **El port va ~20 s (≈1200 VI) por delante** en la fase pre-transición:
-  - Inicio del timeline M24 (`M24_FUN_801c0a30`, fija la epoch): **port vi 421** vs **emu vi 1625**.
-  - Carga #12 (`005FBEC6→801BF1A0`): **port vi 417** vs **emu vi 1535**.
-- Por eso el START de menú cae **dentro de la transición** del port → cadena `CHK_012C` → **cambio de
-  escena prematuro** (port vi ~549 vs emu ~3660) → en el CaC el port llama al **instalador M10/M12 del
-  disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock.
-- **Test de causalidad (decisivo)**: enmascarar el START en `vi 400-700` (`HH_MASK_START`) hace que el
-  port llegue al CaC en **`objCB=801CB71C`, `m188=0`** (como el emulador), **sin rama del instalador ni
-  crash**. ⇒ El **cambio de escena prematuro (A) causa la rama del CaC (B)**; comparten raíz = **fase/tiempo**.
-- **El emulador NUNCA ejecuta el instalador `M10_FUN_8021b240`** (0 veces) con el mismo replay; la puerta
-  `M7_FUN_80126A0C` sí corre 18 veces. ⇒ **No es un input de puerta**: es divergencia de **camino/estado
-  (timing)** aguas arriba.
-- **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`, `quant`, `quant+bias`), deslizamiento del
-  limiter (3 % de ticks de 3 VI; arreglarlo **no** quita el softlock), fase del replay
-  (`HH_REPLAY_PACE=vi`), cache de assets (`HH_TRANS_CACHE=0`), y los parches `HH_NO_DISABLE`/`HH_NO_B280`
-  (solo mueven el síntoma).
+- **El CaC no entra**: el replay reproduce el freeze clásico (veneno) y, con `HH_NO_B280`, un
+  **softlock**; en el CaC el port toma una rama que el emulador **nunca** toma.
+- **Confirmado (verificado 2026-09-19 noche-3)**:
+  - El port ejecuta el frame `FUN_80001454` a **~58/s · 1,03 VI/frame**; el emulador a **~30/s ·
+    2,0 VI/frame**. El bucle `FUN_800011b0` espera en la cola `0x80063D78` y llama a `FUN_80001454`
+    (frame) o al no-op `FUN_80001BB0`.
+  - El port consume el replay a la tasa de la grabación (**~0,5 muestras/VI**); el emulador
+    **~2× más rápido** (~1,0/VI). Ambos harnesses son **poll-indexed**.
+  - **`HH_VI_EVERY=2` corrige la cadencia** (deja 2,0 VI/frame) pero #12 solo pasa de **vi 436 →
+    516**: la cadencia de frames **no** es la causa del adelanto.
+- **En cuestión (no fiable tal cual)**: el "port ~20 s (~1200 VI) adelantado" y el "emu no toma la
+  rama M10/M12" dependen del harness del emulador. Con el input mal temporizado (START del front-end
+  aplicado antes de su `vis`), el emulador se lo "pierde" y sus hitos se alargan de forma no robusta:
+  #12 pasa de `vi 1535` (original) a `vi 2959` (`cac_pad163`) a >70 s (`cac_dup` stride 2).
+- **Cadena causal dentro del port (sí en pie)**: en el CaC el port llama al **instalador M10/M12 del
+  disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock; enmascarar el START
+  (`HH_MASK_START=400:700`) lo evita (`objCB=801CB71C`, `m188=0`). El cambio de escena prematuro
+  (A) **causa** la rama del CaC (B).
+- **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`, `quant`, `quant+bias`), deslizamiento
+  del limiter, fase del replay (`HH_REPLAY_PACE=vi`), cache de assets (`HH_TRANS_CACHE=0`), y los
+  parches `HH_NO_DISABLE`/`HH_NO_B280` (solo mueven el síntoma).
 
 ## TU TAREA AHORA — PLAN ÚNICO (no proponer variantes hasta cerrarlo)
 
-**Objetivo**: que **el port no se adelante** en la fase pre-transición, para que la transición no sea
-prematura y el CaC no tome la rama M10/M12 (**sin freeze ni softlock**).
+**Objetivo**: decidir si el adelanto del front-end es **real** o **artefacto del harness**; y en
+cualquiera de los dos casos, que el CaC entre al combate por el mismo camino que el emulador.
 
-**Pasos:**
-1. **Localizar el primer punto** donde el port se adelanta en la fase **boot → inicio del timeline**
-   (port `vi 0→421`; emu `vi 0→1625`). Trazar port↔emu las etapas (intro/logos, menús, cargas) **y el
-   consumo muestra↔tick** del replay.
-2. **Decidir la naturaleza** de ese primer salto:
-   - Si es **cadencia del replay** (`GetKeys` original ~1,47/tick = 44,3/s frente a 30 ticks/s; port
-     1/tick) → fix del **mapeo muestra↔tick**.
-   - Si es **timing del motor** → **modelo determinista A2** (VI y `osGetTime` en lockstep), ya acotado
-     a ese punto.
-3. **Validar**:
-   - Epoch M24 en `vi ~1625` y carga #12 en `vi ~1535` (como el emu); `CHAIN` sin completar antes de tiempo.
-   - CaC con `objCB=801CB71C`/`m188=0` (sin rama M10/M12); **entra al combate**.
-   - **En vivo** (save avanzado): comprobar si el fix también resuelve el softlock de esa ruta.
-     **Pregunta abierta**: la ruta con save no incluye la fase temprana; su disparo puede ser el timing
-     del CaC (misma familia de tiempo), a confirmar.
+**Paso 0 — hecho**: verificación de cadencia y del harness
+(`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`).
 
-**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE`, el port entra al combate por el **mismo camino**
-que el emulador.
+**Pasos restantes:**
+
+1. **Alinear el input del emulador al `vis` grabado** (harness vis-fiel). Construir un replay
+   re-muestreado a la tasa de poll real del emulador (empezar por estirar/duplicar cada muestra
+   para que su índice de aplicación ≈ su `vis`) y **re-medir M23 `005F1190`, #11 `0005D280`,
+   #12 `005FBEC6`, M8 `0053C77C`**. Criterio: con input alineado, ¿el emulador entra al CaC sano y
+   el port no?
+2. **Reproducir el CaC con `HH_REPLAY_MODE=vi`** (no solo `poll`) para validar el replay
+   independientemente de la elección poll/vis.
+3. **Decidir la referencia**: si el emulador no se puede hacer vis-fiel de forma fiable, depurar el
+   port contra **su propio** criterio (la cadena causal A→B ya está establecida) en vez de contra un
+   emulador mal temporizado.
+4. **Validar**: objeto `0x801D0474` y carga #12 en su `vi`; `CHAIN` sin completar antes; CaC con
+   `objCB=801CB71C`/`m188=0`; **entra al combate**; y en vivo (save) sin softlock.
+
+**Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE`, el port entra al combate por el **mismo
+camino** que el emulador (o se demuestra que el replay no puede reproducir la sesión original y se
+corrige el harness).
 
 ## Datos de partida (fijos)
 
 - **Replay completo** (inicio→CaC; válido para emu, sin save):
   `work/debug/replays/cac_full_20260918_210956.txt` (9815 muestras; copia de
   `port/.../logs_pacing_20260918_210956/cac_rec.txt`). **No re-grabar** salvo cambio del port.
+- **Replays re-muestreados de la sesión anterior** (para diagnóstico del harness):
+  `work/debug/replays/cac_dup_20260919.txt` (stride 2) y `cac_pad163_20260919.txt` (1,63×).
 - **Replay save→softlock** (solo port; NO válido para emu):
   `work/debug/replays/cac_save_nob280_20260919_112932.txt` (4457). Save del port (formato propio):
   `work/debug/replays/hh.us.bin.pak.bak`.
@@ -65,6 +83,7 @@ que el emulador.
     `m24/loader_nocache.log`, `m24/epoch_port.log`, `m24/mask_start.log`, `m24/mask_full.log`.
   - `loader_port.log` (cargas con vi/s), `emu_epoch_run.log` (HB_TRACE_EXEC=0x801C0A30),
     `emu_gate_run.log` (HB_TRACE_EXEC=0x8021B240,0x80126A0C).
+  - `m24/emu_ld_ref.log` (hitos emu), `m24/emu_dup*.log`, `m24/emu_pad163.log` (sensibilidad al padding).
   - `nob280/run3`/`run5`/`full_state/` (softlock: `objCB=80242E90`, `a8=0`), `nob280/m7gate/`.
   - `cac/diff_vi_20260918/` (dumps port+emu 20200-20900), `build_dbg/work/debug/port_vi*.bin`.
 
@@ -84,21 +103,25 @@ que el emulador.
   `0x8005C268` = cola del helper de lectura ROM síncrona; `0x8005C4F0` = cola tid5/tid17.
 - **Ojo con la instrumentación**: los dumps grandes (`HH_DUMP_VI`) y los logs por línea
   (`HH_MQLOG_ALL`/`HH_WAITLOG`) **enmascaran o frenan** la divergencia; usar trazas ligeras
-  (`[STATE] trans/mq`, `HH_LDTRACE`, `HH_EPOCHTRACE`) y `HH_STATE_SECS` bajo.
+  (`[STATE] trans/mq`, `HH_LDTRACE`, `HH_EPOCHTRACE`, `HH_FRAMERATE`) y `HH_STATE_SECS` bajo.
 
-## Herramientas/hooks añadidos esta sesión (opt-in; no afectan al juego normal)
+## Herramientas/hooks añadidos (opt-in; no afectan al juego normal)
 
-- **Runtime** (`lib/N64ModernRuntime/librecomp/src/overlays.cpp`):
+- **Runtime** (`lib/N64ModernRuntime/librecomp/src/overlays.cpp`, **sin commitear**):
   - `HH_M7GATE` → traza puerta `M7_FUN_80126CC0` (filtra `a1==0x80127014`): `[M7GATE]`.
-  - `HH_GATE_A` → traza puerta `M7_FUN_80126A0C` (disble): `[GATE_A]`.
+  - `HH_GATE_A` → traza puerta `M7_FUN_80126A0C` (disable): `[GATE_A]`.
   - `HH_EPOCHTRACE` → traza `M24_FUN_801c0a30` (epoch): `[EPOCH]`.
-  - `HH_LDTRACE` (o `HH_TBLTRACE`) → loader `0x80003824` con `vi/s/ra`: `[LD384]`.
+  - `HH_LDTRACE` (o `HH_TBLTRACE`) → loader `0x80003824` con `vi/gframe/s/ra`: `[LD384]`.
+  - `HH_FRAMERATE` (nuevo, noche-3) → `[FRM]` (cadena de `FUN_80001454` + polls) y `[NOOP]`.
   - `HH_NO_B280` (workaround: ignora publicar `0x8021B280`; **no es fix**).
   - `HH_DET_CLOCK=quant` (+ `HH_DET_CLOCK_BIAS`) en `ultramodern/src/timer.cpp`.
+- **Runtime** (`ultramodern/src/events.cpp:371`): `HH_VI_EVERY=N` (entrega el evento VI al guest cada
+  N VI; `N=2` deja el frame a 2,0 VI/frame). **Ya en el fork.**
 - **Port** (`src/main/main.cpp`): en `hh_state.log`, líneas `[STATE] trans` (42D0/7730/38/48/50/g2/cnt30/
   objCB/a8/q4F0/q268/m188/m181), `[STATE] mq` (colas) y **anillos por hilo**.
-- **Port** (`src/game/input.cpp`): `HH_MASK_START=lo:hi` (enmascara el bit START 0x1000 en una ventana de
-  VI; **diagnóstico**, no fix).
+- **Port** (`src/game/input.cpp`): `HH_MASK_START=lo:hi` (enmascara el bit START 0x1000 en una ventana
+  de VI; **diagnóstico, no fix**). `HH_REPLAY_MODE=poll` (1 muestra/poll) o `vi` (última con
+  `vis<=VI`).
 - **Bats**: `port/run_stall_check.bat [det] [nob280]`, `port/run_stall_check_nob280.bat`,
   `port/run_cac_nob280.bat` (replay + `HH_NO_B280=1`), `port/run_cac_record_nob280.bat`,
   `port/stall_summary.ps1`.
@@ -108,23 +131,24 @@ que el emulador.
 
 - Build: `cmake --build port/HybridHeavenRecomp/build_dbg -j8`
 - Run base: `cd port/HybridHeavenRecomp/build_dbg && DISPLAY=:99 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json HH_NOAUDIO=1 HH_NO_B280=1 HH_REPLAY=work/debug/replays/cac_full_20260918_210956.txt HH_REPLAY_MODE=poll ./"Hybrid Heaven Recomp"`
+- Cadencia de frames/polls (noche-3): añadir `HH_FRAMERATE=1` (→ `[FRM]`).
 - Epoch port: añadir `HH_EPOCHTRACE=1` (→ `[EPOCH]`).
-- Loader: añadir `HH_LDTRACE=1` (→ `[LD384 ... vi=.. s=..]`).
+- Loader: añadir `HH_LDTRACE=1` (→ `[LD384 ... vi=.. gframe=.. s=..]`).
 - M24: `HH_TBLTRACE=1 HH_LSTTRACE=1` (→ `[TL] ADVANCE/EVQCHECK/P89478/CHAIN`).
 - Emu epoch: `HH_KEYS_REPLAY=work/debug/replays/cac_full_20260918_210956.txt HB_TRACE_EXEC=0x801C0A30 tools/analysis/emu_ref.sh work/debug/emu_epoch 40 9999`
 - Emu instalador/puerta: igual con `HB_TRACE_EXEC=0x8021B240,0x80126A0C` (el emu **no** ejecuta el instalador).
 
 ## Knobs del runtime (recordatorio)
 
-`HH_REPLAY_MODE` (`poll`), `HH_REPLAY_PACE` (no usar `vi`), `HH_REPLAY_CLOCK`, `HH_DET_CLOCK`(+`_BIAS`,
-`quant`), `HH_MASK_START`, `HH_EPOCHTRACE`, `HH_LDTRACE`, `HH_M7GATE`, `HH_GATE_A`, `HH_NO_B280`,
-`HH_NO_DISABLE`, `HH_B280TRACE`, `HH_WATCH_ADDR`/`HH_WATCH_VENOM`, `HH_MQLOG_ALL`/`HH_MQLOG_MQ`,
-`HH_WAITLOG`/`HH_WAITLOG_MQ`, `HH_DUMP_VI`/`HH_DUMP_SAMPLE`, `HH_STATE_SECS`, `HH_TRANS_CACHE`,
-`HH_TRANS_NATIVE`, `HH_TRANS_VERIFY`, `HH_TRANS_DUMP`.
+`HH_REPLAY_MODE` (`poll`|`vi`), `HH_VI_EVERY`, `HH_FRAMERATE`, `HH_REPLAY_PACE` (no usar `vi`),
+`HH_REPLAY_CLOCK`, `HH_DET_CLOCK`(+`_BIAS`, `quant`), `HH_MASK_START`, `HH_EPOCHTRACE`, `HH_LDTRACE`,
+`HH_M7GATE`, `HH_GATE_A`, `HH_NO_B280`, `HH_NO_DISABLE`, `HH_B280TRACE`, `HH_WATCH_ADDR`/`HH_WATCH_VENOM`,
+`HH_MQLOG_ALL`/`HH_MQLOG_MQ`, `HH_WAITLOG`/`HH_WAITLOG_MQ`, `HH_DUMP_VI`/`HH_DUMP_SAMPLE`, `HH_STATE_SECS`,
+`HH_TRANS_CACHE`, `HH_TRANS_NATIVE`, `HH_TRANS_VERIFY`, `HH_TRANS_DUMP`.
 
 ## Estado de repos/branches (PENDIENTE DE PUSH)
 
-Commits **hechos** esta sesión; **falta pushear** (no se ha hecho por indicación).
+Commits **hechos**; **falta pushear** (no se ha hecho por indicación).
 
 - **Main repo** (`https://github.com/hunkstalker/hybrid-heaven-recomp.git`, `origin`, rama `main`):
   commit **`9163f11`** `diag(cac): herramienta de stalls, instrumentacion de estado y reanalisis`.
@@ -136,14 +160,20 @@ Commits **hechos** esta sesión; **falta pushear** (no se ha hecho por indicaci�
 - **`port/runtime.lock`**: `NMR_COMMIT` ya apunta a **`15f920d5e29ecb59d811988ea69e78ee09547d89`**
   (válido **tras** el push del fork). Incluido en el commit `9163f11`. El `N64RECOMP_COMMIT` no cambió;
   recordar que **ambos** forks deben estar pusheados para que el pin funcione en un clone limpio.
+- **Pendiente**: hay cambios de documentación **sin commitear** (este archivo, `TODO.md`,
+  `PROYECTO.md` y las notas nuevas de 2026-09-19) y un **diff de instrumentación sin commitear** en
+  `librecomp/src/overlays.cpp` (`HH_FRAMERATE`/`gframe`). Decidir qué se commitea.
 - En Windows, rutas: main `E:\dev\docker\hybrid-heaven-pc-port\hybrid-heaven-recomp`; fork
   `...\port\HybridHeavenRecomp\lib\N64ModernRuntime`. Alternativa sin push: `port\build_windows.local.bat`
   (compila el árbol local tal cual).
 
 ## Documentación de la sesión
 
-- **`notes/2026-09-19-bat-stall-check.md`** — principal: medida de stalls, M7/M12, driver M24, epoch,
-  **test de causalidad A→B** y síntesis. Empieza por aquí.
+- **`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`** — **empezar aquí**: verificación
+  independiente (cadencia de frames, tasa de poll port↔emu, sensibilidad al padding, cadena causal).
+- `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md` — inventario de lo probado y
+  corrección de `[0x801BBD56]`.
+- `notes/2026-09-19-bat-stall-check.md` — medida de stalls, M7/M12, driver M24, epoch y test A→B.
 - `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` — cadena del veneno, gate, `HH_NO_DISABLE`.
 - Contexto: `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2b/§4/§6),
   `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md`,

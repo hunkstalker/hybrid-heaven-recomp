@@ -36,7 +36,25 @@ diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la 
 ## Al cerrar sesión
 
 Sigue el checklist de `docs/documentation.md` §3: actualizar `TODO.md` y `PROYECTO.md`, escribir una
-nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. No commitear salvo petición.
+nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. Commitear cuando se valide una
+tarea o cuando haya que commitear documentación.
+
+**Dejar todo commiteado al cerrar**: el árbol debe quedar limpio (`git status` sin cambios sin
+commitear) y **listo para que el mantenedor solo tenga que hacer push**. No dejar commits a medias ni
+trabajo sin versionar que deba conservarse. Si algo no debe commitearse, documentarlo y dejarlo fuera
+del árbol.
+
+**Repos a pushear y orden** (los forks primero, porque `port/runtime.lock` los pinea; ver su
+comentario). Orden obligatorio:
+
+1. **N64Recomp** (fork) — `port/HybridHeavenRecomp/lib/N64ModernRuntime/N64Recomp`:
+   `git push origin hybrid-heaven` → `https://github.com/hunkstalker/N64Recomp.git`
+2. **N64ModernRuntime** (fork) — `port/HybridHeavenRecomp/lib/N64ModernRuntime`:
+   `git push fork hybrid-heaven` → `https://github.com/hunkstalker/N64ModernRuntime.git`
+3. **Main repo** — raíz del repo: `git push origin main` → `https://github.com/hunkstalker/hybrid-heaven-recomp.git`
+
+Si el remoto rechaza por historial reescrito: `--force-with-lease`. El pin de `port/runtime.lock` solo
+es válido **después** de pushear los forks.
 
 ## Calibración crítica
 
@@ -50,7 +68,8 @@ nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. No commi
 - Regla de oro: **nunca editar a mano el C generado** (`RecompiledFuncs/`). Todo fix va a
   `config/*.syms.toml`, a la lista de reimplementadas del toolchain (ver ADR 0002) o al runtime.
 - Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
-- No commitear sin pedirlo. No tocar ROMs ni `work/*.so` sin pedirlo.
+- Commitear cuando se valide una tarea o cuando haya que commitear documentación. No tocar ROMs ni
+  `work/*.so` sin pedirlo.
 - **Higiene**: scripts/bats **puntuales** se eliminan tras usarse (no dejar residuos); los de uso
   recurrente van en `port/` y se documentan. Borrar builds locales que no se usen (`.vs`, builds
   obsoletos) antes de dar por cerrada una tanda.

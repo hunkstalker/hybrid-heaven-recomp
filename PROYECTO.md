@@ -47,15 +47,26 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-19)**: se juega en Windows; **live a 30 ticks/s** y replay con
+**Estado actual (2026-09-19 noche-3)**: se juega en Windows; **live a 30 ticks/s** y replay con
 `HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
-**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. Demostrado: (a) el **input grabado
-es correcto** (el replay aplica cada muestra en su `vi`/`vis`); (b) el port va **~20 s por delante** en
-la fase pre-transición (arranque del timeline M24 en `vi 421` vs emu `1625`; loader #12 en `vi 417` vs
-emu `1535`), lo que hace la **transición prematura** y lleva a la **rama M10/M12 del disable**
-(freeze/softlock); (c) el emulador **nunca** ejecuta el instalador `M10_FUN_8021b240`. Descartados como
-causa: reloj (`HH_DET_CLOCK`/`quant`), limiter (3 % de ticks de 3 VI), fase del replay y cache de
-assets. **Plan único en `RETOMAR.md`**; detalle: `notes/2026-09-19-bat-stall-check.md`.
+**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. Dentro del port está demostrado
+que la **rama M10/M12 del disable** (freeze/softlock) es causada por el **cambio de escena
+prematuro**, y que el input grabado reproduce el fallo. **Pero la comparación port↔emu con ese
+replay está en cuestión**: verificado (2026-09-19 noche-3) que el port ejecuta el frame
+`FUN_80001454` a **1,03 VI/frame** y el emulador a **2,0**, y que el emulador consume el replay
+**~2× más rápido** (0,86-1,0 polls/VI vs 0,5), de modo que sus hitos son inestables
+(#12 = `vi 1535` → `vi 2959` con padding → >70 s con stride 2) y el "port ~20 s adelantado" **no
+está confirmado**. `HH_VI_EVERY=2` corrige la cadencia pero no el adelanto (vi 436 → 516) ⇒ la
+cadencia de frames **no** es la causa. **Siguiente paso**: alinear el input del emulador al `vis`
+grabado y re-medir. Detalle y plan: `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
+`RETOMAR.md`.
+**Estado anterior (2026-09-19 noche-2)**: (era la lectura de la sesión anterior, hoy en cuestión)
+se creía el port **~20 s por delante** en la fase pre-transición (objeto de transición `0x801D0474`
+en `vi 200` vs emu `347`; loader #12/M24 en `vi 417` vs emu `1535`), con el START capturado por el
+port y perdido por el emulador. `ADVANCE=0`/`EVQCHECK=0`/veneno serían síntomas aguas abajo.
+Descartados como causa: reloj (`HH_DET_CLOCK`/`quant`), `mode=vi`/`REPLAY_CLOCK`/`PACE=vi`, limiter,
+cadencia del replay/callback, cache de assets y `HH_NO_*`. Detalle:
+`notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`.
 **Estado anterior (2026-09-18)**: `get_function` hacía 4-5 `getenv()` por llamada recompilada; cachear
 los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta a `d2=29-30` (30/s).
 **Estado anterior (2026-09-16)**: gameplay en Windows (menús → escenas 3D → combate y cinemáticas) con

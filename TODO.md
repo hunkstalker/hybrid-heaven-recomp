@@ -25,11 +25,23 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-19; **detalle y plan único**:
-  `RETOMAR.md` y `notes/2026-09-19-bat-stall-check.md`.
-  - **El input grabado es CORRECTO** (el replay aplica cada muestra en su `vis`); el problema es que el
-    port va **~20 s (≈1200 VI) por delante** en la fase pre-transición: epoch M24 (`M24_FUN_801c0a30`)
-    en **vi 421** vs emu **1625**; loader #12 en **vi 417** vs emu **1535**.
+- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-19 (noche-3); **detalle y plan
+  único**: `RETOMAR.md` y **`notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`** (empezar
+  aquí); antes: `notes/2026-09-19-clasificacion-adelanto-fase-previa.md` y
+  `notes/2026-09-19-bat-stall-check.md`.
+  - **AVISO (2026-09-19 noche-3)**: el "port ~20 s adelantado" **no está confirmado**; el emulador
+    consume el replay **~2× más rápido** que el port (0,86-1,0 polls/VI vs 0,5) y sus hitos son
+    inestables (#12 = `vi 1535` original → `vi 2959` con padding 1,63× → >70 s con stride 2). Hay que
+    alinear el input al `vis` y re-medir antes de concluir.
+  - **CAUSA ACOTADA (2026-09-19 noche-2)**: el adelanto nace en el **front-end** (logos/título/menús),
+    **antes de que M24 se cargue**: el objeto de transición `0x801D0474` nace en **port vi 200** vs
+    **emu vi 347**, y sale del cb#1 en **port vi 244** (captura el START de la muestra 135) vs **emu
+    vi 959** (se lo pierde). `ADVANCE=0`/`EVQCHECK=0`/transición prematura/veneno son **síntomas aguas
+    abajo**. Corregido: `[0x801BBD56]` era síntoma, no causa. Inventario completo de lo probado en
+    `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`.
+  - **Verificado (noche-3)**: el port ejecuta el frame `FUN_80001454` a **1,03 VI/frame** y el emulador
+    a **2,0**; **`HH_VI_EVERY=2` corrige la cadencia pero #12 solo pasa de vi 436 → 516** ⇒ la
+    cadencia de frames **no** es la causa. La cadena causal **dentro del port** sí está en pie.
   - ⇒ La transición es **prematura** (port vi ~549 vs emu ~3660) y en el CaC el port llama al
     **instalador M10/M12 del disable** (`m188=0x8024C934`, callback `802425F4`) → freeze/softlock. El
     emulador **NUNCA** ejecuta `M10_FUN_8021b240` (0 veces) con el mismo replay.
@@ -39,10 +51,15 @@
   - **Descartado como causa** (probado): reloj (`HH_DET_CLOCK`/`quant`/`quant+bias`), deslizamiento del
     limiter (3 % de ticks de 3 VI), fase del replay (`HH_REPLAY_PACE=vi`), cache (`HH_TRANS_CACHE=0`),
     y los parches `HH_NO_DISABLE`/`HH_NO_B280`.
-  - **Plan único** (`RETOMAR.md`): localizar el primer punto del adelanto en **boot→timeline**; decidir
-    si es **cadencia del replay** (mapeo muestra↔tick) o **timing del motor** (A2); validar (epoch y
-    carga #12 en su `vi`, `CHAIN` sin completar antes, CaC sin rama M10/M12 y entra al combate).
-  Detalle: `notes/2026-09-19-bat-stall-check.md` y
+  - **Plan restante** (`RETOMAR.md`): (1) **alinear el input del emulador al `vis` grabado**
+    (harness vis-fiel) y re-medir M23/#11/#12/M8; (2) reproducir el CaC con `HH_REPLAY_MODE=vi`;
+    (3) decidir si se depura el port contra su propio criterio o contra el emulador. Validar: objeto
+    `0x801D0474` y carga #12 en su `vi`, `CHAIN` sin completar antes, CaC sin rama M10/M12 y entra al
+    combate.
+  Detalle: `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
+  `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,
+  `notes/2026-09-19-clasificacion-adelanto-fase-previa.md`,
+  `notes/2026-09-19-bat-stall-check.md` y
   `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2d/§2e/§6).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.

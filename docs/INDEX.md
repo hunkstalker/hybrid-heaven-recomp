@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 85 | 2026-09-18 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 122 | 2026-09-18 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 133 | 2026-09-19 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 75 | 2026-09-19 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 92 | 2026-09-19 |
 
 ## Técnico y guías (vivos)
 
@@ -39,7 +39,10 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-19 (noche-3) — Verificación independiente de la cadencia y del harness de replay](../notes/2026-09-19-verificacion-cadencia-y-harness-replay.md) | Reanudación tras el cuelgue de la sesión anterior (que quedó en bucle). **No se da por buena** | 101 | 2026-09-19 |
 | [2026-09-19 — Veneno capturado: bug de signo-extensión en el wrapper (hh_venom.log) y cadena confirmada](../notes/2026-09-19-veneno-capturado-bug-signo-extension.md) | Ejecuta el paso 1 de `RETOMAR.md` (ronda del `2026-09-18-diferencial-port-emu-vi-cac-paridad.md`): | 163 | 2026-09-19 |
+| [2026-09-19 (noche-2) — Inventario de pruebas + nueva evidencia de la fase previa](../notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md) | Continúa `2026-09-19-clasificacion-adelanto-fase-previa.md`. Antes de ejecutar nada se hizo el | 165 | 2026-09-19 |
+| [2026-09-19 (noche) — CaC: el adelanto NO es cadencia del replay; es espera de escena del motor](../notes/2026-09-19-clasificacion-adelanto-fase-previa.md) | Retoma el **Plan único** de `RETOMAR.md` (paso 1: localizar el primer punto donde el port se | 107 | 2026-09-19 |
 | [2026-09-19 — Lanzador de la vía de los stalls (`run_stall_check.bat` + `stall_summary.ps1`)](../notes/2026-09-19-bat-stall-check.md) | Ejecuta el PENDIENTE de `RETOMAR.md`: un lanzador Windows que arranca el port **en vivo**, recoge y | 462 | 2026-09-19 |
 | [2026-09-18 — Suavizado (Fase 1): instrumentación de ticks, fixes de AI/audio y plan de cache de assets](../notes/2026-09-18-suavizado-fase1-y-cache-loader.md) | Continúa `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (que recoge, en sus §5b-5i, el detalle | 141 | 2026-09-18 |
 | [2026-09-18 (bis) — HITO: el replay reproduce el CaC en port (Win+Linux); el emulador lo pasa con el mismo input](../notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md) | Continúa `2026-09-18-cac-replay-en-vivo-no-reproduce.md`. Grabación nueva del mantenedor: | 70 | 2026-09-18 |
