@@ -30,16 +30,16 @@
   `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5),
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` y
   `notes/2026-09-19-bat-stall-check.md`.
-  - **CAUSA RAÍZ DEL FREEZE (vigente, 2026-09-20)**: **stalls/alineación frame↔VI** del hilo de juego:
-    con stalls reales (RT64/WASAPI/IO) un frame abarca **3 VI** y desplaza el estado respecto a la
-    rejilla VI (`notes/2026-09-19-veneno-capturado-bug-signo-extension.md` §8). **`HH_VI_EVERY=2` NO
-    arregla el freeze** (validado en vivo 2026-09-20: CaC congelado en `VI=20829`, veneno `0xFF7F84CD`).
-    El adelanto del front-end (frame 1,03 vs 2,0 VI/frame; objeto `vi 218` vs emu `347`) es real pero
-    **ortogonal** al freeze.
-  - **Plan restante** (`RETOMAR.md`): (1) **alinear frame↔VI con compensación de stalls** (que cada
-    frame abarque 2 VI pase lo que pase: limiter que reanude en la rejilla VI, o desacoplar
-    render/audio); (2) analizar `logs_tick2_20260920_012011/` (`hh_hang.log`/`hh_slow.log`); (3)
-    comparar la puerta del disable port↔emu con `HH_B280TRACE`; (4) validar en **Windows en vivo**.
+  - **CAUSA DEL FREEZE (2026-09-20, de los logs en vivo)**: el objeto `0x8024AAF8` recibe
+    `cb=0xFFFF84CD` por la cadena del disable `M10_FUN_8021b280 → … → FUN_800058dc` (que el emulador
+    **nunca** instala); el port no puede ejecutarlo (bad lookup → no-op) → el objeto no avanza →
+    **deadlock de colas** (9 hilos en `osRecvMesg`; bucle principal esperando en `0x8005C288`;
+    `[S0FIX]`×3, `[BADMQ]`). **`HH_VI_EVERY=2` NO lo arregla** y el tick quedó a 2 VI (`d2=27-30`) ⇒
+    la cadencia de frames es **ortogonal**.
+  - **Plan restante** (`RETOMAR.md`): (1) comparar la **puerta del disable** (`0x188`/`0x181`/timer
+    `0x42D0`/`0x42FF`) port↔emu con `HH_B280TRACE`; (2) revisar la cadena **M7/M10 recompilada** por
+    fallthroughs perdidos; (3) usar el `state.log` original del mantenedor como referencia fiel;
+    (4) validar en **Windows en vivo**.
   Detalle: `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
   `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,

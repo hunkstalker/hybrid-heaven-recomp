@@ -126,3 +126,33 @@ dice la nota del veneno §8/§9. `HH_VI_EVERY` no es la vía.
 
 **Datos a analizar del run**: `logs_tick2_20260920_012011/` (Windows) — `hh_hang.log` (contextos de
 hilo en el cuelgue), `hh_state.log`, `hh_slow.log` (`guest_busy`/`dvi`), `hh_s0fix.log`.
+
+## 8. Análisis de los logs de la validación en vivo (2026-09-20)
+
+Carpeta `port/HybridHeavenRecomp/build_win/bin/Release/logs_tick2_20260920_012011/`:
+
+- **`hh_tick.log`**: con `HH_VI_EVERY=2` el juego corre a **~30 ticks/s con `d2=27-30`** (2 VI/tick) —
+  el tick **sí** queda cuantizado — con stalls aislados (`d4+=1`, `max_dt≈66 ms`) cada ~10 s. Aun así
+  **se cuelga** ⇒ **el tick no es la causa del freeze** (refuerza §7).
+- **`hh_venom.log`**: **12 venenos**. Cadena idéntica a la ya documentada:
+  `M10_FUN_8021b280 → M10_FUN_8022c7a4 → … → M55_FUN_80379410 → FUN_800058dc`, con
+  `obj=0x8024AAF8`, `cb=0xFFFF84CD` (`a3=0x801BBBF0`, `a2=0x801BC23A`). El objeto queda con callback
+  inválido.
+- **`hh_badlookup.log`/`hh_missing.log`**: `Failed to find function at 0xFF7F84CD` con
+  `r4=8024AAF8` (`s0+0x1C=FF7F84CD`); el port resuelve a **no-op** ⇒ el objeto **no avanza**.
+- **`hh_hang.log`**: en el cuelgue `VI=20829`, **9 hilos bloqueados en `osRecvMesg`**; el bucle
+  principal (**tid 5**, `ctx2`) espera en `0x8005C288` (`r20=8005C4B0`, `r21=80037748`), y la cadena
+  de productores (tid 19 → `8005C560`) está también bloqueada ⇒ **deadlock de colas** causado por el
+  objeto de transición atascado (callback inválido).
+- `[S0FIX] r16 00000000 -> 80037748` ×3 (se vuelve a corromper `s0`); `[BADMQ]` con punteros basura
+  (`mq=80000000`, `valid=54525960`), coherente con el `s0` corrupto.
+
+**Conclusión**: el bloqueo final es el **disable (veneno)** — el objeto `0x8024AAF8` recibe
+`cb=0xFFFF84CD` (que el emulador **nunca** instala) y el port no puede ejecutarlo, atascando el
+scheduler. El tick y la cadencia del front-end son ortogonales.
+
+**Siguiente paso (recomendado)**: (1) comparar las **variables de la puerta** del disable
+(`0x188`/`0x181`/timer `0x42D0`/`0x42FF`) port↔emu en el mismo instante con `HH_B280TRACE`;
+(2) revisar la **cadena M7/M10 recompilada** por si la puerta abre por un **fallthrough perdido**
+(`fix_fallthroughs.py`, ADR 0002) y no por timing; (3) usar como referencia fiel el `state.log`
+original del mantenedor (nota 09-17).

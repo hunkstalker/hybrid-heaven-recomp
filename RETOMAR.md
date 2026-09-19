@@ -67,15 +67,19 @@ que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referenci
   `HH_VI_EVERY` no lo arreglan.
 
 **Pasos restantes:**
-1. **Alinear frame↔VI con compensación de stalls (PRIORIDAD ÚNICA)**: que cada frame abarque 2 VI
-   pase lo que pase (limiter que reanude sobre la rejilla VI, o desacoplar render/audio/IO). Ver
-   `notes/2026-09-19-veneno-...md` §8/§9 y el handoff 2026-09-18 §1 (`0x80001A88`, `__ll_*`).
-2. **Analizar la pasada en vivo del mantenedor** (`logs_tick2_20260920_012011/`): `hh_hang.log`
-   (contextos en el cuelgue), `hh_slow.log` (`guest_busy`/`dvi`), `hh_state.log`, `hh_s0fix.log`; y
-   comparar con una pasada sin flag.
-3. **Comparar la puerta del disable** (`0x188`/`0x181`/timer `0x42D0`) port↔emu en el mismo VI con
-   `HH_B280TRACE`, para localizar la primera divergencia exacta.
-4. **Validar en Windows en vivo** (el freeze es ~100 % allí; headless es intermitente).
+1. **Investigar la puerta del disable (foco)**. Los logs (§8) muestran que el bloqueo es el objeto
+   `0x8024AAF8` con `cb=0xFFFF84CD` (el emulador **nunca** lo instala) → no-op → deadlock de colas.
+   Comparar las variables de la puerta (`0x188`/`0x181`/timer `0x42D0`/`0x42FF`) port↔emu en el mismo
+   instante con `HH_B280TRACE`.
+2. **Revisar la cadena M7/M10 recompilada** por si la puerta abre por un **fallthrough perdido**
+   (`tools/analysis/fix_fallthroughs.py`, ADR 0002) y no por timing.
+3. **Referencia fiel**: el `state.log` original del mantenedor (nota 09-17) — el emulador con el
+   replay no es fiable.
+4. **Validar en Windows en vivo** (freeze ~100 %).
+
+**Nota**: la **alineación frame↔VI** (stalls) sigue siendo un problema de robustez, pero con
+`HH_VI_EVERY=2` el tick quedó a 2 VI (`d2=27-30`) y el freeze persistió ⇒ **no es el bloqueante
+actual**.
 
 **Criterio de cierre**: sin `HH_NO_B280`/`HH_NO_DISABLE` (y sin `HH_VI_EVERY`), el port entra al
 combate por el mismo camino que el emulador.
