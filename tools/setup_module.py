@@ -78,6 +78,13 @@ MODULES = [
      "src_rom": 0x599670, "crc": 0x49C1F652, "extra": [], "auto_mid": True, "filter_data": True},
     {"index": 55, "vram": 0x803757E0, "rom_off": 0xB000000, "name": ".module55",
      "src_rom": 0x68FF2C, "crc": 0x65E2C5AB, "extra": [], "auto_mid": True, "filter_data": True},
+    # Fichero 57 (combate): se carga con el loader STREAMED FUN_80004838 (un trozo por llamada,
+    # descompresor 0x80003F44), no con file_load. Se solapa con el módulo 55 (fichero 56,
+    # exploración) y se intercambian en cada encuentro. Sin este módulo, 0x80379410 (inicio de
+    # func_80379410 en el 57) resolvía a M55_FUN_80379410 (mid-función del 56) -> fuga de pila.
+    # Ver notes/2026-09-20-nodo-8005bf14-origen-y-captura.md §11 y issue 001 del port de referencia.
+    {"index": 56, "vram": 0x80358820, "rom_off": 0xC000000, "name": ".module56",
+     "src_rom": 0x69E416, "crc": 0x050812FF, "extra": [], "auto_mid": True, "filter_data": True},
 ]
 
 

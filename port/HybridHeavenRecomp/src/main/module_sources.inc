@@ -11,3 +11,4 @@
 { 0x0057A3B2u, 0x09000000u }, // .module10 (idx 10)
 { 0x00599670u, 0x0A000000u }, // .module12 (idx 12)
 { 0x0068FF2Cu, 0x0B000000u }, // .module55 (idx 55)
+{ 0x0069E416u, 0x0C000000u }, // .module56 (idx 56)

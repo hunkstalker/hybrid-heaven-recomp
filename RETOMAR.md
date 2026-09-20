@@ -1,294 +1,164 @@
-# RETOMAR — punto de retomada de la sesión
+# RETOMAR — recompilación per-file completa (reset)
 
-> Handoff para arrancar rápido. **Fuentes de verdad**: `TODO.md` (tareas), `PROYECTO.md` (estado),
-> `docs/README.md` (visión) y la nota de la sesión.
-> **Detalle completo**: **empieza por `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`** (cierra
-> “quién pisa” y corrige el mecanismo de `FUN_80000934`), después
-> `notes/2026-09-19-causa-raiz-cadencia-frames.md` (hasta §16), y luego
-> `notes/2026-09-19-bat-stall-check.md`, `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` y
-> `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md`.
-> Última sesión: **2026-09-20 (noche-5)**. Continuar en una sesión nueva.
+> Handoff para la sesión nueva. **Contexto**: el port arranca y llega al combate, pero arrastra una
+> cadena de bugs por una **recompilación mal hecha**. Se ha localizado la causa raíz y se decide
+> **rehacer la recompilación per-file completa**. El enfoque/documentación anterior queda en `legacy/`.
+> Última sesión: **2026-09-20 (noche-5)**.
 
 ---
 
-## 0. EL PROBLEMA (qué buscamos)
+## 0. OBJETIVO
 
-**El port no entra en el combate CaC (cuerpo a cuerpo): se queda congelado (freeze) o softlock.** Es el
-bloqueante principal del proyecto. El emulador (referencia real) **sí** pasa el CaC con el mismo input.
-Objetivo: que el port entre al combate por el mismo camino, **sin freeze ni softlock**, sin parches
-(`HH_NO_*`).
-
----
-
-## 1. EVIDENCIA Y REPRODUCCIÓN
-
-- **Replay completo** (inicio→CaC; grabado por el mantenedor, válido para emu):
-  `work/debug/replays/cac_full_20260918_210956.txt` (9815 muestras). **No re-grabar** salvo cambio del port.
-- **Replay save→softlock** (solo port): `work/debug/replays/cac_save_nob280_20260919_112932.txt` (4457);
-  save del port: `work/debug/replays/hh.us.bin.pak.bak`.
-- **Replays re-muestreados** (diagnóstico del harness): `cac_dup_20260919.txt` (stride 2),
-  `cac_pad163_20260919.txt` (1,63×), `cac_vi1_20260919.txt` (1 muestra/VI).
-- **Run headless base**:
-  `cd port/HybridHeavenRecomp/build_dbg && DISPLAY=:99 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json HH_NOAUDIO=1 HH_NO_B280=1 HH_REPLAY=work/debug/replays/cac_full_20260918_210956.txt HH_REPLAY_MODE=poll ./"Hybrid Heaven Recomp"`
-- **Emulador**: `tools/analysis/emu_ref.sh <prefix> <secs> 9999` con `HH_KEYS_REPLAY=<replay> HB_TRACE_EXEC=<addrs>`.
-- **Windows (mantenedor)**: `port\build_windows.local.bat` para compilar; bats de doble clic (ver §7).
+Rehacer la **recompilación** de Hybrid Heaven (USA) siguiendo el método correcto (per-file con
+fronteras de función reales y **todos** los ficheros de código), conservando del proyecto actual el
+**runtime del juego** (libultra/RT64/audio/Controller Pak/trans_cache), el **tooling útil** y la
+**estructura de proyecto**. Producto: un port nativo de PC (exe + ROM), **sin menús modernos**
+(no `RecompFrontend`).
 
 ---
 
-## 2. EVOLUCIÓN CRONOLÓGICA (cómo se ha llegado hasta aquí)
+## 1. CAUSA RAÍZ (por qué se rehace)
 
-1. **2026-09-14/16**: primer choque — el port entra al frame del CaC, aparece el centinela
-   `0xFFFF84CD`/`0x8021D8D0` (notas `2026-09-16-crash-combate-*`, `-guardado-capsula-pak-y-crash-cac-*`).
-   Se añadieron fallthroughs y fixes de módulos (M9/M55) que resolvieron otros cuelgues (NPC, cinemáticas).
-2. **2026-09-17**: la línea temporal del módulo 24 (periodo `g2`) debía pedir la ráfaga #22; el port hacía
-   un **cambio de escena temprano** (`VI≈840`). Se creyó causa raíz "el replay aplica el input en la fase
-   equivocada (START durante la transición)". Nota `2026-09-17-cac-timeline-modulo24-periodo.md` (§4/§4b).
-   También: **AI FIFO no fiel** y pacing (`2026-09-17-replay-mode-vi-vis-negativo.md` §5b-§5h); el
-   **freeze es intermitente** en headless (~1 de 2-3) y ~100 % en Windows.
-3. **2026-09-18**: hito — `HH_REPLAY_MODE=poll` reproduce el CaC en port (Win+Linux) y el emulador lo pasa
-   con el mismo input (`2026-09-18-hito-*`). Diferencial por VI en 20200-20900: **paridad** salvo colas
-   `0x8005C4F0`/`0x8005C268` (`2026-09-18-diferencial-*`). El veneno = rama M10/M12; el emulador **nunca**
-   ejecuta el instalador.
-4. **2026-09-19**: se pensó que el port iba "~20 s adelantado" en la fase pre-transición, y luego que el
-   adelanto nacía en el **front-end** (objeto `0x801D0474`). Verificado: el port ejecuta el frame
-   `FUN_80001454` a **1,03 VI/frame** con `HH_VI_EVERY=2` a 2,0 (objeto `vi 218 → 328`, emu `347`).
-   **Pero `HH_VI_EVERY=2` NO arregla el freeze en vivo** (`VI=20829`).
-5. **2026-09-20 (noche-3/4)**: descartado el front-end/cadencia como causa. **La causa inmediata
-   parecía corrupción de memoria**: el CaC corrompe la **lista de suscriptores del event-dispatch** →
-   mensajes a colas basura (`[BADMQ]`) → deadlock.
-6. **2026-09-20 (noche-5, esta tanda)**: **cerrado “quién pisa”**. El nodo `0x8005BF14` es un
-   **local de pila** (`sp+0x34`) de `FUN_800011b0` (bucle principal, hilo 5), empujado una vez. **No**
-   lo corrompe una escritura ajena: lo **pisa la cadena del disable**, que se **reinvoca en bucle
-   sobre el mismo objeto escalando la pila ~0x58 por iteración** (los 12 venenos del log son el
-   **tope del instrumento**, `vn>=12`, no el número real). El marco que pisa coincide con
-   `FUN_800011b0` (`sp=0x8005BEE0` ⇒ `node=sp+0x34`). Corrección de doc: `FUN_80000934` **no**
-   asigna el nodo (`FUN_800267F0` es un setter de máscara de interrupción, no un allocator). El nodo
-   es **colateral** ⇒ la causa raíz es la **reinvocación de la cadena del disable**.
+La extracción de módulos era **incompleta y heurística**:
 
----
+- La tabla **Nisitenma-Ichigo** (ROM US `0x39BF0`) tiene **625 entradas**; **91 son ficheros de
+  código**. `tools/setup_module.py` extraía solo **11** (lista `MODULES` hardcodeada: índices
+  7,8,9,10,12,23,24,25,54,55,99). **Faltaban 80**, incluido el **índice 56 = fichero 57 (combate)**.
+- El fichero 57 se carga con un **segundo loader streamed** `FUN_80004838(id, dest)` (un trozo por
+  llamada, descompresor `0x80003F44`), **no** por `file_load`/`FUN_80003824`. Solo envolvimos el
+  primero → el 57 **nunca se registraba** en `func_map`.
+- `0x80379410` es **inicio de `func_80379410` en el fichero 57** (base `0x80358820`) pero
+  **mid-función** de `func_80379244` en el **fichero 56** (base `0x803757E0`, nuestra `M55`). Al no
+  registrar el 57, el port ejecutaba el **mid-entry del 56** (sin prólogo, epílogo compartido `+0x58`)
+  → **fuga de pila** → pisa el marco de `FUN_800011b0` (nodo de suscriptores `0x8005BF14`) →
+  `[BADMQ]` → deadlock. Todos los `HH_M55SPFIX`/`HH_NO_B280`/… eran **parches de síntoma**.
 
-## 3. INVENTARIO EXHAUSTIVO DE COMPROBACIONES (NO REPETIR)
+**Comprobado**: `module56_be.bin` (índice 56) descomprime a `0x343A0` y en `0x80379410` tiene
+`afa50004 30a500ff 14a00010 00001025` (sí, es `func_80379410` del 57). El `.text` plano de Ghidra
+tenía además **120 funciones en rango de overlay** (código equivocado).
 
-> Estado: ❌ descartado / ✔ confirmado / ⚠ aparcado. Fuente entre paréntesis.
+**Cómo lo hace el método correcto (Goemon / repo de referencia)**:
+- `relocatable_sections_path` con **una sección por fichero** (`.file_NN`, `rom/vram/size` + funciones
+  con fronteras reales, de decomp/desensamblado).
+- El loader del juego **notifica** al runtime (`recomp_load_overlays(rom, ram, size)` /
+  `unload_overlays`) → registro/desregistro por base (los overlays **se solapan y se intercambian**).
+- **Nosotros** usábamos `relocatable_sections_path = ""` + `module_sources.inc` + wrappers manuales.
 
-### 3a. Reloj / tiempo / cadencia
-| Prueba | Resultado | Fuente |
-|---|---|---|
-| `osGetTime` a tasa correcta | ✔ correcta (== reloj pared == VI) | `2026-09-17-cac-timeline…` §4 |
-| `HH_DET_CLOCK` (`1`,`quant`,`quant+bias`,`HH_VI_CLOCK`) | ❌ no quita la carrera; `VT_CLOCK` da ~20 fps | `2026-09-19-veneno…` §5/§8 |
-| Deslizamiento del limiter (3 % ticks de 3 VI) | ❌ no es la causa | `2026-09-19-bat-stall-check` §6b |
-| `HH_VI_EVERY=2` (tick a 2 VI) | ❌ **no arregla el freeze en vivo** (VI 20829) | esta sesión; `run_cac_tick2.bat` |
-| Cadencia de frames del port (1,03 vs 2,0 VI/frame) | ✔ real, pero **ortogonal al freeze** | `2026-09-19-causa-raiz…` §1-§7 |
-| `HH_REPLAY_PACE=vi`/`wall`, `HH_REPLAY_CLOCK`, `mode=vi` | ❌ negativos o inestables | `2026-09-17-replay-mode-vi-vis-negativo` |
-| Stalls frame↔VI (`guest_busy`~34 ms vs 33,3) | ⚠ reales pero no bloqueante actual | `2026-09-19-bat-stall-check`, `-veneno…` §8 |
-
-### 3b. Input / replay
-| Prueba | Resultado | Fuente |
-|---|---|---|
-| Mapeo muestra↔frame port↔emu | ❌ idéntico (descarta cadencia del replay) | `2026-09-19-clasificacion…` §1 |
-| Cadencia del callback de espera `M7_FUN_80124C54` | ❌ idéntica (30/s) | ídem §2 |
-| Replay input cero (`cac_zero`) | ✔ la fase temprana es input-dependiente | `2026-09-19-inventario…` §3a |
-| `HH_MASK_START=400:700` | ✔ evita la rama del CaC (test causal A→B) | `2026-09-19-bat-stall-check` |
-| Emulador con el replay (poll, stride 2, pad163, vi1) | ⚠ **no es referencia válida** (consume ~2× y es inestable) | `2026-09-19-verificacion…`, `causa-raiz…` §2 |
-| Replay en vivo en Windows: pacing por `sleep_for` | ❌ work-bound, pierde 30/s | `2026-09-17-replay…` §5e/§5f |
-| Replay con `poll` en Windows: deriva de input (ticks de 3 VI) | ⚠ por eso el replay no reproduce bien en vivo | `2026-09-17-replay…` §5f, §8b |
-
-### 3c. Transición / front-end / M24
-| Prueba | Resultado | Fuente |
-|---|---|---|
-| Byte `[0x801BBD56]` como causa | ❌ **síntoma**, no causa | `2026-09-19-inventario…` §2 |
-| Objeto de transición `0x801D0474` (13 callbacks) | ✔ mismo orden; solo cambia el dwell | `2026-09-19-inventario…` §2 |
-| M24 driver/ADVANCE/EVQCHECK/epoch | ⚠ ADVANCE=0/EVQCHECK=0 en port (síntomas) | `2026-09-17-cac-timeline…` §3 |
-| Cache de assets (`HH_TRANS_CACHE=0`/`NATIVE=0`) | ❌ no es la causa | `loader_nocache.log` |
-| Fallthroughs en la cadena M7/M10/M55 | ❌ **bien encadenados** (verificado en el árbol) | esta sesión, `causa-raiz…` §9 |
-| Funciones de M10 stubbeadas/ausentes (14) | ❌ **no se llaman** en ninguna corrida | esta sesión, `causa-raiz…` §14 |
-
-### 3d. Veneno / disable / mysql del CaC
-| Prueba | Resultado | Fuente |
-|---|---|---|
-| Rama M10/M12 = freeze (veneno) | ✔ confirmada (cadena M55→`FUN_800058dc`) | `2026-09-19-veneno…` §2/§4 |
-| Emulador ejecuta el instalador `M10_FUN_8021b240` | ✔ **0 veces** (nunca) | `2026-09-19-bat-stall-check` |
-| `HH_NO_B280` (ignora publicar `0x8021B280`) | ❌ workaround, cambia freeze→softlock; **no es fix** | `2026-09-19-bat-stall-check` |
-| `HH_NO_DISABLE` (ignora el centinela `0xFFFF84CD`) | ❌ **en vivo sigue el cuelgue** (no evita la cadena que pisa la pila) | `2026-09-19-veneno…` §6; noche-5 |
-| Puerta `M7_FUN_80126A0C(obj,0x39,1)` | ✔ se llama 16 veces; #13 → `ret=1` con `42D0=0x2B88` | `causa-raiz…` §9 |
-| Evento temporizado `0x39` (target `0x3000`) | ✔ el scheduler `FUN_80004bb0` lo despacha (emu no) | `causa-raiz…` §12 |
-| Cadena `b1A8→b200→b240→b280` | ✔ confirmada en vivo (objeto `0x8024D690`/`0x8024C7CC`) | `causa-raiz…` §11 |
-
-### 3e. Corrupción de memoria / nodo de suscriptores
-| Prueba | Resultado | Fuente |
-|---|---|---|
-| `[BADMQ]` (osSendMesg a cola corrupta) | ✔ aparece **sin veneno** (headless) y con `HH_NO_DISABLE` | `causa-raiz…` §13 |
-| Punteros de cola corruptos | ✔ son **floats de física** (`3F3851EC`, `40500000`…) | `causa-raiz…` §14 |
-| Event-dispatch `FUN_80000A0C` (broadcast a suscriptores `{next,mq}` en `[obj+0x888]`) | ✔ identificado | `causa-raiz…` §15 |
-| Nodo corrupto | ✔ **`0x8005BF14`** (→ cola `0x8005C288`) se pisa; la lista salta a nodos basura | `causa-raiz…` §16 |
-| Todos los `[PUSH]` observados | ✔ `q` válido ⇒ el nodo se corrompe **después** de insertarse | `causa-raiz…` §16 |
-| Watchpoint **por acceso** `HH_WATCH_ADDR=0x8005BF14` | ❌ **SEGV** (nodo en pila) | noche-4 |
-| **Origen del nodo** (estático) | ✔ `0x8005BF14 = sp+0x34` de `FUN_800011b0` (hilo 5), push único; `FUN_80000934(obj,node,mq)` recibe el nodo del llamante (`FUN_800267F0` = setter de máscara, **no** allocator) | noche-5, `nodo-8005bf14…` §1-2 |
-| `[NODEWATCH]` (mini-canary por VI de nodos persistentes) | ✔ captura el pisado con **ventana de llamadas de todos los hilos**; evita el SEGV | noche-5, `nodo-8005bf14…` §5 |
-| `[BCORRUPT]` (walk acotado + detector de ciclo/q-no-cola) | ✔ reporta el primer nodo roto; el walk sin cota se colgaba con ciclos | noche-5 |
-| **`HH_DRWATCH` de Windows** (watchpoint de HW sobre el nodo) | ❌ solo captó **arranque** (`rip=exe+0x828234`, valores sin inicializar); no fiable para el CaC | noche-5, `nodo-8005bf14…` §8 |
-| **Autor del pisado** (`run_node_drwatch.bat`) | ✔ **hilo 5, marcos de la cadena del disable**; `[NODEWATCH]` lo sitúa (vi 18231-18281 según run) | noche-5, `nodo-8005bf14…` §8 |
-| Los 12 venenos: `sp` escala **+0x58** | ✔ `8005BDD8 … 8005C1A0`; **todos del mismo objeto**; el “12” es **tope de log** (`vn>=12`) | noche-5 |
-| `ring2-last512` en el veneno | ✔ el driver (`FUN_80006214`/`FUN_8001f718`/`M7_FUN_8012c9c0…`) se ejecuta a `sp` constante y la cadena se reinvoca a `sp+0x58` por iteración | noche-5 |
-| Cronología causal (Windows) | ✔ `[CHAIN]` vi 7895-7924 → `[SCHED] a0=0x39` vi 7924 → corrupción vi 7929 | noche-5 |
-| Pila final: `ra` de hilo 5 = `8005C3A2` (dirección de pila) | ✔ **smash de pila**, no escritura suelta | noche-5 |
+Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybrid-heaven-recomp`
+(issue `docs/issues/001-first-enemy-lookup-miss.md`) y `/app/goemon-sourcecode` (per-file + relocatable).
 
 ---
 
-## 4. ESTADO ACTUAL (dónde está el problema)
+## 2. ESTADO ACTUAL (checkpoint)
 
-- **RESUELTO (noche-5, validado Windows)**: la **fuga de pila** que corrompía el nodo `0x8005BF14` (y
-  con ella el `[BADMQ]` y el deadlock de colas). Mecanismo: en el CaC la cadena del disable tiene
-  **mid-entries** (`M55_FUN_80379410/424/444/464`, sin prólogo) **y** el dispatcher `FUN_80005270`
-  que devuelven `sp +0x58`; el `sp` del hilo 5 trepaba `~0x58/frame` y pisaba el marco de
-  `FUN_800011b0` (nodo de suscriptores). **Fix `HH_M55SPFIX=1`** (restaurar `sp` en esos wrappers).
-  Evidencia: nodo intacto (lista `80095FF8 → 8005BF14` sana en el dump), sin `[BCORRUPT]`, y **el
-  juego llega al CaC con el HUD de combate apareciendo**.
-- **NUEVO BLOQUEO**: el port **sigue instalando el veneno** (cadena del disable) y ahora hace un
-  **livelock** de tid 5 en código M10/M12 del CaC (`M10_FUN_80228298`, `ra=000000FE`,
-  `queue=00000000`, `ctx_sp=8005BE18` sano) justo con el HUD apareciendo. No es corrupción de pila.
-- **Instrumentación activa** (`HH_CHAINTRACE=1`): `[CHAIN]`, `[SCHED]`/`[DISP]`, `[BCAST]`/`[PUSH]`/
-  `[POP]`, `[NODEWATCH]`/`[BCORRUPT]`, `[B280CALL]`, `[SPCHK]`, `[M55SPFIX]`/`[DISP-SPFIX]`, `[DISP]`,
-  `[S0FIX]`.
+- **Trabajo en el árbol**: fix parcial del 57 (módulo 56 extraído/recompilado + wrapper de
+  `FUN_80004838` + `recomp_syscall_handler`), sin validar en Windows. Se conserva como referencia;
+  **será sustituido** por la recompilación per-file. Ver §9 (repos).
+- `legacy/` creado; `legacy/RETOMAR.md` es el handoff anterior. `legacy/README.md` explica el archivo.
+- **Runtime nuevo ya añadido** (fork `N64ModernRuntime`): instrumentación de diagnóstico y el
+  wrapper del loader streamed. Se conserva (útil), pero la capa de **registro de módulos**
+  (`register_overlays.cpp` + `module_sources.inc`) se rehará al estilo Goemon.
 
 ---
 
-## 5. SIGUIENTE PASO (para la próxima sesión)
+## 3. DECISIONES (cerradas)
 
-**Objetivo**: pasar del HUD del CaC al combate (resolver el **livelock nuevo** de tid 5) y, de raíz,
-impedir que el port entre en la **cadena del disable** (evento temporizado `0x39`) que el emulador no
-ejecuta.
-
-**Hecho (no repetir)**: origen del nodo; autor del pisado (`[NODEWATCH]`); fuga de pila (M55 mid-entries
-+ dispatcher) y su fix `HH_M55SPFIX` (restaura `sp`); emulador no ejecuta ese camino
-(`HB_TRACE_EXEC`: 0 impactos en 220 s). Detalle: `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`
-(§0 resumen, §10 identificación, §11 solución).
-
-**Pasos concretos**:
-1. **¿El livelock es consecuencia del veneno?** Repetir el run **con la pila ya sana** y
-   `HH_NO_B280=1` (o `HH_NO_DISABLE=1`): si pasa del HUD → el veneno es el blockeador restante
-   (arreglar el upstream: por qué se despacha `0x39`). Si sigue el livelock → analizarlo aparte.
-2. **Analizar el livelock**: tid 5 gira en `M10_FUN_80228298` (`ra=000000FE`). Volcar su código y el
-   estado del objeto `0x80249FB8`/`0x80249B80`; comparar con el emulador si llega ahí.
-3. **Upstream (raíz)**: por qué el port despacha el evento temporizado `0x39` (scheduler `FUN_80004bb0`)
-   y el emulador no (`M10_FUN_8021b240`: 0 ejecuciones). Ver §3d y `causa-raiz…` §9-§12.
-4. **Arreglo limpio de la clase de fugas (candidato A)**: corregir las **fronteras de símbolos** para
-   que los mid-entries sean internos a su contenedor (elimina todas las fugas de una vez), en vez de
-   restaurar `sp` en runtime.
-
-**Descartado (no repetir)**: `HH_DRWATCH` (solo arranque), watchpoint por acceso, `HH_VI_EVERY`,
-cadencia/front-end, fallthroughs de la cadena M7/M10.
-
-**Criterio de cierre**: sin parches (`HH_NO_*`), el port **entra al combate** por el mismo camino que
-el emulador.
+1. **Recompilación per-file completa** de los **91 ficheros de código** (no solo el 57).
+2. **Fronteras con Ghidra por fichero** (proceso propio; no copiamos el `asm/` del repo de referencia).
+3. **Ghidra es dependencia de DESARROLLO** (para regenerar syms), **no** de build/uso. El C recompilado
+   se versiona; quien clona y compila **no** necesita Ghidra ni N64Recomp. Documentarlo en la sección
+   de recompilación (`docs/workflows.md`/`tools/README.md`) + script de instalación.
+4. **Sin `RecompFrontend`**: exe + ROM junto a él, aspecto de port nativo (sin menús modernos).
+5. **Documentación**: lo viejo a `legacy/`; docs nuevas desde cero. Los docs **vivos** (p. ej.
+   `PROYECTO.md`) → **copia a `legacy/` y reescribir la activa** reutilizando lo válido.
+6. **Volumen de build**: incremental por lotes (residente → overlays por tandas), validando boot.
+7. **`config/n64recomp_changes/`**: **conservar** (son parches al recompilador: `hh_mem_off`,
+   fallback de `jal`, semántica `trunc.l`). Documentar cómo se aplican.
 
 ---
 
-## 6. HERRAMIENTAS / HOOKS (opt-in; no afectan al juego normal)
+## 4. PLAN (fases)
 
-- **Runtime NMR `librecomp/src/overlays.cpp`** (instrumentación, **sin commitear**):
-  `HH_M7GATE`, `HH_GATE_A` (puerta `0x39`), `HH_EPOCHTRACE`, `HH_LDTRACE`/`HH_TBLTRACE`, `HH_FRAMERATE`
-  (`[FRM]`/`[NOOP]`), `HH_B280TRACE`, `HH_NO_B280`, `HH_NO_DISABLE`, `HH_CHAINTRACE` (`[CHAIN]`,
-  `[SCHED]`, `[DISP]`, `[BCAST]`, `[PUSH]`, `[POP]`, `[NODEWATCH]`, `[BCORRUPT]`, **`[B280CALL]`**),
-  watchpoint `HH_WATCH_ADDR`/`HH_WATCH_SIZE`/
-  `HH_WATCH_VENOM`. `hh_venom.log` vuelca `stack-RA` + `callring` + **`ring2-last512`** (historial
-  largo por hilo, `target sp`; `hh_ring2` se activa con `HH_CHAINTRACE` o `HH_WATCH_ADDR`).
-  **`hh_b280call.log`** (`[B280CALL]`): profundidad (`depth`) + contador por objeto (`objcount`) de
-  `M10_FUN_8021b280` — mide la reinvocación (tope de veneno subido a 64).
-  **`hh_spchk.log`** (`[SPCHK]`): **fuga de pila** — wrappers de las funciones del driver/cadena
-  (`FUN_80006214`/`FUN_8001f718`/`M7_FUN_801277b0`/`M7_FUN_8012c9c0…`/`M55_FUN_80379410`/
-  `M10_FUN_8022c7a4…`) que loguean `entry/exit/delta` de `sp`; localiza quién retorna con `sp` de más.
-  **`HH_M55SPFIX=1`** (`[M55SPFIX]`/`[DISP-SPFIX]` → `hh_m55spfix.log`; `[DISP]` → `hh_disp.log`):
-  **fix de la fuga de pila** — restaura `sp` en el cluster M55 (`M55_FUN_80379410/424/444/464`, no el
-  epílogo `8037948C`) y en el dispatcher `FUN_80005270`. Ver §5.
-- **Runtime NMR `librecomp/src/recomp.cpp`**: `hh_nodewatch_*` (mini-canary del nodo), `hh_ring2_*`,
-  `HH_CANARY` (canary por VI), **`HH_DRWATCH`** (watchpoint de hardware Windows; guarda `hh_drwatch.log`
-  + `hh_drwatch_rdram.bin`).
-- **Runtime NMR `ultramodern/src/`**: `HH_VI_EVERY=N` (`events.cpp`; **ya en el fork**); `HH_DET_CLOCK`
-  (+`_BIAS`,`quant`) (`timer.cpp`); `[BADMQ]` en `mesgqueue.cpp` (valida colas).
-- **Port** (`src/main/main.cpp`): `hh_state.log` con `[STATE] trans` (42D0/7730/38/48/50/g2/cnt30/objCB/
-  a8/q4F0/q268/m188/m181) y `[STATE] mq`; anillos por hilo; watchdog (`HH_HANG_SECS`, `HH_HANG_FORCE`,
-  `HH_STATE_SECS`), `HH_S0FIX`, `[FLAG]`.
-- **Port** (`src/game/input.cpp`): `HH_MASK_START=lo:hi` (diagnóstico); `HH_REPLAY_MODE=poll|vi`.
-- **Tool**: `tools/analysis/ring_syms.py` (simboliza `hh_hang.log`/`hh_slice.log`).
+### Fase 0 — Ghidra + deps de desarrollo
+- Instalar `openjdk17` + Ghidra 11.x (release) en el entorno; wrapper `tools/ghidra_headless.sh`.
+- Documentar en la sección de recompilación (no en prerequisitos de build).
 
-## 7. BATS (Windows, doble clic salvo indicación)
+### Fase 1 — Reorganización documental + commit "semi-recomienzo"
+- `legacy/`: mover histórico (`notes/`, `docs/` viejos, `config/` obsoletos, bats de diagnóstico) y
+  **copiar** los vivos antes de reescribirlos.
+- Docs nuevas: `docs/documentation.md`, `docs/architecture.md`, `docs/workflows.md`, `AGENTS.md`,
+  `PROYECTO.md`, `TODO.md`, `notes/`, `README.md`, `CREDITS.md` (revisar).
+- **Primera nota nueva** (obligatoria): `notes/2026-09-20-lecciones-recompilacion-per-file.md` —
+  el error cometido + **metodología generalizable** para recompilar otros juegos.
 
-- `port/run_cac_tick2.bat` — en vivo con `HH_VI_EVERY=2` (ya probado: **no arregla**).
-- `port/run_chain_live.bat` — en vivo con `HH_CHAINTRACE=1` (+ `HH_GATE_A`, `HH_B280TRACE`): recoge
-  `hh_chain.log`, `hh_sched.log`, `hh_scheddisp.log`, `hh_hang.log`… en `logs_chain_<fecha>\`.
-- `port/run_node_drwatch.bat` — en vivo con **watchpoint de HARDWARE** (`HH_DRWATCH` sobre
-  `0x8005BF14/18` y `0x80095FF8/C`) + `HH_CHAINTRACE=1` + **`HH_M55SPFIX=1`** (fix de la fuga de pila):
-  recoge `hh_nodewatch.log`, `hh_spchk.log`, `hh_m55spfix.log`, `hh_disp.log`, `hh_venom.log`… en
-  `logs_nodewatch_<fecha>\`. **Nota**: `HH_DRWATCH` solo pilló el arranque; lo útil es `[NODEWATCH]`+
-  `[SPCHK]`+`[M55SPFIX]`. Válido cargando partida justo antes del CaC.
-- `port/run_stackfix_nob280.bat` — como el anterior pero con **`HH_NO_B280=1`** (ignora el veneno):
-  diagnostica si el **livelock restante** es consecuencia del disable. Logs en
-  `logs_stackfix_nob280_<fecha>\`.
-- `port/run_nodisable_live.bat` — en vivo con `HH_NO_DISABLE=1` (ya probado: **no arregla**; no recoge logs).
-- `port/run_cac_nob280.bat [cac_rec.txt]` — replay + `HH_NO_B280=1`.
-- `port/run_stall_check.bat [det] [nob280]`, `port/run_stall_check_nob280.bat`, `port/stall_summary.ps1`.
+### Fase 2 — Pipeline per-file
+1. **Manifiesto de code files** desde Nisitenma (`0x39BF0`) + tabla de VRAM del juego
+   (runtime `0x80037C5C`, ROM `0x3885C`): `idx`, `file`, `src_rom`, `vram`, `size`, `crc`.
+2. **Extraer** cada fichero (lzkn64, `tools/lzkn64`) → `work/scratch/file_NN.bin`.
+3. **Desensamblar con Ghidra por fichero** → fronteras de función exactas → `asm/file_NN` + syms.
+4. **Syms por fichero** (`.file_NN` con `rom/vram/size` + funciones). Regenerar el **`.text`
+   residente** con Ghidra **excluyendo todos** los rangos de overlay.
+5. **Config**: `game_*.toml` con `relocatable_sections_path` = lista de todos los ficheros;
+   quitar `module_sources`/`register_overlays` manual.
+6. **Loaders**: implementar `recomp_load_overlays`/`recomp_unload_overlays` y notificarlos en
+   **ambos** (`FUN_80003824`/`0x8000469C` y `FUN_80004838`).
+7. **Aplicar parches** de `config/n64recomp_changes/` al N64Recomp del toolchain (documentar).
 
-## 8. CÓMO REPRODUCIR MEDIDAS CLAVE (headless)
+### Fase 3 — Verificación y limpieza
+- Completeness: nº secciones == code files; todo `jal` resuelve; sin solape flat/overlay;
+  sin `do_break`/stubs ni `syscall` de datos-como-código.
+- **Retirar workarounds** `HH_*` de síntoma (`HH_M55SPFIX`, `HH_NO_B280`, `HH_NO_DISABLE`,
+  `HH_VI_EVERY`, `module_extras`, `add_mid_entry`) y re-evaluar.
 
-- Build: `cmake --build port/HybridHeavenRecomp/build_dbg -j8`
-- Emu epoch: `HH_KEYS_REPLAY=<replay> HB_TRACE_EXEC=0x801C0A30 tools/analysis/emu_ref.sh work/debug/emu_epoch 40 9999`
-- Emu instalador/puerta: igual con `HB_TRACE_EXEC=0x8021B240,0x80126A0C` (el emu **no** ejecuta el instalador).
-- M24: `HH_TBLTRACE=1 HH_LSTTRACE=1` → `[TL] ADVANCE/EVQCHECK/P89478/CHAIN`.
-- Emu gate: `HB_TRACE_EXEC=0x80126A0C` (la puerta; en `emu_gate_run.log` solo con `a1=0x113`/`0x74`).
+### Fase 4 — Validar (boot + CaC, A/B emulador) y continuar plan maestro.
 
-## 9. HECHOS CLAVE (no repetir)
+---
 
-- **Veneno**: `FUN_800058dc` (setter, `sw a1,0x1C(a0)`) escribe el callback; cadena
-  `M10_FUN_8021b280 → M10_FUN_8022c7a4 → … → M55_FUN_80379410 → FUN_800058dc`; instalador
-  `M10_FUN_8021b240` **solo si** `M7_FUN_80126A0C(obj,0x39,1) != 0`. Emu: instalador **0 ejecuciones**.
-  Publicación (`hh_b280set.log`): `callring … 80004BB0 801257DC 80125774 800058DC`.
-- **M24**: driver `M24_FUN_801bfaa0`; avance `M24_FUN_801bffac`; waits `FUN_801C0B8C`; epoch
-  `M24_FUN_801c0a30` ← `M24_FUN_801C0C08` (`[0x801D8D80:84]`).
-- **Cola `0x8005C288`** = cola del bucle principal; el tipo del mensaje está en `[0x8005C4B0]` (siempre
-  `1`, nunca `3`). El frame (`FUN_80001454`) se ejecuta cada VI en el port (60/s) vs cada 2 en el emu.
-- **Event-dispatch**: `FUN_80000934(obj, node, mq)` empuja nodo `{next,mq}` — el **nodo lo aporta el
-  llamante** (`a1`, típicamente su pila); `FUN_800267F0` es un **setter de máscara de interrupción**
-  (`cop0 Status`/`0xA430000C`), **no un allocator**. `FUN_80000A0C(obj,msg)` hace broadcast; nodo en
-  `[obj+0x888]`. (Corrige la nota `causa-raiz…` §15.)
-- **Nodo `0x8005BF14`**: `sp+0x34` de `FUN_800011b0` (bucle principal, hilo 5; push único, `q=0x8005C288`).
-  Lo pisa la **cadena del disable** al reinvocarse en bucle (sp +0x58/iteración), no una escritura ajena.
-- **Cadena del disable reinvocada**: los venenos del log son del **mismo objeto** y su `sp` escala
-  0x58; el tope `vn>=12` de `hh_dump_venom` **trunca** el log (no son 12 iteraciones reales). El driver
-  es `FUN_80006214`/`FUN_8001f718` + `M7_FUN_801277b0`/`M7_FUN_8012c9c0…`; esperar 20-30 s para el
-  `ra=8005C3A2` (smash de pila) si aplica.
-- **Ojo con la instrumentación**: los dumps grandes (`HH_DUMP_VI`) y logs por línea
-  (`HH_MQLOG_ALL`/`HH_WAITLOG`) **enmascaran/frenan** la divergencia; usar trazas ligeras y
-  `HH_STATE_SECS` bajo. Las líneas de distintos hilos pueden aparecer **desordenadas** en un log.
-- **Nota del mantenedor (a verificar)**: el audio petardea sobre todo en el menú/intro; gameplay casi fino.
+## 5. INVENTARIO keep / rewrite / legacy (repasar carpeta a carpeta)
 
-## 10. ESTADO DE REPOS
+- **Raíz**: keep `LICENSE`/`CREDITS`/`Dockerfile`/`docker/`/`.github`/`.devcontainer`; rewrite
+  `README.md`; copiar-a-legacy + reescribir `PROYECTO.md`/`AGENTS.md`; legacy `RETOMAR`/`TODO`/`docs`/`notes`.
+- **`tools/`**: keep `lzkn64/`, `rommy.py`, `build_linux.sh`, y diagnósticos (`diff_rdram`,
+  `diff_state_at_vi`, `emu_ref.sh`, `r64dump.cpp`, `retro_dump.cpp`, `ring_syms`, `triage_screenshots`,
+  `ppmascii`, `fbdecode`, `docs_index`, `bizhawk_*`, `analyze_mqa`, `validate_trans_cache`,
+  `hhinput.c`, `xshot.c`); rewrite `recomp.py`, `setup_module.py`, `validate_syms.py`,
+  `gen_ghidra_syms.py`, `fix_function_bounds.py`; legacy band-aids (`add_mid_entry`,
+  `add_missing_funcs`, `gen_module_extras`, `check_syms_overrides`, `fix_ghidra_sizes`,
+  `overlay_chunks`, `auto_syms_loop`, `merge_loop`, `scan_lzkn64_strict`, `test_lzkn64`,
+  `detect_lzkn64`, `textseg`, `parse_exec_trace`, `fix_fallthroughs`).
+- **`config/`**: keep `n64recomp_changes/`, `rsp_hh_aspMain.toml`; rewrite `game_*.toml`; legacy
+  `us_*.syms.toml`, `*.fixed`, `keep_syms*`, `module_extras.json`, `merge_loop.py`, `RecompiledFuncs*`.
+- **`port/HybridHeavenRecomp/`**: keep `src/main/main.cpp`,`icon.cpp`,`rt64_render_context.cpp`,
+  `support.cpp`, `src/game/*`, `include/`, `rsp/hh_aspMain.cpp`, `assets/`, `lib/`; rewrite
+  `register_overlays.cpp`(+`module_sources.inc`) y `CMakeLists.txt`; regenerar `RecompiledFuncs/`.
+- **`port/*.bat`**: keep/adapt `build_windows*.bat`, `run_windows.bat`; legacy los diagnósticos CaC.
+- **`work/`, `toolchain/`**: gitignored, regenerables.
 
-- **Main repo** (`origin` → `hunkstalker/hybrid-heaven-recomp`, rama `main`): esta sesión commitea la
-  documentación y la instrumentación (ver el commit). Push: `cd /app/hybrid-heaven-recomp && git push origin main`.
-- **N64Recomp fork** (`port/HybridHeavenRecomp/lib/N64ModernRuntime/N64Recomp`, `origin`, rama
-  `hybrid-heaven`): `cab94d9` ya pusheado.
-- **Runtime fork** (`port/HybridHeavenRecomp/lib/N64ModernRuntime`, remote **`fork`**, rama
-  `hybrid-heaven`): había `15f920d` pusheado; esta sesión añade **instrumentación nueva en
-  `librecomp/src/overlays.cpp`** (y `recomp.cpp`/`mesgqueue.cpp`). Decidir commit/push:
-  `git push fork hybrid-heaven`.
-- **`port/runtime.lock`**: `NMR_COMMIT`/`N64RECOMP_COMMIT` (pin). Orden de push (AGENTS): N64Recomp →
-  N64ModernRuntime → main.
-- En Windows: main `E:\dev\docker\hybrid-heaven-pc-port\hybrid-heaven-recomp` (mismo árbol montado);
-  recompilar con `port\build_windows.local.bat`.
+---
 
-## 11. DOCUMENTACIÓN DE LA SESIÓN
+## 6. HERRAMIENTAS / DEPENDENCIAS (desarrollo)
 
-- **`notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`** — **empezar aquí** (mecanismo real de
-  `FUN_80000934`, origen del nodo en `FUN_800011b0`, forma del pisado, instrumentación `NODEWATCH`/
-  `BCORRUPT`, captura Windows §8, corrección del tope `vn>=12`).
-- **`notes/2026-09-19-causa-raiz-cadencia-frames.md`** — §0-§16: cadencia, harness, scheduler, evento
-  `0x39`, cadena del disable, corrupción de la lista de suscriptores y nodo corrupto.
-- `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` — verificación del harness port↔emu.
-- `notes/2026-09-19-veneno-capturado-bug-signo-extension.md` — veneno, gate, `HH_NO_DISABLE`, reloj.
-- `notes/2026-09-19-bat-stall-check.md` — stalls, M7/M12, driver M24, test A→B.
-- `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` — diferencial VI, cadena del disable.
-- `notes/2026-09-17-replay-mode-vi-vis-negativo.md` — replay/pacing/AI FIFO/`HH_VI_EVERY`.
-- `notes/2026-09-17-cac-timeline-modulo24-periodo.md`, `notes/2026-09-18-hito-replay-reproduce-cac-port-vs-emu.md`,
-  `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`, `notes/2026-09-19-clasificacion-adelanto-fase-previa.md`.
-- Índice: `python3 tools/analysis/docs_index.py` (`--check` valida).
+- **Build del port (usuario)**: C++ toolchain, CMake/ninja, SDL2, Vulkan/RT64 deps, Python + ROM.
+  **No** Ghidra ni N64Recomp.
+- **Regenerar la recompilación (dev)**: Python, `tools/lzkn64`, N64Recomp (con los parches de
+  `config/n64recomp_changes/`), **Ghidra 11.x** (`analyzeHeadless`), JDK 17.
+
+---
+
+## 7. REPOS Y COMMIT
+
+- **Main repo** (`origin` → `hunkstalker/hybrid-heaven-recomp`, `main`).
+- **N64ModernRuntime** (fork, rama `hybrid-heaven`) y **N64Recomp** (fork, `hybrid-heaven`).
+- Orden de push: **N64Recomp → N64ModernRuntime → main** (`port/runtime.lock` los pinea).
+- Checkpoint actual: commit "semi-recomienzo / handoff" (ver `git log`). El árbol queda limpio.
+
+---
+
+## 8. PRIMEROS PASOS DE LA SESIÓN NUEVA
+
+1. Leer `notes/2026-09-20-lecciones-recompilacion-per-file.md` (crear si no existe) y esta nota.
+2. **Fase 0**: instalar Ghidra + wrapper; documentar.
+3. **Fase 2.1**: generar el **manifiesto de los 91 code files** (Nisitenma + tabla VRAM).
+4. Empezar por un fichero conocido (idx 56 / file 57) para validar el pipeline Ghidra→syms→N64Recomp,
+   y luego generalizar a los 91.
+5. Ir moviendo a `legacy/` lo obsoleto conforme se decide, y reescribir los docs vivos.

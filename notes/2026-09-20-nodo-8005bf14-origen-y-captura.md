@@ -33,6 +33,13 @@ despacha el evento `0x39` y el emulador no), o resolver el livelock.
 (balance de `sp`), `HH_M55SPFIX` (`[M55SPFIX]`/`[DISP-SPFIX]`), `[DISP]` (callbacks del dispatcher),
 `HH_DRWATCH`, `HH_TRACE_EXEC` (emulador). Bats: `port/run_node_drwatch.bat`.
 
+> **ACTUALIZACIÓN (noche-5, tarde) — causa raíz REAL: extracción incompleta.** La "fuga de pila" es
+> un **síntoma** de que el port resuelve `0x80379410` al **fichero 56** (exploración) cuando debería
+> ser el **fichero 57** (combate): la extracción inicial solo tomaba **11 módulos** de los **625** de
+> la tabla Nisitenma y **omitió el índice 56 = fichero 57**, que se carga con el **loader streamed
+> `FUN_80004838`** (no por `file_load`). Ver **§12**. Con el fichero 57 recompilado y registrado al
+> cargarse, la fuga **desaparece sin `HH_M55SPFIX`** (pendiente de validar en Windows).
+
 ## 1. Mecanismo real de `FUN_80000934` (estático, corregido)
 
 `FUN_80000934(obj, a1, a2)` (funcs_0.c:964):
@@ -381,3 +388,42 @@ tid 5 en código M10/M12 del CaC (`M10_FUN_80228298`, `ra=000000FE`, `queue=0000
 **Arreglo limpio definitivo (candidato A, futuro)**: corregir las **fronteras de símbolos** para que
 los mid-entries sean internos a su contenedor (elimina la clase entera de fugas), en vez de restaurar
 `sp` en runtime.
+
+## 12. CAUSA RAÍZ REAL (noche-5, tarde): extracción incompleta — falta el fichero 57
+
+Tras revisar el port de referencia (danielgomesvieira2000/hybrid-heaven-recomp, issue 001
+"first battle crash") y confirmarlo en nuestra ROM:
+
+- La tabla **Nisitenma-Ichigo** (ROM US `0x39BF0`) tiene **625 entradas**. `tools/setup_module.py`
+  extraía solo **11** (lista `MODULES` hardcodeada): índices 7,8,9,10,12,23,24,25,54,55,99.
+- **Faltaba el índice 56 = fichero 57 (código de combate)**, `rom=0x69E416`, descomprimido
+  `0x343A0` (CRC `0x050812FF`), base `0x80358820`. Verificado: en `0x80379410` tiene exactamente
+  `afa50004 30a500ff 14a00010 00001025` (`func_80379410` del fichero 57), que **NO** está en ningún
+  bin extraído; `module55_be.bin` ahí tiene la continuación de `func_80379244` (fichero 56).
+- El fichero 57 se carga con un **segundo loader** `FUN_80004838(id, dest)` (un trozo por llamada,
+  descompresor `0x80003F44`), **no** por `file_load` (`0x8000469C`/`FUN_80003824`). Nuestro port
+  solo envolvía `FUN_80003824`, así que **el fichero 57 nunca se registraba** en `func_map`.
+- El juego (fichero 11/M10) llama `jal 0x80379410` en el combate (byte `0x8017DD92 == 0`). Sin el 57
+  registrado, el port resuelve a `M55_FUN_80379410` (mid-entry del 56, sin prólogo) → `sp +0x58`.
+
+### Fix aplicado
+1. `tools/setup_module.py`: añadido el módulo índice 56 (`vram 0x80358820`, `rom_off 0xC000000`,
+   `src_rom 0x69E416`, crc `0x050812FF`).
+2. Extraído `work/scratch/module56_be.bin` (lzkn64) y generado `config/us_module56.syms.toml`
+   (`M56_FUN_80379410` size `0x4C`, función propia). Añadido a `config/us_combined.syms.toml` y a
+   `module_sources.inc` (`{0x69E416, 0xC000000}`).
+   **OJO**: el `setup_module.py` completo aborta en un `[ERROR] ramas cruzadas` preexistente de
+   module55 (se resuelve con `--force`); el 56 se añadió a mano. Pipeline pendiente de arreglar.
+3. Recompilado (`tools/recomp.py --config config/game_combined.toml --force`): 136 `funcs_*.c`,
+   `M56_FUN_80379410` en `section_12_module56_funcs`.
+4. `recomp_syscall_handler` (stub) en `recomp.cpp` porque módulo 56 tiene **datos mal decodificados
+   como código** (`syscall`/`mthi`/`break` en `0x80386E80..0x8038xxxx`) — pendiente filtrar esa
+   región como datos.
+5. **Runtime**: wrapper de `FUN_80004838` en `overlays.cpp` que, al completarse (`r2 != 0`), registra
+   el módulo (`load_module_by_source(0x69E416, dst)`). Bat `port/run_fix57.bat` (sin `HH_M55SPFIX`).
+
+### Implicación sobre los parches previos
+`HH_M55SPFIX` (restaurar `sp`) era un **parche de síntoma**. Con el fichero 57, `0x80379410` resuelve
+a `M56_FUN_80379410` (función con prólogo, balanceada) → la fuga y el livelock podrían desaparecer
+sin parche. **Re-evaluar** todos los workarounds (`HH_M55SPFIX`, `HH_NO_B280`, `HH_NO_DISABLE`,
+`HH_VI_EVERY`) tras esta corrección.
