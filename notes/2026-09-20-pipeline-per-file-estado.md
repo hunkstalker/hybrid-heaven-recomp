@@ -179,3 +179,22 @@ que el registro no era la causa. **Siguiente paso**: comparar el estado de `func
 tras `func_80107830` entre viejo y nuevo, y por qué la cadena de callbacks de file_008 no progresa
 (el dispatcher `FUN_80005270` sí corre).
 
+## 12. A/B definitivo: el C es idéntico; el delta es el runtime/registro
+
+- **`funcs_1.c` (residente: dispatcher `FUN_80005270`, mesg/eventos, setters `FUN_800058DC`) es
+  BYTE-IDÉNTICO** entre viejo y nuevo (normalizando comentarios/marcadores); ambos con 23
+  `@fallthrough-fix`. El resto del residente (`funcs_0..14`) también . **El código recompilado NO es
+  la causa.**
+- Diferencia de **cadencia del loader**: con 15 s de trace, el viejo resuelve `FUN_8000469C` **51**
+  veces y `FUN_80003824` **43**; el nuevo **6** y **2**. El viejo llamaba mucho más al loader (su
+  `load_module_by_source` re-registraba en cada carga; el nuevo registra por id).
+- `register_flat_code` del fork: se cambió a **no registrar las secciones relocalizables** (solo
+  `.text` flat), que es lo correcto para el esquema per-file — pero **no arregla** el boot (probado).
+- **Hipótesis viva**: la diferencia está en **cuándo/cuánto se notifica el registro** (y el efecto en
+  `section_addresses`/`func_map`/`loaded_sections`) y su interacción con el *timing* de los hilos; el
+  dispatcher `FUN_80005270` corre en ambos, pero en el nuevo `func_801079B0` (que dispara la carga de
+  `file_055`) nunca se invoca. **Siguiente paso concreto**: instrumentar `loaded_sections`/
+  `section_addresses`/`func_map` justo tras `func_80107830` en ambos y diferenciar; o comparar el
+  orden exacto de los `get_function` entre ambos en la ventana 600-900 (ya hay un primer `SequenceMatcher`
+  que apunta a un broadcast `FUN_80000A0C` extra/desplazado en el nuevo).
+
