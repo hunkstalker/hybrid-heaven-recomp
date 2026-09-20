@@ -261,3 +261,25 @@ Más los arreglos de runtime (recomp PI own + yield + clamp, §14). **Resultado*
 principal a ~57 fps**, sin `Failed to find` ni abort. Es la secuencia del build viejo hasta
 `vi≈199`. **Pendiente**: la progresión se para ahí (el viejo cargaba `file_025/026/100` en `vi≈417`);
 ahora es un tema de **estado del juego**, no de recompilación.
+
+## 16. Boot correcto; la transición al intro/CaC aún no dispara (checkpoint)
+
+Tras §15, el port arranca correctamente y **avanza la cadena de callbacks hasta el front-end/trans**:
+22 `[SETCB]` (file_008 -> file_055 -> file_024 -> objetos de transición `0x801D0474`), 6 cargas de
+código, bucle principal a ~57 `FUN_80001454`/s, render (RTOS 1000+ display lists), **sin lookup misses**.
+
+Estado congelado (dump word-swapped, leer u32 LE):
+- `0x8005CD4C` (taskcnt) = **2**, `[0x8008D545]=0`, `0x80037758=0` -> el gate del bucle principal
+  (`fun_80001454`) **salta el dispatcher** cuando `taskcnt>=2`. Es el gate del contador de tareas RSP
+  ya documentado (`notes/2026-09-13-*`); post-fix el dispatcher corre igualmente (708+ `FUN_80005270`).
+- No se alcanza la **transición** (`file_025`/`0x5FBEC6`->`0x801BF1A0`), que el emulador hace a
+  ~sample 217 / vi~417-1535 (ver `notes/2026-09-17-*`). El build viejo **también** tardó en resolverla.
+- A ~180 s aparece un **SEGV nativo en `FUN_80023bf4`** (residente); a 90 s no.
+
+Descartado en esta ronda (no es la causa): `osGetMemSize` 8MB (crashea antes), `register_flat_code`
+con todos los overlays flat (`HH_FLAT_ALL`), forzar todos los jal cross-file (mete datos-como-código).
+
+**Siguiente paso (definitivo)**: A/B **port vs emulador** en el mismo VI (`tools/analysis/emu_ref.sh`
++ `diff_state_at_vi.py`) para localizar la primera divergencia de estado; el emulador es la referencia
+que sí progresa. Alternativa: reconstruir el build pre-reset (config `game_combined`) con los M56
+stubbeados para un A/B binario.
