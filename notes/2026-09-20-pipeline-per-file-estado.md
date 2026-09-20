@@ -217,3 +217,27 @@ el residente `funcs_1.c` es idéntico. **Siguiente paso**: instrumentar `FUN_800
 en ambos justo antes de `0x80133AAC` (anillo de llamadas de `get_function`), para localizar el call
 site que difiere.
 
+## 14. El port de referencia SÍ documenta y resuelve este bloqueo
+
+En `danielgomesvieira2000/hybrid-heaven-recomp`, `docs/findings/phase-03.md` **Run 1** es nuestro
+estado exacto: *"parked after file 8"*, `file 8 only`, **0 display lists**, hilos en `osRecvMesg`.
+En `phase-04` lo resuelven con **tres fallos**; el 1º y el 3º son los nuestros:
+
+1. **`osEPiStartDma` (`0x800304F0`) sin *naming*.** El juego crea su PI manager y su cola; la copia
+   del juego recompilada postea a la cola del **runtime** que nadie consume → todos los hilos
+   aparcados en `osRecvMesg` justo tras `file 8`. Se arregla **nombrando** la función (runtime la
+   posee) — o, coherentemente, dejando **todo** el PI path como copia del ROM.
+3. **Busy-wait del frame limiter en `osGetTime`** (`FUN_80001454`, `0x80001A88`): bajo el scheduler
+   cooperativo ahoga a los demás hilos. Fix: **hook de yield de 1 ms**. También el **clamp de audio**
+   (`0x8001FD8C`, `sltu`→`slt`) de `FUN_8001fd14`.
+
+Aplicado en esta sesión (config `game_code_files.toml` + `src/main/spin_yield.cpp`):
+`[[patches.hook]]` en `0x80001A88`, `[[patches.instruction]]` del clamp, y el **PI path del ROM**
+(toolchain `symbol_lists.cpp`: `osPiStartDma`/`osEPiStartDma` fuera de reimplemented/ignored, igual
+que la vía PI cruda `__osEPiRawStartDma`, para que el PI manager del juego y su DMA sean coherentes).
+
+**Resultado**: el port pasa de "aparcado tras file_008" a **avanzar hasta VI≈968** (con hilos 16/17/18/19
+en las colas del juego y el main loop cediendo en el limiter). **Aún no carga `file_055`**: queda un
+paso más por identificar (revisar `osRecvMesg` sobre `0x8005C268`, completaciones PI, y por qué no se
+llega a `func_801079B0`). El audio clamp y el resto de la vía PI del ROM ya están en su sitio.
+

@@ -27,3 +27,21 @@ ignored = [
 vram = 0x8012591C
 func = "func_80125808_1000000"
 value = 0x00000000
+
+# HH fix (port de referencia, phase-04): el frame limiter del bucle principal (FUN_80001454,
+# 0x80001A88-0x80001B18) sondea osGetTime sin ceder; bajo el scheduler cooperativo de ultramodern
+# deja a los demas hilos aparcados en osRecvMesg (justo tras cargar file 8). Hook de yield 1 ms.
+# Ver notes/2026-09-20-pipeline-per-file-estado.md.
+[[patches.hook]]
+func = "FUN_80001454"
+before_vram = 0x80001A88
+text = "{ void hh_yield_in_spin(void); hh_yield_in_spin(); }"
+
+# HH fix (port de referencia, phase-04): el clamp del tamano de frame del gestor de audio
+# (FUN_8001fd14) usa comparacion SIN signo; con la cola del host mas profunda, la diferencia se
+# vuelve negativa, pasa el clamp y osAiSetNextBuffer recibe -0x1000 bytes. sltu -> slt en 0x8001FD8C.
+# Mismo parche que Goemon64Recomp aplica a esta copia del gestor de Nintendo.
+[[patches.instruction]]
+func = "FUN_8001fd14"
+vram = 0x8001FD8C
+value = 0x00E3082A # sltu $at, $a3, $v1 -> slt $at, $a3, $v1

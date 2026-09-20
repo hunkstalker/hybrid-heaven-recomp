@@ -40,7 +40,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [2026-09-20 — Pipeline de recompilación per-file: estado y bloqueos](../notes/2026-09-20-pipeline-per-file-estado.md) | Nota de sesión (evidencia). Continúa `2026-09-20-lecciones-recompilacion-per-file.md` (método). | 219 | 2026-09-20 |
+| [2026-09-20 — Pipeline de recompilación per-file: estado y bloqueos](../notes/2026-09-20-pipeline-per-file-estado.md) | Nota de sesión (evidencia). Continúa `2026-09-20-lecciones-recompilacion-per-file.md` (método). | 243 | 2026-09-20 |
 | [2026-09-20 (noche-5) — Origen del nodo `0x8005BF14` y captura del pisado](../notes/2026-09-20-nodo-8005bf14-origen-y-captura.md) | Continuación de `2026-09-19-causa-raiz-cadencia-frames.md` §13-§16. Aquí se **corrige** el | 429 | 2026-09-20 |
 | [Lecciones: recompilación per-file (y cómo abordar otros juegos)](../notes/2026-09-20-lecciones-recompilacion-per-file.md) | **Nota de método, no de un bug concreto.** Resume el error que nos costó cientos de commits de | 78 | 2026-09-20 |
 | [2026-09-19 (noche-3) — Verificación independiente de la cadencia y del harness de replay](../notes/2026-09-19-verificacion-cadencia-y-harness-replay.md) | Reanudación tras el cuelgue de la sesión anterior (que quedó en bucle). **No se da por buena** | 101 | 2026-09-19 |

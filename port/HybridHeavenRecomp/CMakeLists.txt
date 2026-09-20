@@ -76,6 +76,7 @@ add_executable(HybridHeavenRecomp
     src/main/icon.cpp
     src/main/rt64_render_context.cpp
     src/main/sections.cpp
+    src/main/spin_yield.cpp
     src/main/support.cpp
     src/game/input.cpp
     src/game/trans_cache.cpp
