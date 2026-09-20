@@ -25,26 +25,32 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-20; **detalle y plan
-  único**: `RETOMAR.md` y **`notes/2026-09-19-causa-raiz-cadencia-frames.md`** (empezar aquí); antes:
-  `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5),
+- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-20 (noche-5); **detalle y
+  plan único**: `RETOMAR.md` y
+  **`notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`** (empezar aquí); antes:
+  `notes/2026-09-19-causa-raiz-cadencia-frames.md`, `notes/2026-09-19-bat-stall-check.md`,
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` y
-  `notes/2026-09-19-bat-stall-check.md`.
-  - **CAUSA LOCALIZADA (2026-09-20): el SCHEDULER DE EVENTOS TEMPORIZADOS del juego.** Reproducido
-    headless con `HH_GATE_A=1`: la puerta `M7_FUN_80126A0C(a0=0x8024C934, a1=0x39, a2=1)` se llama
-    **16 veces**; **#13 devuelve 1** con `42D0=0x2B88` → instala `b280` → veneno (`vi=20012`,
-    `sample=9803`). El **emulador nunca la llama con `a1=0x39`** (instalador `0x8021B240`: 0
-    ejecuciones). `42D0` (`[0x8008D580]`) es un **acumulador de tiempo del scheduler** (`FUN_80004bb0`);
-    `FUN_80001454` lo resetea cada frame; la puerta lo compara con `0x3001`.
-  - **El freeze final**: el objeto `0x8024AAF8` recibe `cb=0xFFFF84CD` (que el emulador **nunca**
-    instala) → bad lookup → no-op → **deadlock de colas**. `HH_VI_EVERY=2` **no** lo arregla (tick a
-    2 VI, `d2=27-30`) ⇒ la cadencia de frames es **ortogonal**; los **fallthroughs** de la cadena
-    M7/M10 están bien.
-  - **Plan restante** (`RETOMAR.md`): (1) localizar la **entrada del evento `M10_FUN_8021b240`/0x39 en
-    la lista del scheduler** (`FUN_80004bb0`: tabla `0x800429B8 + id*4`, lista `0x42F4`, tiempos
-    `0x42CC`/`0x42BC`) y comparar su **tiempo/disparo** port↔emu (o con el `state.log` original del
-    mantenedor); (2) validar en **Windows en vivo**.
-  Detalle: `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
+  `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5).
+  - **MECANISMO INMEDIATO (RESUELTO, noche-5)**: en el CaC la **cadena del disable** tiene
+    **mid-entries** (`M55_FUN_80379410/424/444/464`, sin prólogo) **y** el dispatcher `FUN_80005270`
+    que devuelven `sp +0x58`; el `sp` del hilo 5 trepaba `~0x58/frame` y pisaba el marco de
+    `FUN_800011b0` (nodo de suscriptores `0x8005BF14`) → `[BADMQ]`/deadlock. **Fix `HH_M55SPFIX=1`**
+    (restaura `sp`): **validado en Windows** — el nodo ya no se corrompe y **el juego llega al CaC con
+    el HUD de combate apareciendo**.
+  - **NUEVO BLOQUEO**: el port sigue instalando el veneno y hace un **livelock** de tid 5 en M10/M12
+    del CaC (`M10_FUN_80228298`, `ra=000000FE`) con el HUD apareciendo (sin corrupción de pila).
+  - **AGUAS ARRIBA**: el port despacha el evento temporizado `0x39` y ejecuta el instalador
+    `M10_FUN_8021b240` (puerta `M7_FUN_80126A0C(obj,0x39,1)` devuelve 1 con `42D0=0x2B88`); el
+    **emulador nunca** lo hace (0 ejecuciones). `42D0` (`[0x8008D580]`) = acumulador del scheduler
+    `FUN_80004bb0` (`FUN_80001454` lo resetea cada frame; la puerta compara con `0x3001`).
+  - **Plan restante** (`RETOMAR.md` §5): (1) test `run_stackfix_nob280.bat` (`HH_NO_B280=1` con la pila
+    sana): ¿el combate avanza? → el veneno es el bloqueador restante; (2) si no, analizar el livelock
+    (`M10_FUN_80228298`); (3) arreglo limpio de la clase de fugas = corregir **fronteras de símbolos**
+    (mid-entries internos a su contenedor).
+  - **Descartado** (no repetir, ver inventario `RETOMAR.md` §3): cadencia de frames/`HH_VI_EVERY`,
+    front-end, reloj, fallthroughs de la cadena, watchpoint de acceso y `HH_DRWATCH` (solo arranque).
+  Detalle: `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`,
+  `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
   `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,
   `notes/2026-09-19-clasificacion-adelanto-fase-previa.md`,

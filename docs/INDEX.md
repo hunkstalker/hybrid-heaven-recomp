@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck. | 103 | 2026-09-20 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 131 | 2026-09-20 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 69 | 2026-09-16 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 81 | 2026-09-20 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 87 | 2026-09-20 |
 
 ## Técnico y guías (vivos)
 
@@ -39,6 +39,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-20 (noche-5) — Origen del nodo `0x8005BF14` y captura del pisado](../notes/2026-09-20-nodo-8005bf14-origen-y-captura.md) | Continuación de `2026-09-19-causa-raiz-cadencia-frames.md` §13-§16. Aquí se **corrige** el | 383 | 2026-09-20 |
 | [2026-09-19 (noche-3) — Verificación independiente de la cadencia y del harness de replay](../notes/2026-09-19-verificacion-cadencia-y-harness-replay.md) | Reanudación tras el cuelgue de la sesión anterior (que quedó en bucle). **No se da por buena** | 101 | 2026-09-19 |
 | [2026-09-19 — Veneno capturado: bug de signo-extensión en el wrapper (hh_venom.log) y cadena confirmada](../notes/2026-09-19-veneno-capturado-bug-signo-extension.md) | Ejecuta el paso 1 de `RETOMAR.md` (ronda del `2026-09-18-diferencial-port-emu-vi-cac-paridad.md`): | 163 | 2026-09-19 |
 | [2026-09-19 (noche-2) — Inventario de pruebas + nueva evidencia de la fase previa](../notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md) | Continúa `2026-09-19-clasificacion-adelanto-fase-previa.md`. Antes de ejecutar nada se hizo el | 165 | 2026-09-19 |
