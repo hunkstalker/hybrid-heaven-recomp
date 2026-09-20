@@ -1,19 +1,21 @@
 # RETOMAR — recompilación per-file completa (reset)
 
-> Handoff para la sesión nueva. **Contexto**: el port arranca y llega al combate, pero arrastra una
-> cadena de bugs por una **recompilación mal hecha**. Se ha localizado la causa raíz y se decide
-> **rehacer la recompilación per-file completa**. El enfoque/documentación anterior queda en `legacy/`.
-> Última sesión: **2026-09-20 (noche-5)**.
+> Handoff para la sesión nueva. **Contexto**: se rehace la **recompilación per-file completa** porque
+> la anterior era incompleta/heurística y causaba el freeze del CaC. El enfoque/documentación anterior
+> queda en `legacy/`. **Estado**: la recompilación per-file ya **arranca, carga overlays y renderiza**;
+> falta **la transición al intro/CaC** (`file_025`). Última sesión: **2026-09-20 (reset per-file)**.
+>
+> **Lee primero**: `notes/2026-09-20-pipeline-per-file-estado.md` (estado+evidencia, §15-18) y esta
+> nota. El **método** generalizable está en `notes/2026-09-20-lecciones-recompilacion-per-file.md`.
 
 ---
 
 ## 0. OBJETIVO
 
-Rehacer la **recompilación** de Hybrid Heaven (USA) siguiendo el método correcto (per-file con
-fronteras de función reales y **todos** los ficheros de código), conservando del proyecto actual el
-**runtime del juego** (libultra/RT64/audio/Controller Pak/trans_cache), el **tooling útil** y la
-**estructura de proyecto**. Producto: un port nativo de PC (exe + ROM), **sin menús modernos**
-(no `RecompFrontend`).
+Port nativo de PC (exe + ROM) de Hybrid Heaven (USA) por recompilación per-file (**91 code files**),
+conservando el runtime (libultra/RT64/audio/Controller Pak/trans_cache), el tooling y la estructura.
+**Sin `RecompFrontend`**. **Meta mínima de la siguiente sesión: entrar al primer CaC** (como el build
+pre-reset), sin workarounds de síntoma.
 
 ---
 
@@ -51,22 +53,50 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 
 ## 2. ESTADO ACTUAL (checkpoint)
 
-- **Hecho (2026-09-20, esta sesión)**: Fase 0-2.5 (manifiesto de los **91 code files**, extracción,
-  **Ghidra per-file** → syms `.file_NN`, **N64Recomp completo rc=0**; port compila y arranca con las
-  91 secciones). **Saneamiento**: el **C recompilado deja de versionarse** (obra derivada; **ADR 0009**)
-  y se regenera con **`tools/regenerate.py`**; `.gitignore` + symlink `RecompiledFuncs` →
-  `work/recomp/RecompiledFuncs`; **historia reescrita** (filter-branch) para eliminar el C del pasado
-  (`.git` 15.4 → 1.6 MB; **force-push pendiente**). **Fase A.2**: loaders estilo referencia en
-  `src/main/sections.cpp` (`file_table.h` + `announce_load` + hooks en `on_init`).
-- **Regresión pendiente (BLOQUEANTE)**: el build per-file arranca pero **no pasa de la fase temprana**
-  (solo carga `file_008`; el viejo cargaba `file_055` en `vi≈77`). A/B real viejo↔nuevo y conclusión
-  (código idéntico; diverge registro/estado) en `notes/2026-09-20-pipeline-per-file-estado.md` §9-11.
-- **Trabajo en el árbol**: el fix parcial del 57 (módulo 56 + wrapper streamed) queda **sustituido**
-  por la recompilación per-file. Ver §7 (repos) y §8.
-- `legacy/` creado; `legacy/RETOMAR.md` es el handoff anterior. `legacy/README.md` explica el archivo.
-- **Runtime nuevo ya añadido** (fork `N64ModernRuntime`): instrumentación de diagnóstico y el
-  wrapper del loader streamed. Se conserva (útil), pero la capa de **registro de módulos**
-  (`register_overlays.cpp` + `module_sources.inc`) se rehará al estilo Goemon.
+### Hecho (sesión 2026-09-20)
+- **Pipeline per-file completo**: `tools/analyze_code_files.py` (manifiesto de los **91 code files**),
+  `tools/ghidra_sections.py` (Ghidra por fichero → syms `.file_NN`), `tools/regenerate.py`
+  (ROM → … → N64Recomp → `work/recomp/RecompiledFuncs`). **N64Recomp rc=0**; el port **compila**.
+- **Saneamiento**: el **C recompilado no se versiona** (obra derivada; **ADR 0009**): vive en
+  `work/recomp/RecompiledFuncs` y `port/.../RecompiledFuncs` es un **symlink**. **Historia reescrita**
+  (filter-branch) para borrar el C derivado del pasado (`.git` 15.4→1.8 MB; **force-push pendiente**).
+- **Loaders estilo referencia** en `port/HybridHeavenRecomp/src/main/sections.cpp` (`file_table.h` +
+  `announce_load` con evicción + hooks `add_loaded_function` de `FUN_8000469C` y `FUN_80004838`,
+  registrados en `on_init`). Sustituyen a `register_overlays.cpp`/`module_sources.inc` (borrados).
+- **Boot ARREGLADO**: carga `file_008 → file_055 → file_024 (heap) → resource loads`, bucle principal
+  a ~57 `FUN_80001454`/s, render, **sin lookup misses**. Cadena de callbacks (22 `[SETCB]`) hasta
+  front-end/trans.
+- **Fixes de runtime de fondo** (mismos que el port de referencia, phase-04):
+  - `osCreatePiManager`/PI coherente (game manager + runtime `osEPiStartDma`).
+  - **yield con entrega de eventos + reschedule** (`ultramodern::wait_for_external_message_timed` +
+    `check_running_queue`): **drena el contador de tareas `0x8005CD4C` a 0** (era el gate).
+  - clamp del gestor de audio (`0x8001FD8C`, `sltu`→`slt`).
+- **Fronteras**: `tools/analysis/fix_per_file_syms.py` fusiona el split `lui;lhu` de Ghidra (p.ej.
+  callback `0x801078E0`); `regenerate.py` **siempre** re-ejecuta `validate_syms`.
+
+### BLOQUEANTE ACTUAL (meta: primer CaC)
+La **transición al intro/CaC no dispara**. El build viejo carga `file_025/026/100` en `s=846`/`vi=1692`;
+el nuevo, no. Divergencias de estado medidas a ~28 s (A/B binario, mismo runtime/replay):
+`scene` (`0x801BBC1C` u16) viejo 4 / nuevo 9; `objCB` (`0x8024AB14`) viejo `0x801CB71C` (callback real)
+/ nuevo `0xF0F0FBFE` (basura); `0x801BBD56` viejo 6 / nuevo 0; primer word de estado distinto
+`0x80044084` (viejo 1 / nuevo 4). Detalle: `notes/2026-09-20-pipeline-per-file-estado.md` §16-18.
+
+### A/B binario (RECETA — clave para continuar)
+```sh
+# 1) build pre-reset aislado (config game_combined; compila entero)
+git worktree add --detach /tmp/oldb 8fd6ddf
+cp -a port/HybridHeavenRecomp/lib/{N64ModernRuntime,rt64} /tmp/oldb/port/HybridHeavenRecomp/lib/
+mkdir -p /tmp/oldb/work/roms && ln -s "$PWD/work/roms/us_retail.z64" /tmp/oldb/work/roms/
+cmake -S /tmp/oldb/port/HybridHeavenRecomp -B /tmp/oldb/port/HybridHeavenRecomp/build_dbg -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/oldb/port/HybridHeavenRecomp/build_dbg -j28
+# 2) comparar con HH_HANG_FORCE=N (dumps word-swapped) o HH_CALLTRACE; el replay
+#    work/debug/replays/cac_full_20260918_210956.txt sirve en ambos.
+```
+Dumps RDRAM del port: **word-swapped** → leer u32 LE (`notes/`). `HH_HANG_FORCE` + `q268`/`gframe`.
+
+### Assets temporales (se pierden entre sesiones)
+`/tmp/opencode/oldb` (worktree viejo) y `/tmp/opencode/gitbackup/pre-filter.bundle` (histórico previo).
+Regenerables con la receta de arriba.
 
 ---
 
@@ -160,27 +190,48 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 - **N64ModernRuntime** (fork, rama `hybrid-heaven`) y **N64Recomp** (fork, `hybrid-heaven`).
 - Orden de push: **N64Recomp → N64ModernRuntime → main** (`port/runtime.lock` los pinea).
 - **Historia reescrita (2026-09-20)**: se eliminó el C recompilado de **todos los commits**
-  (`git filter-branch`, 258 commits; `.git` 15.4 → 1.6 MB). Los **hashes cambiaron** y `origin/main`
-  queda divergente → **`git push --force-with-lease origin main`** (pendiente; hacerlo cuando la
-  tarea valide). Respaldo del histórico previo: `git bundle` externo (no en el repo).
+  (`git filter-branch`, 258 commits; `.git` 15.4 → 1.8 MB). Los **hashes cambiaron** y `origin/main`
+  queda divergente → **`git push --force-with-lease origin main`** (pendiente; hacerlo cuando valide).
+  Respaldo del histórico previo: `git bundle` externo en `/tmp/opencode/gitbackup/pre-filter.bundle`.
+- **Estado del árbol**: limpio y **commiteado**. Commits de esta sesión (más nuevos primero):
+  `docs(per-file): A/B binario…`, `recomp(per-file): yield con entrega de eventos…`, `docs(per-file):
+  checkpoint boot OK…`, `recomp(per-file): RESUELTO el boot…`, `recomp(per-file): PI path…`,
+  `recomp(per-file): no versionar el C…`.
+- **Fork runtime** (`lib/N64ModernRuntime`, `hybrid-heaven`): 3 commits locales **sin push**
+  (`register_flat_code` skip relocatable, osGetMemSize 4MB, PI ownership). `runtime.lock` pinea el
+  fork: **fuerza-push del fork antes de main** (orden N64Recomp → N64ModernRuntime → main).
+- **N64Recomp (toolchain)**: los cambios viven en `toolchain/` (gitignored) + snapshot en
+  `config/n64recomp_changes/symbol_lists.cpp` (ADR 0002). Rebuild: `--target N64RecompCLI`.
 
 ---
 
 ## 8. PRIMEROS PASOS DE LA SESIÓN NUEVA
 
-> Hecho ya (esta sesión): Fase 0-2.5 (N64Recomp rc=0), saneamiento (ADR 0009, no versionar el C,
-  `tools/regenerate.py`) y Fase A.2 (loaders estilo referencia). **Bloqueante**: el boot no avanza de
-  la fase temprana (§2). Detalle y reproducción: `notes/2026-09-20-pipeline-per-file-estado.md`.
+> Hecho ya: pipeline per-file (N64Recomp rc=0), saneamiento (ADR 0009), loaders estilo referencia,
+> **boot arreglado** (fronteras + validate + PI + yield + clamp). **Bloqueante actual: la transición
+> al intro/CaC no dispara** (§2). Detalle/evidencia: `notes/2026-09-20-pipeline-per-file-estado.md`
+> §15-18.
 
-1. **Cerrar el diagnóstico de boot** (§10-11 de la nota): el código recompilado es idéntico al viejo;
-   la cadena de callbacks de `file_008` **no llega a `func_801079B0`** aunque el dispatcher
-   `FUN_80005270` corre. Comparar `func_map`/colas justo tras `func_80107830` viejo↔nuevo.
-2. **Si se confirma**: cerrar Fase 3 (completitud: secciones == code files, todo `jal` resuelve, sin
-   solapes/datos-como-código) y validar boot + CaC (sin workarounds `HH_*`).
-3. **Fase C (purga)**: mover a `legacy/` lo obsoleto (`setup_module.py`, `module_sources.inc`,
-   `config/us_*.syms.toml`, workarounds `HH_*`), split `recomp/`+`port/`, y **quitar del fork runtime**
-   `register_module_sources`/`load_module_by_source`/`hh_wrap_FUN_80003848`.
-4. **Force-push** (§7) cuando valide; actualizar `runtime.lock`/docs vivos si cambia el runtime.
+1. **Localizar la primera divergencia de estado** con el **A/B binario** (§2 receta):
+   `HH_HANG_FORCE=10/28` + dumps word-swapped en viejo↔nuevo, o `HH_CALLTRACE` filtrado. Primeras
+   pistas ya medidas: `scene` (`0x801BBC1C`) 4 vs 9, `objCB` (`0x8024AB14`) `0x801CB71C` vs `0xF0F0FBFE`,
+   `0x801BBD56` 6 vs 0, `0x80044084` 1 vs 4. **Encontrar quién escribe** `0x8024AB14`/`0x801BBC1C`
+   primero distinto (watchpoint `HH_WATCH_ADDR`, o trazar por `HH_CALLTRACE`).
+2. **Hipótesis a comprobar** (fronteras/libultra en orden): (a) otra frontera de `file_024`/`file_012`
+   mal partida (como `0x801078E0`); (b) un libultra que el nuevo deja al ROM pero el viejo tenía
+   runtime-owned (o viceversa) — comparar `recomp_overlays.inl` viejo vs nuevo para `*_recomp`;
+   (c) el **SEGV tardío** en `FUN_80023bf4` (~180 s) por corrupción acumulada.
+3. **Si dispara la transición**: validar la intro, menús, GAME START y **primer CaC** (sin `HH_*`).
+4. **Fase C (purga)**: mover a `legacy/` lo obsoleto (`setup_module.py`, syms viejas, workarounds),
+   split `recomp/`+`port/`, quitar del fork runtime el registro viejo (`register_module_sources`/
+   `load_module_by_source`) e instrumentación muerta. **force-push** (§7).
+
+## 7b. Uso obligatorio de las tools
+- Pipeline completo: **`python3 tools/regenerate.py`** (ROM → … → `work/recomp/RecompiledFuncs`;
+  `--skip-ghidra` reutiliza syms). Compilar: `tools/build_linux.sh` / `port\build_windows.bat`.
+- Nunca editar el C generado; todo fix va a `config/*.toml` + syms y se regenera (ADR 0009).
+- Dependencias de **recompilación** (dev): JDK 21 + Ghidra (`tools/install_ghidra.sh`), N64Recomp.
+  **Build del port**: solo C++/CMake/SDL2/RT64 + la ROM.
 
 ---
 
