@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-19**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-20**.
 
 ## 1. Objetivo
 
@@ -47,7 +47,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
+**Estado actual (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
+incompleta: solo 11 de 91 code files y un solo loader; ver `notes/2026-09-20-lecciones-*.md`). Se
+rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero). Fase 0
++ Fase 2.1-2.3 **hechas**; el set de 91 aún no cierra por jump-tables/fronteras/`jal` final
+(`notes/2026-09-20-pipeline-per-file-estado.md`, `RETOMAR.md`). Se conserva el runtime del port.
+**Estado anterior (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
 `HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
 **CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa localizada (2026-09-20)**:
 el **scheduler de eventos temporizados del juego** (`FUN_80004bb0`, acumulador `[0x8008D580]`/`42D0`)

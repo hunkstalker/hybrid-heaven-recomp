@@ -160,6 +160,37 @@ python3 tools/recomp.py --config config/game_combined.toml --force
 - `tools/analysis/fix_function_bounds.py <syms> --rom <rom> --report-only`: asesor CFG (propone
   inicios; **no** auto-aplicar: sobre-parte).
 
+## 5b. Recompilación per-file (en construcción)
+
+Método correcto (sustituye a `setup_module.py` + `module_sources.inc`): **todos** los ficheros de
+código como secciones relocalizables. Método/porqué en
+`notes/2026-09-20-lecciones-recompilacion-per-file.md`; estado y bloqueos en
+`notes/2026-09-20-pipeline-per-file-estado.md`.
+
+```sh
+# Ghidra es dep. de desarrollo (no de build)
+tools/install_ghidra.sh
+
+# 1) manifiesto de los 91 code files + extracción
+python3 tools/analyze_code_files.py work/roms/us_retail.z64 --extract work/scratch/code_files
+
+# 2) Ghidra por fichero -> work/scratch/syms/file_NN.toml + ROM combinado
+python3 tools/ghidra_sections.py --only 57      # prueba de un fichero
+python3 tools/ghidra_sections.py --all          # los 91
+
+# 3) validar/corregir fronteras (delay-slots, ramas cruzadas)
+python3 tools/analysis/validate_syms.py work/scratch/code_files.syms.toml \
+    --rom work/scratch/code_combined.z64 --fix --out work/scratch/code_files.fixed.syms.toml
+
+# 4) recompilar el set per-file
+./toolchain/src/N64Recomp/build_recomp/N64Recomp config/game_code_files.toml
+```
+
+Artefactos: `config/code_files.json` + `config/code_files.overlays.txt` (set de ficheros);
+`work/scratch/{code_files/,syms/,code_combined.z64,code_files.fixed.syms.toml}` (generado).
+**Pendiente** (no cierra aún): jump-tables, funciones que acaban en `jal`/`jr` no-RA, residente
+regenerado excluyendo overlays y los loaders `recomp_load_overlays`/`unload_overlays`.
+
 ## 6. Oráculo con emulador (comparar port vs juego real)
 
 `work/r64dump` corre la ROM bajo `libmupen64plus` **headless** y vuelca RDRAM por la API de depuración.
