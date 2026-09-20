@@ -198,3 +198,22 @@ tras `func_80107830` entre viejo y nuevo, y por qué la cadena de callbacks de f
   orden exacto de los `get_function` entre ambos en la ventana 600-900 (ya hay un primer `SequenceMatcher`
   que apunta a un broadcast `FUN_80000A0C` extra/desplazado en el nuevo).
 
+## 13. Punto exacto de divergencia (calltrace alineado, filtrando el spin de hilos)
+
+Filtrando las direcciones del bucle de dispatch (`0x80032360/80028a10/800349d0/80026300/8002bf90/
+800266b0/...`), el primer punto de divergencia es:
+
+- Ambos: `... 0x80005b98 0x800279f0 0x80133aac | 0x80000a0c 0x80000a0c ...`
+- **Nuevo**: tras `0x80133AAC` ejecuta `0x80000A0C` (broadcast) **dos veces**.
+- **Viejo**: una sola vez y sigue con `0x8000290C`.
+
+`0x80133AAC` (`func_80133AAC_1000000`, file_008, size `0xc`) es un **setter trivial** (`sw a0, [0x8018AAAA+..]`).
+En el C viejo (`M7_FUN_80133aac`) tenía un **fallthrough encadenado a `M7_FUN_80133ab8`**; el nuevo
+**no** lo encadena (y las fronteras nuevas —correctas— lo separan: `0x80133AB8` size `0x8`). El doble
+broadcast del nuevo apunta a que **algo se ejecuta dos veces** aguas arriba de este punto.
+
+Comprobado que las **fronteras nuevas de la zona son correctas** (`0x80133AA0/0xAC/0xB8/0xC0`) y que
+el residente `funcs_1.c` es idéntico. **Siguiente paso**: instrumentar `FUN_80000A0C` y quien lo llama
+en ambos justo antes de `0x80133AAC` (anillo de llamadas de `get_function`), para localizar el call
+site que difiere.
+
