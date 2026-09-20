@@ -296,3 +296,31 @@ correcta del port de referencia (tomada de Rayman 2) es:
 Con eso el contador de tareas `0x8005CD4C` **drena a 0** (antes quedaba en 2 y el bucle principal se
 saltaba el dispatcher). Es la primera vez que el gate queda sano. La transición al intro/CaC sigue sin
 disparar (bloqueo aparte).
+
+## 18. A/B binario port nuevo vs build pre-reset (receta) y estado final de la sesión
+
+Montado un A/B **binario** limpio (mismo runtime y replay) que será clave:
+
+```sh
+# build pre-reset (8fd6ddf) en un worktree aislado, con el runtime actual copiado
+git worktree add --detach /tmp/oldb 8fd6ddf
+cp -a port/HybridHeavenRecomp/lib/{N64ModernRuntime,rt64} /tmp/oldb/port/HybridHeavenRecomp/lib/
+mkdir -p /tmp/oldb/work/roms && ln -s $PWD/work/roms/us_retail.z64 /tmp/oldb/work/roms/
+cmake -S /tmp/oldb/port/HybridHeavenRecomp -B /tmp/oldb/port/HybridHeavenRecomp/build_dbg -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/oldb/port/HybridHeavenRecomp/build_dbg -j28   # compila (M56 definido)
+# comparar con `HH_HANG_FORCE=N` + dumps word-swapped, o `HH_CALLTRACE`
+```
+
+Diferencias medidas nuevo vs viejo (mismo replay, ~28 s):
+- `scene` (`0x801BBC1C` u16): viejo 4, nuevo 9. `objCB` (`0x8024AB14`): viejo `0x801CB71C` (callback real),
+  nuevo `0xF0F0FBFE` (basura). `0x801BBD56`: viejo 6, nuevo 0. `taskcnt`: viejo 1, nuevo 0.
+- Primer word de estado distinto (fuera de la zona del reloj): `0x80044084` (viejo 1, nuevo 4).
+- El viejo **dispara la transición** (`file_025/026/100`) en `s=846`/`vi=1692`; el nuevo no.
+
+**Fixes reales de esta sesión** (commiteados): fronteras (`fix_per_file_syms` fusión de splits), re-validar
+siempre en `regenerate.py`, PI path coherente, **yield con entrega de eventos+reschedule** (drena
+`0x8005CD4C`: era el gate), clamp de audio.
+
+**Bloqueo pendiente para el CaC**: la transición al intro/CaC no dispara; el estado del juego diverge
+(scene/objCB/`0x801BBD56`). Siguiente: usar el A/B binario (`HH_HANG_FORCE`, dumps) para encontrar la
+**primera** escritura divergente (posiblemente una frontera de `file_024`/`file_012` o un libultra).
