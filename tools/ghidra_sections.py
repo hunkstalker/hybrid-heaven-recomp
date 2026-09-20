@@ -43,7 +43,6 @@ MANIFEST = CONFIG / "code_files.json"
 # Syms generadas: no se versionan (dependen de la ROM); ver docs/documentation.md.
 OUT_SYMS = SCRATCH / "code_files.syms.toml"
 FLAT_SYMS = CONFIG / "us_ghidra.syms.toml"
-MODULE_SOURCES_INC = (ROOT / "port/HybridHeavenRecomp/src/main/module_sources.inc")
 
 RETAIL_ROM = ROOT / "work/roms/us_retail.z64"
 COMBINED_BASE = 0x1000000  # tras la ROM retail (0x1000000)
@@ -131,7 +130,7 @@ def ghidra_one(sec):
 
 
 def postprocess_one(sec):
-    """Aplica fix_per_file_syms (delay-slot, link-branch, jump-tables) al syms de un fichero."""
+    """Aplica fix_per_file_syms (delay-slot, terminadores, jump-tables) al syms de un fichero."""
     raw = SYMS_DIR / (sec["file"] + ".toml")
     if not raw.exists():
         return False
@@ -175,16 +174,6 @@ def aggregate(sections):
                          data["functions"], relocs=True)
     OUT_SYMS.write_text("\n".join(lines) + "\n")
     print("[aggregate] %s" % OUT_SYMS)
-
-    # Mapa src_rom (offset retail que el loader pasa como a0) -> rom_addr (seccion combinada),
-    # para que el runtime registre la seccion correcta en la base de RAM que pide el juego.
-    inc = ["// Generado por tools/ghidra_sections.py -- no editar a mano.",
-           "// { src_rom (ROM retail, a0 del loader), rom_addr (seccion en el ROM combinado) }."]
-    for s in sections:
-        inc.append("{ 0x%08Xu, 0x%08Xu }, // %s (id %d)"
-                   % (int(s["src_rom"], 16), s["rom_off"], s["file"], s["idx"]))
-    MODULE_SOURCES_INC.write_text("\n".join(inc) + "\n")
-    print("[aggregate] %s (%d entradas)" % (MODULE_SOURCES_INC, len(sections)))
 
 
 def _section(name, rom, vram, size, funcs, relocs=False):

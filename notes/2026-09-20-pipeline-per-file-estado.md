@@ -241,3 +241,23 @@ en las colas del juego y el main loop cediendo en el limiter). **Aún no carga `
 paso más por identificar (revisar `osRecvMesg` sobre `0x8005C268`, completaciones PI, y por qué no se
 llega a `func_801079B0`). El audio clamp y el resto de la vía PI del ROM ya están en su sitio.
 
+
+## 15. RESUELTO el bloqueo de boot (2026-09-20)
+
+Los dos errores de método que lo causaban:
+
+1. **`fix_per_file_syms` no fusionaba el split `lui; lhu`** de Ghidra: p.ej. el callback de file_008
+   apunta a `0x801078E0`, que Ghidra partió de `0x801078E8` (el `lui; lhu` carga el input y el cuerpo
+   continúa en `0x801078E8`). El callback ejecutaba 2 instrucciones y salía -> la cadena de boot
+   nunca llegaba a `func_801079B0` (que carga `file_055`). Arreglo en `fix_per_file_syms.py`:
+   fusionar cuando el límite no acaba en terminador (`jr`/`j`/`jal`/rama) **y** la rebanada previa es
+   diminuta (≤2 instr) — sin cascada (una fusión en cascada creaba funciones que acaban en `jal` y
+   N64Recomp abortaba con "Unhandled link branch").
+2. **`regenerate.py` se saltaba `validate_syms`** si el `.fixed` ya existía -> reutilizaba fronteras
+   viejas. Ahora siempre lo re-ejecuta.
+
+Más los arreglos de runtime (recomp PI own + yield + clamp, §14). **Resultado**: el boot carga
+`file_008 -> file_055 -> file_024 (dos veces, heap) -> 8020B5C8/8020B938/80235078` con el **bucle
+principal a ~57 fps**, sin `Failed to find` ni abort. Es la secuencia del build viejo hasta
+`vi≈199`. **Pendiente**: la progresión se para ahí (el viejo cargaba `file_025/026/100` en `vi≈417`);
+ahora es un tema de **estado del juego**, no de recompilación.

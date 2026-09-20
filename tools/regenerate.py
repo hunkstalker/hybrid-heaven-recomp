@@ -74,10 +74,10 @@ def main() -> int:
 
     # 3) validar/corregir la syms agregada. rc != 0 solo avisa de ramas cruzadas/delay-slots
     #    pendientes; el fichero corregido se escribe igual (mismo criterio que setup_module.py).
-    if not SYMS.exists():
-        run([sys.executable, ROOT / "tools/analysis/validate_syms.py",
-             ROOT / "work/scratch/code_files.syms.toml", "--rom", COMBINED,
-             "--fix", "--out", SYMS], allow_fail=True)
+    #    SIEMPRE se re-ejecuta (no reutilizar un .fixed viejo: las fronteras cambian).
+    run([sys.executable, ROOT / "tools/analysis/validate_syms.py",
+         ROOT / "work/scratch/code_files.syms.toml", "--rom", COMBINED,
+         "--fix", "--out", SYMS], allow_fail=True)
     if not SYMS.exists():
         sys.exit("validate_syms no genero %s" % SYMS)
 

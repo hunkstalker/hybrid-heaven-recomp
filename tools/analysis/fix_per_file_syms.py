@@ -42,6 +42,38 @@ def _last_is_link_branch(blob: bytes, vram: int, addr: int) -> bool:
     return m in ("jal", "jalr", "bal", "jalx")
 
 
+# Terminadores validos de una funcion (fin de bloque): si el limite NO acaba en uno de estos, la
+# funcion cae (fall-through) en la contigua -> Ghidra la partio mal y hay que fusionarlas.
+_TERMINATORS = {
+    "jr", "j", "jal", "jalr", "jalx", "jr.hb", "j.hb",
+    # ramas condicionales (tienen delay slot; el fall-through continua, pero N64Recomp las maneja)
+    "b", "beq", "bne", "beqz", "bnez", "blez", "bgtz", "bltz", "bgez",
+    "beql", "bnel", "beqzl", "bnezl", "blezl", "bgtzl", "bltzl", "bgezl",
+    "bal", "bltzal", "bgezal", "bltzall", "bgezall",
+    "bc1f", "bc1t", "bc1fl", "bc1tl",
+    "syscall", "break",
+}
+
+
+def _last_is_non_terminator(blob: bytes, vram: int, addr: int) -> bool:
+    """True si la funcion cae (fall-through) en la contigua: ni la ultima ni la penultima
+    instruccion son terminador NI `nop` (padding de alineacion entre funciones).
+
+    `lui; lhu` seguido de la continuacion = Ghidra partio a mitad -> fusionar.
+    `jr ra; nop`, `nop; nop` (padding) = fin valido -> NO fusionar.
+    """
+    off = addr - vram
+    if off - 8 < 0 or off > len(blob):
+        return False
+    ins = list(MD.disasm(blob[off - 8:off], addr - 8))
+    if len(ins) < 2:
+        return False
+    for i in ins[-2:]:
+        if i.mnemonic in _TERMINATORS or i.mnemonic == "nop":
+            return False
+    return True
+
+
 def load_syms(path: Path):
     import tomllib
     sec = tomllib.loads(path.read_text())["section"][0]
@@ -55,6 +87,9 @@ def main() -> int:
     ap.add_argument("--vram", type=lambda s: int(s, 16), required=True)
     ap.add_argument("--text-end", type=lambda s: int(s, 16), required=True)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--extra-targets", type=Path,
+                    help="fichero con direcciones (0x...) que deben ser inicios de funcion "
+                         "(destinos de jal cross-file; ver ghidra_sections.compute_jal_targets)")
     args = ap.parse_args()
 
     sec = load_syms(args.syms)
@@ -65,6 +100,16 @@ def main() -> int:
     starts = sorted({f["vram"] for f in sec["functions"] if vram <= f["vram"] < text_end})
     if not starts or starts[0] != vram:
         starts = sorted(set(starts) | {vram})
+    # inicios extra (jal cross-file u otros): dentro de [vram, text_end). Son fronteras REALES
+    # (alguien los llama); el merge no debe re-absorberlos.
+    forced = set()
+    if args.extra_targets and args.extra_targets.exists():
+        for line in args.extra_targets.read_text().split():
+            a = int(line, 16)
+            if vram <= a < text_end:
+                starts.append(a)
+                forced.add(a)
+    starts = sorted(set(starts))
 
     # 2) fusionar continuaciones de link branches (con tamaño contiguo provisional).
     changed = True
@@ -73,7 +118,13 @@ def main() -> int:
         new = list(starts)
         for i in range(len(starts) - 1):
             nxt = starts[i + 1]
-            if _last_is_link_branch(blob, vram, nxt - 4):
+            if nxt in forced:
+                continue
+            # link branch al final -> siempre es continuacion (la funcion no ha terminado).
+            link_branch = _last_is_link_branch(blob, vram, nxt - 4)
+            # split DIMINUTO sin terminador (<= 2 instrucciones): caso `lui; lhu` de Ghidra.
+            tiny_split = (nxt - starts[i]) <= 8 and _last_is_non_terminator(blob, vram, nxt)
+            if link_branch or tiny_split:
                 new.remove(nxt)
                 changed = True
                 break
