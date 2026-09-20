@@ -49,15 +49,15 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 **Estado actual (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
 `HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
-**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa del freeze (2026-09-20)**:
-el objeto `0x8024AAF8` recibe `cb=0xFFFF84CD` por la cadena del **disable** (`M10_FUN_8021b280 → … →
-FUN_800058dc`), que el emulador **nunca** instala; el port no puede ejecutarlo (no-op) → el objeto no
-avanza → **deadlock de colas** (9 hilos en `osRecvMesg`; bucle principal esperando en `0x8005C288`).
-**`HH_VI_EVERY=2` NO lo arregla** (el tick queda a 2 VI, `d2=27-30`, y el freeze persiste) ⇒ el tick y
-el adelanto del front-end (`0x801D0474` en `vi 218` vs emu `347`) son **ortogonales**. **Siguiente
-paso**: comparar la **puerta del disable** (`0x188`/`0x181`/timer `0x42D0`) port↔emu con
-`HH_B280TRACE` y revisar la cadena M7/M10 por fallthroughs. Detalle:
-`notes/2026-09-19-causa-raiz-cadencia-frames.md` §7/§8, `notes/2026-09-19-veneno-...md`, `RETOMAR.md`.
+**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa localizada (2026-09-20)**:
+el **scheduler de eventos temporizados del juego** (`FUN_80004bb0`, acumulador `[0x8008D580]`/`42D0`)
+dispara el evento que instala el **disable** (puerta `M7_FUN_80126A0C(obj,0x39,1)` → `M10_FUN_8021b240`
+→ `cb=0xFFFF84CD`), que el emulador **nunca** ejecuta. El port abre la puerta (16 llamadas, la #13
+`ret=1` con `42D0=0x2B88`, `vi=20012`); el emulador no la llama ni con `a1=0x39`. El objeto queda con
+callback inválido → no-op → **deadlock de colas**. **`HH_VI_EVERY=2` NO lo arregla** (el tick queda a
+2 VI) ⇒ la cadencia de frames es **ortogonal**. **Siguiente paso**: localizar la entrada del evento
+`M10_FUN_8021b240`/0x39 en la lista del scheduler y comparar su tiempo/disparo port↔emu. Detalle:
+`notes/2026-09-19-causa-raiz-cadencia-frames.md` §9, `RETOMAR.md`.
 **Estado anterior (2026-09-19 noche-2)**: (era la lectura de la sesión anterior, hoy en cuestión)
 se creía el port **~20 s por delante** en la fase pre-transición (objeto de transición `0x801D0474`
 en `vi 200` vs emu `347`; loader #12/M24 en `vi 417` vs emu `1535`), con el START capturado por el

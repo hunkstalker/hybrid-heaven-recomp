@@ -25,21 +25,25 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-19 (noche-3b); **detalle y plan
+- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-20; **detalle y plan
   único**: `RETOMAR.md` y **`notes/2026-09-19-causa-raiz-cadencia-frames.md`** (empezar aquí); antes:
   `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5),
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` y
   `notes/2026-09-19-bat-stall-check.md`.
-  - **CAUSA DEL FREEZE (2026-09-20, de los logs en vivo)**: el objeto `0x8024AAF8` recibe
-    `cb=0xFFFF84CD` por la cadena del disable `M10_FUN_8021b280 → … → FUN_800058dc` (que el emulador
-    **nunca** instala); el port no puede ejecutarlo (bad lookup → no-op) → el objeto no avanza →
-    **deadlock de colas** (9 hilos en `osRecvMesg`; bucle principal esperando en `0x8005C288`;
-    `[S0FIX]`×3, `[BADMQ]`). **`HH_VI_EVERY=2` NO lo arregla** y el tick quedó a 2 VI (`d2=27-30`) ⇒
-    la cadencia de frames es **ortogonal**.
-  - **Plan restante** (`RETOMAR.md`): (1) comparar la **puerta del disable** (`0x188`/`0x181`/timer
-    `0x42D0`/`0x42FF`) port↔emu con `HH_B280TRACE`; (2) revisar la cadena **M7/M10 recompilada** por
-    fallthroughs perdidos; (3) usar el `state.log` original del mantenedor como referencia fiel;
-    (4) validar en **Windows en vivo**.
+  - **CAUSA LOCALIZADA (2026-09-20): el SCHEDULER DE EVENTOS TEMPORIZADOS del juego.** Reproducido
+    headless con `HH_GATE_A=1`: la puerta `M7_FUN_80126A0C(a0=0x8024C934, a1=0x39, a2=1)` se llama
+    **16 veces**; **#13 devuelve 1** con `42D0=0x2B88` → instala `b280` → veneno (`vi=20012`,
+    `sample=9803`). El **emulador nunca la llama con `a1=0x39`** (instalador `0x8021B240`: 0
+    ejecuciones). `42D0` (`[0x8008D580]`) es un **acumulador de tiempo del scheduler** (`FUN_80004bb0`);
+    `FUN_80001454` lo resetea cada frame; la puerta lo compara con `0x3001`.
+  - **El freeze final**: el objeto `0x8024AAF8` recibe `cb=0xFFFF84CD` (que el emulador **nunca**
+    instala) → bad lookup → no-op → **deadlock de colas**. `HH_VI_EVERY=2` **no** lo arregla (tick a
+    2 VI, `d2=27-30`) ⇒ la cadencia de frames es **ortogonal**; los **fallthroughs** de la cadena
+    M7/M10 están bien.
+  - **Plan restante** (`RETOMAR.md`): (1) localizar la **entrada del evento `M10_FUN_8021b240`/0x39 en
+    la lista del scheduler** (`FUN_80004bb0`: tabla `0x800429B8 + id*4`, lista `0x42F4`, tiempos
+    `0x42CC`/`0x42BC`) y comparar su **tiempo/disparo** port↔emu (o con el `state.log` original del
+    mantenedor); (2) validar en **Windows en vivo**.
   Detalle: `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
   `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
   `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,

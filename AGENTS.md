@@ -36,13 +36,12 @@ diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la 
 ## Al cerrar sesión
 
 Sigue el checklist de `docs/documentation.md` §3: actualizar `TODO.md` y `PROYECTO.md`, escribir una
-nota fechada en `notes/`, y crear un ADR si hubo decisión estructural. Commitear cuando se valide una
-tarea o cuando haya que commitear documentación.
+nota fechada en `notes/`, y crear un ADR si hubo decisión estructural.
 
-**Dejar todo commiteado al cerrar**: el árbol debe quedar limpio (`git status` sin cambios sin
-commitear) y **listo para que el mantenedor solo tenga que hacer push**. No dejar commits a medias ni
-trabajo sin versionar que deba conservarse. Si algo no debe commitearse, documentarlo y dejarlo fuera
-del árbol.
+**Cuándo commitear** (indicación del mantenedor): **solo** cuando (a) el mantenedor pida **documentar**,
+o (b) una tarea salga **exitosa/validada**. **No** commitear por cada nota ni por actualizaciones de
+documentación rutinarias. Cuando se commitee una tarea validada, dejar el árbol limpio y listo para
+push.
 
 **Repos a pushear y orden** (los forks primero, porque `port/runtime.lock` los pinea; ver su
 comentario). Orden obligatorio:

@@ -156,3 +156,36 @@ scheduler. El tick y la cadencia del front-end son ortogonales.
 (2) revisar la **cadena M7/M10 recompilada** por si la puerta abre por un **fallthrough perdido**
 (`fix_fallthroughs.py`, ADR 0002) y no por timing; (3) usar como referencia fiel el `state.log`
 original del mantenedor (nota 09-17).
+
+## 9. Causa del disable: el SCHEDULER DE EVENTOS TEMPORIZADOS del juego (2026-09-20)
+
+**Punto 2 (fallthroughs): descartado.** La cadena M7/M10/M55 del veneno está **correctamente
+encadenada** (verificado en `port/.../RecompiledFuncs`: `M7_FUN_80126a0c→80126a18`,
+`M7_FUN_801267b8→801267c0`). Los 31 "fallthroughs sin encadenar" que reporta el script son de
+libultra y en su mayoría falsos positivos; ninguno en la cadena del veneno.
+
+**Punto 1 (la puerta), reproducido headless** con `HH_GATE_A=1 HH_B280TRACE=1` (replay completo):
+
+- La puerta `M7_FUN_80126A0C(a0=0x8024C934, a1=0x39, a2=1)` se llama **16 veces**; #1–#12 → `ret=0`;
+  **#13 → `ret=1`** con `42D0=0x2B88`, `181=01`, `188=0`; y en `vi=20012`/`sample=9803` corre el
+  instalador y se captura el veneno. Artefacto: `build_dbg/hh_b280.log`, traza en
+  `/tmp/opencode/port_gate_full.log`.
+- **El emulador NUNCA llama la puerta con `a1=0x39`**: en `work/debug/emu_gate_run.log` solo aparece
+  con `a1=0x113`/`0x74`, y el instalador `0x8021B240` tiene **0 ejecuciones**.
+- ⇒ **La divergencia está aguas arriba**: no es el valor de la puerta, es que el emulador **no dispara
+  el evento que llama a la puerta con 0x39** (el instalador `M10_FUN_8021b240`).
+
+**Qué es `42D0`** (`[0x8008D580]`): un **acumulador de tiempo del scheduler de eventos temporizados**
+del juego, no un contador por frame simple:
+
+- `FUN_80001454` (frame) lo **resetea a 0** (`sw zero, 0x42D0`) al inicio de cada frame.
+- `FUN_80004bb0` (scheduler) lo **acumula** recorriendo las entradas temporizadas:
+  `[0x42D0] = [0x42D0] + v1 + s3 - s2 + [0x42BC]` (tiempos lógicos de las entradas).
+- La nota §4 ya sospechaba que el llamante de `M10_FUN_8021b240` viene por `FUN_80004BB0`; encaja:
+  **el evento que instala el disable es un evento temporizado del scheduler**, y el port lo dispara
+  cuando el emulador no.
+
+**Siguiente paso concreto**: localizar la **entrada del evento `M10_FUN_8021b240`/0x39 en la lista del
+scheduler** (`FUN_80004bb0`: tabla `0x800429B8 + id*4`, lista `0x42F4`, tiempos `0x42CC`/`0x42BC`) y
+comparar su **tiempo/disparo** port↔emu (o con el `state.log` original del mantenedor). Ahí está el
+origen del timer que cruza el umbral.

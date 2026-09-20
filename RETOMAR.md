@@ -67,14 +67,18 @@ que el port, así que sus hitos (p. ej. #12 en `vi 1535`) **no son una referenci
   `HH_VI_EVERY` no lo arreglan.
 
 **Pasos restantes:**
-1. **Investigar la puerta del disable (foco)**. Los logs (§8) muestran que el bloqueo es el objeto
-   `0x8024AAF8` con `cb=0xFFFF84CD` (el emulador **nunca** lo instala) → no-op → deadlock de colas.
-   Comparar las variables de la puerta (`0x188`/`0x181`/timer `0x42D0`/`0x42FF`) port↔emu en el mismo
-   instante con `HH_B280TRACE`.
-2. **Revisar la cadena M7/M10 recompilada** por si la puerta abre por un **fallthrough perdido**
-   (`tools/analysis/fix_fallthroughs.py`, ADR 0002) y no por timing.
-3. **Referencia fiel**: el `state.log` original del mantenedor (nota 09-17) — el emulador con el
-   replay no es fiable.
+1. **CAUSA LOCALIZADA: el SCHEDULER DE EVENTOS TEMPORIZADOS del juego** (nota §9). Reproducido
+   headless: la puerta `M7_FUN_80126A0C(a0=0x8024C934, a1=0x39, a2=1)` se llama **16 veces**; #1–#12 →
+   0; **#13 → 1** con `42D0=0x2B88` → instala `b280` → veneno (`vi=20012`, `sample=9803`). El emulador
+   **nunca la llama con `a1=0x39`** (instalador `0x8021B240`: 0 ejecuciones). `42D0` (`[0x8008D580]`) es
+   un **acumulador de tiempo del scheduler** (`FUN_80004bb0`); `FUN_80001454` lo resetea por frame.
+   Evidencia: `build_dbg/hh_b280.log` + `/tmp/opencode/port_gate_full.log`.
+2. **Siguiente**: localizar la **entrada del evento `M10_FUN_8021b240`/`0x39` en la lista del
+   scheduler** (`FUN_80004bb0`: tabla `0x800429B8 + id*4`, lista `0x42F4`, tiempos `0x42CC`/`0x42BC`) y
+   comparar su **tiempo/disparo** port↔emu (o con el `state.log` original del mantenedor). Ahí está el
+   timer que cruza el umbral `0x3001`.
+3. **Descartado**: la **aleración frame↔VI/tick** no es el bloqueante (tick a 2 VI con `HH_VI_EVERY=2`
+   y sigue el freeze); los **fallthroughs** de la cadena M7/M10 están bien.
 4. **Validar en Windows en vivo** (freeze ~100 %).
 
 **Nota**: la **alineación frame↔VI** (stalls) sigue siendo un problema de robustez, pero con
