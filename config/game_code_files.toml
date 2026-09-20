@@ -1,0 +1,29 @@
+# Recompilación per-file completa: imagen residente (.text) + los 91 ficheros de código
+# Nisitenma como secciones relocalizables. Ver RETOMAR.md y notes/2026-09-20-lecciones-*.
+# Generado por tools/ghidra_sections.py; validar/regenerar ver docs/workflows.md.
+[input]
+entrypoint = 0x80000400
+output_func_path = "RecompiledFuncs_code"
+relocatable_sections_path = "code_files.overlays.txt"
+symbols_file_path = "../work/scratch/code_files.fixed.syms.toml"
+rom_file_path = "../work/scratch/code_combined.z64"
+use_lookup_for_all_function_calls = true
+
+[patches]
+stubs = [
+]
+ignored = [
+    "FUN_800493c4",
+    "FUN_80049430",
+    "FUN_80049538",
+    "FUN_800495ec",
+]
+
+# HH fix (heredado de game_combined.toml): la registracion de recursos de FUN_80125814 ramifica
+# sobre el valor de FUN_80017064 y en el port toma la via "ya registrado"; nop de la rama en
+# 0x8012591C para forzar la via de registro. En la syms per-file la funcion contenedora es
+# func_80125808_1000000 (0x80125814 ya no es inicio de funcion).
+[[patches.instruction]]
+vram = 0x8012591C
+func = "func_80125808_1000000"
+value = 0x00000000

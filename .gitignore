@@ -68,6 +68,7 @@ config/RecompiledFuncs_retail_backup/
 config/RecompiledFuncs/
 config/RecompiledFuncs_unified/
 config/RecompiledFuncs_combined/
+config/RecompiledFuncs_code/
 config/RecompiledFuncs_module7/
 config/*.fixed.syms.toml
 config/*.syms.toml.bak
