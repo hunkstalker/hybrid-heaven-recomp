@@ -283,3 +283,16 @@ con todos los overlays flat (`HH_FLAT_ALL`), forzar todos los jal cross-file (me
 + `diff_state_at_vi.py`) para localizar la primera divergencia de estado; el emulador es la referencia
 que sí progresa. Alternativa: reconstruir el build pre-reset (config `game_combined`) con los M56
 stubbeados para un A/B binario.
+
+## 17. Yield correcto (mecanismo de la referencia) -> gate drenado
+
+El hook de yield **no debe ser un simple `sleep`**: el scheduler de ultramodern **solo** reprograma y
+entrega eventos externos (VI/SP/DP/PI/SI) dentro de `osSendMesg`/`osRecvMesg`/`osJamMesg`. La version
+correcta del port de referencia (tomada de Rayman 2) es:
+
+    ultramodern::wait_for_external_message_timed(rdram, 1);
+    ultramodern::check_running_queue(rdram);
+
+Con eso el contador de tareas `0x8005CD4C` **drena a 0** (antes quedaba en 2 y el bucle principal se
+saltaba el dispatcher). Es la primera vez que el gate queda sano. La transición al intro/CaC sigue sin
+disparar (bloqueo aparte).

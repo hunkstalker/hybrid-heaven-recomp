@@ -35,7 +35,7 @@ value = 0x00000000
 [[patches.hook]]
 func = "FUN_80001454"
 before_vram = 0x80001A88
-text = "{ void hh_yield_in_spin(void); hh_yield_in_spin(); }"
+text = "{ void hh_yield_in_spin(uint8_t*); hh_yield_in_spin(rdram); }"
 
 # HH fix (port de referencia, phase-04): el clamp del tamano de frame del gestor de audio
 # (FUN_8001fd14) usa comparacion SIN signo; con la cola del host mas profunda, la diferencia se
