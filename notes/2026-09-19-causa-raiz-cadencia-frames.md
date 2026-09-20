@@ -189,3 +189,195 @@ del juego, no un contador por frame simple:
 scheduler** (`FUN_80004bb0`: tabla `0x800429B8 + id*4`, lista `0x42F4`, tiempos `0x42CC`/`0x42BC`) y
 comparar su **tiempo/disparo** port↔emu (o con el `state.log` original del mantenedor). Ahí está el
 origen del timer que cruza el umbral.
+
+## 10. Cadena de instalación de callbacks del CaC (análisis estático, 2026-09-20)
+
+La cadena del disable es una **secuencia de callbacks encadenada** por el propio setter
+`FUN_800058dc(obj, handler)` (escribe en `obj+0x1C`/`+0x18`/`+0x20`):
+
+1. **`M10_FUN_8021b1A8(obj)`** (0x8021B1A8): hace `FUN_800058dc(obj, 0x8021B200)` →
+   **instala `M10_FUN_8021b200`** como callback del objeto.
+2. **`M10_FUN_8021b200(obj)`** (0x8021B200): `FUN_80016E40(0x36FC0)` (crea/temporiza una tarea del
+   scheduler) y `FUN_800058dc(obj, 0x8021B240)` → **instala `M10_FUN_8021b240`**.
+3. **`M10_FUN_8021b240(obj)`** (0x8021B240): `M7_FUN_80126A0C(obj, 0x39, 1)` (**la puerta**); si
+   devuelve 1 → `FUN_800058dc(obj, 0x8021B280)` → **instala el disable** (veneno).
+4. **`M10_FUN_8021b280(obj)`** (0x8021B280): `FUN_800058dc(obj, 0xFFFF84CD)` → callback inválido →
+   bad lookup → no-op → deadlock.
+
+- Es una **sequencia temporal**: cada paso se dispara cuando el **scheduler
+  `FUN_80004bb0`** tickea el objeto/callback. `FUN_80016E40(a0)` crea la tarea temporizada.
+- `M7_FUN_80125808` (state machine M7, la que ejecuta la puerta) llama a `FUN_80004BB0` con
+  `a0=lhu[sp+0x1A]` y `a1=[0x42C4]` (indexa la tabla `0x800429B8 + id*4`).
+- En el **emulador** el paso 3 no se dispara (`M10_FUN_8021b240`: 0 ejecuciones); en el **port** sí.
+  La causa dinámica está en los **tiempos del scheduler** (`0x42CC`/`0x42BC`/`0x42D0`).
+
+**Siguiente paso concreto**: instrumentar **`FUN_80004bb0`** (scheduler) en el port —log ligero de
+`{a0 (id), a1, entrada/handler, 0x42CC, 0x42BC, 0x42D0}` por disparo— y comparar el **orden/tiempo** de
+los callbacks de la cadena (`M10_FUN_8021b1A8 → b200 → b240 → b280`) port↔emu (o con el `state.log`
+original del mantenedor). El primer callback de la cadena que se dispara en el port y no en el emulador
+(o con tiempo distinto) es el punto de divergencia.
+
+## 11. CAPTURA EN VIVO (Windows) de la cadena: la tarea `0x39` del scheduler (2026-09-20)
+
+Instrumentación `HH_CHAINTRACE=1` (wrappers de `b1A8`/`b200`/`b240` + scheduler `FUN_80004bb0`),
+pasada en vivo del mantenedor. Artefactos:
+`build_win/.../logs_chain_20260920_025147/{hh_chain.log,hh_sched.log,hh_b280set.log,hh_b280.log}`.
+
+**Secuencia exacta en el port (objeto `0x8024D690`):**
+
+| vi | evento |
+|---|---|
+| 19123 | `M10_FUN_8021b1A8(obj)` → instala `b200` |
+| 19124 | `M10_FUN_8021b200(obj)` → `FUN_80016E40(0x36FC0)` + instala `b240` |
+| 19127…19150 | el objeto tickea `b240` cada ~2 VI; la puerta `0x39` → **ret=0** |
+| **19152** | **el scheduler despacha la tarea `a0=0x39`** (`FUN_80004bb0(a0=0x39, a1=0x80358820)`) |
+| 19152 | `b240` → puerta `0x39` → **ret=1** → `FUN_800058dc(obj, 0x8021B280)` (**disable**) |
+| 19154+ | `M10_FUN_8021b280` → `cb=0xFF7F84CD` → bad lookup → no-op → deadlock (VI 20109) |
+
+**Publicación del disable** (`hh_b280set.log`):
+```
+SET b280 #1 obj=8024D690 a3=00000039
+  callring: … 800306C0 80004BB0 801257DC 80125774 800058DC
+```
+⇒ El **scheduler `FUN_80004bb0`** despacha la tarea `0x39`, que instala el disable. `FUN_80004bb0`
+despacha por `0x39` exactamente en `vi=19152`; hasta ese momento la tarea `0x39` no había entrado.
+
+**El emulador no despacha `0x39`** (llama la puerta solo con `a1=0x113`, `0x74`; `b240`/`b280`: 0
+ejecuciones). ⇒ **Divergencia = el scheduler del port despacha la tarea `0x39` en el CaC y el del
+emulador no.** Es un **evento temporizado/activado por gameplay**, no la cadencia de frames.
+
+**Siguiente paso concreto**: quién **activa/registra** la tarea `0x39` (id 0x39 → `a1=0x80358820`) —
+probablemente un evento concreto del CaC (daño/golpe). El único call-site del scheduler es
+`M7_FUN_80125808`; rastrear el `lhu[sp+0x1A]` que llega con `0x39` y comparar con el emulador (que no
+lo activa). Ahí está el origen del bug.
+
+**Instrumentación ampliada (noche-4)**: wrappers de `FUN_80004d20` (dispatcher de entrada:
+`handler`=a0, `target`=a1) y `FUN_80004adc` ("add" del scheduler) → `hh_scheddisp.log`. Capturan
+**qué handler** se añade/dispara en cada vi, para ver en el CaC el `add`/`run` del handler de la serie
+`0x8021Bxxx` (el que instala el disable). Filtro de arranque verificado headless (677 líneas/20 s).
+Pendiente de una pasada en Windows con `port/run_chain_live.bat` (recoge `hh_scheddisp.log`).
+
+## 12. Segunda captura en vivo: el evento `0x39` es un temporizado con deadline `0x3000` (2026-09-20)
+
+Pasada Windows `logs_chain_20260920_030610` (objeto `0x8024C7CC`). Reproduce la cadena (`b1A8` vi
+17752 → `b200` 17754 → `b240` tickeando cada ~2 VI → **ret=1 en vi=17781** → disable; `hh_b280set.log`
+con el mismo anillo `80004BB0 801257DC 80125774 800058DC`).
+
+**Dato clave** (`hh_sched.log`):
+```
+[SCHED] vi=17781 a0=00000039 a1=80358820 42CC=00003000 42BC=00002B88 42D0=00000000 42C8=00
+```
+
+- La **puerta** compara `[0x42D0] < 0x3001`. Y aquí **`42CC = 0x3000`** ⇒ el umbral de la puerta es
+  **el "target" del evento temporizado `0x39` + 1**.
+- `42BC = 0x2B88` (11144) es el **tiempo acumulado** del evento; su deadline es `0x3000` (12288).
+- Es un **evento temporizado con deadline** (id de lista `0x39`, target `0x3000`, contexto
+  `a1=0x80358820`). El port lo despacha en `vi=17781` y la puerta lo acepta (`42D0=0x2B88 < 0x3001`);
+  el emulador no llega a despacharlo (nunca llama la puerta con `0x39`).
+- `FUN_80004d20`/`FUN_80004adc` no se llaman tras `vi=11421` ⇒ el disable **no** pasa por el
+  dispatcher genérico; el anillo real es `FUN_80004BB0 → M7_FUN_801257DC → M7_FUN_80125774 →
+  FUN_800058DC`.
+
+**Nota del mantenedor (sin prueba, a verificar)**: el **audio petardea sobre todo en el
+menú/intro**; el gameplay lo nota "fino". Anotado por si el evento/estado del CaC está relacionado.
+
+**Siguiente paso**: entender el **registro/deadline del evento `0x39`** (target `0x3000`, id de lista
+`0x39`) — quién lo añade a la tabla `0x800429B8 + 0x39*4` y con qué `42BC`/`42CC` — y por qué el
+emulador no lo despacha. El fix probable es que el port respete el **deadline** del evento (no
+instalar el disable si el `42D0`/target no corresponde), o corregir el registro del temporizado.
+
+## 13. La corrupción de colas es INDEPENDIENTE del disable (2026-09-20, noche-4)
+
+**Verificado (no fiarse del orden de líneas del log: el buffering por hilo desordena la salida):**
+
+- En **headless sin veneno** (0 `FF7F84CD`, p.ej. `port_chain2.log`/`port_badmq.log`) el port **también
+  se cuelga** (softlock) con `[BADMQ]` y deadlock. ⇒ La corrupción de colas **no** la causa el veneno.
+- En **vivo con `HH_NO_DISABLE=1`** (pasada del mantenedor) aparece `[NO_DISABLE] obj=8024AAF8
+  cb=FFFF84CD (escritura ignorada)` y **aun así** hay `[BADMQ]` + deadlock (VI 20109). ⇒ El disable
+  **no** es el único ni el verdadero bloqueo (reconfirma la nota 09-17 §6).
+
+**Síntoma medido** (`[BADMQ]` ampliado con `ra`/`sp`): un **mismo hilo** (`sp=8004FB38`, tid 19 en
+`hh_hang.log`) llama `osSendMesg(mq=<basura>, msg=0x8005C4B0)` con punteros de cola corruptos
+(`mq=80037748`, `00040000`, `C0000830`, `C2C80000`, `3F3851EC`, `80000000`…) y `ra=0` (invocado por
+puntero). El mensaje `0x8005C4B0` es el del bucle principal (cola buena `0x8005C288`) ⇒ **el campo
+"queue pointer" de una estructura se corrompe**.
+
+**Interpretación**: alrededor del CaC, una estructura del juego se corrompe y el hilo 19 empieza a
+mandar el mensaje del frame a punteros basura; el port **descarta** esos envíos (mitigación `[BADMQ]`
+en `mesgqueue.cpp do_send`) → hilos bloqueados en `osRecvMesg` → deadlock. Es un problema de
+**corrupción de memoria**, anterior y más profundo que el disable.
+
+**Nota del mantenedor (a verificar)**: el **audio petardea sobre todo en el menú/intro**; en gameplay
+casi fino. Encaja con que el área del CaC/audio/AI y el scheduler comparten estado.
+
+**Siguiente paso propuesto**: cazar la **escritura que corrompe** el campo de cola de esa estructura:
+(1) localizar la estructura del hilo 19 / del mensaje `0x8005C4B0` y su campo "mq"; (2) `HH_WATCH_ADDR`
+sobre ese campo para ver el RA que lo pisa; (3) comparar con el emulador (que no se cuelga). Alternativa
+más directa: revisar el **módulo M10** (el del CaC) por **data-as-code**/símbolos mal acotados (el
+evento `0x39` es de M10).
+
+## 14. Los punteros corruptos son FLOATS y M10 tiene funciones ausentes (2026-09-20)
+
+**Los `mq` corruptos son valores de punto flotante** (`3F3851EC`≈0.72, `40500000`≈3.25,
+`C2C80000`≈-100.0, `C0000830`≈-2.0) ⇒ un campo "queue pointer" está siendo **pisado por datos de
+física** (coordenadas/velocidades). Es **solapamiento de memoria** apuntando a una **escritura de
+float fuera de rango** en una estructura recompilada con offset/tamaño equivocado.
+
+**M10 (módulo del CaC) con funciones stubbeadas / ausentes**: el log de recompilación
+(`work/debug/recomp*.log`) marca `Stubbing FUN_…: analysis failed (data absorbed by coarse
+boundary?)`. **14 de ellas son de M10** (`FUN_80201a04`, `80202020`, `802032ac`, `80205a04`,
+`8020da54`, `80214a50`, `802205e8`, `80220e24`, `80221a40`, `8022397c`, `80223bcc`, `80226368`,
+`80242308`, `80245008`). En el árbol del port, **7 están AUSENTES** (`FUN_802205e8`, `80220e24`,
+`80221a40`, `80223bcc`, `80226368`, `80242308`, `80245008`) y `FUN_8022397c` solo aparece en
+`funcs.h` (declarada sin cuerpo). Total de stubbed en todo el binario: 146.
+
+**Hipótesis de trabajo**: el CaC corre código de M10 mal recompilado (símbolos con fronteras mal
+acotadas → datos absorbidos como código → offsets/escrituras erróneas) y pisa la estructura de cola
+con floats → deadlock. Encaja con que el problema aparezca **solo en el CaC** (M10) y con que el
+disable sea un síntoma más.
+
+**Siguiente paso**: (1) corregir/acotar los símbolos de esas funciones de M10 (ADR 0002,
+`config/*.syms.toml`, `0xADDR:0xSIZE`) para que se recompilen; (2) o cazar la escritura con
+`HH_WATCH_ADDR` sobre el campo de cola; (3) comparar con el emulador. Nota: el TODO ya tiene
+"Data-as-code (189 sospechosas)". **Nota del mantenedor**: audio petardea sobre todo en el
+menú/intro (gameplay casi fino).
+
+## 15. Mecanismo del `[BADMQ]`: lista de SUSCRIPTORES `{next, mq}` del event-dispatch (2026-09-20)
+
+El `[BADMQ]` (osSendMesg con `mq` basura) viene del **event-dispatch del juego**:
+
+- **`FUN_80000934(obj, mq, ...)`**: registra un suscriptor — crea un nodo `{next, mq}` (nodo de
+  `FUN_800267F0(1)`), hace `[nodo+0] = [obj+0x888]` (next) y `[obj+0x888] = nodo` (nueva cabeza).
+- **`FUN_80000A0C(obj, msg)`**: **broadcast** — recorre `s0 = [obj+0x888]`; para cada nodo llama
+  `osSendMesg([nodo+4], msg, 0)` (vía `FUN_80026300`); sigue con `s0 = [nodo+0]`.
+- ⇒ La **lista enlazada de suscriptores `{next, mq}` en `[obj+0x888]`** se **corrompe**: un nodo recibe
+  **floats** en su campo `mq`/`next`, y el broadcast manda el mensaje `0x8005C4B0` a punteros basura
+  (`3F3851EC`, `40500000`… = física). El port los descarta (`[BADMQ]`) → el suscriptor real no recibe
+  el evento → deadlock.
+- Callers del broadcast: `FUN_8000081C`/`FUN_800008BC`/`FUN_800008E8` (funcs_0.c). Objeto del dispatch:
+  el del CaC (`0x8024AAF8`/`0x8024D690`), `+0x888`.
+
+**Siguiente paso (fix)**: cazar la **escritura de float** sobre el nodo de la lista (`FUN_800267F0` /
+`[obj+0x888]` y `[nodo+4]`) con `HH_WATCH_ADDR`, o revisar el **allocator de nodos** `FUN_800267F0` y
+por qué el nodo cae en una zona que se pisa con física (¿estructura mal dimensionada en M10?). Comparar
+con el emulador (que no se cuelga).
+
+## 16. Nodo corrupto identificado: `0x8005BF14` (2026-09-20, noche-4)
+
+Con `HH_CHAINTRACE=1` (que ahora activa `[BCAST]`/`[PUSH]`/`[POP]`), reproducción headless del
+softlock. El dispatch (`obj=0x8005C4B0`, `msg=0x8005C4B0`, head en `[obj+0x888]=[0x8005CD38]`):
+
+- Normal: `head=0x80095FF8 [node=80095FF8 q=80091DA0] [node=8005BF14 q=8005C288]` (2 suscriptores
+  válidos; `0x8005BF14` apunta a la **cola del bucle principal `0x8005C288`**).
+- Al final (CaC): `[node=8005BF14 q=80063DF0] [node=8008DA88 q=802521AC] [node=802521E0 …] …` —
+  **el nodo `0x8005BF14` se corrompe**: su `q` pasa de `8005C288` a `80063DF0` y su `next` de `0` a
+  `8008DA88`; la lista salta a **nodos basura** (`0x8008DA88`, `0x8025xxxx`). Todos los `[PUSH]`
+  observados tienen `q` válido (`8005C640`/`8005C608`/`80091DA0`/`8005C288`) ⇒ **el nodo se corrompe
+  DESPUÉS de empujarse**, no se empuja mal.
+- `0x8005BF14` está en la **pila/estructura del hilo principal** (`sp≈8005BEC8`).
+- Intento de watchpoint sobre `0x8005BF14` → **SEGV** (`exit=139`): vigilar un nodo en pila no es
+  viable.
+
+**Siguiente paso**: cazar quién pisa `0x8005BF14` sin watchpoint (p.ej. comprobar en `hh_hang_rdram`
+el patrón de los nodos basura `0x8025xxxx`; o instrumentar el `[POP]`/`[PUSH]` para volcar `next`/`q`
+del nodo recién insertado; o revisar M10 por estructura mal dimensionada). Comparar con el emulador.
