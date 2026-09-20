@@ -170,7 +170,7 @@ def main() -> int:
     args.json.parent.mkdir(parents=True, exist_ok=True)
     manifest = {
         "source": "Nisitenma-Ichigo file table + VRAM table, medido de la ROM",
-        "rom": str(args.rom),
+        "rom": str(args.rom.relative_to(ROOT)) if args.rom.is_relative_to(ROOT) else str(args.rom),
         "rom_size": len(rom),
         "file_table_rom": "0x%X" % v2r(FILE_TABLE_VRAM),
         "vram_table_rom": "0x%X" % v2r(VRAM_TABLE_VRAM),

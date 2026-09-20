@@ -65,6 +65,9 @@ static constexpr uint32_t HH_MENU_FLAG_ADDR = 0x2690D0;  // guest 0x802690D0
 void hh::on_game_init(uint8_t* rdram, recomp_context* ctx) {
     (void)ctx;
     hh_game_rdram = rdram;
+    // Aqui ya corrio init_overlays(): registrar los hooks de loader (add_loaded_function) ahora,
+    // no en register_overlays() (init_overlays hace func_map.clear()).
+    hh::register_runtime_functions();
 }
 
 uint8_t* hh::get_game_rdram() {

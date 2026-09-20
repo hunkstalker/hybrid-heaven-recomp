@@ -1,9 +1,14 @@
 # AGENTS.md — arranque de sesión
 
 Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck.
-Fase actual: **gameplay** (menús → GAME START → escenas 3D y combate) con mando Xbox, audio a 43200 Hz y Controller Pak emulado. **Guardado en cápsula: VALIDADO en Windows (2026-09-16)**. **Foco actual (2026-09-18): SUAVIZADO** ("una N64 que nunca se ahoga"): live limpio a **30 ticks/s** (`d2=29 d3=1`) y replay fiel con **`HH_REPLAY_MODE=vi`**; corregidos el **AI** (FIFO fiel, `HH_AI_FIFO`) y el **pipeline de audio** (cola acotada) — sin retraso creciente ni el grueso del petardeo; `do_rom_read` en bloque. Instrumentación de tirones siempre activa (`hh_tick.log`, `hh_slow.log` con `guest_busy`). **Plan aprobado**: pasada de perfilado del mantenedor (`run_cac_profile.bat`, incluir la 1ª puerta) y **cache de assets** (reimplementar el loader LZKN64 + cache; la ROM solo la 1ª vez; ADR 0007). El **CaC/veneno queda en espera** (mecanismo documentado: `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md`, `bizhawk-replay-freeze-con-rafaga.md`); con replay fiel y cadencia fina se reevalúa. **El test de juego del port nativo lo hace el mantenedor (usuario)**; dev solo pasadas headless. El runtime tiene cambios **locales** sin push (usar `port\build_windows.local.bat`). Detalle y siguiente paso exacto: `RETOMAR.md`, `TODO.md` y `notes/2026-09-18-suavizado-fase1-y-cache-loader.md`.
+Fase actual (**2026-09-20**): **reset de la recompilación a per-file** (causa raíz del freeze CaC: extracción
+incompleta; `notes/2026-09-20-lecciones-recompilacion-per-file.md`). Pipeline **hecho** (91 code files, Ghidra por
+fichero, N64Recomp rc=0) y **el C deja de versionarse** (obra derivada; ADR 0009) → `python3 tools/regenerate.py`.
+**Bloqueante**: el build per-file no pasa de la fase temprana (solo carga `file_008`; el viejo `file_055` en
+`vi≈77`); el código es idéntico, diverge el registro/estado de secciones. Detalle/siguiente paso: `RETOMAR.md`,
+`TODO.md`, nota `2026-09-20-pipeline-per-file-estado.md`.
 
-Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, des-stubbing libultra ADR 0002, VI del ROM ADR 0003); transición/burst (strict aliasing + registro dinámico de módulos); menús, Controller Pak y geometría/píxeles; audio `aspMain` del ROM recompilado; perfiles de mando por contexto (`config.ini`, flag de UI `0x802690D0`); diagnóstico automático de crashes y cuelgues.
+Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, ADR 0002/0003); menús, Controller Pak y audio `aspMain`; perfiles de mando (`config.ini`).
 
 ## Retomada rápida
 
@@ -17,9 +22,7 @@ diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la 
   **lo que deba conservarse se guarda en el repo**; no dejar logs, trazas, dumps ni scripts en carpetas
   temporales del sistema (se pierden entre sesiones). Si una herramienta externa escribe fuera del repo,
   copiar el resultado al proyecto al terminar.
-- Las dependencias de desarrollo son **reinstalables** con el gestor de paquetes de la distribución
-  (build, runtime del port y librerías de desarrollo). Si el entorno se recrea, reinstalar lo que falte
-  y reconfigurar CMake en el build dir por si cambian rutas.
+- Las dependencias de desarrollo son **reinstalables** con el gestor de paquetes; si se recrea el entorno, reinstalar y reconfigurar CMake.
 - Los artefactos ya construidos (`work/`, `toolchain/`, el binario del port) no se versionan y no hace
   falta regenerarlos salvo cambio.
 
@@ -64,8 +67,9 @@ es válido **después** de pushear los forks.
 - **Imágenes por lotes**: triaje con `tools/analysis/triage_screenshots.py` y lectura en lotes de
   2-3 volcando cada imagen a texto. Ver `docs/workflows.md` §3.
 - Dumps RDRAM del harness Linux vienen **word-swapped** → bswap32. En BizHawk leer CPU BE.
-- Regla de oro: **nunca editar a mano el C generado** (`RecompiledFuncs/`). Todo fix va a
-  `config/*.syms.toml`, a la lista de reimplementadas del toolchain (ver ADR 0002) o al runtime.
+- Regla de oro: **nunca editar a mano el C generado**. Se regenera con `tools/regenerate.py` desde la
+  ROM (no se versiona; ADR 0009). Todo fix va a la config/syms, a la lista de reimplementadas del
+  toolchain (ver ADR 0002) o al runtime.
 - Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
 - Commitear cuando se valide una tarea o cuando haya que commitear documentación. No tocar ROMs ni
   `work/*.so` sin pedirlo.
@@ -88,7 +92,7 @@ es válido **después** de pushear los forks.
 - **Recompilador**: el ejecutable es `toolchain/src/N64Recomp/build_recomp/N64Recomp` (OUTPUT_NAME de
   `N64RecompCLI`). Rebuild con **`--target N64RecompCLI`**; `--target N64Recomp` **no** relinkea
   (causa de “el cambio no se aplica”). Tras tocar `symbol_lists.cpp`: rebuild del tool →
-  `python3 tools/recomp.py --config config/game_combined.toml --build`.
+  `python3 tools/regenerate.py` (recompila el C per-file).
 
 ## Comandos y workflows
 
@@ -98,6 +102,9 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
 
 - `PROYECTO.md`, `TODO.md`, `AGENTS.md` — docs vivos. · `docs/` (architecture, workflows,
   documentation) y `docs/adr/` — técnico/decisiones.
-- `config/` — `game_combined.toml` (activa, multi-módulo), `us_combined.syms.toml`, `us_ghidra.syms.toml`, `RecompiledFuncs_combined/`.
-- `port/HybridHeavenRecomp/` — port (CMake, `RecompiledFuncs/`, `src/`, `lib/`, builds).
-- `tools/` — scripts propios. · `notes/` — histórico (no editar). · `work/`, `toolchain/` — gitignored.
+- `config/` — `game_code_files.toml` (config per-file activa), `code_files.json` +
+  `code_files.overlays.txt` (manifiesto/orden de secciones), `n64recomp_changes/`, `rsp_hh_aspMain.toml`.
+- `port/HybridHeavenRecomp/` — port (CMake, `src/`, `lib/`, builds); `RecompiledFuncs/` es un
+  **symlink** gitignored a `work/recomp/RecompiledFuncs` (generado).
+- `tools/` — scripts propios (`regenerate.py`, `analyze_code_files.py`, `ghidra_sections.py`…) ·
+  `notes/` — histórico (no editar). · `work/`, `toolchain/` — gitignored.

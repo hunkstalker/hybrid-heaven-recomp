@@ -16,18 +16,20 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 - **`tools/`** → herramientas propias (extracción de assets, shim LZKN64, análisis); ver
   `tools/README.md`.
 - **`work/`** y **`toolchain/`** → artefactos derivados y herramientas, **gitignored**
-  (ROMs del usuario descomprimidas, proyecto Ghidra, toolchain). El repo versionado queda
-  limpio de assets (modelo No-Intro): el port requiere la ROM del usuario en runtime.
+  (ROMs del usuario, proyecto Ghidra, toolchain, C recompilado). El repo versionado queda limpio de
+  assets y del código derivado (modelo No-Intro; ADR 0009): el port requiere la ROM del usuario.
 
 ## Compilar y ejecutar
 
-Modelo (igual que Zelda64Recomp/Goemon64Recomp): el repositorio incluye **todo lo necesario para
-compilar el `.exe`** (el código del port, incluido el recompilado) y **no incluye datos del juego**
-(ni la ROM, ni assets/capturas, ni textos extraídos). El `.exe`, **al ejecutarse, busca la ROM del
-usuario y la procesa** para extraer los datos.
+Modelo (igual que Goemon64Recomp / Zelda64Recomp): el repositorio guarda **el port y sus
+herramientas**, y **no incluye datos del juego ni el código recompilado** (que es una traducción del
+binario del juego, obra derivada). El código recompilado se **regenera una vez desde tu ROM** antes
+de compilar.
 
-- **Compilar NO requiere la ROM.**
-- **Ejecutar sí**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
+- **Compilar requiere la ROM** (una vez, para recompilar): `python3 tools/regenerate.py` (necesita
+  JDK 21 + Ghidra + N64Recomp; ver `docs/workflows.md`). El C generado vive en `work/recomp/`
+  (gitignored) y el port lo toma por un symlink.
+- **Ejecutar también**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
   `0x0F6A72F2C36A216DULL`) en la carpeta `rom/` junto al ejecutable (`rom/baserom.us.z64`); como
   salvaguarda también se acepta `baserom.us.z64` junto al `.exe`. Nunca se distribuye la ROM ni una
   compilación con datos de ella.
@@ -45,9 +47,8 @@ upstream y `N64ModernRuntime` de un **fork propio** (rama `hybrid-heaven`, con n
 submódulo `N64Recomp`). Guías: `port/README_windows.md`, `port/README_linux.md`,
 `docs/workflows.md` §1, `docs/adr/0005`.
 
-> Solo para **mantenedores**: si tocas los símbolos del recompilador, regenera el C con tu ROM
-> (`tools/setup_module.py --build`, `tools/recomp.py --config config/game_combined.toml --force` y
-> `RSPRecomp`); el resultado sí se versiona porque es el código del port.
+> Solo para **mantenedores**: regenera el C con tu ROM (`python3 tools/regenerate.py`). El C
+> recompilado **no se versiona** (ADR 0009); se genera en `work/recomp/` y es la entrada de build.
 
 ## Estado
 

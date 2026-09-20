@@ -3,58 +3,51 @@
 > Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle
 > histórico, a `../notes/`.
 
-## 0. Primer setup (reconstruir los artefactos de los módulos desde la ROM)
+## 0. Primer setup (regenerar la recompilación desde la ROM)
 
-Los módulos de código (boot: Nisitenma idx **7, 23, 54**) no están planos en la ROM (Konami los
-comprime con **LZKN64**, tabla Nisitenma-Ichigo). Se reconstruyen **determinísticamente** desde la
-ROM del usuario:
-
-```sh
-python3 tools/setup_module.py --build
-# ROM -> blobs (lzkn64) -> config/us_module{7,23,54}.syms.toml
-#     -> work/scratch/us_combined.z64 -> config/us_combined.syms.toml
-#     -> recompila el set combinado y construye (--build)
-```
-
-Sin `--build`, solo regenera los artefactos; luego `recomp.py --config config/game_combined.toml --build`.
-Requisito: ROM US retail en `work/roms/us_retail.z64` (gitignored; la aporta el usuario).
-
-**Añadir un módulo** (al aparecer un `Failed to find function at 0x8...` en zona de módulo):
-1. Medir su base: `break FUN_80003824` → `ctx->r4`(src RO)/`r5`(base RAM)/`r6`(size); confirmar que
-   `src` es una entrada Nisitenma y que la base es estable en 2-3 runs.
-2. Añadir la entrada a `MODULES` en `tools/setup_module.py` (idx, `vram`=base, `rom_off` libre, CRC
-   del manifest). Si la función llamada **no** se detecta por prólogo/jal/jr, añadirla a `extra`.
-3. `python3 tools/setup_module.py --build`.
-
-**Nota (jump-tables)**: `gen_module_syms.py` fusiona los `switch` (el detector `jr $ra` los parte y
-N64Recomp exige las tablas dentro de la función). No reordenar/eliminar ese paso.
-
-`recomp.py` **limpia** `RecompiledFuncs/funcs_*.c` antes de copiar (el número de ficheros cambia).
-
-## 1. Recompilar y construir (pipeline)
-
-Un solo comando: valida syms → regenera (N64Recomp) → copia al port → `fix_fallthroughs` → build.
+El código del juego no está plano en la ROM (Konami lo comprime con **LZKN64**, tabla
+Nisitenma-Ichigo). Se regenera **determinísticamente** desde la ROM del usuario con el pipeline
+**per-file** (ver §1 y §5b). Requisito: ROM US retail en `work/roms/us_retail.z64` (gitignored; la
+aporta el usuario). **El C recompilado no se versiona** (ADR 0009).
 
 ```sh
-python3 tools/recomp.py                 # valida + regenera + copia + fixes
-python3 tools/recomp.py --build         # + cmake build_dbg
-python3 tools/recomp.py --fix-syms      # intenta corregir la syms si el validador falla
-python3 tools/recomp.py --dry-run       # muestra los pasos sin ejecutar
+python3 tools/regenerate.py     # ROM -> manifiesto (91 code files) -> extracción -> Ghidra por
+                                # fichero -> syms -> N64Recomp -> work/recomp/RecompiledFuncs
 ```
 
-Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **data-as-code**):
+`sus` herramientas: `tools/analyze_code_files.py` (manifiesto + extracción), `tools/ghidra_sections.py`
+(Ghidra per-file), `tools/gen_file_table.py` (`include/hh/file_table.h`). El pipeline antiguo por
+módulos (`setup_module.py` + `module_sources.inc`) queda **obsoleto** (ver `legacy/`).
+
+## 1. Regenerar la recompilación y construir
+
+**El C recompilado no se versiona** (obra derivada; ADR 0009). Se regenera una vez desde la ROM con
+**`tools/regenerate.py`** (dependencias de **desarrollo**: Python 3.11+, JDK 21 + Ghidra, N64Recomp,
+RSPRecomp):
 
 ```sh
-python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml
-python3 tools/analysis/validate_syms.py config/us_ghidra.syms.toml --fix --out work/debug/fixed.syms.toml
+python3 tools/regenerate.py                 # ROM -> manifiesto -> extraccion -> Ghidra per-file
+                                            #      -> syms -> N64Recomp -> fallthroughs -> build
+python3 tools/regenerate.py --skip-ghidra   # reutiliza work/scratch/syms (iterar N64Recomp)
+python3 tools/regenerate.py --rom ROM       # ROM explicita
 ```
 
-Regla: **nunca editar a mano el C generado**. Todo fix va a `config/*.syms.toml` y el validador
-lo propone (`--fix`). Windows (usuario): `cmake --build build --target HybridHeavenRecomp --config Debug`.
+Genera `work/recomp/RecompiledFuncs/` (destino del symlink `port/HybridHeavenRecomp/RecompiledFuncs`)
+y `include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `port\build_windows.bat`.
+
+Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **data-as-code**), parte
+del pipeline:
+
+```sh
+python3 tools/analysis/validate_syms.py work/scratch/code_files.syms.toml \
+    --rom work/scratch/code_combined.z64 --fix --out work/scratch/code_files.fixed.syms.toml
+```
+
+Regla: **nunca editar a mano el C generado**; todo fix va a la config/syms y se regenera.
 
 ### 1.1 Build reproducible en Linux (script y Docker)
 
-Para compilar el port **sin** regenerar syms (el C recompilado está versionado):
+Antes de compilar hay que **regenerar el C** (§1). Después:
 
 ```sh
 tools/build_linux.sh                 # clona deps (fork runtime + rt64) + CMake + build (Release)
@@ -126,41 +119,15 @@ nombre base y por tiempo (`triage.csv` ya marca `txt=yes/no`). Así se ata overl
 
 ## 5. Completar símbolos faltantes (evidencia runtime)
 
-La detección estática es poco fiable (jump-tables). La fuente fiable son los `Failed to find
-function at 0x...`: el runtime **aborta** al encontrarlos (deja la dirección en consola y en
-`hh_missing.log`). Bucle recomendado:
-
-```sh
-# 1) registrar la direccion (una sola orden; rechaza delay slots y switches fusionados)
-python3 tools/analysis/add_mid_entry.py 0x80379954
-# 2) recompilar (--force: el validador fusiona splits legitimas de epilogos compartidos)
-python3 tools/recomp.py --config config/game_combined.toml --force
-# 3) build (ver §1) y probar
-```
-
-- `add_mid_entry.py` edita **solo lo mínimo**: parte el símbolo contenedor en
-  `config/us_moduleNN.syms.toml` y `config/us_combined.syms.toml`, y anota la dirección en
-  `keep_syms.txt` + `module_extras.json`. **No** usar `setup_module.py` para esto: su detección
-  automática (`auto_mid`) puede cascar y meter **datos como código** (rompe el build con
-  `0 = cop0_register_read`). Ver `notes/2026-09-15-cuelgue-npc-fallthrough-m55-fuga-pila.md`.
-- **Overrides de tamaño**: los `0xADDR:0xSIZE` de `module_extras.json` deben sobrevivir a la edición.
-  `tools/analysis/check_syms_overrides.py` lo verifica y `recomp.py` (paso 1b) **aborta** si falta
-  alguno (perder `M9_FUN_802169AC:0x1C0` devolvía el símbolo a `0x4604` → stub `do_break` → cuelgue
-  del NPC). Ver `notes/2026-09-16-crash-cinematica-midentry-m9-80203830.md`.
-- `fix_fallthroughs.py` (paso automático del pipeline, §1) encadena además cuando la **última
-  instrucción ROM** es una **rama condicional** (`beq/bne/beql/bnel/bgtz/...`): su fall-through cae
-  al símbolo contiguo aunque la última sentencia C sea un `return`/`goto` dentro del `if` final
-  (caso `M55_FUN_8037a6f4` → `0x8037A884`, fuga `0x38`/frame + lógica saltada. Ver
-  `notes/2026-09-16-fix-caida-fallthrough-m55-8037a6f4.md`).
-- **Nunca** partir dentro de un rango de jump-table fusionada: el switch pierde sus casos como
-  etiquetas locales y pasa a `LOOKUP` (regresión real: crash de las escaleras con
-  `0x8037C50C/0x8037C530` → `0x8037C8E4`). La herramienta lo detecta y rechaza.
+> **Obsoleto** con el pipeline per-file (ver §5b): las fronteras vienen de Ghidra por fichero y no se
+> parchean a mano (`add_mid_entry`, `module_extras.json`, `keep_syms` → `legacy/`). `fix_fallthroughs.py`
+> sigue usándose (lo invoca `tools/regenerate.py`).
 - `HH_SOFT_LOOKUP=1` (solo para depurar símbolos) permite seguir con stub no-op; los stubs falsean
   la lógica del juego, no usar para validar.
 - `tools/analysis/fix_function_bounds.py <syms> --rom <rom> --report-only`: asesor CFG (propone
   inicios; **no** auto-aplicar: sobre-parte).
 
-## 5b. Recompilación per-file (en construcción)
+## 5b. Recompilación per-file (pipeline activo)
 
 Método correcto (sustituye a `setup_module.py` + `module_sources.inc`): **todos** los ficheros de
 código como secciones relocalizables. Método/porqué en

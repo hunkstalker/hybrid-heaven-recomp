@@ -62,7 +62,7 @@ Thumbs.db
 port/HybridHeavenRecomp/lib/N64ModernRuntime/
 port/HybridHeavenRecomp/lib/rt64/
 
-# Salidas intermedias del pipeline de recompilación (no son el input de build)
+# Salidas intermedias del pipeline de recompilación
 config/RecompiledFuncs_retail/
 config/RecompiledFuncs_retail_backup/
 config/RecompiledFuncs/
@@ -73,6 +73,13 @@ config/RecompiledFuncs_module7/
 config/*.fixed.syms.toml
 config/*.syms.toml.bak
 config/*.bak
+
+# C recompilado: obra derivada del binario del juego -> NO se versiona (norma del ecosistema:
+# Goemon64Recomp, ports N64Recomp; ver docs/adr/0009). Se regenera desde TU ROM con
+# tools/regenerate.py. `port/HybridHeavenRecomp/RecompiledFuncs` es un symlink al output
+# (work/recomp/RecompiledFuncs).
+port/HybridHeavenRecomp/RecompiledFuncs
+work/recomp/
 
 # Artefactos de build del usuario (release de Windows)
 hhport_win.zip

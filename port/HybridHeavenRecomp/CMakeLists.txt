@@ -56,25 +56,26 @@ add_subdirectory(lib/N64ModernRuntime)
 
 file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS RecompiledFuncs/funcs_*.c)
 
-# El codigo recompilado viene en el repo (compilar NO necesita la ROM). Si falta (p.ej. tras un
-# borrado), se regenera con la ROM del mantenedor. Ver README / docs/adr/0005.
+# El C recompilado es obra derivada del binario del juego y NO se versiona (ADR 0009). Se regenera
+# una vez desde TU ROM con `tools/regenerate.py` (requiere N64Recomp + Ghidra; ver README).
 if(NOT RECOMPILED_FUNCS)
     message(FATAL_ERROR
-        "Faltan RecompiledFuncs/funcs_*.c (deberian venir en el repo).\n"
-        "Si los has borrado, regenera con TU ROM:\n"
-        "  python3 tools/setup_module.py --build\n"
-        "  python3 tools/recomp.py --config config/game_combined.toml --force")
+        "Faltan RecompiledFuncs/funcs_*.c. El C recompilado NO se versiona (ADR 0009).\n"
+        "Regenera con TU ROM (una vez):\n"
+        "  python3 tools/regenerate.py\n"
+        "  (requiere JDK 21 + Ghidra + N64Recomp; ver docs/workflows.md y tools/README.md)")
 endif()
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
     message(FATAL_ERROR
-        "Falta rsp/hh_aspMain.cpp (deberia venir en el repo; se regenera con RSPRecomp de tu ROM).")
+        "Falta rsp/hh_aspMain.cpp (microcodigo RSP recompilado, tambien derivado).\n"
+        "Se regenera con tools/regenerate.py (RSPRecomp de tu ROM).")
 endif()
 
 add_executable(HybridHeavenRecomp
     src/main/main.cpp
     src/main/icon.cpp
     src/main/rt64_render_context.cpp
-    src/main/register_overlays.cpp
+    src/main/sections.cpp
     src/main/support.cpp
     src/game/input.cpp
     src/game/trans_cache.cpp

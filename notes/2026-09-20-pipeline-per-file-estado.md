@@ -140,11 +140,42 @@ A/B con el mismo replay `cac_full` (`HH_REPLAY_MODE=poll`, headless):
   no hay más `[LD384]`/`[OVL]`.
 
 Comprobado (no es la causa): fronteras del residente idénticas (mismos tamaños; solo 4 funciones
-filtradas), `funcs_0.c` idéntico, `FUN_801079B0`/`FUN_80133AAC` presentes; desactivar
-`register_module_sources` y/o usar las fronteras viejas de file_008 no lo arregla; sin lookup misses
-(`hh_missing.log`/stderr vacíos). `hh_hang.log` (`HH_HANG_FORCE`) muestra el hilo 5 en el bucle
-libultra `80026E58/80034C24/80034AB8/80031190/80026F58` (idle). **Siguiente paso**: volcar
-`hh_hang.log` del build viejo en el mismo VI y comparar el anillo del hilo 5 con el nuevo (ver
-`docs/workflows.md` §5b y `tools/analysis/ring_syms.py`); revisar la carga inicial
-`load_overlays(0x1000, entrypoint, 1MB)` y el registro de secciones en `init_overlays`.
+filtradas), **residente `funcs_0..14` byte-idéntico** al build viejo, `FUN_801079B0`/`FUN_80133AAC`
+presentes; desactivar `register_module_sources`, registrar todo flat (`HH_FLAT_ALL`), o usar las
+fronteras viejas de file_008 **no** lo arregla; sin lookup misses (`hh_missing.log`/stderr vacíos).
+
+## 10. A/B real viejo↔nuevo (reconstruido el viejo)
+
+Se reconstruyó el **build viejo determinista** (`git worktree` en `8fd6ddf`, + `setup_module.py`
+para los 11 módulos, `game_combined.toml`) y se hizo A/B con el mismo replay:
+
+- **Viejo**: carga `file_055` (`68BF26`) en `vi≈77` y sigue (decenas de overlays).
+- **Nuevo (per-file)**: solo `file_008`; se queda en el **mismo bucle libultra** de idle
+  (`80026E58/80026F58/80034AB8/80034C24/80031190=osGetTime`), pero **no** avanza.
+- **Contacto diferencial (calltrace de 4 s)**: los dos builds son idénticos hasta ~700 llamadas;
+  ambos ejecutan `func_80107830` (registra callbacks), `FUN_80005270` (dispatcher), etc. En el viejo,
+  `func_801079B0` **se invoca** (y dispara `FUN_80004484(0x37)` → carga `file_055`); en el nuevo
+  `func_801079B0` **nunca se invoca** (solo queda registrado). `FUN_80005270` corre en ambos.
+- **Conclusión**: el **código recompilado es el mismo**; la divergencia está en el **registro/estado
+  de secciones** (la cadena de callbacks de `file_008` no llega a `func_801079B0`). El residente y
+  `file_008` tienen fronteras y cuerpos idénticos.
+
+## 11. Fase A.2: loaders estilo referencia (hecho)
+
+Implementado en `port/HybridHeavenRecomp/src/main/sections.cpp` (sustituye a
+`register_overlays.cpp` + `module_sources.inc`):
+
+- `include/hh/file_table.h` (`tools/gen_file_table.py`): `kCodeFiles[]` `{id, vram, size}` en orden
+  de `code_files.overlays.txt`.
+- `announce_load(id, dest)`: evicta solapes (`unload_overlay_by_id`) y registra la sección vigente
+  (`load_overlay_by_id`).
+- Hooks por dirección (`add_loaded_function`) de **ambos** loaders (`FUN_8000469C`, `FUN_80004838`),
+  registrados en **`on_init`** (`hh::register_runtime_functions`, tras `init_overlays`; antes los
+  borraba `func_map.clear()`). `register_flat_code` ya no omite por `module_sources` (no se registra).
+- Añadidas `load_overlay_by_id`/`unload_overlay_by_id` a `overlays.hpp` del fork.
+
+El hook **funciona** (`[hh-load] file 8 -> 0x80107830`), pero **el boot sigue sin avanzar**: confirma
+que el registro no era la causa. **Siguiente paso**: comparar el estado de `func_map` / colas justo
+tras `func_80107830` entre viejo y nuevo, y por qué la cadena de callbacks de file_008 no progresa
+(el dispatcher `FUN_80005270` sí corre).
 

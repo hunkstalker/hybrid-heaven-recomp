@@ -10,6 +10,9 @@ import re, glob, os, sys, bisect
 RECOMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                           "..", "..", "port", "HybridHeavenRecomp", "RecompiledFuncs")
 RECOMP_DIR = os.path.normpath(RECOMP_DIR)
+# --recomp-dir DIR: apunta a otra copia del C generado (regenerate.py usa el destino del symlink).
+if "--recomp-dir" in sys.argv:
+    RECOMP_DIR = os.path.abspath(sys.argv[sys.argv.index("--recomp-dir") + 1])
 VRAM_BASE = 0x80000400
 MARKER = "@fallthrough-fix"
 PROLOGUE = ("uint64_t hi = 0, lo = 0, result = 0;", "int c1cs = 0;")

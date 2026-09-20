@@ -8,8 +8,9 @@
 #   3) configura y compila con CMake
 #
 # URL/SHA del runtime: port/runtime.lock (env NMR_URL / NMR_COMMIT los sobreescriben).
-# No necesita ROM ni toolchain/Ghidra: el C recompilado (RecompiledFuncs/) esta versionado.
-# La ROM solo hace falta para EJECUTAR: ponla en la carpeta rom/ junto al binario
+# Antes de compilar hay que regenerar el C recompilado desde TU ROM (no se versiona; ADR 0009):
+#   python3 tools/regenerate.py        (una vez; requiere JDK 21 + Ghidra + N64Recomp)
+# La ROM tambien hace falta para EJECUTAR: ponla en la carpeta rom/ junto al binario
 # (rom/baserom.us.z64); tambien se acepta baserom.us.z64 junto al binario como salvaguarda.
 #
 # Uso:

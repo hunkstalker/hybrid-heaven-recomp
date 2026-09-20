@@ -17,6 +17,8 @@ namespace hh {
     const char* get_version_string();
 
     void register_overlays();
+    // Hooks de loader (add_loaded_function): deben registrarse en on_init, no antes.
+    void register_runtime_functions();
 
     extern "C" {
         void recomp_entrypoint(uint8_t* rdram, recomp_context* ctx);

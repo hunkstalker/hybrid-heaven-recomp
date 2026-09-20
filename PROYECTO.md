@@ -49,9 +49,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 **Estado actual (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
 incompleta: solo 11 de 91 code files y un solo loader; ver `notes/2026-09-20-lecciones-*.md`). Se
-rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero). Fase 0
-+ Fase 2.1-2.3 **hechas**; el set de 91 aún no cierra por jump-tables/fronteras/`jal` final
-(`notes/2026-09-20-pipeline-per-file-estado.md`, `RETOMAR.md`). Se conserva el runtime del port.
+rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero): el
+pipeline **completo** (Fase 0-2.5) está hecho (**N64Recomp rc=0**); el C **deja de versionarse**
+(ADR 0009) y se regenera con `tools/regenerate.py`. Loaders estilo referencia implementados
+(`src/main/sections.cpp`). **Bloqueante**: el build per-file arranca pero no pasa de la fase temprana
+(solo carga `file_008`; el viejo `file_055` en `vi≈77`); el código es idéntico, la divergencia está en
+el registro/estado de secciones (`notes/2026-09-20-pipeline-per-file-estado.md` §9-11, `RETOMAR.md`).
 **Estado anterior (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
 `HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
 **CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa localizada (2026-09-20)**:

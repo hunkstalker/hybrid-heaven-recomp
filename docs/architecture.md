@@ -210,8 +210,11 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
 
 ## 6. Toolchain de recompilación
 
-- Config activa: `config/game_combined.toml` → `us_combined.syms.toml` → `RecompiledFuncs_combined/`
-  (imagen plana + módulos idx 7/23/54). La `game_unified.toml` es auxiliar.
+- Config activa (per-file): `config/game_code_files.toml` → `code_files.fixed.syms.toml` (generada)
+  → `RecompiledFuncs_code/` → `work/recomp/RecompiledFuncs/` (symlink desde el port). El set es el
+  **residente `.text` + 91 secciones `.file_NN`**; se regenera con `tools/regenerate.py`.
+  Configs antiguas (`game_combined.toml`, `setup_module.py`, `module_sources.inc`) → obsoletas.
+- **El C recompilado no se versiona** (obra derivada; ADR 0009): vive en `work/recomp/` (gitignored).
 - Recompilador: `toolchain/src/N64Recomp/build_recomp/N64Recomp` (OUTPUT_NAME de `N64RecompCLI`:
   rebuild con **`--target N64RecompCLI`**, no `--target N64Recomp`).
 - **Parche del toolchain** (`symbol_lists.cpp`, ver ADR 0002): se quitó de `reimplemented_funcs`/
@@ -219,10 +222,10 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   `__osInitialize_common`, `osCreatePiManager`, `__osDevMgrMain`, `__osViInit`, `__osViSwapContext`,
   `__osGetSR/SetSR/GetCause/SetCause`, `__osSpRawReadIo/WriteIo`) para que se recompile la versión del
   ROM. `toolchain/` está gitignored: el parche se documenta aquí (y en ADR 0002), no se versiona.
-- Port: `port/HybridHeavenRecomp/` (CMake globs `RecompiledFuncs/funcs_*.c`).
-- Post-paso obligatorio: `tools/analysis/fix_fallthroughs.py`.
-- Quirk conocido: añadir la declaración `osYieldThread_recomp` a `funcs.h` tras cada regen.
-- Regla: **nunca editar a mano el C generado**; todo fix va a la syms/config (ADR 0002).
+- Registro de secciones: `port/HybridHeavenRecomp/src/main/sections.cpp` (`file_table.h` + hooks
+  `add_loaded_function` / `load_overlay_by_id` / `unload_overlay_by_id`).
+- Post-paso obligatorio: `tools/analysis/fix_fallthroughs.py` (lo invoca `tools/regenerate.py`).
+- Regla: **nunca editar a mano el C generado**; se regenera desde la config/syms (ADR 0009).
 
 ## 7. Preguntas abiertas (bloquean el diseño)
 

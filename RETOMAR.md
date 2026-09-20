@@ -51,17 +51,18 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 
 ## 2. ESTADO ACTUAL (checkpoint)
 
-- **Hecho (2026-09-20, esta sesión)**: **Fase 0** (Ghidra + wrapper), **Fase 2.1-2.3** (manifiesto
-  de los **91 code files**, extracción, **Ghidra per-file** → syms `.file_NN`, ROM combinado) y
-  **Fase 2.4-2.5** (syms agregada + `relocatable_sections_path` + **N64Recomp completo, rc=0**;
-  port **compila y arranca** con las 91 secciones). Estado/bloqueos/regresión:
-  `notes/2026-09-20-pipeline-per-file-estado.md`. Herramientas: `tools/analyze_code_files.py`,
-  `tools/ghidra_sections.py`, `tools/analysis/fix_per_file_syms.py`, `tools/analysis/ghidra_code/`.
-- **Regresión pendiente (BLOQUEANTE)**: el build per-file arranca pero **no pasa de la fase
-  temprana** (solo carga `file_008`; el build viejo cargaba `file_055` en `vi≈85` y seguía). A/B,
-  comprobaciones descartadas y siguiente paso (diff de `hh_hang.log` viejo↔nuevo) en la nota §9.
+- **Hecho (2026-09-20, esta sesión)**: Fase 0-2.5 (manifiesto de los **91 code files**, extracción,
+  **Ghidra per-file** → syms `.file_NN`, **N64Recomp completo rc=0**; port compila y arranca con las
+  91 secciones). **Saneamiento**: el **C recompilado deja de versionarse** (obra derivada; **ADR 0009**)
+  y se regenera con **`tools/regenerate.py`**; `.gitignore` + symlink `RecompiledFuncs` →
+  `work/recomp/RecompiledFuncs`; **historia reescrita** (filter-branch) para eliminar el C del pasado
+  (`.git` 15.4 → 1.6 MB; **force-push pendiente**). **Fase A.2**: loaders estilo referencia en
+  `src/main/sections.cpp` (`file_table.h` + `announce_load` + hooks en `on_init`).
+- **Regresión pendiente (BLOQUEANTE)**: el build per-file arranca pero **no pasa de la fase temprana**
+  (solo carga `file_008`; el viejo cargaba `file_055` en `vi≈77`). A/B real viejo↔nuevo y conclusión
+  (código idéntico; diverge registro/estado) en `notes/2026-09-20-pipeline-per-file-estado.md` §9-11.
 - **Trabajo en el árbol**: el fix parcial del 57 (módulo 56 + wrapper streamed) queda **sustituido**
-  por la recompilación per-file. Ver §9 (repos).
+  por la recompilación per-file. Ver §7 (repos) y §8.
 - `legacy/` creado; `legacy/RETOMAR.md` es el handoff anterior. `legacy/README.md` explica el archivo.
 - **Runtime nuevo ya añadido** (fork `N64ModernRuntime`): instrumentación de diagnóstico y el
   wrapper del loader streamed. Se conserva (útil), pero la capa de **registro de módulos**
@@ -158,25 +159,28 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 - **Main repo** (`origin` → `hunkstalker/hybrid-heaven-recomp`, `main`).
 - **N64ModernRuntime** (fork, rama `hybrid-heaven`) y **N64Recomp** (fork, `hybrid-heaven`).
 - Orden de push: **N64Recomp → N64ModernRuntime → main** (`port/runtime.lock` los pinea).
-- Checkpoint actual: commit "semi-recomienzo / handoff" (ver `git log`). El árbol queda limpio.
+- **Historia reescrita (2026-09-20)**: se eliminó el C recompilado de **todos los commits**
+  (`git filter-branch`, 258 commits; `.git` 15.4 → 1.6 MB). Los **hashes cambiaron** y `origin/main`
+  queda divergente → **`git push --force-with-lease origin main`** (pendiente; hacerlo cuando la
+  tarea valide). Respaldo del histórico previo: `git bundle` externo (no en el repo).
 
 ---
 
 ## 8. PRIMEROS PASOS DE LA SESIÓN NUEVA
 
-> Hecho ya (esta sesión): Fase 0, Fase 2.1-2.3 y Fase 2.4-2.5 (N64Recomp rc=0; port compila y
-> arranca). **Bloqueante actual**: el boot no avanza de la fase temprana (§2). Detalle y reproducción:
-> `notes/2026-09-20-pipeline-per-file-estado.md`.
+> Hecho ya (esta sesión): Fase 0-2.5 (N64Recomp rc=0), saneamiento (ADR 0009, no versionar el C,
+  `tools/regenerate.py`) y Fase A.2 (loaders estilo referencia). **Bloqueante**: el boot no avanza de
+  la fase temprana (§2). Detalle y reproducción: `notes/2026-09-20-pipeline-per-file-estado.md`.
 
-1. **Diagnosticar la regresión de boot** (§9 de la nota): volcar `hh_hang.log` del build viejo
-   (git) y del nuevo en el mismo VI y comparar el anillo del hilo 5; revisar
-   `load_overlays(0x1000, entrypoint, 1MB)` y `init_overlays`/`register_flat_code` con 91 secciones.
+1. **Cerrar el diagnóstico de boot** (§10-11 de la nota): el código recompilado es idéntico al viejo;
+   la cadena de callbacks de `file_008` **no llega a `func_801079B0`** aunque el dispatcher
+   `FUN_80005270` corre. Comparar `func_map`/colas justo tras `func_80107830` viejo↔nuevo.
 2. **Si se confirma**: cerrar Fase 3 (completitud: secciones == code files, todo `jal` resuelve, sin
    solapes/datos-como-código) y validar boot + CaC (sin workarounds `HH_*`).
-3. **Cobertura de loaders**: verificar que **todos** los code files cargan por
-   `FUN_80003824`/streamed y se notifican (nuestro `module_sources` mapea 91; todos comprimidos).
-4. Mover a `legacy/` lo obsoleto (`setup_module.py`, `module_sources` viejo, workarounds) y
-   reescribir docs vivos. Commitear cuando una tarea salga validada (indicación del mantenedor).
+3. **Fase C (purga)**: mover a `legacy/` lo obsoleto (`setup_module.py`, `module_sources.inc`,
+   `config/us_*.syms.toml`, workarounds `HH_*`), split `recomp/`+`port/`, y **quitar del fork runtime**
+   `register_module_sources`/`load_module_by_source`/`hh_wrap_FUN_80003848`.
+4. **Force-push** (§7) cuando valide; actualizar `runtime.lock`/docs vivos si cambia el runtime.
 
 ---
 
