@@ -51,9 +51,17 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 
 ## 2. ESTADO ACTUAL (checkpoint)
 
-- **Trabajo en el árbol**: fix parcial del 57 (módulo 56 extraído/recompilado + wrapper de
-  `FUN_80004838` + `recomp_syscall_handler`), sin validar en Windows. Se conserva como referencia;
-  **será sustituido** por la recompilación per-file. Ver §9 (repos).
+- **Hecho (2026-09-20, esta sesión)**: **Fase 0** (Ghidra + wrapper), **Fase 2.1-2.3** (manifiesto
+  de los **91 code files**, extracción, **Ghidra per-file** → syms `.file_NN`, ROM combinado) y
+  **Fase 2.4-2.5** (syms agregada + `relocatable_sections_path` + **N64Recomp completo, rc=0**;
+  port **compila y arranca** con las 91 secciones). Estado/bloqueos/regresión:
+  `notes/2026-09-20-pipeline-per-file-estado.md`. Herramientas: `tools/analyze_code_files.py`,
+  `tools/ghidra_sections.py`, `tools/analysis/fix_per_file_syms.py`, `tools/analysis/ghidra_code/`.
+- **Regresión pendiente (BLOQUEANTE)**: el build per-file arranca pero **no pasa de la fase
+  temprana** (solo carga `file_008`; el build viejo cargaba `file_055` en `vi≈85` y seguía). A/B,
+  comprobaciones descartadas y siguiente paso (diff de `hh_hang.log` viejo↔nuevo) en la nota §9.
+- **Trabajo en el árbol**: el fix parcial del 57 (módulo 56 + wrapper streamed) queda **sustituido**
+  por la recompilación per-file. Ver §9 (repos).
 - `legacy/` creado; `legacy/RETOMAR.md` es el handoff anterior. `legacy/README.md` explica el archivo.
 - **Runtime nuevo ya añadido** (fork `N64ModernRuntime`): instrumentación de diagnóstico y el
   wrapper del loader streamed. Se conserva (útil), pero la capa de **registro de módulos**
@@ -156,9 +164,155 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 
 ## 8. PRIMEROS PASOS DE LA SESIÓN NUEVA
 
-1. Leer `notes/2026-09-20-lecciones-recompilacion-per-file.md` (crear si no existe) y esta nota.
-2. **Fase 0**: instalar Ghidra + wrapper; documentar.
-3. **Fase 2.1**: generar el **manifiesto de los 91 code files** (Nisitenma + tabla VRAM).
-4. Empezar por un fichero conocido (idx 56 / file 57) para validar el pipeline Ghidra→syms→N64Recomp,
-   y luego generalizar a los 91.
-5. Ir moviendo a `legacy/` lo obsoleto conforme se decide, y reescribir los docs vivos.
+> Hecho ya (esta sesión): Fase 0, Fase 2.1-2.3 y Fase 2.4-2.5 (N64Recomp rc=0; port compila y
+> arranca). **Bloqueante actual**: el boot no avanza de la fase temprana (§2). Detalle y reproducción:
+> `notes/2026-09-20-pipeline-per-file-estado.md`.
+
+1. **Diagnosticar la regresión de boot** (§9 de la nota): volcar `hh_hang.log` del build viejo
+   (git) y del nuevo en el mismo VI y comparar el anillo del hilo 5; revisar
+   `load_overlays(0x1000, entrypoint, 1MB)` y `init_overlays`/`register_flat_code` con 91 secciones.
+2. **Si se confirma**: cerrar Fase 3 (completitud: secciones == code files, todo `jal` resuelve, sin
+   solapes/datos-como-código) y validar boot + CaC (sin workarounds `HH_*`).
+3. **Cobertura de loaders**: verificar que **todos** los code files cargan por
+   `FUN_80003824`/streamed y se notifican (nuestro `module_sources` mapea 91; todos comprimidos).
+4. Mover a `legacy/` lo obsoleto (`setup_module.py`, `module_sources` viejo, workarounds) y
+   reescribir docs vivos. Commitear cuando una tarea salga validada (indicación del mantenedor).
+
+---
+
+# ▓▓ PLAN DE SANEAMIENTO (PRIORITARIO) ▓▓
+
+> Objetivo: **una sola arquitectura de recompilación, sin código viejo innecesario, con el recomp
+> nuevo funcionando**. Hoy el build es un **híbrido** (recomp per-file nuevo + registro de loaders
+> viejo + residente reciclado) y por eso no arranca más allá de la fase temprana.
+> **Orden crítico**: completar/migrar y validar **antes** de borrar. Limpiar antes puede quitar lo
+> que hoy “tapa” el fallo.
+
+## S0. Arquitectura objetivo (única)
+- Recompilación **per-file**: 1 sección relocalizable por fichero de código (`.file_NN`) y el
+  **residente `.text` generado con Ghidra por-file** (no reciclado de `us_ghidra.syms.toml`).
+- **Registro por loader notificado**: implementar `recomp_load_overlays(rom, ram, size)` /
+  `recomp_unload_overlays(ram, size)` y llamarlos desde **ambos** loaders (`FUN_80003824`/`0x8000469C`
+  y `FUN_80004838`). **Sin** `module_sources`, **sin** `hh_stream_id_to_src`, **sin** wrappers
+  manuales de registro.
+- Config única `recomp/game.toml` (hoy `config/game_code_files.toml`).
+- Artefacto versionado: el **C recompilado** (`port/HybridHeavenRecomp/RecompiledFuncs/`); las syms
+  y el ROM combinado viven en `work/` (dev, gitignored) — salvo decisión explícita de versionar la
+  syms agregada para reproducir sin Ghidra.
+
+## S1. Inventario legacy → sustituto
+
+**`config/`** (mover a `legacy/config/` o borrar):
+- Syms viejas: `us_ghidra.syms.toml`, `us_combined.syms*.toml(.bak)`, `us_module*.syms.toml`
+  (+`.fixed`/`.keep`), `us_dec/us_retail/us_unified.syms.toml`, `keep_syms*.txt`,
+  `module_extras.json`, `merge_loop.py`.
+- Configs viejas: `game.toml`, `game_combined.toml`, `game_module7.toml`, `game_retail.toml`,
+  `game_unified.toml` → sustituidas por la nueva.
+- `RecompiledFuncs_*` viejas (gitignored): borrar del disco.
+- **Conservar**: `n64recomp_changes/`, `rsp_hh_aspMain.toml`, `code_files.json`,
+  `code_files.overlays.txt`, `game_code_files.toml`.
+
+**`tools/`** (borrar → `legacy/tools/`):
+- `setup_module.py`, y de `analysis/`: `gen_module_syms.py`, `gen_ghidra_syms.py`,
+  `fix_function_bounds.py`, `fix_ghidra_sizes.py`, `add_mid_entry.py`, `add_missing_funcs.py`,
+  `gen_module_extras.py`, `check_syms_overrides.py`, `overlay_chunks.py`, `auto_syms_loop.py`,
+  `merge_loop.py`, `scan_lzkn64_strict.py`, `test_lzkn64.py`, `detect_lzkn64.py`, `textseg.py`,
+  `parse_exec_trace.py`.
+- **Conservar**: `analyze_code_files.py`, `ghidra_sections.py`, `ghidra_headless.sh`,
+  `install_ghidra.sh`, `analysis/fix_per_file_syms.py`, `analysis/validate_syms.py`, `lzkn64/`,
+  `rommy.py`, `build_linux.sh` y diagnósticos (RDRAM/emu/screenshots/`docs_index`).
+- `recomp.py`: **reescribir** para el pipeline per-file (o retirar hasta tener el nuevo).
+
+**Runtime fork (`N64ModernRuntime`, `librecomp/src/overlays.cpp`)**:
+- Quitar `register_module_sources` / `load_module_by_source` / mapa `module_sources` y el wrapper
+  `hh_wrap_FUN_80004838` + `hh_stream_id_to_src`; en su lugar, notificar `load_overlays`/
+  `unload_overlays` desde los loaders.
+- **Conservar**: `register_overlays`/`init_overlays`/`load_overlays`/`unload_overlays` (genéricos) y
+  la **evicción de solapes** (`hh_unload_sections_overlapping`, útil).
+- Instrumentación `HH_*`: conservar durante el reset (gated); **podar al final**.
+
+**Port `src/`**:
+- `register_overlays.cpp` + `module_sources.inc`: simplificar (sin `module_sources`); añadir los
+  hooks de loader (`recomp_load_overlays`/`unload`).
+- **Conservar**: `main.cpp`, `icon.cpp`, `rt64_render_context.cpp`, `support.cpp`, `input.cpp`,
+  `trans_cache.cpp`, `firmware.c`, `rsp/hh_aspMain.cpp`.
+
+**Docs/notas/bats**:
+- `docs/`/`notes/` viejos → `legacy/`; las `notes/2026-09-20-*` vivas se conservan/reescriben.
+- Bats de diagnóstico CaC → `legacy/port/`; conservar `build_windows*.bat`, `run_windows.bat`.
+
+## S2. Fases (con *gates* de verificación)
+
+**Fase A — Completar el recomp nuevo (NO borrar nada aún)**
+1. **Residente con Ghidra per-file** (`ghidra_sections.py`): no reciclar `us_ghidra.syms.toml`;
+   excluir rangos de overlay; re-recompilar. *Gate: `N64Recomp rc=0`; sin avisos nuevos de
+   stub/datos-como-código.*
+2. **Loaders estilo Goemon**: `recomp_load_overlays`/`unload` en ambos loaders; mapear **todos** los
+   ids (no solo 57). *Gate: `[OVL]` de todos los ficheros que carga el boot.*
+3. **A/B de la regresión**: comparar `hh_hang.log`/`hh_state.log` viejo↔nuevo en el mismo VI (anillo
+   del hilo 5) y aislar el punto de divergencia. *Gate: el boot avanza como el viejo o más.*
+
+**Fase B — Validar la base nueva**
+4. Boot headless + en vivo y **CaC** (sin workarounds `HH_*`). *Gate: entra al combate.*
+
+**Fase C — Purga legacy**
+5. `git rm`/mover todo lo de S1; `CMakeLists.txt` y config apuntan solo a lo nuevo.
+6. Retirar workarounds de síntoma (runtime: `HH_M55SPFIX`, etc.; config: `module_extras`,
+   `add_mid_entry`). Podar instrumentación `HH_*` que ya no se use.
+7. Reescribir/ordenar docs vivas; regenerar `docs/INDEX.md`.
+
+**Fase D — Cierre**
+8. Checks de completitud (S3).
+9. Actualizar `runtime.lock` (commits nuevos), `AGENTS.md` (deps build vs recompilación), commit(s) y
+   push (forks → main).
+
+## S3. Checks de completitud (CI)
+- nº de secciones == nº de code files (91); residente sin funciones en rango de overlay.
+- Todo `jal`/`jalr` resuelve (sin `do_break`/stubs por frontera perdida).
+- Sin “datos-como-código” (`syscall`/`mthi`/`break` en regiones de datos).
+- Carga de overlays: cada `[LD384]`/streamed tiene su `[OVL]`/registro; sin `func_map` rancio.
+
+## S4. Riesgos y mitigaciones
+- **Purgar antes de validar** → puede reintroducir la regresión. Mitigación: purgar solo tras Fase B.
+- **Evicción/registro** → verificar `func_map` sin rancios (A/B con `HH_NO_EVICT`).
+- **Determinismo de Ghidra** → fijar versión (12.1.3 ya instalada) y documentarla.
+- **Syms no versionadas** → regenerar exige Ghidra (dep. de dev documentada); alternativa: versionar
+  `recomp/syms/`.
+
+---
+
+# ▓▓ MEJORAS ESTRUCTURALES PROPUESTAS ▓▓
+
+> Hoy la raíz mezcla dos proyectos: el **port** (build/uso) y el **pipeline de recompilación** (dev).
+> Separarlos evita que lo viejo contamine el build (causa de fondo del estado híbrido).
+
+1. **Split `recomp/` + `port/`**:
+   ```
+   recomp/            # pipeline per-file (dev)
+     game.toml  code_files.json  code_files.overlays.txt
+     n64recomp_changes/  rsp/  ghidra/  syms/(opcional)
+   port/HybridHeavenRecomp/{src,RecompiledFuncs,assets,rsp,lib,...}
+   ```
+   `config/` deja de ser un cajón (hoy 62 entradas mezclando 5 `game_*.toml`, syms, `RecompiledFuncs_*`,
+   `module_extras.json`, `n64recomp_changes/`, `rsp_hh_aspMain.toml`, `config.ini`).
+2. **Documentación viva vs histórica**: `docs/` = referencia viva, con **`GAME-INTERNALS.md`**
+   (tablas Nisitenma/VRAM, loaders, intercambio de overlays, LZKN64) y **`docs/issues/NNN-*.md`**
+   (bugs numerados con estado). `notes/` = evidencia de sesión.
+3. **`docs/PLAN.md`** (plan maestro) separado de `RETOMAR.md` (handoff) y `TODO.md` (tareas).
+4. **Deps en dos secciones explícitas**: *build del port* (usuario: toolchain, CMake, SDL2, RT64,
+   Python + ROM) vs *regenerar la recompilación* (dev: Python, `lzkn64`, N64Recomp con
+   `n64recomp_changes/`, **Ghidra** + JDK).
+5. **Bats ordenados**: `port/` (build/run) y `port/diag/` (diagnóstico); one-off a `legacy/port/`.
+6. **Fuente única del mapeo de overlays**: `code_files.json` + `code_files.overlays.txt` (pequeños,
+   versionados) + doc que los explique; eliminar la verdad repartida en `module_sources.inc`/
+   `module_extras.json`/notas.
+7. **CI (`.github/workflows/ci.yml`)**: job de **completitud** (S3) + build del port.
+8. **Higiene de raíz**: quitar `hhport_win.zip`, `.backup/`, `build/` de raíz, `config.ini` local; y
+   un `README` en `RecompiledFuncs/` aclarando que es **generado** (no editar a mano).
+9. **Pins de runtime**: `runtime.lock` pinea NMR; pinear/ documentar **RT64** igual; actualizar el pin
+   NMR tras push.
+
+## Decisiones (recomendadas, pendientes de tu OK)
+- Adoptar **`recomp/` + `port/`** y `docs/GAME-INTERNALS.md` / `docs/issues/` / `docs/PLAN.md`.
+- ¿Versionar la **syms agregada** en `recomp/syms/` (reproducir sin Ghidra) o dejarla en `work/`?
+- Config final: `recomp/game.toml` (renombrar `game_code_files.toml`) o mantener el nombre.
