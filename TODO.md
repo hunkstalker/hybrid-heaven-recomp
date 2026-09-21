@@ -11,8 +11,10 @@
   `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 HECHO** (splat 0.50.0 + spimdisasm 1.42.4
   en `toolchain/splat-venv`; MIPS por LLVM `llvm-mc`/`ld.lld`; `tools/install_splat.sh`,
   `tools/splat_headless.sh`). **M1 HECHO** (`tools/unpack_rom.py`: imagen expandida + `segments.json`
-  + `file_table.h`; 91 code files, 0x368070 bytes). **Siguiente: M2** (splat → ELF). Sub-paso
-  posterior: evaluar libultra del runtime (choca con ADR 0002/0003).
+  + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`tools/build_elf.sh` + `gen_link_syms.py`:
+  splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; gate: reconstruye la imagen byte a byte).
+  **Siguiente: M3** (N64Recomp ELF mode). Sub-paso posterior: evaluar libultra del runtime (choca con
+  ADR 0002/0003).
 - [ ] **Migración a submódulos (hecho, sin commitear)**: `lib/{N64ModernRuntime,rt64}` como submódulos
   (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push/force-push de los forks
   para que un clon limpio los resuelva.

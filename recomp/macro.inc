@@ -1,20 +1,48 @@
 /* Macros de ensamblador para la salida de splat (vía ELF, ADR 0011).
  *
- * Es NUESTRO y se versiona: no vive en asm/ (generado, gitignored, borrado en cada re-split). El
- * build-elf pone este directorio en el include path del ensamblador (-I recomp).
+ * Es NUESTRO y se versiona; se usa con `-I recomp` (sustituye al include/macro.inc que genera
+ * splat). Diferencia clave con el de splat: `nonmatching` fija el TAMAÑO de la función real
+ * (`.size name, size`), no un símbolo `name.NON_MATCHING`. N64Recomp solo recompila una función
+ * cuyo símbolo tiene tamaño; con la versión de splat, todas quedarían de tamaño 0 y no emitiría
+ * nada (ni error ni aviso).
  *
- * El generador del YAML usa asm_data_macro: dlabel y asm_jtbl_label_macro: jlabel, de modo que solo
- * las funciones reales quedan @function; los datos y las jump-tables, @object.
+ * `alabel` (entry alternativo) se define SIN `.aent`: llvm-mc no soporta `.aent` y además rompía el
+ * emparejamiento `.ent`/`.end`. `endlabel` fija el tamaño real.
  */
 
-.macro glabel label
-    .global \label
+.ifndef _HH_MACRO_INC
+.internal _HH_MACRO_INC
+.set _HH_MACRO_INC, 1
+
+.macro glabel label, visibility=global
+    .\visibility \label
     .type \label, @function
     \label:
 .endm
 
-.macro dlabel label
-    .global \label
+.macro endlabel label
+    .size \label, . - \label
+.endm
+
+.macro alabel label, visibility=global
+    .\visibility \label
+    .type \label, @function
+    \label:
+.endm
+
+.macro ehlabel label, visibility=global
+    .\visibility \label
+    \label:
+.endm
+
+.macro jlabel label, visibility=global
+    .\visibility \label
+    .type \label, @object
+    \label:
+.endm
+
+.macro dlabel label, visibility=global
+    .\visibility \label
     .type \label, @object
     \label:
 .endm
@@ -23,28 +51,80 @@
     .size \label, . - \label
 .endm
 
-/* La jump-table está en un objeto de datos; el código que la usa, en uno de texto. */
-.macro jlabel label
-    .global \label
-    .type \label, @object
-    \label:
+.macro nonmatching label, size=1
+    .size \label, \size
 .endm
 
-/* spimdisasm emite `nonmatching <name>, <size>` antes de cada etiqueta; para una función, ese tamaño
- * es su longitud real. Es el ÚNICO sitio donde aparece el tamaño de una función (enddlabel cierra
- * datos, pero nada cierra una función), así que aquí es donde un símbolo func_ recibe su st_size.
- *
- * Importa más de lo que parece: N64Recomp solo recompila una función cuyas palabras de sección no
- * estén vacías, y las deriva del tamaño del símbolo. Sin este macro, todas las funciones quedan de
- * tamaño 0 y el recompilador no emite nada (ni error ni aviso).
- *
- * El tamaño es opcional porque las etiquetas de datos se anuncian igual sin él; esas toman su
- * tamaño real de enddlabel más abajo (que sobreescribe el 0 puesto aquí).
- */
-.macro nonmatching name, size=0
-    .size \name, \size
+.macro sizeof label, size
+    .size \label, \size
 .endm
 
-.macro sizeof name, size
-    .size \name, \size
-.endm
+/* Alias de registros COP0 (los usa libultra del residente). */
+.set Index,         $0
+.set Random,        $1
+.set EntryLo0,      $2
+.set EntryLo1,      $3
+.set Context,       $4
+.set PageMask,      $5
+.set Wired,         $6
+.set Reserved07,    $7
+.set BadVaddr,      $8
+.set Count,         $9
+.set EntryHi,       $10
+.set Compare,       $11
+.set Status,        $12
+.set Cause,         $13
+.set EPC,           $14
+.set PRevID,        $15
+.set Config,        $16
+.set LLAddr,        $17
+.set WatchLo,       $18
+.set WatchHi,       $19
+.set XContext,      $20
+.set Reserved21,    $21
+.set Reserved22,    $22
+.set Reserved23,    $23
+.set Reserved24,    $24
+.set Reserved25,    $25
+.set PErr,          $26
+.set CacheErr,      $27
+.set TagLo,         $28
+.set TagHi,         $29
+.set ErrorEPC,      $30
+.set Reserved31,    $31
+
+/* Alias de registros de coma flotante por nombre de decomp (los emite spimdisasm). */
+.set $fv0,          $f0
+.set $fv0f,         $f1
+.set $fv1,          $f2
+.set $fv1f,         $f3
+.set $ft0,          $f4
+.set $ft0f,         $f5
+.set $ft1,          $f6
+.set $ft1f,         $f7
+.set $ft2,          $f8
+.set $ft2f,         $f9
+.set $ft3,          $f10
+.set $ft3f,         $f11
+.set $fa0,          $f12
+.set $fa0f,         $f13
+.set $fa1,          $f14
+.set $fa1f,         $f15
+.set $ft4,          $f16
+.set $ft4f,         $f17
+.set $ft5,          $f18
+.set $ft5f,         $f19
+.set $fs0,          $f20
+.set $fs0f,         $f21
+.set $fs1,          $f22
+.set $fs1f,         $f23
+.set $fs2,          $f24
+.set $fs2f,         $f25
+.set $fs3,          $f26
+.set $fs3f,         $f27
+.set $fs4,          $f28
+.set $fs4f,         $f29
+.set $fs5,          $f30
+.set $fs5f,         $f31
+
+.endif

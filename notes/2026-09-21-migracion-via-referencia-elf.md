@@ -105,13 +105,16 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   `work/scratch/expanded/hh.expanded.z64` (20349040 bytes), todos los `text_size` > 0.
   *Abierto*: el SHA-1 de la imagen no coincide con el documentado por la referencia
   (`99ba14e6…`); la puerta real es ELF↔nuestra imagen. Revisar si aparece una divergencia.
-- **Siguiente: M2** (splat → asm → ELF).
-- **M2 en curso**: split de splat **OK** (95 segmentos, 225 `.s`, 15944 `glabel`, linker script +
-  `undefined_*`). `recomp/hybrid-heaven.us.yaml` + `recomp/macro.inc` versionados; `asm/`, `include/`
-  (splat), `build-elf/`, `ld` y `undefined_*` gitignored (derivados). Ensamblado con `llvm-mc`: viable
-  tras normalizar el único GNU-ismo (`.set gp=64` → `.set gp,64`); `file_008.s` produce objeto OK.
-  *Pendiente*: enlazar (`gen_link_syms` + segmentos bin `ipl3`/`gap` + `ld.lld`) → ELF; y el gate
-  ELF↔imagen.
+- **M2 HECHO**: split de splat OK + ensamblado/enlazado con LLVM → `elf/hybrid-heaven.us.elf`.
+  Scripts: `tools/build_elf.sh` (normaliza `.set gp=64`, `glabel D_`→`dlabel D_`; ensambla con
+  `llvm-mc`; envuelve `ipl3`/`gap` con `.incbin`; `tools/gen_link_syms.py` con `llvm-nm`; enlaza con
+  `ld.lld`). **Gate superado**: el ELF reconstruye la imagen expandida **byte a byte** (0 diffs de
+  20 349 040). `recomp/macro.inc` es nuestro (sustituye al de splat): `nonmatching` fija el tamaño de
+  la función real (si no, N64Recomp no emitiría nada) y `alabel` sin `.aent`.
+  Detalle de adaptación a LLVM: `.set gp=64`→`.set gp,64`; `.aent` no soportado; `/DISCARD/ { *(*) }`
+  de splat → `/DISCARD/` selectivo (abiflags/reginfo) porque lld rechaza descartar `.shstrtab` y
+  colocaba `.reginfo` encima del residente; los `.bin.o` por `.incbin` (ABI o32, no n64).
+- **Siguiente: M3** (N64Recomp ELF mode → C).
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
