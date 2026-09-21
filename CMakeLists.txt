@@ -54,6 +54,14 @@ endif()
 
 add_subdirectory(lib/N64ModernRuntime)
 
+# MSVC: silenciar los avisos de las DEPENDENCIAS (terceros), que no son codigo nuestro. El port
+# (src/) conserva sus avisos. En Linux (GCC/Clang) no aplica (el ruido es especifico de MSVC).
+if(MSVC)
+    target_compile_options(rt64 PRIVATE /W0)
+    target_compile_options(ultramodern PRIVATE /W0)
+    target_compile_options(librecomp PRIVATE /W0)
+endif()
+
 file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS build/recomp/RecompiledFuncs/funcs_*.c)
 
 # El C recompilado es obra derivada del binario del juego y NO se versiona (ADR 0009). Se regenera
@@ -69,6 +77,16 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
     message(FATAL_ERROR
         "Falta rsp/hh_aspMain.cpp (microcodigo RSP recompilado, tambien derivado).\n"
         "Se regenera con tools/regenerate.py (RSPRecomp de tu ROM).")
+endif()
+
+# MSVC: el C recompilado (N64Recomp) y el microcodigo RSP (RSPRecomp) son GENERADOS (no editables a
+# mano): silenciar sus avisos. Nuestro `src/` conserva los avisos por defecto.
+if(MSVC)
+    set_source_files_properties(
+        ${RECOMPILED_FUNCS}
+        build/recomp/RecompiledFuncs/lookup.cpp
+        rsp/hh_aspMain.cpp
+        PROPERTIES COMPILE_OPTIONS "/W0")
 endif()
 
 add_executable(HybridHeavenRecomp
