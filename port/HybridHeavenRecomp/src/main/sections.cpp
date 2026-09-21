@@ -25,8 +25,8 @@
 #include "hh.h"
 #include "hh/file_table.h"
 
-extern "C" void FUN_8000469c(uint8_t* rdram, recomp_context* ctx);
-extern "C" void FUN_80004838(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
 extern "C" void unload_overlay_by_id(uint32_t id);
 
@@ -99,14 +99,14 @@ void file_load_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t id = static_cast<uint32_t>(ctx->r4);
     const uint32_t dest = static_cast<uint32_t>(ctx->r5);
     announce_load(id, dest);
-    FUN_8000469c(rdram, ctx);
+    func_8000469C_529C(rdram, ctx);
 }
 
 // Loader streamed: el fichero no esta completo hasta que r2 != 0; se anuncia en esa llamada.
 void file_load_streamed_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t id = static_cast<uint32_t>(ctx->r4);
     const uint32_t dest = static_cast<uint32_t>(ctx->r5);
-    FUN_80004838(rdram, ctx);
+    func_80004838_5438(rdram, ctx);
     if (ctx->r2 != 0) {
         announce_load(id, dest);
     }

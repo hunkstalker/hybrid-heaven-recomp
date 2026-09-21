@@ -1,6 +1,5 @@
 # N64Recomp en ELF mode (via de la referencia; ADR 0011).
 # Entrada: elf/hybrid-heaven.us.elf (tools/build_elf.sh), byte-identico a la imagen expandida.
-# Los patches se anaden tras validar el rc=0 inicial.
 
 [input]
 elf_path = "../elf/hybrid-heaven.us.elf"
@@ -11,5 +10,19 @@ functions_per_output_file = 200
 relocatable_sections_path = "overlays.txt"
 
 [patches]
-stubs = []
+# Reset de TLB en bucle (cop0 Index/EntryHi/EntryLo/PageMask + tlbwi). Solo lo llama osInitialize,
+# que es del runtime; el port no tiene MMU. N64Recomp no traduce cop0 reg 10.
+stubs = [ "func_800304A0_310A0" ]
 ignored = []
+
+# Frame limiter del bucle principal (0x80001A88-0x80001B18): cede para no ahogar los demas hilos.
+[[patches.hook]]
+func = "func_80001454_2054"
+before_vram = 0x80001A88
+text = "{ void hh_yield_in_spin(uint8_t* rdram); hh_yield_in_spin(rdram); }"
+
+# Clamp del tamano de frame del gestor de audio (FUN_8001fd14): comparacion SIN signo -> signo.
+[[patches.instruction]]
+func = "func_8001FD14_20914"
+vram = 0x8001FD8C
+value = 0x00E3082A # sltu $at, $a3, $v1 -> slt $at, $a3, $v1

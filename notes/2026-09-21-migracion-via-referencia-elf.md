@@ -114,7 +114,24 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   Detalle de adaptación a LLVM: `.set gp=64`→`.set gp,64`; `.aent` no soportado; `/DISCARD/ { *(*) }`
   de splat → `/DISCARD/` selectivo (abiflags/reginfo) porque lld rechaza descartar `.shstrtab` y
   colocaba `.reginfo` encima del residente; los `.bin.o` por `.incbin` (ABI o32, no n64).
-- **Siguiente: M3** (N64Recomp ELF mode → C).
+- **M3 HECHO**: `recomp/hybrid-heaven.us.toml` (ELF mode) + `recomp/overlays.txt`; N64Recomp **rc=0**,
+  80 unidades, 15947 funciones, **0 datos-como-código**, 0 errores. Los `No function found for jal
+  target` son los jal cross-window (van por lookup).
+- **M4 (integrar en el port) — BLOQUEADO en M4b (propiedad de libultra)**:
+  `port/.../src/main/sections.cpp` actualizado a los nombres ELF (`func_8000469C_529C`,
+  `func_80004838_5438`); `recomp/hybrid-heaven.us.toml` con los patches de boot (stub TLB, hook de
+  yield, clamp de audio). El port **compila** con el C del ELF pero **segfaultea al arrancar**:
+  `osDestroyThread` (0x80026CE0) entra en **recursión** y desborda la pila nativa. gdb muestra que
+  `__osDispatchThread` (`func_80027824`) se **genera del ROM** (aviso "eret treated as nop"), pero
+  **el runtime debe poseerlo**. Causa: `recomp/symbol_addrs.txt` está **vacío** → N64Recomp no conoce
+  los nombres libultra → no aplica las listas de reimplementadas y recompila hilos/dispatch. Es el
+  sub-paso que ADR 0011 §2 dejó explícito.
+  **M4b (siguiente)**: poblar `recomp/symbol_addrs.txt` con los nombres libultra (al menos
+  hilos/dispatch: `__osDispatchThread`, `osCreateThread`, `osDestroyThread`, `__osDisableInt`…),
+  alinear las listas reimplementadas/ignored del toolchain (`config/n64recomp_changes/symbol_lists.cpp`),
+  registrar las funciones del runtime en sus direcciones de cartucho en el port (como
+  `runtime_provided_funcs` de la referencia) y re-generar. Gate: boot + título con 3D.
+- **Siguiente: M4b** (libultra del runtime) → M5 (limpieza).
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
