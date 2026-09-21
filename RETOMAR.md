@@ -16,8 +16,9 @@
 >
 > **Progreso de la migración:** **M0 HECHO** (toolchain: `tools/install_splat.sh` →
 > `toolchain/splat-venv` con splat 0.50.0 + spimdisasm 1.42.4; MIPS por LLVM `llvm-mc`/`ld.lld`;
-> wrapper `tools/splat_headless.sh`). **Siguiente: M1** (imagen expandida + `segments.json` +
-> `file_table.h`) → **M2** (splat → asm → ELF).
+> wrapper `tools/splat_headless.sh`). **M1 HECHO** (`tools/unpack_rom.py` → imagen expandida +
+> `segments.json` + `file_table.h`; 91 code files, 0x368070 bytes). **Siguiente: M2** (splat → asm →
+> ELF) → M3 (N64Recomp ELF mode) → M4 (runtime/port) → M5 (limpieza).
 
 ---
 

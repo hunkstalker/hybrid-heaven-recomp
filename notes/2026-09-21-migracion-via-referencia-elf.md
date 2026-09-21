@@ -100,7 +100,12 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   backend MIPS de LLVM (`llvm-mc`, `ld.lld`, `llvm-objcopy`, `llvm-readelf`; paquetes `llvm`+`lld`).
   Scripts: `tools/install_splat.sh`, `tools/splat_headless.sh`. Verificado: `llvm-mc` ensambla MIPS
   BE y `ld.lld -m elf32btsmip` enlaza un ELF32 MIPS correcto (`jr $ra; nop`).
-- **Siguiente: M1** (imagen expandida + `segments.json` + `file_table.h`) y **M2** (splat → asm → ELF).
+- **M1 HECHO**: `tools/unpack_rom.py` construye la imagen expandida, `segments.json` y `file_table.h`.
+  Resultado: **91 code files, 0x368070 bytes** (coincide con el manifiesto de la referencia), imagen
+  `work/scratch/expanded/hh.expanded.z64` (20349040 bytes), todos los `text_size` > 0.
+  *Abierto*: el SHA-1 de la imagen no coincide con el documentado por la referencia
+  (`99ba14e6…`); la puerta real es ELF↔nuestra imagen. Revisar si aparece una divergencia.
+- **Siguiente: M2** (splat → asm → ELF).
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
