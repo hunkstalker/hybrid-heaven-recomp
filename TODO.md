@@ -17,11 +17,12 @@
   aplicaba `use_lookup_for_all_function_calls` (fix en `main.cpp` del tool) + nombres libultra
   (`symbol_addrs.txt`) + 47 funciones del runtime registradas → boot carga 8/55/24 y **título con fondo
   3D**. **VALIDADO EN WINDOWS** (mantenedor): gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta
-  el 6º combate **sin cuelgues ni crashes** → **bloqueante original RESUELTO**. **Siguiente: M5**
-  (saneamiento y estructura: `legacy/` para la vía Ghidra, `config/`→`recomp/`, purgar `HH_*`, docs, pins
-  y **push**). Aparte: **M4c** (SEGV al salir/teardown).
-- [ ] **Migración a submódulos (hecho, sin commitear)**: `lib/{N64ModernRuntime,rt64}` como submódulos
-  (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push/force-push de los forks
+  el 6º combate **sin cuelgues ni crashes** → **bloqueante original RESUELTO**. **M5 HECHO** (saneamiento
+  y estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
+  créditos, purga `HH_*`; **pendiente solo el push**, ver `AGENTS.md`). **Siguiente: M4c** (SEGV al
+  salir/teardown; plan en `notes/2026-09-21-m4c-teardown-segv.md`).
+- [ ] **Migración a submódulos (hecho y commiteado; falta el push)**: `lib/{N64ModernRuntime,rt64}` como
+  submódulos (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push de los forks
   para que un clon limpio los resuelva.
 - [ ] **Audio: sincronizar la tasa** (feedback del error de cola SDL en `osAiGetLength`) para quitar
   los descartes periódicos del watermark. Ver `notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2.

@@ -53,9 +53,10 @@ splat/spimdisasm + residente limpio + gates** (M0–M3). Causa raíz de la regre
 N64Recomp en ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas directas saltaban los
 hooks de loader); arreglado en el tool. **Playtest del mantenedor**: START → menú → GAME START →
 gameplay, primer NPC, cajas, **primer CaC y combate**, y ~30 min hasta el **6º combate sin cuelgues ni
-crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. Pendiente: **M5 saneamiento y
-estructura** (retirar la vía Ghidra a `legacy/`, unificar `config/`→`recomp/`, purgar `HH_*`, docs,
-pins y push) y **M4c** (SEGV al salir/teardown). Plan: `notes/2026-09-21-migracion-via-referencia-elf.md`.
+crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. **M5 HECHO** (saneamiento y
+estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
+créditos, purga `HH_*`; **pendiente solo el push**). **M4c** (SEGV al salir/teardown) abierto con plan
+en `notes/2026-09-21-m4c-teardown-segv.md`. Plan general: `notes/2026-09-21-migracion-via-referencia-elf.md`.
 Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
 por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18

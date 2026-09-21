@@ -146,6 +146,13 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   en M4c antes de M5.
 - **Créditos**: el tooling adaptado de la referencia es **MIT**; añadido a `CREDITS.md` y
   `licenses/hybrid-heaven-recomp-MIT.txt`, con aviso en cada script.
+- **M5 HECHO (estructura, 2026-09-21, commit posterior)**: port en la raíz
+  (`src/{platform,hooks,subsystems}`, `include/`, `assets/`, `rsp/`, `lib/`), pipeline en `recomp/` +
+  `recomp/tools/`, tooling en `tools/`, e **intermedios (asm/ELF/ld/undefined_*/C) bajo `build/recomp/`**
+  (raíz limpia; capturas→`notes/reference/screenshots/`, zip/config.ini→`build/`). Vía Ghidra per-file →
+  `legacy/`. Docs vivas alineadas (`AGENTS`, `PROYECTO`, `workflows`, `architecture`, `tools/README`) y
+  créditos/procedencia; `docs_index --check` verde. **Pendiente: push** (forks→main, fast-forward).
+  M4c (SEGV de teardown) queda abierto con plan en `2026-09-21-m4c-teardown-segv.md`.
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 
