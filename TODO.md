@@ -5,10 +5,6 @@
 
 ## Ahora (priorizado)
 
-- [ ] **Cerrar la publicación (2026-09-21)**: push de `main` + **re-publicar `RecompiledFuncs`** en el
-  repo privado de secretos (`HH_SECRETS_REPO`/`HH_SECRETS_PAT`; ADR 0009) → CI verde (Windows debe
-  compilar con la tabla runtime de 47) → **Release `v0.1.1`** (tag o `workflow_dispatch`). Windows ya
-  validado (compila y cierra limpio, M4c).
 - [•] **Audio: sincronizar la tasa**: **implementado** (`src/platform/support.cpp`: resampler PLL por
   error de cola; objetivo `HH_AI_TARGET_MS`=50ms, tope `HH_AI_MAXC`=3%, watermark `HH_AI_MAX_MS`=150ms
   como salvaguarda; `hh_audio.log` con `drops/s`). **Pendiente validar en Windows**: `drops/s`≈0 y
@@ -47,6 +43,9 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Publicación hecha (2026-09-21)**: CI verde (Linux/Windows) + **Release `v0.1.1`** publicado,
+  con el repo público sin datos del juego y el `RecompiledFuncs` traído del repo privado de secretos
+  (ADR 0009). Etapa ELF/splat y M4c validados en Windows.
 - [x] **Vía de recompilación ELF/splat (ADR 0011), M0–M5** + **entrada al CaC validada en Windows
   (2026-09-21)**: START → menú → GAME START → gameplay, primer NPC, cajas, **primer CaC**, ~30 min
   hasta el **6º combate** sin cuelgues; **mando** y **guardado/carga** correctos.

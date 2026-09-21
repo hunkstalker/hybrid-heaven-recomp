@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 121 | 2026-09-21 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 71 | 2026-09-21 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 72 | 2026-09-21 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 71 | 2026-09-21 |
 
 ## Técnico y guías (vivos)
 
