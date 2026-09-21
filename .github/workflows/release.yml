@@ -59,7 +59,7 @@ jobs:
       - name: Crear release (y su tag si no existia)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$HH_VERSION" dist/* --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"
+        run: gh release create "$HH_VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"
 
   image:
     name: Imagen ghcr (desde el binario de CI)
