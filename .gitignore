@@ -81,6 +81,18 @@ config/*.bak
 port/HybridHeavenRecomp/RecompiledFuncs
 work/recomp/
 
+# Recompilación por ELF/splat (ADR 0011): la imagen expandida, asm/, el linker script y los
+# undefined_* se derivan de la ROM -> NO se versionan. Se regeneran con tools/unpack_rom.py y
+# tools/splat_headless.sh (tools/install_splat.sh). Ver notes/2026-09-21-migracion-*.
+work/scratch/expanded/
+/asm/
+/include/
+/build-elf/
+/src_unused/
+/recomp/hybrid-heaven.us.ld
+/recomp/undefined_funcs_auto.txt
+/recomp/undefined_syms_auto.txt
+
 # Artefactos de build del usuario (release de Windows)
 hhport_win.zip
 
