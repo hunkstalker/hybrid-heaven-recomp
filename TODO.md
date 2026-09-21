@@ -7,8 +7,8 @@
 
 - [ ] **Cerrar la publicación (2026-09-21)**: push de `main` + **re-publicar `RecompiledFuncs`** en el
   repo privado de secretos (`HH_SECRETS_REPO`/`HH_SECRETS_PAT`; ADR 0009) → CI verde (Windows debe
-  compilar con la tabla runtime de 47) → **Release `v0.1.1`** (tag o `workflow_dispatch`).
-  **Validar en Windows**: cierre limpio (M4c) y gameplay.
+  compilar con la tabla runtime de 47) → **Release `v0.1.1`** (tag o `workflow_dispatch`). Windows ya
+  validado (compila y cierra limpio, M4c).
 - [ ] **Audio: sincronizar la tasa**: quitar los descartes periódicos del watermark con el *feedback*
   del error de cola SDL en `osAiGetLength` (`notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2).
 - [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
@@ -47,8 +47,8 @@
 - [x] **Estructura/higiene (M5)**: port en la raíz (`src/{platform,hooks,subsystems}`), `recomp/tools/`,
   intermedios → `build/recomp/`, vía Ghidra → `legacy/`, `config/`→`recomp/`, `work/` fuera del repo
   (scratch gitignored), purga `HH_*`, docs vivas + créditos.
-- [x] **Teardown SEGV (M4c) RESUELTO** (Linux): el runtime liberaba RDRAM y el planificador seguía
-  despachando hilos al salir; fix en el fork NMR (no liberar RDRAM + parar el planificador).
+- [x] **Teardown SEGV (M4c) RESUELTO** (Linux + Windows): el runtime liberaba RDRAM y el planificador
+  seguía despachando hilos al salir; fix en el fork NMR (no liberar RDRAM + parar el planificador).
   `notes/2026-09-21-m4c-teardown-segv.md`.
 - [x] **CI con el C recompilado (ADR 0009)**: repo privado de secretos + PAT
   (`notes/2026-09-21-ci-recompilado-desde-repo-privado.md`).

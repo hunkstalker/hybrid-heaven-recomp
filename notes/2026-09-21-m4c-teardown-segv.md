@@ -88,6 +88,7 @@ Commits del fork: `54b076c` (rdram) + `baf9e19` (scheduler); pin en `runtime.loc
 ahora registra las **47** funciones del runtime. `sections.cpp` ignora la entrada placeholder.
 
 **F3 (gate)**: Linux `HH_AUTOQUIT` → **`rc=0`, sin `[SEGV]` ni `hh_crash.log`, 3/3 pasadas** (antes
-`rc=139`). Pendiente validar el cierre en **Windows** (playtest del mantenedor) — no bloquea.
+`rc=139`). **Windows (validado por el mantenedor, 2026-09-21)**: `hh.log` termina en
+`recomp::start returned` y **no** se generan `hh_crash*.log`/`.bin` → cierre limpio. **M4c cerrado.**
 
 
