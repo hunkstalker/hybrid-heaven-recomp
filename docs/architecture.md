@@ -178,7 +178,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   (los 14 iniciales + `0x144C`/`0x170C` para los comandos `0x0F`/`0x0E`, que abortaban las tasks
   desde t≈13,4 s);
   integrado en `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (config reproducible
-  `config/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
+  `recomp/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
   `hh::get_rsp_microcode` para `M_AUDTASK`. Parches de runtime asociados: `sp_complete` de las tasks
   gfx en `submit_rsp_task` (el RSP real completa sin esperar al RDP/render), completación sintética
   en `osSpTaskYield` (modo dirigido) y opción **`HH_SP_SHARED`** (cola SP compartida estilo
@@ -210,7 +210,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
 
 ## 6. Toolchain de recompilación
 
-- Config activa (per-file): `config/game_code_files.toml` → `code_files.fixed.syms.toml` (generada)
+- Config activa (per-file): `recomp/hybrid-heaven.us.toml` → `code_files.fixed.syms.toml` (generada)
   → `RecompiledFuncs_code/` → `work/recomp/RecompiledFuncs/` (symlink desde el port). El set es el
   **residente `.text` + 91 secciones `.file_NN`**; se regenera con `tools/regenerate.py`.
   Configs antiguas (`game_combined.toml`, `setup_module.py`, `module_sources.inc`) → obsoletas.

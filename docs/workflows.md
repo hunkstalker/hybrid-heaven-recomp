@@ -155,10 +155,10 @@ python3 tools/analysis/validate_syms.py work/scratch/code_files.syms.toml \
     --rom work/scratch/code_combined.z64 --fix --out work/scratch/code_files.fixed.syms.toml
 
 # 4) recompilar el set per-file
-./toolchain/src/N64Recomp/build_recomp/N64Recomp config/game_code_files.toml
+./toolchain/src/N64Recomp/build_recomp/N64Recomp recomp/hybrid-heaven.us.toml
 ```
 
-Artefactos: `config/code_files.json` + `config/code_files.overlays.txt` (set de ficheros);
+Artefactos: `recomp/code_files.json` + `recomp/code_files.overlays.txt` (set de ficheros);
 `work/scratch/{code_files/,syms/,code_combined.z64,code_files.fixed.syms.toml}` (generado).
 **Pendiente** (no cierra aún): jump-tables, funciones que acaban en `jal`/`jr` no-RA, residente
 regenerado excluyendo overlays y los loaders `recomp_load_overlays`/`unload_overlays`.

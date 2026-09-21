@@ -17,7 +17,7 @@
      `file_table.h`). Ghidra + JDK 21 + N64Recomp son **dependencias de desarrollo**.
   3. El repo versiona: el **port hecho a mano**, la **config** (`config/*.toml`, `code_files.json`,
      `code_files.overlays.txt`), las **herramientas**, el **linker/config de recompilación**
-     (`config/n64recomp_changes/`) y `rsp/hh_aspMain.cpp`.
+     (`recomp/n64recomp_changes/`) y `rsp/hh_aspMain.cpp`.
   4. El registro de secciones usa el esquema de la referencia: `file_table.h` + hooks de loader
      (`add_loaded_function` + `load_overlay_by_id`/`unload_overlay_by_id`), sin `module_sources`.
 - **Consecuencias**:

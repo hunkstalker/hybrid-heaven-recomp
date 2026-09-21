@@ -58,7 +58,7 @@
   regeneración (el build no la necesita).
 - [ ] **Higiene del repo** (`notes/2026-09-16-limpieza-repo-inventario.md`): archivar scripts one-off
   de `tools/analysis/`, variantes obsoletas de `config/`, decidir el `work/` rastreado. **NO borrar**
-  `*.syms.toml.keep`, `keep_syms*.txt`, `module_extras.json`, `config/n64recomp_changes/*`.
+  `*.syms.toml.keep`, `keep_syms*.txt`, `module_extras.json`, `recomp/n64recomp_changes/*`.
 - [ ] **Sanear menciones a la ROM en docs/notas** (frases cortas del juego en `notes/`).
 
 ## Hecho (resumen; detalle en `notes/`)

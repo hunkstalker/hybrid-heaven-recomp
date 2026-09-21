@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """gen_file_table.py — genera `include/hh/file_table.h` (id -> {vram,size}) desde el manifiesto.
 
-`kCodeFiles[]` va en el **mismo orden que `config/code_files.overlays.txt`** (= orden de id), que es
+`kCodeFiles[]` va en el **mismo orden que `recomp/code_files.overlays.txt`** (= orden de id), que es
 tambien el orden de `overlay_sections_by_index` generado por N64Recomp. Ese invariante permite que
 `load_overlay_by_id(i)` / `unload_overlay_by_id(i)` usen el indice de `kCodeFiles` directamente.
 
@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "config/code_files.json"
+MANIFEST = ROOT / "recomp/code_files.json"
 DEFAULT_OUT = ROOT / "port/HybridHeavenRecomp/include/hh/file_table.h"
 
 

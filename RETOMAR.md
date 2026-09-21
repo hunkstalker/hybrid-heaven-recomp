@@ -22,7 +22,7 @@
 > a byte**). **M3 HECHO** (N64Recomp ELF mode → C; rc=0, 0 datos-como-código). **M4 HECHO — regresión
 > resuelta**: causa raíz = N64Recomp ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas
 > directas same-section saltaban los hooks de loader → file_008 no se registraba → título sin 3D). Fix
-> en `main.cpp` del tool (snapshot en `config/n64recomp_changes/main.cpp`); + nombres libultra
+> en `main.cpp` del tool (snapshot en `recomp/n64recomp_changes/main.cpp`); + nombres libultra
 > (`symbol_addrs.txt`) y 47 funciones del runtime registradas. Resultado: boot carga 8/55/24, `polls`
 > avanza y **título con fondo 3D**. **VALIDADO EN WINDOWS**: gameplay, primer NPC, cajas, **primer CaC**
 > y ~30 min hasta el 6º combate **sin cuelgues ni crashes** — **bloqueante original RESUELTO**.
@@ -150,7 +150,7 @@ Regenerables con la receta de arriba.
 5. **Documentación**: lo viejo a `legacy/`; docs nuevas desde cero. Los docs **vivos** (p. ej.
    `PROYECTO.md`) → **copia a `legacy/` y reescribir la activa** reutilizando lo válido.
 6. **Volumen de build**: incremental por lotes (residente → overlays por tandas), validando boot.
-7. **`config/n64recomp_changes/`**: **conservar** (son parches al recompilador: `hh_mem_off`,
+7. **`recomp/n64recomp_changes/`**: **conservar** (son parches al recompilador: `hh_mem_off`,
    fallback de `jal`, semántica `trunc.l`). Documentar cómo se aplican.
 
 ---
@@ -180,7 +180,7 @@ Regenerables con la receta de arriba.
    quitar `module_sources`/`register_overlays` manual.
 6. **Loaders**: implementar `recomp_load_overlays`/`recomp_unload_overlays` y notificarlos en
    **ambos** (`FUN_80003824`/`0x8000469C` y `FUN_80004838`).
-7. **Aplicar parches** de `config/n64recomp_changes/` al N64Recomp del toolchain (documentar).
+7. **Aplicar parches** de `recomp/n64recomp_changes/` al N64Recomp del toolchain (documentar).
 
 ### Fase 3 — Verificación y limpieza
 - Completeness: nº secciones == code files; todo `jal` resuelve; sin solape flat/overlay;
@@ -219,7 +219,7 @@ Regenerables con la receta de arriba.
 - **Build del port (usuario)**: C++ toolchain, CMake/ninja, SDL2, Vulkan/RT64 deps, Python + ROM.
   **No** Ghidra ni N64Recomp.
 - **Regenerar la recompilación (dev)**: Python, `tools/lzkn64`, N64Recomp (con los parches de
-  `config/n64recomp_changes/`), **Ghidra 11.x** (`analyzeHeadless`), JDK 17.
+  `recomp/n64recomp_changes/`), **Ghidra 11.x** (`analyzeHeadless`), JDK 17.
 
 ---
 
@@ -240,7 +240,7 @@ Regenerables con la receta de arriba.
   (`register_flat_code` skip relocatable, osGetMemSize 4MB, PI ownership). `runtime.lock` pinea el
   fork: **fuerza-push del fork antes de main** (orden N64Recomp → N64ModernRuntime → main).
 - **N64Recomp (toolchain)**: los cambios viven en `toolchain/` (gitignored) + snapshot en
-  `config/n64recomp_changes/symbol_lists.cpp` (ADR 0002). Rebuild: `--target N64RecompCLI`.
+  `recomp/n64recomp_changes/symbol_lists.cpp` (ADR 0002). Rebuild: `--target N64RecompCLI`.
 
 ---
 
@@ -289,7 +289,7 @@ Regenerables con la receta de arriba.
   `recomp_unload_overlays(ram, size)` y llamarlos desde **ambos** loaders (`FUN_80003824`/`0x8000469C`
   y `FUN_80004838`). **Sin** `module_sources`, **sin** `hh_stream_id_to_src`, **sin** wrappers
   manuales de registro.
-- Config única `recomp/game.toml` (hoy `config/game_code_files.toml`).
+- Config única `recomp/game.toml` (hoy `recomp/hybrid-heaven.us.toml`).
 - Artefacto versionado: el **C recompilado** (`port/HybridHeavenRecomp/RecompiledFuncs/`); las syms
   y el ROM combinado viven en `work/` (dev, gitignored) — salvo decisión explícita de versionar la
   syms agregada para reproducir sin Ghidra.

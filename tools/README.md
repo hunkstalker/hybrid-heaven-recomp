@@ -10,7 +10,7 @@ del sistema para nada del proyecto: se borran entre sesiones.
 | `tools/rommy.py` | Extracción/compresión de la tabla de archivos Konami **Nisitenma-Ichigo** (konami_fs) |
 | `tools/lzkn64/lzkn64.py` | Implementación Python pura `lzkn64` (API `decompress`/`compress`). El wheel pip (Rust/PyO3) requiere Python ≤3.13; este shim evita Rust. Se importa como paquete `lzkn64` con `PYTHONPATH=tools` |
 | `tools/regenerate.py` | **Pipeline per-file completo** desde la ROM (dependencia de mantenedor): manifiesto → extracción → Ghidra → syms → N64Recomp → `work/recomp/RecompiledFuncs` + `file_table.h`. Ver `docs/workflows.md` §1 |
-| `tools/analyze_code_files.py` | **Pipeline per-file**: enumera la tabla Nisitenma + VRAM y clasifica los **91 code files** → `config/code_files.json` + `config/code_files.overlays.txt` |
+| `tools/analyze_code_files.py` | **Pipeline per-file**: enumera la tabla Nisitenma + VRAM y clasifica los **91 code files** → `recomp/code_files.json` + `recomp/code_files.overlays.txt` |
 | `tools/ghidra_sections.py` | **Pipeline per-file**: por fichero (Ghidra → syms `.file_NN`), construye el ROM combinado y agrega `work/scratch/code_files.syms.toml` |
 | `tools/gen_file_table.py` | `include/hh/file_table.h` (`id→{vram,size}`) en orden de `code_files.overlays.txt` |
 | `tools/ghidra_headless.sh` | Wrapper de `analyzeHeadless` (Ghidra es dep. de **desarrollo**) |

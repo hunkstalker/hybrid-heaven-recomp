@@ -520,7 +520,7 @@ bool hh::reset_audio(uint32_t output_freq) {
 }
 
 // Microcodigo de audio del ROM en 0x80036530 (ROM 0x37130), recompilado con RSPRecomp
-// (config `config/rsp_hh_aspMain.toml`; texto 0xE98, base IMEM 0x1000). El motor de audio
+// (config `recomp/rsp_hh_aspMain.toml`; texto 0xE98, base IMEM 0x1000). El motor de audio
 // del juego es el que dispara la progresion del modulo (ver
 // notes/2026-09-13-ucode-audio-gate-transicion.md).
 extern RspExitReason hh_aspMain(uint8_t* rdram, uint32_t ucode_addr);

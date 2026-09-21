@@ -25,8 +25,8 @@ Uso:
   python3 tools/analyze_code_files.py --extract DIR         vuelca los ficheros descomprimidos
 
 Salidas por defecto (versionables):
-  config/code_files.json          manifiesto (todos los code files)
-  config/code_files.overlays.txt  lista de secciones `.file_NN` para `relocatable_sections_path`
+  recomp/code_files.json          manifiesto (todos los code files)
+  recomp/code_files.overlays.txt  lista de secciones `.file_NN` para `relocatable_sections_path`
 """
 
 import argparse
@@ -48,8 +48,8 @@ COMPRESSED = 0x80000000
 MAGIC = b"Nisitenma-Ichigo"
 
 DEFAULT_ROM = ROOT / "work/roms/us_retail.z64"
-DEFAULT_JSON = ROOT / "config/code_files.json"
-DEFAULT_OVERLAYS = ROOT / "config/code_files.overlays.txt"
+DEFAULT_JSON = ROOT / "recomp/code_files.json"
+DEFAULT_OVERLAYS = ROOT / "recomp/code_files.overlays.txt"
 
 
 def v2r(vram: int) -> int:

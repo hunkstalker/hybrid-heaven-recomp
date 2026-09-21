@@ -34,7 +34,7 @@ Migrar la **entrada de la recompilación** a la vía de la referencia, por fases
 4. **Gates**: segmentos byte-idénticos, 0 mid-function/nowhere en `jal_audit`, conteos reconciliados,
    sin datos-como-código.
 5. Se **conserva** la arquitectura de loaders/runtime del port (no se reescribe) y los parches de
-   `config/n64recomp_changes/`.
+   `recomp/n64recomp_changes/`.
 
 **Quién posee libultra**: se mantiene la postura de **ADR 0002/0003** (ROM-owned para el estado que el
 juego lee: init/VI) durante la migración. `runtime-owned libultra` (como la referencia) es un
