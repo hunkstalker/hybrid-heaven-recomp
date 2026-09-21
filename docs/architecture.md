@@ -12,10 +12,11 @@
 | Render | **RT64** (Vulkan/D3D12/Metal), microcode **F3DEX2 fifo 2.06** |
 | Input / ventana | SDL2 |
 | Plataformas | Windows + Linux + Steam Deck (mismo código) |
-| Símbolos | **Ghidra** (N64LoaderWV) → `config/us_ghidra.syms.toml` |
+| Símbolos / fronteras | **splat + spimdisasm** sobre la **imagen expandida** → ELF (ADR 0011); nombres en `recomp/symbol_addrs.txt` |
+| Recompilación (modo) | **N64Recomp ELF mode** (`recomp/hybrid-heaven.us.toml`) |
 
-Sin decompilación de referencia: los límites de función dependen de Ghidra y de un
-validador propio (ver `../TODO.md`, fundación 3).
+Sin decompilación de referencia: las fronteras de función salen de la **imagen completa** (splat) +
+gates de verificación (byte a byte, `jal` mid-function/nowhere), no de un validador ad-hoc. Ver §6.
 
 ## 2. Modelo unificado: **imagen plana + módulos**
 
@@ -49,7 +50,7 @@ registrar en la base determinista.
 ### 2.2 Rol conocido de los módulos (evidencia runtime)
 
 Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga con su instante, y
-`build/recomp/build/recomp/RecompiledFuncs/recomp_overlays.inl` mapea sección → módulo Nisitenma.
+`build/recomp/RecompiledFuncs/recomp_overlays.inl` mapea sección → módulo Nisitenma.
 
 | idx | sección port | base RAM | rol conocido | evidencia |
 |---|---|---|---|---|
@@ -81,8 +82,8 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
 - **LZKN64** resuelto y reutilizable (`tools/lzkn64`, `rommy.py`). El descompresor del juego
   (`FUN_80003824`) es de la misma familia pero con offset de 10 bits.
 - **Confirmado (2026-09-11)**: `lzkn64` descomprime **correctamente** el módulo idx 7 (CRC32
-  `0xA9213032`, 564464 B) → `tools/setup_module.py` lo extrae de la ROM **sin ejecutar el juego**
-  (determinista). Una nota histórica que decía que `lzkn64` daba "basura" era **errónea**.
+  `0xA9213032`, 564464 B) → (histórico) `legacy/tools/setup_module.py` lo extraía de la ROM **sin
+  ejecutar el juego** (determinista). Una nota histórica que decía que `lzkn64` daba "basura" era **errónea**.
 - Variantes **`LZSS 5`/`LZSS 7`** del `trans`: por caracterizar (otros módulos podrían usarlas).
 - El código plano NO está comprimido; se comprimen assets y módulos de código.
 
@@ -102,12 +103,12 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
     `ModuleSource { src_rom, rom_addr }`, `register_module_sources()` y `load_module_by_source()`;
     `register_flat_code()` omite las secciones de módulos y el loader (`FUN_80003824`, wrapper
     siempre activo en `get_function`) registra la sección recompilada en la base real que pide el
-    juego. La tabla `src_rom → rom_addr` la genera `setup_module.py`
-    (`legacy (module_sources.inc)`); los mid-entries salen de `HH_JALTRACE` +
-    `tools/analysis/gen_module_extras.py` y de `add_missing_funcs.py` (planos), protegidos por
-    `config/keep_syms.txt` en el validador. El pipeline es consciente de sección:
-    `validate_syms.py` (por sección + `--keep-file`) y `fix_fallthroughs.py` (continuación por
-    prefijo `M<n>_`).
+    juego. (Histórico, vía Ghidra per-file → `legacy/`): la tabla `src_rom → rom_addr` la generaba
+    `legacy/tools/setup_module.py`; los mid-entries salían de `HH_JALTRACE` +
+    `tools/analysis/gen_module_extras.py`/`add_missing_funcs.py`, protegidos por
+    `legacy/config/keep_syms.txt`. En la vía vigente (ELF/splat) las fronteras vienen de la imagen
+    completa (splat) y los loaders registran las secciones relocalizables por dirección
+    (`src/hooks/sections.cpp`).
   - `addresses.hpp`: `mem_size` 512 MB → 1 GB para cubrir accesos a registros de hardware vía `0xA0000000+`.
   - `overlays`: `register_flat_code()` (modelo de imagen plana, ADR 0001) + `init_mmio()`.
   - `recomp.cpp`: `boot_log` (**opt-in** `HH_BOOTLOG=<ruta>`), `do_break` no aborta, `cop0_register_read/write`
@@ -157,7 +158,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   **Fix aplicado (syms)**: `FUN_80030610` era el `osCreateMesgQueue` del ROM e inicializaba
   `mtqueue/fullqueue` con `&__osThreadTail` (`0x80049930`), incompatible con las listas
   NULL-terminated del runtime de mensajes (el centinela se programaba como hilo y corrompía
-  `__osRunningThread`). Se renombró a `osCreateMesgQueue` en `config/*.syms.toml` para que las
+  `__osRunningThread`). Se renombró a `osCreateMesgQueue` (entonces en `legacy/config/*.syms.toml`) para que las
   llamadas usen la versión del runtime (`reimplemented_funcs`).
   **Resuelto (ADR 0003)**: el subsistema VI se genera del ROM (`osCreateViManager`, `osViSetMode/
   Event/SwapBuffer`, `osViBlack`, `osViSetSpecialFeatures`, `osViGetCurrent/NextFramebuffer`); el
@@ -208,32 +209,39 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   **Ojo**: los dumps de `r64dump` se leen como **uint32 LE nativo (sin `bswap32`)**; el `bswap32` los
   corrompe (`801BF1CC` → `CCF11B80`).
 
-## 6. Toolchain de recompilación
+## 6. Toolchain de recompilación (ELF/splat, ADR 0011)
 
-- Config activa (per-file): `recomp/hybrid-heaven.us.toml` → `code_files.fixed.syms.toml` (generada)
-  → `work/recomp_elf/RecompiledFuncs/` y se materializa en `build/recomp/RecompiledFuncs/`. El set es el
-  **residente `.text` + 91 secciones `.file_NN`**; se regenera con `tools/regenerate.py`.
-  Configs antiguas (`game_combined.toml`, `setup_module.py`, `module_sources.inc`) → obsoletas.
-- **El C recompilado no se versiona** (obra derivada; ADR 0009): vive en `work/recomp/` (gitignored).
+- **Entrada**: la **imagen expandida** `work/scratch/expanded/hh.expanded.z64` (ROM + cada code file
+  descomprimido en offset sintético >16 MB). La config es **versionada**: `recomp/hybrid-heaven.us.yaml`
+  (splat) y `recomp/hybrid-heaven.us.toml` (N64Recomp ELF mode). Se regenera con `tools/regenerate.py`:
+  `gen_splat_yaml` → `splat_headless.sh split` → `build/recomp/asm/` → `build_elf.sh` (`llvm-mc`+`ld.lld`)
+  → `build/recomp/elf/hybrid-heaven.us.elf` (**gate**: reconstruye la imagen byte a byte) → N64Recomp
+  (`use_lookup_for_all_function_calls`) → `work/recomp_elf/RecompiledFuncs/` → materializado en
+  `build/recomp/RecompiledFuncs/`. El set es el residente + 91 secciones `file_NN`
+  (`relocatable_sections_path = overlays.txt`). Configs antiguas (Ghidra per-file: `game_combined.toml`,
+  `setup_module.py`, `module_sources.inc`, syms por módulo) → `legacy/`.
+- **El C recompilado no se versiona** (obra derivada; ADR 0009): vive bajo `build/` (gitignored), con la
+  salida intermedia de N64Recomp en `work/recomp_elf/`.
 - Recompilador: `toolchain/src/N64Recomp/build_recomp/N64Recomp` (OUTPUT_NAME de `N64RecompCLI`:
   rebuild con **`--target N64RecompCLI`**, no `--target N64Recomp`).
-- **Parche del toolchain** (`symbol_lists.cpp`, ver ADR 0002): se quitó de `reimplemented_funcs`/
-  `ignored_funcs` la init de libultra que el juego usa como fuente de verdad (`osInitialize`,
-  `__osInitialize_common`, `osCreatePiManager`, `__osDevMgrMain`, `__osViInit`, `__osViSwapContext`,
-  `__osGetSR/SetSR/GetCause/SetCause`, `__osSpRawReadIo/WriteIo`) para que se recompile la versión del
-  ROM. `toolchain/` está gitignored: el parche se documenta aquí (y en ADR 0002), no se versiona.
+- **Parches del toolchain**: versionados como snapshot en `recomp/n64recomp_changes/` (p.ej. propagar
+  `use_lookup_for_all_function_calls` en ELF mode —causa raíz del bloqueo del CaC— y los ajustes de
+  libultra de ADR 0002). `toolchain/` está gitignored: el snapshot es la fuente de verdad.
 - Registro de secciones: `src/hooks/sections.cpp` (`file_table.h` + hooks
   `add_loaded_function` / `load_overlay_by_id` / `unload_overlay_by_id`).
-- Post-paso obligatorio: `tools/analysis/fix_fallthroughs.py` (lo invoca `tools/regenerate.py`).
-- Regla: **nunca editar a mano el C generado**; se regenera desde la config/syms (ADR 0009).
+- `fix_fallthroughs.py` ya **no** lo invoca `regenerate.py`: es un post-paso manual si aparecen
+  fallthroughs.
+- Regla: **nunca editar a mano el C generado**; se regenera desde la config de splat/símbolos.
 
-## 7. Preguntas abiertas (bloquean el diseño)
+## 7. Preguntas abiertas
 
 1. ✅ Bases RAM de los módulos de boot **deterministas** (idx 7/23/54, 3 runs). Pendiente: inventario
    automático de módulos posteriores (fuera del boot).
-2. ¿Cuál es el **contrato del módulo** (cómo se referencian sus funciones: `base+offset`? tabla?
-   relocs internas?).
-3. ¿Qué assets de la tabla Nisitenma son **código ejecutable** vs datos?
-4. ¿El lock single-CPU es necesario con el modelo upstream + parches de racer?
+2. ✅ **Contrato del módulo**: MIPS autoligado en `base+offset`, direcciones absolutas, sin relocs
+   (§2.1); la vía ELF/splat lo cubre con **secciones relocalizables** + lookups por dirección.
+3. ¿Qué assets de la tabla Nisitenma son **código ejecutable** vs datos? (los 91 code files ya se
+   tratan como código; quedan casos de datos-como-código a limpiar).
+4. ¿El lock single-CPU es necesario con el modelo upstream + parches? (candidato a eliminar, §5).
 
-Detalle y evidencia: `../notes/2026-09-10-*.md` y `../notes/2026-09-08-overlay-directory.md`.
+Detalle y evidencia: `../notes/2026-09-21-migracion-via-referencia-elf.md`, `../notes/2026-09-11-*.md`
+y `../notes/2026-09-08-overlay-directory.md`.

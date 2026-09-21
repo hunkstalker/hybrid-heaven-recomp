@@ -28,7 +28,7 @@
 > y ~30 min hasta el 6º combate **sin cuelgues ni crashes** — **bloqueante original RESUELTO**.
 > **Siguiente: M5 (saneamiento y estructura)** — retirar Ghidra-per-file a `legacy/`, unificar
 > `config/`→`recomp/`, purgar workarounds `HH_*`, reescribir docs, actualizar pins y **push**. Aparte:
-> **M4c** (SEGV al salir/teardown). Detalle: `notes/2026-09-21-migracion-via-referencia-elf.md`.
+> **M4c** (SEGV al salir/teardown; plan: `notes/2026-09-21-m4c-teardown-segv.md`). Detalle: `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 ---
 

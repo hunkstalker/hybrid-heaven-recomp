@@ -1,74 +1,59 @@
 # Herramientas del proyecto
 
-Todo el proyecto vive en la raíz de este repo (ver `PROYECTO.md` §8). No usar carpetas temporales
-del sistema para nada del proyecto: se borran entre sesiones.
+Todo el proyecto vive en la raíz del repo (ver `PROYECTO.md`). No usar carpetas temporales del
+sistema para nada del proyecto. La referencia operativa completa está en `docs/workflows.md`.
 
-## Estructura rápida
+## Estructura
 
 | Ruta | Contenido |
 |---|---|
-| `tools/rommy.py` | Extracción/compresión de la tabla de archivos Konami **Nisitenma-Ichigo** (konami_fs) |
-| `tools/lzkn64/lzkn64.py` | Implementación Python pura `lzkn64` (API `decompress`/`compress`). El wheel pip (Rust/PyO3) requiere Python ≤3.13; este shim evita Rust. Se importa como paquete `lzkn64` con `PYTHONPATH=tools` |
-| `tools/regenerate.py` | **Pipeline per-file completo** desde la ROM (dependencia de mantenedor): manifiesto → extracción → Ghidra → syms → N64Recomp → `work/recomp/RecompiledFuncs` + `file_table.h`. Ver `docs/workflows.md` §1 |
-| `tools/analyze_code_files.py` | **Pipeline per-file**: enumera la tabla Nisitenma + VRAM y clasifica los **91 code files** → `recomp/code_files.json` + `recomp/code_files.overlays.txt` |
-| `tools/ghidra_sections.py` | **Pipeline per-file**: por fichero (Ghidra → syms `.file_NN`), construye el ROM combinado y agrega `work/scratch/code_files.syms.toml` |
-| `tools/gen_file_table.py` | `include/hh/file_table.h` (`id→{vram,size}`) en orden de `code_files.overlays.txt` |
-| `tools/ghidra_headless.sh` | Wrapper de `analyzeHeadless` (Ghidra es dep. de **desarrollo**) |
-| `tools/install_ghidra.sh` | Instala JDK 21 + Ghidra + N64LoaderWV en `toolchain/ghidra/` |
-| `tools/analysis/ghidra_code/` | Scripts Ghidra del pipeline: `FindIndirectFunctions`, `SeedFunctionStarts`, `ExportSectionSyms` |
-| `tools/analysis/` | Scripts de análisis de ROM: `analyze_rom.py` (densidad MIPS), `validate_syms.py`, etc. |
-| `work/roms/` | ROMs del usuario descomprimidas (`us_dec.z64`, `eu_dec.z64`) — gitignored |
-| `work/scratch/code_files/`, `work/scratch/syms/`, `work/scratch/code_combined.z64` | Extracción y syms por fichero (generado, gitignored) |
-| `work/ghidra/proj/` | Proyecto Ghidra `HH` con `baserom.us.z64` importado (N64LoaderWV) — gitignored |
-| `toolchain/ghidra/` | Ghidra 12.1.3 (instalado + zip) — gitignored |
-| `toolchain/venv/` | Virtualenv Python (PyYAML y dependencias) — gitignored |
-| `toolchain/ext/` | N64LoaderWV (zip + fuente) — gitignored |
+| `tools/` | Scripts propios **vivos** (wrapper de build, pipeline, análisis). |
+| `recomp/` | Configuración del pipeline de recompilación (versionada) + `recomp/tools/`. |
+| `legacy/` | Vía antigua **Ghidra per-file** (histórico; no se usa). |
+| `toolchain/`, `work/` | Dependencias descargables y artefactos (gitignored). |
+
+### `tools/` (vivos)
+
+| Ruta | Contenido |
+|---|---|
+| `tools/regenerate.py` | **Entrada única del pipeline**: regenera el C desde la ROM (invoca `recomp/tools/*` → `build/recomp/RecompiledFuncs`). Ver `docs/workflows.md` §1. |
+| `tools/build_linux.sh` | Clona/actualiza las libs (`lib/`) + CMake + build (Release; `--debug`, `--force-libs`). |
+| `tools/rommy.py` | Extracción/compresión de la tabla Konami **Nisitenma-Ichigo** (konami_fs). |
+| `tools/lzkn64/lzkn64.py` | `lzkn64` en Python puro (`decompress`/`compress`); evita Rust. Se importa con `PYTHONPATH=tools`. |
+| `tools/analysis/` | Análisis de ROM, oráculo de emulador, capturas e índice de docs. Ver abajo. |
+| `tools/diag/` | Bats de diagnóstico (replay/watch) para el mantenedor. |
+
+`tools/analysis/` (selección): `analyze_rom.py` (densidad MIPS), `validate_syms.py`,
+`docs_index.py` (genera/valida `docs/INDEX.md`), `emu_ref.sh` / `r64dump.cpp` (oráculo con emulador,
+`docs/workflows.md` §6), `diff_rdram.py`, `triage_screenshots.py`, `bizhawk_*`, `xshot`.
+
+### `recomp/tools/` (pipeline ELF/splat, ADR 0011)
+
+`analyze_code_files.py` (manifiesto de los 91 code files) · `unpack_rom.py` (imagen expandida +
+`include/hh/file_table.h`) · `gen_splat_yaml.py` · `splat_headless.sh` · `build_elf.sh`
+(`llvm-mc`+`ld.lld`, gate byte a byte) · `gen_link_syms.py` · `gen_reimplemented_decls.py` ·
+`gen_runtime_func_table.py` · `gen_file_table.py`.
+
+### `legacy/`
+
+Vía antigua conservada como histórico: `legacy/tools/` (`ghidra_sections.py`, `install_ghidra.sh`,
+`ghidra_headless.sh`, `setup_module.py`, `recomp.py`, `analysis/`) y `legacy/config/` (tomls y
+syms por módulo/fichero). **No usar** para el pipeline vigente.
 
 ## Uso
 
-### Extraer la ROM (Nisitenma-Ichigo)
-
 ```sh
-PYTHONPATH=tools toolchain/venv/bin/python tools/rommy.py decompress \
-    -i rom/baserom.us.z64 -o work/roms/us_dec.z64 -m work/roms/us_manifest.yaml
+python3 tools/regenerate.py                 # ROM -> pipeline ELF/splat -> build/recomp (ver §1)
+python3 tools/regenerate.py --skip-splat    # reutiliza build/recomp/asm
+python3 tools/regenerate.py --skip-elf      # reutiliza build/recomp/elf
+tools/build_linux.sh                        # compila el port
+python3 tools/analysis/docs_index.py        # regenera docs/INDEX.md (--check valida, CI)
 ```
 
-Salidas: ROM descomprimida (assets expandidos) + manifest (`notes/` guarda copia).
+## `toolchain/` y `work/` (gitignored)
 
-### Ghidra (análisis headless)
-
-Ghidra es una **dependencia de desarrollo** (regenerar símbolos), **no** de build/uso del port.
-Instalación reproducible:
-
-```sh
-tools/install_ghidra.sh            # JDK 21 + Ghidra 12.1.3 + N64LoaderWV en toolchain/ghidra/
-tools/ghidra_headless.sh -help     # wrapper (usa JAVA_HOME del JDK 21)
-```
-
-```sh
-G=toolchain/ghidra/ghidra_12.1.3_PUBLIC
-P=work/ghidra/proj
-
-# Importar una ROM (ya hecho para baserom.us.z64)
-$G/support/analyzeHeadless $P HH -import rom/baserom.us.z64 \
-    -loader N64LoaderWVLoader -overwrite
-
-# Re-procesar/reejecutar scripts sobre el programa ya importado
-$G/support/analyzeHeadless $P HH -process baserom.us.z64 -noanalysis \
-    [-scriptPath ...] [-postScript ...]
-```
-
-Pipeline **per-file** (todos los code files como secciones `.file_NN`):
-
-```sh
-python3 tools/analyze_code_files.py work/roms/us_retail.z64 --extract work/scratch/code_files
-python3 tools/ghidra_sections.py --only 57     # o --all
-```
-
-Opciones del loader relevantes (ver README de N64LoaderWV):
-`-loader-rdram <dump>` (overlays ya cargados en RAM, must be 4/8 MiB),
-`-loader-signature <n64sym>`, `-loader-pif`, `-loader-modem`.
-
-### Notas
-- El venv se puede recrear con `python3 -m venv toolchain/venv && toolchain/venv/bin/pip install pyyaml`.
-- Los repos de toolchain se clonan/actualizan por su URL canónica; no son fuente del proyecto.
+- `toolchain/splat-venv/` — venv con **splat + spimdisasm** (dev; `recomp/tools/install_splat.sh`).
+- `toolchain/src/N64Recomp/` — recompilador (fork; rebuild con `--target N64RecompCLI`).
+- `toolchain/ghidra/` — JDK + Ghidra (solo vía legacy).
+- `work/roms/` — ROMs del usuario; `work/scratch/` — extracción e imagen expandida; `work/debug/` —
+  dumps y capturas; `work/recomp_elf/` — salida de N64Recomp antes de materializarse.
