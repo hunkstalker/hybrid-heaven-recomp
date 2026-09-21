@@ -89,6 +89,7 @@ work/scratch/expanded/
 /include/
 /build-elf/
 /src_unused/
+/elf/
 /recomp/hybrid-heaven.us.ld
 /recomp/undefined_funcs_auto.txt
 /recomp/undefined_syms_auto.txt
