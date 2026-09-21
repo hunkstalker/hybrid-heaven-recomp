@@ -15,6 +15,14 @@
 ## Backlog (priorizado)
 
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
+- [ ] **Verificar estéreo L/R**: la referencia **des-swapea** los canales (librecomp guarda RDRAM
+  byte-swapped y el puntero crudo invierte L/R). Nosotros **no** lo hacemos → posible estéreo
+  invertido. Comprobar (dump estéreo o emulador) y, si aplica, des-swapear en `queue_samples`
+  (`notes/2026-09-21-audio-petardeo-ref-y-plan.md` §3.4).
+- [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
+  rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
+- [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
+  (`notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` §104).
 - [ ] **Audio (futuro): desacoplar de los fps** — hoy el audio va atado al tick de 30 Hz, así que un
   hitch puede afectarlo. `PROYECTO.md §7`, `notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md:68`.
 - [ ] **Audio: `osAiGetStatus` real** (hoy devuelve 0 fijo, `librecomp/src/ai.cpp`); completar con el
