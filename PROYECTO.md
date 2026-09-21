@@ -56,7 +56,8 @@ gameplay, primer NPC, cajas, **primer CaC y combate**, y ~30 min hasta el **6º 
 crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. **M5 HECHO** (saneamiento y
 estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
 créditos, purga `HH_*`; **pendiente solo el push**). **M4c HECHO** (SEGV de teardown resuelto: el
-runtime liberaba RDRAM al salir con el hilo de frame aún corriendo; fix en el fork NMR). Plan general:
+runtime liberaba RDRAM y el planificador seguía despachando hilos al salir; fix en el fork NMR: no
+liberar RDRAM + parar el planificador). Plan general:
 `notes/2026-09-21-migracion-via-referencia-elf.md`; detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
 Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado

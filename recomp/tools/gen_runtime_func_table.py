@@ -21,7 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 GENERATED = ROOT / "work/recomp_elf/RecompiledFuncs"
 OUT = GENERATED / "runtime_funcs.inl"
-ELF = "elf/hybrid-heaven.us.elf"
+ELF = ROOT / "build/recomp/elf/hybrid-heaven.us.elf"
 CONFIG = ROOT / "recomp/hybrid-heaven.us.toml"
 RUNTIME_SRC = ROOT / "lib/N64ModernRuntime/librecomp/src"
 PORT_SRC = ROOT / "src"
@@ -77,11 +77,15 @@ def main() -> int:
         "/* Generado por tools/gen_runtime_func_table.py -- no editar. */\n",
         '#include "reimplemented_decls.h"\n\n',
         "static const struct { uint32_t ram_addr; recomp_func_t* func; }\n",
-        "runtime_provided_funcs[] = {\n",
     ]
-    for addr, name in entries:
-        lines.append("    { 0x%08Xu, %s_recomp },\n" % (addr, name))
-    lines.append("};\n")
+    if entries:
+        lines.append("runtime_provided_funcs[] = {\n")
+        for addr, name in entries:
+            lines.append("    { 0x%08Xu, %s_recomp },\n" % (addr, name))
+        lines.append("};\n")
+    else:
+        # MSVC no admite arrays de tamano 0 (C2466); placeholder que sections.cpp ignora (ram_addr==0).
+        lines.append("runtime_provided_funcs[1] = { { 0u, nullptr } };\n")
     OUT.write_text("".join(lines))
     print("wrote %s" % OUT.relative_to(ROOT))
     print("  definiciones _recomp : %d" % len(called))

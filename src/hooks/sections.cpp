@@ -143,6 +143,8 @@ void hh::register_runtime_functions() {
     // libultra que provee el runtime, en su direccion de cartucho: con use_lookup_for_all_function_calls
     // cada llamada es un lookup, y estas funciones no viven en ninguna tabla de seccion.
     for (const auto& entry : runtime_provided_funcs) {
+        // Placeholder de tabla vacia (MSVC no admite arrays de tamano 0): ram_addr==0 se ignora.
+        if (entry.ram_addr == 0) continue;
         recomp::overlays::add_loaded_function(static_cast<int32_t>(entry.ram_addr), entry.func);
     }
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadAddress), file_load_hook);

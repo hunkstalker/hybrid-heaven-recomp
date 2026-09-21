@@ -31,10 +31,12 @@
   aplicar/persistir `GraphicsConfig`).
 - [ ] **Definir ADR 0009** (estrategia de cobertura nativa / clean-room) **cuando se adopte la visión**
   de `docs/README.md`. Incluye el **manifiesto de reimplementadas** + **métrica de cobertura** (§5).
-- [x] **Teardown SEGV** al cerrar (**RESUELTO 2026-09-21**): causa = `recomp::start` liberaba RDRAM
-  (`munmap`) mientras el hilo de frame del juego seguía ejecutando código recompilado; SEGV en
-  `func_80001454_2054`. Fix en el fork NMR (`librecomp/src/recomp.cpp`): no liberar RDRAM al salir.
-  Validado en Linux (`HH_AUTOQUIT`: rc=0, sin `hh_crash.log`). Detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
+- [x] **Teardown SEGV** al cerrar (**RESUELTO 2026-09-21**): al salir, el runtime liberaba RDRAM y el
+  planificador seguía despachando hilos liberados, mientras el hilo de frame del juego aún ejecutaba
+  código recompilado (SEGV en `func_80001454_2054`). Fix en el fork NMR: no liberar RDRAM + parar el
+  planificador al salir. Validado en Linux (`HH_AUTOQUIT`: rc=0, sin `[SEGV]`, 3/3). Además,
+  `gen_runtime_func_table.py` leía el ELF en la ruta vieja (tabla vacía → fallo MSVC C2466), arreglado
+  (47 registros). Detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
 - [ ] **Mando**: identificar el botón N64 que abre el menú de **acciones/lucha en CaC** y asignarlo a
   **X** (`config.ini`). **Bloqueado por el CaC** (el juego se congela antes del combate): revisar cuando
   se resuelva la entrada al combate. Lo normal (pausa/inventario) sale con **Start** y está bien.

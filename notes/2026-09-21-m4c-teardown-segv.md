@@ -72,10 +72,22 @@ que `recomp::start` haga `munmap(rdram)` → SIGSEGV.
 **Causa raíz**: al salir, el runtime libera RDRAM mientras un hilo de juego aún puede estar
 ejecutando código recompilado (que accede a RDRAM). El hilo de frame no se detiene antes del `free`.
 
-**F2 (fix)**: en el fork `N64ModernRuntime` (`librecomp/src/recomp.cpp`), **no liberar RDRAM al
-salir** (se elimina el `munmap`/`VirtualFree` final). El SO recupera la memoria al terminar el
-proceso; no hay coste real. Commit del fork `54b076c` (pin actualizado en `runtime.lock`).
+**F2 (fix)** — dos partes en el fork `N64ModernRuntime`:
+1. `librecomp/src/recomp.cpp`: **no liberar RDRAM al salir** (se elimina el `munmap`/`VirtualFree`
+   final). El SO recupera la memoria al terminar el proceso.
+2. `ultramodern/src/threads.cpp`: al salir, **el planificador cooperativo deja de despachar hilos**
+   (`run_next_thread`/`resume_thread` con `exited` no señalizan; `run_next_thread_and_wait` aparca sin
+   tocar el registro-sombra). Sin esto, tras quitar el `munmap` el crash pasaba al **registro-sombra**
+   (`hh_sh_find`, UAF de un hilo liberado por el cleaner) desde el mismo hilo de frame.
 
-**F3 (gate)**: Linux `HH_AUTOQUIT=22` → **`rc=0`, sin `hh_crash.log`** (antes `rc=139`). Pendiente
-validar el cierre en **Windows** (playtest del mantenedor) — no bloquea.
+Commits del fork: `54b076c` (rdram) + `baf9e19` (scheduler); pin en `runtime.lock`.
+
+**Bonus (regresión de la mudanza)**: `gen_runtime_func_table.py` leía el ELF en la ruta vieja
+(`elf/hybrid-heaven.us.elf`), así que tras mover los intermedios a `build/recomp/` la tabla salía
+**vacía** (0 registros) y MSVC fallaba con C2466. Arreglado (ruta nueva + placeholder MSVC-safe);
+ahora registra las **47** funciones del runtime. `sections.cpp` ignora la entrada placeholder.
+
+**F3 (gate)**: Linux `HH_AUTOQUIT` → **`rc=0`, sin `[SEGV]` ni `hh_crash.log`, 3/3 pasadas** (antes
+`rc=139`). Pendiente validar el cierre en **Windows** (playtest del mantenedor) — no bloquea.
+
 
