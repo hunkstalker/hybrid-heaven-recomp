@@ -419,22 +419,24 @@ static n64_button read_input_button() {
     const Uint8* keyboard_state = SDL_GetKeyboardState(nullptr);
     const Uint32 mouse_state = SDL_GetMouseState(nullptr, nullptr);
 
+    // D-pad por flechas (extra de teclado).
     if (keyboard_state[SDL_SCANCODE_UP]) input |= DUP_BUTTON;
     if (keyboard_state[SDL_SCANCODE_DOWN]) input |= DDOWN_BUTTON;
     if (keyboard_state[SDL_SCANCODE_LEFT]) input |= DLEFT_BUTTON;
     if (keyboard_state[SDL_SCANCODE_RIGHT]) input |= DRIGHT_BUTTON;
 
-    if (keyboard_state[SDL_SCANCODE_S]) input |= A_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_X]) input |= B_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_Z]) input |= Z_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_C]) input |= L_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_V]) input |= R_BUTTON;
+    // Layout de teclado (espejo del mando). WASD = stick izquierdo (se aplica en get_input).
+    //   H = X fisico -> Z (agacharse); J = A; K = B (atras/mapa); L = Y -> C-Down;
+    //   U/I = LB/RB -> L/R; O/P = LT/RT -> Z/R (alias); Enter = Start.
+    if (keyboard_state[SDL_SCANCODE_H]) input |= Z_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_J]) input |= A_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_K]) input |= B_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_L]) input |= CDOWN_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_U]) input |= L_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_I]) input |= R_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_O]) input |= Z_BUTTON;
+    if (keyboard_state[SDL_SCANCODE_P]) input |= R_BUTTON;
     if (keyboard_state[SDL_SCANCODE_RETURN]) input |= START_BUTTON;
-
-    if (keyboard_state[SDL_SCANCODE_I]) input |= CUP_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_K]) input |= CDOWN_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_J]) input |= CLEFT_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_L]) input |= CRIGHT_BUTTON;
 
     if (mouse_state & SDL_BUTTON_LMASK) input |= A_BUTTON;
     if (mouse_state & SDL_BUTTON_RMASK) input |= B_BUTTON;
@@ -950,6 +952,20 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
 
+    // Teclado: WASD = stick izquierdo (movimiento). Convencion N64: +y = arriba.
+    if (controller_num == 0) {
+        const Uint8* kb = SDL_GetKeyboardState(nullptr);
+        float kx = 0.0f, ky = 0.0f;
+        if (kb[SDL_SCANCODE_W]) ky += 1.0f;
+        if (kb[SDL_SCANCODE_S]) ky -= 1.0f;
+        if (kb[SDL_SCANCODE_A]) kx -= 1.0f;
+        if (kb[SDL_SCANCODE_D]) kx += 1.0f;
+        if (kx != 0.0f || ky != 0.0f) {
+            axis_x = kx;
+            axis_y = ky;
+        }
+    }
+
     // HH_STICK=x,y inyecta el stick analógico para runs headless (convención N64: +y = arriba).
     // HH_STICK_AT=<s> retrasa su aplicación (p. ej. hasta estar en gameplay, sin mover menús).
     if (controller_num == 0) {
@@ -1010,6 +1026,22 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             if (mlo != -2 && (long)hh_get_vi_count() >= mlo && (long)hh_get_vi_count() <= mhi) {
                 input = (n64_button)((unsigned)input & ~0x1000u);
             }
+        }
+    }
+
+    // Stick izquierdo -> D-pad (para menus/UI): umbral 0.5. Desactivable con HH_STICK_TO_DPAD=0.
+    // Si el juego ignora el D-pad no tiene efecto; si su UI lo usa, el stick tambien navega.
+    if (controller_num == 0) {
+        static const bool hh_stick_to_dpad = [] {
+            const char* e = getenv("HH_STICK_TO_DPAD");
+            return !(e != nullptr && *e != '\0' && strcmp(e, "0") == 0);
+        }();
+        if (hh_stick_to_dpad) {
+            constexpr float DP_THRESHOLD = 0.5f;
+            if (axis_y >= DP_THRESHOLD) input |= DUP_BUTTON;
+            if (axis_y <= -DP_THRESHOLD) input |= DDOWN_BUTTON;
+            if (axis_x >= DP_THRESHOLD) input |= DRIGHT_BUTTON;
+            if (axis_x <= -DP_THRESHOLD) input |= DLEFT_BUTTON;
         }
     }
 
