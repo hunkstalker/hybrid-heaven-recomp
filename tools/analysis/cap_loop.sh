@@ -5,8 +5,8 @@
 # Mantiene <SESH>/live.ppm + work/debug/latest_ascii.txt + work/debug/latest_stats.txt.
 SESH="$1"
 D="${2:-:99}"
-# Raiz del repo derivada de la ubicacion del propio script (work/ -> raiz).
-ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+# Raiz del repo derivada de la ubicacion del propio script (tools/analysis/ -> raiz).
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 mkdir -p "$SESH"
 n=0
 LAST=""

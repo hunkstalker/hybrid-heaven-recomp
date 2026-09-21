@@ -4,11 +4,11 @@
 - `work/libmupen64plus-debug.so`  core con debugger (write-breakpoints funcionando),
   SIN instrumentacion ruidosa.
 - `work/r64dump`                     harness: ventana opcional, dumps RDRAM, bpx.
-- `work/play.sh`                     lanzamiento con ventana + teclado (input-sdl).
+- `tools/analysis/play.sh`          lanzamiento con ventana + teclado (input-sdl).
 - Config de input ya mapeada en `la config de input de mupen64plus`.
 
 ## Como
-1. En un entorno con display: `work/play.sh 180 work/scratch/live`
+1. En un entorno con display: `tools/analysis/play.sh 180 work/scratch/live`
 2. Juegue/avance por los menus; cada registro de overlay produce
    `[dbg] stop pc=... valid=YES ... loader pc=... (wrote phys ...)` y actualiza `live.dir.bin`.
 3. Al terminar, enviarme `live.session.log`, `live.dir.bin` y los `live.tN.bin`.

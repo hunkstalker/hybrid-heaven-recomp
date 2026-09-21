@@ -25,7 +25,8 @@ sistema para nada del proyecto. La referencia operativa completa está en `docs/
 
 `tools/analysis/` (selección): `analyze_rom.py` (densidad MIPS), `validate_syms.py`,
 `docs_index.py` (genera/valida `docs/INDEX.md`), `emu_ref.sh` / `r64dump.cpp` (oráculo con emulador,
-`docs/workflows.md` §6), `diff_rdram.py`, `triage_screenshots.py`, `bizhawk_*`, `xshot`.
+`docs/workflows.md` §6), `play.sh` / `cap_loop.sh` / `captura-overlays.md` (captura del mapa de
+overlays vía write-breakpoints), `diff_rdram.py`, `triage_screenshots.py`, `bizhawk_*`, `xshot`.
 
 ### `recomp/tools/` (pipeline ELF/splat, ADR 0011)
 

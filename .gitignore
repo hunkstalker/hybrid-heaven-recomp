@@ -69,13 +69,10 @@ recomp/*.bak
 # Goemon64Recomp, ports N64Recomp; ver docs/adr/0009). Se regenera desde TU ROM con
 # tools/regenerate.py. `build/recomp/RecompiledFuncs` es un DIRECTORIO REAL (no symlink) y esta
 # cubierto por `build/`.
-work/recomp/
 
-# Recompilación por ELF/splat (ADR 0011): la imagen expandida y TODO el intermedio (asm/, ELF,
-# linker script, undefined_*) se derivan de la ROM -> NO se versionan. Se regeneran con
-# tools/regenerate.py (recomp/tools/*, install_splat.sh). Ver notes/2026-09-21-migracion-*.
-# Todos los intermedios viven bajo build/recomp/ (build/ ya esta ignorado arriba): nada que anadir.
-work/scratch/expanded/
+# Scratch de desarrollo (ROMs, dumps, emulador, capturas, salida intermedia de N64Recomp y de
+# splat/ELF): NO se versiona. Anclado a la raiz para no atrapar otros `work/`.
+/work/
 
 # Artefactos de build del usuario (release de Windows) y config local de runtime:
 # ahora viven bajo build/ (ya ignorado). config.ini tambien se ignora en cualquier ruta.

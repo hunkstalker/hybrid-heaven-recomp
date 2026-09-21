@@ -10,7 +10,7 @@
 #   la config de input de mupen64plus -> [Input-SDL-Control1] si no responde
 #
 # Uso:
-#   work/play.sh [segundos] [prefijo_salida]
+#   tools/analysis/play.sh [segundos] [prefijo_salida]
 #   (necesita $DISPLAY con GLX; la ventana es de 640x480 ampliable)
 #
 # Salidas (dir. = prefijo):
@@ -19,8 +19,8 @@
 #   <prefijo>           dump final
 #   stderr: lineas "[dbg] stop pc=... valid=YES ... loader pc=..." por cada carga
 
-# Raiz del repo derivada de la ubicacion del propio script (work/ -> raiz).
-ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+# Raiz del repo derivada de la ubicacion del propio script (tools/analysis/ -> raiz).
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)"
 
 export SDL_AUDIODRIVER=dummy   # REQUERIDO headless/Xvfb: sin esto audio-sdl falla y FPE (136) a ~6s
 export CORE_SO="$ROOT/work/libmupen64plus-debug.so"
