@@ -4,6 +4,13 @@ name: CI
 #   - CI compila en cada push a main / PR y sube ARTEFACTOS (zip Windows + tar.gz Linux).
 #   - release.yml NO recompila: descarga los artefactos de CI de ESE commit y publica el Release
 #     (y monta la imagen ghcr desde el binario). Ver docs/adr/0005.
+#
+# El C recompilado NO se versiona (ADR 0009). Para compilar en CI, los jobs `linux`/`windows` lo
+# traen de un **repo privado de secretos** (patron Goemon/Zelda64Recomp): se clona con un PAT
+# (secreto `HH_SECRETS_PAT`) y se copia `RecompiledFuncs/` a `build/recomp/`.
+# Configuracion: variable `HH_SECRETS_REPO` (por defecto `hunkstalker/hh-recomp-secrets`) + secreto
+# `HH_SECRETS_PAT` (fine-grained, Contents:Read sobre ese repo). Si falta el PAT, los builds se
+# SALTAN (CI verde) con un aviso; no hay ROM ni C en este repo publico.
 on:
   push:
     branches: [main]
@@ -28,8 +35,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Traer el C recompilado (repo privado de secretos; ADR 0009)
+        id: prep
+        shell: bash
+        env:
+          PAT: ${{ secrets.HH_SECRETS_PAT }}
+          REPO: ${{ vars.HH_SECRETS_REPO }}
+        run: |
+          set -e
+          if [ -z "$PAT" ]; then
+            echo "::warning::Sin HH_SECRETS_PAT: no se compila el port (el C recompilado no se versiona; ADR 0009). Configura el repo de secretos o compila en local."
+            echo "have=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          [ -n "$REPO" ] || REPO="hunkstalker/hh-recomp-secrets"
+          git clone --depth 1 "https://x-access-token:${PAT}@github.com/${REPO}.git" secrets
+          mkdir -p build/recomp
+          cp -r secrets/RecompiledFuncs build/recomp/RecompiledFuncs
+          echo "have=1" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
+        if: steps.prep.outputs.have == '1'
       - name: Compilar el port (stage "build")
+        if: steps.prep.outputs.have == '1'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -40,6 +66,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Empaquetar (binario + LEEME + creditos)
+        if: steps.prep.outputs.have == '1'
         run: |
           set -e
           mkdir -p dist/HybridHeavenRecomp-Linux
@@ -53,6 +80,7 @@ jobs:
           cp LICENSE dist/HybridHeavenRecomp-Linux/LICENCIA.txt
           tar -C dist -czf dist/HybridHeavenRecomp-Linux.tar.gz HybridHeavenRecomp-Linux
       - uses: actions/upload-artifact@v4
+        if: steps.prep.outputs.have == '1'
         with:
           name: HybridHeavenRecomp-Linux
           path: dist/HybridHeavenRecomp-Linux.tar.gz
@@ -66,11 +94,30 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      - name: Traer el C recompilado (repo privado de secretos; ADR 0009)
+        id: prep
+        shell: bash
+        env:
+          PAT: ${{ secrets.HH_SECRETS_PAT }}
+          REPO: ${{ vars.HH_SECRETS_REPO }}
+        run: |
+          set -e
+          if [ -z "$PAT" ]; then
+            echo "::warning::Sin HH_SECRETS_PAT: se omite el build de Windows (el C recompilado no se versiona; ADR 0009)."
+            echo "have=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          [ -n "$REPO" ] || REPO="hunkstalker/hh-recomp-secrets"
+          git clone --depth 1 "https://x-access-token:${PAT}@github.com/${REPO}.git" secrets
+          mkdir -p build/recomp
+          cp -r secrets/RecompiledFuncs build/recomp/RecompiledFuncs
+          echo "have=1" >> "$GITHUB_OUTPUT"
       - name: Compilar (clona deps por runtime.lock + MSVC)
+        if: steps.prep.outputs.have == '1'
         env:
           CI: '1'
         run: cmd /c build_windows.bat
       - name: Empaquetar (exe + DLLs + LEEME + creditos)
+        if: steps.prep.outputs.have == '1'
         shell: pwsh
         run: |
           $dir = "build/windows/bin/Release"
@@ -82,6 +129,7 @@ jobs:
           Copy-Item "LICENSE" dist/LICENCIA.txt
           Compress-Archive -Path "dist/*" -DestinationPath "dist/HybridHeavenRecomp-Windows.zip" -Force
       - uses: actions/upload-artifact@v4
+        if: steps.prep.outputs.have == '1'
         with:
           name: HybridHeavenRecomp-Windows
           path: dist/HybridHeavenRecomp-Windows.zip

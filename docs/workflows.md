@@ -71,7 +71,14 @@ tools/build_linux.sh --help
   `release.yml` **no recompila**: localiza el run de CI **verde** de ese commit, descarga sus
   artefactos, crea el Release (tag `v*` o manual con `version`) y monta la imagen `ghcr.io` desde el
   binario (`docker/Dockerfile.runtime`). El CI **no** ejecuta el juego: la ROM no se sube nunca.
-- Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md`.
+  **C recompilado (ADR 0009)**: no se versiona; como no cabe en un secret de Actions (límite 48 KB),
+  el CI lo trae de un **repo privado de secretos** (patrón Goemon/Zelda64Recomp) clonado con un PAT:
+  variable `HH_SECRETS_REPO` (por defecto `hunkstalker/hh-recomp-secrets`) + secreto `HH_SECRETS_PAT`
+  (fine-grained, `Contents:Read`); copia `RecompiledFuncs/` a `build/recomp/`. **Sin el PAT, los
+  builds se saltan** (CI verde) con un aviso. Publicar el `RecompiledFuncs` (y la ROM) a ese repo es
+  paso manual del mantenedor (`tools/regenerate.py` + `git push`).
+- Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md` y
+  `adr/0009-no-versionar-c-recompilado.md`.
 
 ## 2. Ejecutar headless (Linux)
 

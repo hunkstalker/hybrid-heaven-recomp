@@ -31,3 +31,8 @@ baserom.*
 # Artefactos de build locales del port
 ./build*
 ./out
+
+# Excepcion: en CI el C recompilado (generado desde la ROM, NO versionado; ADR 0009) se copia a
+# build/recomp/RecompiledFuncs antes del `docker build` para pasarlo al contexto. Debe ir DESPUES de
+# las reglas que excluyen `build`, porque en .dockerignore gana la ultima coincidencia.
+!build/recomp/RecompiledFuncs

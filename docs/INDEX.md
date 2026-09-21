@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 247 | 2026-09-21 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
-| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 246 | 2026-09-21 |
+| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 253 | 2026-09-21 |
 
 ## Decisiones (ADR, inmutables)
 
@@ -46,6 +46,7 @@
 |---|---|---|---|
 | [2026-09-21 — Migración a la vía de recompilación de la referencia (ELF + splat + residente limpio)](../notes/2026-09-21-migracion-via-referencia-elf.md) | Nota de sesión (evidencia + PLAN). Continúa `2026-09-20-ab-bloqueo-boot-per-file.md`. | 165 | 2026-09-21 |
 | [2026-09-21 — M4c: SEGV en el teardown (al cerrar)](../notes/2026-09-21-m4c-teardown-segv.md) | Nota de plan. Es el **último defecto conocido** del hito ya validado (vía ELF/splat, entrada al CaC | 60 | 2026-09-21 |
+| [2026-09-21 — CI con el C recompilado desde un repo privado de secretos](../notes/2026-09-21-ci-recompilado-desde-repo-privado.md) | Nota de decisión/implementación. Cierra el fallo de `ci.yml` tras ADR 0009 (el C recompilado dejó | 60 | 2026-09-21 |
 | [2026-09-20 — Pipeline de recompilación per-file: estado y bloqueos](../notes/2026-09-20-pipeline-per-file-estado.md) | Nota de sesión (evidencia). Continúa `2026-09-20-lecciones-recompilacion-per-file.md` (método). | 326 | 2026-09-20 |
 | [2026-09-20 (noche-5) — Origen del nodo `0x8005BF14` y captura del pisado](../notes/2026-09-20-nodo-8005bf14-origen-y-captura.md) | Continuación de `2026-09-19-causa-raiz-cadencia-frames.md` §13-§16. Aquí se **corrige** el | 429 | 2026-09-20 |
 | [Lecciones: recompilación per-file (y cómo abordar otros juegos)](../notes/2026-09-20-lecciones-recompilacion-per-file.md) | **Nota de método, no de un bug concreto.** Resume el error que nos costó cientos de commits de | 78 | 2026-09-20 |
