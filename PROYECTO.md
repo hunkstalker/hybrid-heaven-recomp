@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-20**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-21**.
 
 ## 1. Objetivo
 
@@ -16,7 +16,7 @@ del usuario. Sub-objetivo obligatorio: **extraer y traducir todo el texto**. Pla
 | Ítem | Valor |
 |---|---|
 | Proyecto | raíz de este repo |
-| Toolchain | gcc/g++ 15, cmake 4.2, ninja, SDL2, JDK 21 + Ghidra 12.1.3 + N64LoaderWV |
+| Toolchain | gcc/g++ 15, cmake 4.2, ninja, SDL2, LLVM MIPS (`llvm-mc`/`ld.lld`) + splat/spimdisasm; Ghidra + N64LoaderWV solo vía legacy |
 | Repos de referencia | N64Recomp, N64ModernRuntime, RT64, Zelda64Recomp y un port de Konami coetáneo (`toolchain/`, gitignored) |
 | Derivados | `work/` y `toolchain/` gitignored (datos derivados, Ghidra, builds, artefactos) |
 
@@ -57,44 +57,15 @@ crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. Pendien
 estructura** (retirar la vía Ghidra a `legacy/`, unificar `config/`→`recomp/`, purgar `HH_*`, docs,
 pins y push) y **M4c** (SEGV al salir/teardown). Plan: `notes/2026-09-21-migracion-via-referencia-elf.md`.
 Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
-**Estado anterior (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
-incompleta: solo 11 de 91 code files y un solo loader; ver `notes/2026-09-20-lecciones-*.md`). Se
-rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero): el
-pipeline **completo** (Fase 0-2.5) está hecho (**N64Recomp rc=0**); el C **deja de versionarse**
-(ADR 0009) y se regenera con `tools/regenerate.py`. Loaders estilo referencia implementados
-(`src/main/sections.cpp`). **Bloqueante**: el build per-file arranca pero no pasa de la fase temprana
-(solo carga `file_008`; el viejo `file_055` en `vi≈77`); el código es idéntico, la divergencia está en
-el registro/estado de secciones (`notes/2026-09-20-pipeline-per-file-estado.md` §9-11, `RETOMAR.md`).
-**Estado anterior (2026-09-20)**: se juega en Windows; **live a 30 ticks/s** y replay con
-`HH_REPLAY_MODE=poll`. **Fase B (ADR 0007)**: cache `cache/trans.bin` + loader LZKN64 nativo.
-**CaC en investigación (BLOQUEANTE)**: el port no entra al combate. **Causa localizada (2026-09-20)**:
-el **scheduler de eventos temporizados del juego** (`FUN_80004bb0`, acumulador `[0x8008D580]`/`42D0`)
-dispara el evento que instala el **disable** (puerta `M7_FUN_80126A0C(obj,0x39,1)` → `M10_FUN_8021b240`
-→ `cb=0xFFFF84CD`), que el emulador **nunca** ejecuta. El port abre la puerta (16 llamadas, la #13
-`ret=1` con `42D0=0x2B88`, `vi=20012`); el emulador no la llama ni con `a1=0x39`. El objeto queda con
-callback inválido → no-op → **deadlock de colas**. **`HH_VI_EVERY=2` NO lo arregla** (el tick queda a
-2 VI) ⇒ la cadencia de frames es **ortogonal**. **Siguiente paso**: localizar la entrada del evento
-`M10_FUN_8021b240`/0x39 en la lista del scheduler y comparar su tiempo/disparo port↔emu. Detalle:
-`notes/2026-09-19-causa-raiz-cadencia-frames.md` §9, `RETOMAR.md`.
-**Estado anterior (2026-09-19 noche-2)**: (era la lectura de la sesión anterior, hoy en cuestión)
-se creía el port **~20 s por delante** en la fase pre-transición (objeto de transición `0x801D0474`
-en `vi 200` vs emu `347`; loader #12/M24 en `vi 417` vs emu `1535`), con el START capturado por el
-port y perdido por el emulador. `ADVANCE=0`/`EVQCHECK=0`/veneno serían síntomas aguas abajo.
-Descartados como causa: reloj (`HH_DET_CLOCK`/`quant`), `mode=vi`/`REPLAY_CLOCK`/`PACE=vi`, limiter,
-cadencia del replay/callback, cache de assets y `HH_NO_*`. Detalle:
-`notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`.
-**Estado anterior (2026-09-18)**: `get_function` hacía 4-5 `getenv()` por llamada recompilada; cachear
-los flags eliminó los stalls de 1-4 s (8 -> 0) y subió la cadencia tras la puerta a `d2=29-30` (30/s).
-**Estado anterior (2026-09-16)**: gameplay en Windows (menús → escenas 3D → combate y cinemáticas) con
-mando Xbox y audio a 43200 Hz; **guardado en cápsula validado**; entrega de objeto del NPC, regresión
-de escaleras y cuelgue por daño del robot arreglados (fallthroughs de M55 + `HH_S0FIX`); mid-entries
-resueltos con `add_mid_entry.py`. Detalle: `notes/2026-09-15-*` y `notes/2026-09-16-*`.
+**Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
+por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18
+cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fixes de M55/`HH_S0FIX`.
 
 | Fase | Estado | Nota |
 |---|---|---|
 | 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
 | 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
-| 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **multi-módulo** + validador (`tools/recomp.py`, `setup_module.py`, `validate_syms.py`) |
+| 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **ELF/splat** (ADR 0011; vía Ghidra multi-módulo archivada en `legacy/`) |
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
@@ -143,7 +114,5 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-18): audio (sync de tasa), menú in-game
-(ADR 0008, con spike), ADR 0009 (formalizar la estrategia de cobertura nativa) y el teardown SEGV.
-**CaC/veneno** sigue en espera (ver Backlog y `notes/2026-09-17-cac-*.md`). Visión a largo plazo:
-`docs/README.md`.
+Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-21): **M5** (saneamiento/estructura: docs,
+purga `HH_*`, pins y push) y **M4c** (SEGV al salir). Visión a largo plazo: `docs/README.md`.

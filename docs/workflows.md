@@ -7,44 +7,40 @@
 
 El código del juego no está plano en la ROM (Konami lo comprime con **LZKN64**, tabla
 Nisitenma-Ichigo). Se regenera **determinísticamente** desde la ROM del usuario con el pipeline
-**per-file** (ver §1 y §5b). Requisito: ROM US retail en `work/roms/us_retail.z64` (gitignored; la
-aporta el usuario). **El C recompilado no se versiona** (ADR 0009).
+**ELF/splat** (ADR 0011; detalle en §5c). Requisito: ROM US retail en `work/roms/us_retail.z64`
+(gitignored; la aporta el usuario). **El C recompilado no se versiona** (ADR 0009).
 
 ```sh
-python3 tools/regenerate.py     # ROM -> manifiesto (91 code files) -> extracción -> Ghidra por
-                                # fichero -> syms -> N64Recomp -> work/recomp/RecompiledFuncs
+python3 tools/regenerate.py     # ROM -> imagen expandida -> splat -> asm -> ELF (gate byte a byte)
+                                #      -> N64Recomp (ELF mode) -> build/recomp/RecompiledFuncs
 ```
 
-`sus` herramientas: `recomp/tools/analyze_code_files.py` (manifiesto + extracción), `tools/ghidra_sections.py`
-(Ghidra per-file), `recomp/tools/gen_file_table.py` (`include/hh/file_table.h`). El pipeline antiguo por
-módulos (`setup_module.py` + `module_sources.inc`) queda **obsoleto** (ver `legacy/`).
+Herramientas (todas en `recomp/tools/`): `analyze_code_files.py` (manifiesto de los 91 code files +
+imagen expandida), `unpack_rom.py`, `gen_splat_yaml.py`, `splat_headless.sh`, `build_elf.sh`
+(`llvm-mc` + `ld.lld`), `gen_link_syms.py`, `gen_reimplemented_decls.py`, `gen_runtime_func_table.py`,
+`gen_file_table.py` (`include/hh/file_table.h`). El pipeline **per-file/Ghidra** (§5b) queda
+**obsoleto** y archivado en `legacy/`.
 
 ## 1. Regenerar la recompilación y construir
 
 **El C recompilado no se versiona** (obra derivada; ADR 0009). Se regenera una vez desde la ROM con
-**`tools/regenerate.py`** (dependencias de **desarrollo**: Python 3.11+, JDK 21 + Ghidra, N64Recomp,
-RSPRecomp):
+**`tools/regenerate.py`** (dependencias de **desarrollo**: Python 3.11+, splat+spimdisasm
+—`recomp/tools/install_splat.sh`—, LLVM MIPS `llvm-mc`/`ld.lld`, N64Recomp, RSPRecomp):
 
 ```sh
-python3 tools/regenerate.py                 # ROM -> manifiesto -> extraccion -> Ghidra per-file
-                                            #      -> syms -> N64Recomp -> fallthroughs -> build
-python3 tools/regenerate.py --skip-ghidra   # reutiliza work/scratch/syms (iterar N64Recomp)
+python3 tools/regenerate.py                 # ROM -> splat -> asm -> ELF -> N64Recomp -> build/recomp
+python3 tools/regenerate.py --skip-splat    # reutiliza build/recomp/asm (iterar build_elf/N64Recomp)
+python3 tools/regenerate.py --skip-elf      # reutiliza build/recomp/elf (iterar N64Recomp)
 python3 tools/regenerate.py --rom ROM       # ROM explicita
+python3 tools/regenerate.py --build         # compila el port al final
 ```
 
-Genera `work/recomp/RecompiledFuncs/` y lo **materializa como directorio real** en
+Genera `work/recomp_elf/RecompiledFuncs/` y lo **materializa como directorio real** en
 `build/recomp/RecompiledFuncs/` (no symlink: Windows no los resuelve), más
 `include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `build_windows.bat`.
 
-Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **data-as-code**), parte
-del pipeline:
-
-```sh
-python3 tools/analysis/validate_syms.py work/scratch/code_files.syms.toml \
-    --rom work/scratch/code_combined.z64 --fix --out work/scratch/code_files.fixed.syms.toml
-```
-
-Regla: **nunca editar a mano el C generado**; todo fix va a la config/syms y se regenera.
+Regla: **nunca editar a mano el C generado**; todo fix va a la config de splat/símbolos
+(`recomp/*.yaml`, `recomp/symbol_addrs.txt`) o al toolchain, y se regenera.
 
 ### 1.1 Build reproducible en Linux (script y Docker)
 
@@ -124,61 +120,34 @@ nombre base y por tiempo (`triage.csv` ya marca `txt=yes/no`). Así se ata overl
 
 ## 5. Completar símbolos faltantes (evidencia runtime)
 
-> **Obsoleto** con el pipeline per-file (ver §5b): las fronteras vienen de Ghidra por fichero y no se
-> parchean a mano (`add_mid_entry`, `module_extras.json`, `keep_syms` → `legacy/`). `fix_fallthroughs.py`
-> sigue usándose (lo invoca `tools/regenerate.py`).
+> **Obsoleto** con el pipeline ELF/splat (§5c): las fronteras vienen de la **imagen completa** y no se
+> parchean a mano (`add_mid_entry`, `module_extras.json`, `keep_syms` → `legacy/`). Si tras regenerar
+> quedan fallthroughs, `python3 tools/analysis/fix_fallthroughs.py` es un paso manual.
 - `HH_SOFT_LOOKUP=1` (solo para depurar símbolos) permite seguir con stub no-op; los stubs falsean
   la lógica del juego, no usar para validar.
 - `tools/analysis/fix_function_bounds.py <syms> --rom <rom> --report-only`: asesor CFG (propone
   inicios; **no** auto-aplicar: sobre-parte).
 
-## 5b. Recompilación per-file (pipeline activo)
+## 5b. Recompilación per-file (HISTÓRICO — sustituido por §5c)
 
-Método correcto (sustituye a `setup_module.py` + `module_sources.inc`): **todos** los ficheros de
-código como secciones relocalizables. Método/porqué en
-`notes/2026-09-20-lecciones-recompilacion-per-file.md`; estado y bloqueos en
-`notes/2026-09-20-pipeline-per-file-estado.md`.
+Método mantenido solo como referencia histórica (fuente del enunciado del bloqueo del CaC, ya
+resuelto). Los comandos originales (Ghidra por fichero, validación de syms, N64Recomp per-file) y sus
+herramientas están en `legacy/tools/` y `legacy/config/`; el estado de aquel bloqueo, en
+`../notes/2026-09-20-pipeline-per-file-estado.md`. Se sustituyó por **splat/ELF** (ADR 0011, §5c)
+porque las fronteras de imagen completa eliminan los parcheos manuales.
 
-```sh
-# Ghidra es dep. de desarrollo (no de build)
-tools/install_ghidra.sh
+## 5c. Recompilación por ELF + splat (pipeline activo, ADR 0011)
 
-# 1) manifiesto de los 91 code files + extracción
-python3 recomp/tools/analyze_code_files.py work/roms/us_retail.z64 --extract work/scratch/code_files
-
-# 2) Ghidra por fichero -> work/scratch/syms/file_NN.toml + ROM combinado
-python3 tools/ghidra_sections.py --only 57      # prueba de un fichero
-python3 tools/ghidra_sections.py --all          # los 91
-
-# 3) validar/corregir fronteras (delay-slots, ramas cruzadas)
-python3 tools/analysis/validate_syms.py work/scratch/code_files.syms.toml \
-    --rom work/scratch/code_combined.z64 --fix --out work/scratch/code_files.fixed.syms.toml
-
-# 4) recompilar el set per-file
-./toolchain/src/N64Recomp/build_recomp/N64Recomp recomp/hybrid-heaven.us.toml
-```
-
-Artefactos: `recomp/code_files.json` + `recomp/code_files.overlays.txt` (set de ficheros);
-`work/scratch/{code_files/,syms/,code_combined.z64,code_files.fixed.syms.toml}` (generado).
-**Pendiente** (no cierra aún): jump-tables, funciones que acaban en `jal`/`jr` no-RA, residente
-regenerado excluyendo overlays y los loaders `recomp_load_overlays`/`unload_overlays`.
-
-> **EN MIGRACIÓN (2026-09-21, ADR 0011):** esta vía Ghidra-per-file se sustituye por **splat/ELF**
-> (fronteras de imagen completa). Plan y fases: `../notes/2026-09-21-migracion-via-referencia-elf.md`.
-> Toolchain de desarrollo: `recomp/tools/install_splat.sh` (venv con splat + spimdisasm) y ensamblador/
-> enlazador MIPS por LLVM (`llvm-mc`/`ld.lld`). Wrapper: `recomp/tools/splat_headless.sh`.
-
-## 5c. Recompilación por ELF + splat (vía nueva, en curso)
-
-Sustituye a §5b (ADR 0011). Piezas:
-1. `recomp/tools/analyze_code_files.py` → **imagen expandida** (`hh.expanded.z64`: ROM + cada code file
-   descomprimido en offset sintético >16 MB) + `segments.json` + `file_table.h`.
-2. `gen_splat_yaml` → config de **splat** (residente + `file_008` globales; resto
-   `exclusive_ram_id: overlay`; `asm_data_macro: dlabel`, `asm_jtbl_label_macro: jlabel`).
-3. `recomp/tools/splat_headless.sh split …` → `asm/`; ensamblar con `llvm-mc -triple=mips-linux-gnu` y
-   enlazar con `ld.lld -m elf32btsmip` → `hybrid-heaven.us.elf`.
-4. N64Recomp en **ELF mode** (`elf_path`, `use_lookup_for_all_function_calls`,
-   `relocatable_sections_path`).
+Sustituye a §5b (ADR 0011). Piezas (todas generan salida bajo `build/recomp/`, gitignored):
+1. `recomp/tools/analyze_code_files.py` + `unpack_rom.py` → **imagen expandida**
+   (`work/scratch/expanded/hh.expanded.z64`: ROM + cada code file descomprimido en offset sintético
+   >16 MB) + `segments.json` + `include/hh/file_table.h`.
+2. `gen_splat_yaml.py` → config de **splat** (`recomp/hybrid-heaven.us.yaml`: residente + `file_008`
+   globales; resto `exclusive_ram_id: overlay`; `asm_data_macro: dlabel`, `asm_jtbl_label_macro: jlabel`).
+3. `recomp/tools/splat_headless.sh split …` → `build/recomp/asm/`; `build_elf.sh` normaliza/ensambla con
+   `llvm-mc -triple=mips -mcpu=mips3` y enlaza con `ld.lld` → `build/recomp/elf/hybrid-heaven.us.elf`.
+4. N64Recomp en **ELF mode** (`recomp/hybrid-heaven.us.toml`: `elf_path`,
+   `use_lookup_for_all_function_calls`, `relocatable_sections_path`).
 5. **Gates**: segmentos byte-idénticos a la imagen; `jal` 0 mid-function/nowhere; conteos
    reconciliados; sin datos-como-código.
 
@@ -244,6 +213,22 @@ for off in range(0,0x800000,4):
 **Resultado medido (2026-09-11)**: código de módulos y tablas estáticas **idénticos**; la divergencia
 está en **estado mutado** (el buffer scratch `0x8005BDB4`, estructuras de hilo, etc.), así que el diff
 puntual es ruidoso → el siguiente refinamiento es un **write-trace diff** (traza de writes ordenada).
+
+### 6.2 Instrumentación y rebuild del recompilador
+
+- **`tools/analysis/emu_ref.sh <prefix> <secs> [dumps]`**: `r64dump` con 4 MB + input + RSP-HLE +
+  **vídeo real rice/GLX** (Xvfb :99 con GLX). Única configuración que progresa como BizHawk. Requiere
+  `apk add mesa-dri-gallium libsamplerate` y `r64dump` con rutas del proyecto
+  (`MU64_CFGDIR`/`MU64_DATADIR` → `work/debug/mupen*`; config `DisableExtraMem=1`).
+- **Escritores**: `work/libmupen64plus-wplog.so` + `HH_WPLOG=1 HH_WPLO=<hex> HH_WPHI=<hex>` (log con PC
+  del rango físico). Fuente `work/mupen-src` (rebuild: `make -C projects/unix all OSD=0 VULKAN=0
+  DEBUGGER=1`; requiere `binutils-dev`).
+- **Trazas**: `HH_CALLTRACE` (port, indirectas) y `HH_JALTRACE` (emu, todos los saltos; no dispatches de
+  hilo). **No alinear por posición**: comparar por ventanas o subsecuencia.
+- **Diff**: `tools/analysis/diff_rdram.py <port> <emu> [base size]` (resumen por bloques).
+- **Rebuild del recompilador**: binario `toolchain/src/N64Recomp/build_recomp/N64Recomp`; usar
+  **`--target N64RecompCLI`** (`--target N64Recomp` no relinkea: “el cambio no se aplica”). Tras tocar
+  `symbol_lists.cpp`: rebuild del tool → `python3 tools/regenerate.py`.
 
 ## 7. Documentación (índice y validación)
 
