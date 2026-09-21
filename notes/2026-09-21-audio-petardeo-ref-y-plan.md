@@ -72,3 +72,24 @@
 - Notas: `2026-09-18-suavizado-fase1-y-cache-loader.md` §2,
   `2026-09-17-replay-mode-vi-vis-negativo.md` §5b–5d.
 - `docs/architecture.md` §5 (audio).
+
+## 7. RESUELTO (2026-09-21) — modelo de la referencia por defecto
+
+La **causa** era la sobreproducción del juego por el **modelo FIFO** de `osAiGetLength`: la cola SDL
+crecía hasta el watermark y se **descartaban buffers** (clics). El arreglo es la **parte de la
+referencia que nos aplicaba** (no su resampler de calidad, que no necesitamos porque el dispositivo
+ya corre a 43200):
+
+- `get_remaining_audio_bytes` (`ultramodern/src/audio.cpp`) reporta la **cola SDL real** (sin cap)
+  **− `HH_AI_HEADROOM_MS`** (30 ms), en vez del restante del FIFO. El juego dimensiona los buffers
+  con eso → **`frames/s≈43.2k` (60/s)**, la cola se asienta en ~headroom y **`drops/s=0`**.
+- El **FIFO sigue llevando el evento AI** (`hh_ai_fifo_poll`), así que el timing del juego no cambia.
+- `HH_AI_REPORT_SDL=0` revierte al modelo FIFO. Palancas de diagnóstico: `HH_AI_HEADROOM_MS`,
+  `HH_AI_LEN_OFFSET`, y el PLL (`HH_AI_SYNC`/`HH_AI_MAXC`).
+- Commits: fork NMR `21af731` (experimento) + `c03646f` (por defecto); `runtime.lock` actualizado.
+- **Validado**: Windows (oído del mantenedor: sin petardeo) y Linux (dummy: `frames/s≈43.6k`,
+  `drops/s=0`, `queued≈1700`).
+
+Pendiente de rutina al aplicar cambios de AI: confirmar en Windows que **gameplay/CaC** siguen bien
+(cambió lo que el juego ve en `osAiGetLength`).
+

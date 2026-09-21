@@ -1,35 +1,23 @@
-# RETOMAR — Audio: petardeo ligero (siguiente tarea)
+# RETOMAR — estado y siguiente tarea
 
 > Handoff para sesión nueva. **Última sesión: 2026-09-21.**
 >
-> **DIRECCIÓN ACTUAL:** cerrar el **petardeo ligero de audio**. Todo lo demás está hecho: vía
-> ELF/splat (ADR 0011) **validada en Windows** (gameplay, primer CaC, mando, guardado), M4c
-> (teardown) resuelto y **Release `v0.1.1` publicado**.
+> **DIRECCIÓN ACTUAL:** el port está **validado en Windows** (gameplay, primer CaC, mando, guardado),
+> **publicado** (Release `v0.1.1`), **M4c** (teardown) resuelto y **audio sin petardeo** (modelo de la
+> referencia: reportar la cola real − headroom). **Queda el push** (fork NMR + `main`).
 >
-> **Síntoma:** petardeo ligero, **igual antes y después** del PLL. En `hh_audio.log` (Windows):
-> `frames/s≈44–46k` (el juego produce ~3–6% de más sobre 43200), `queued≈6000–6900` (pegado al
-> watermark 150 ms) y `drops/s≈2–6` (descartes = clics).
+> **Siguientes tareas** (por prioridad, `TODO.md` "Ahora"): **mando X del CaC** (desbloqueado) →
+> **menú in-game (ADR 0008, con spike previo)** → **limpieza de instrumentación** → smoke de arranque
+> → **ADR 0009** (cobertura nativa).
 >
-> **Lee primero:** `notes/2026-09-21-audio-petardeo-ref-y-plan.md` (evidencia, lo que hace la
-> **referencia** y el plan). Luego `docs/architecture.md` §5 y
-> `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5b–5d.
+> **Audio (cerrado)** — detalle en `notes/2026-09-21-audio-petardeo-ref-y-plan.md`: el juego veía el
+> restante del **FIFO**, sobreproducía ~5–6% → cola SDL hasta el watermark (150 ms) → **descartes
+> (clics)**. Fix (`ultramodern/src/audio.cpp`): `get_remaining_audio_bytes` reporta la **cola SDL real
+> − `HH_AI_HEADROOM_MS`** (30 ms); el FIFO sigue llevando el **evento AI**. `HH_AI_REPORT_SDL=0`
+> revierte. Validado en Windows (sin petardeo) y Linux (`frames/s≈43.2k`, `drops/s=0`).
 >
-> **Lo esencial (referencia, MIT):** (a) **resampler propio** (windowed-sinc) + dispositivo a la
-> **tasa del hardware** (SDL resamplea mal: pierde continuidad en cada bloque → crackle); (b)
-> **headroom** en `get_frames_remaining` (el juego dimensiona cada buffer con ese valor → la cola se
-> asienta más profunda y no toca cero; SDL rellena con ceros al drenar → si toca cero, hueco =
-> crackle); (c) periodo del dispositivo **512**; (d) **des-swapear L/R** (posible estéreo invertido en
-> el nuestro — **verificar**). Ficheros ref: `/tmp/opencode/ref-hh/src/resample.cpp`,
-> `.../include/hh/resample.h`, `.../src/callbacks.cpp`.
->
-> **Estado de la tarea:** implementados y **sin resolver**: PLL (`src/platform/support.cpp`;
-> `HH_AI_SYNC`, `HH_AI_MAXC`=3%) y offset `HH_AI_LEN_OFFSET` (fork NMR `cae028e`; **sin probar**).
-> **Siguiente:** probar el offset **positivo** (que el juego produzca menos; `frames/s`→43200,
-> `drops/s`→0); si no basta, adoptar el enfoque de la referencia y **re-validar el CaC** (el modelo AI
-> influye en su timing).
->
-> **Push pendiente (no subir hasta validar el audio):** `main` (4 commits: audio PLL×2 + TODO) y fork
-> NMR (1 commit: offset). El **main ya no requiere `--force`** (la reescritura ya se publicó).
+> **Push pendiente (ya validado):** fork NMR (`lib/N64ModernRuntime`) y `main`. El `main` ya **no**
+> requiere `--force` (la reescritura se publicó). Opcional: sacar Release `v0.1.2` con el fix de audio.
 >
 > **Hecho (contexto):** ELF/splat M0–M5 y M4c en `notes/2026-09-21-migracion-via-referencia-elf.md` y
 > `notes/2026-09-21-m4c-teardown-segv.md`; publicación en `TODO.md` (Hecho).

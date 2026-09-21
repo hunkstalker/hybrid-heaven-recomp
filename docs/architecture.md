@@ -197,13 +197,14 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   300-420 s sin crash, ~18k audio tasks, iteraciones del mixer estables, 0 `[RSPW] PISA`, voces
   intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
   `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
-  **Suavizado (2026-09-21)**: la cola SDL se centra con un **resampler adaptativo (PLL)** guiado por
-  el error de cola (`src/platform/support.cpp`): corrección ±`HH_AI_MAXC` (3%) hacia `HH_AI_TARGET_MS`
-  (50 ms) en vez de **descartar buffers** (`HH_AI_MAX_MS`=150 ms, salvaguarda dura). Causa de fondo:
-  con FIFO, el juego **sobreproduce ~5-6%** porque el reporte del FIFO
-  (`get_remaining_audio_bytes`, `ultramodern/src/audio.cpp`) se queda corto → **sesgo sintonizable**
-  `HH_AI_LEN_OFFSET` (frames; default 0 = fiel), sin resamplear/pitch. `hh_audio.log` incluye `queued`
-  y `drops/s`; `HH_AI_SYNC=0` revierte. *Pendiente: sintonizar el offset en Windows.*
+  **Petardeo RESUELTO (2026-09-21)**: causa = el juego **sobreproducía ~5-6%** con el modelo FIFO,
+  la cola SDL crecía hasta el watermark (150 ms) y se **descartaban buffers** (clics). Fix (modelo de
+  la referencia): `get_remaining_audio_bytes` (`ultramodern/src/audio.cpp`) reporta la **cola SDL real
+  − headroom** (`HH_AI_HEADROOM_MS`=30 ms) en vez del restante del FIFO; el juego dimensiona los
+  buffers con eso → `frames/s≈43.2k` (60/s), la cola se asienta en ~headroom y `drops/s=0`. El FIFO
+  sigue llevando el evento AI. `HH_AI_REPORT_SDL=0` revierte al modelo FIFO. Se mantienen como
+  palancas de diagnóstico el PLL (`HH_AI_SYNC`/`HH_AI_MAXC`) y `HH_AI_LEN_OFFSET`. Diagnóstico:
+  `hh_audio.log` (`queued`, `drops/s`).
   **Frontera actual (2026-09-14)**: con el registro dinámico de módulos el port **cruza la
   transición y el burst**, y **renderiza geometría/píxeles reales en RT64** (logo, pantalla de
   título "PRESS START BUTTON" y attract 3D; capturas en `work/debug/port_shot_*.png`, nota

@@ -5,11 +5,6 @@
 
 ## Ahora (priorizado)
 
-- [•] **Audio: petardeo ligero** (siguiente tarea): el juego produce ~3–6% de más (`frames/s≈44–46k`),
-  `queued` pegado al watermark (150 ms) y `drops/s≈2–6`. Implementados y **sin resolver**: PLL
-  (`src/platform/support.cpp`; `HH_AI_SYNC`/`HH_AI_MAXC`) y offset `HH_AI_LEN_OFFSET` (fork NMR;
-  **sin probar**). **Plan + enfoque de la referencia** (resampler propio + headroom + periodo 512 +
-  posible swap L/R): `notes/2026-09-21-audio-petardeo-ref-y-plan.md`.
 - [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
   en CaC** y asignarlo a **X** (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
@@ -44,6 +39,10 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Audio sin petardeo (2026-09-21)**: el juego sobreproducía ~5–6% (modelo FIFO) → cola hasta el
+  watermark → descartes. Fix (modelo de la referencia): reportar la **cola SDL real − headroom**
+  (`HH_AI_HEADROOM_MS`=30); el FIFO sigue con el evento AI. `frames/s≈43.2k`, `drops/s=0`. Validado en
+  Windows y Linux. `notes/2026-09-21-audio-petardeo-ref-y-plan.md`.
 - [x] **Publicación hecha (2026-09-21)**: CI verde (Linux/Windows) + **Release `v0.1.1`** publicado,
   con el repo público sin datos del juego y el `RecompiledFuncs` traído del repo privado de secretos
   (ADR 0009). Etapa ELF/splat y M4c validados en Windows.
