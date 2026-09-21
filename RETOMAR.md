@@ -3,11 +3,13 @@
 > Handoff para sesión nueva. **Última sesión: 2026-09-21.**
 >
 > **DIRECCIÓN ACTUAL:** el port está **validado en Windows** (gameplay, primer CaC, **mando/teclado**,
-> guardado), **publicado** (Release `v0.1.1`), **M4c** (teardown) resuelto y **audio sin petardeo**.
-> **Queda el push** (fork NMR + `main`).
+> guardado), **publicado** (Release `v0.1.1`), **M4c**, **audio sin petardeo**, **mando/teclado**,
+> **instrumentación**, **RSP → generado/privado** y **estéreo L/R** resueltos. **Todo pusheado**
+> (`main` y fork NMR a 0; el repo privado de secretos ya incluye `rsp/hh_aspMain.cpp`).
+> **Lo único pendiente: validar el estéreo de oído en Windows (cascos)** — con monitor no se aprecia.
 >
 > **Siguientes tareas** (por prioridad, `TODO.md` "Ahora"): **menú in-game (ADR 0008, con spike
-> previo)** → **limpieza de instrumentación** → smoke de arranque → **ADR 0009** (cobertura nativa).
+> previo)** → smoke de arranque → **implementar ADR 0009** (cobertura nativa: manifiesto + métrica).
 >
 > **Mando/teclado (cerrado):** mapeo **fijo** B=B (atrás/mapa), X=agacharse, A=A, Y=C-Down, LB/RB=L/R;
 > **D-pad → stick** por defecto (navega menús); teclado WASD + H/J/K/L + U/I + O/P + Enter. `config.ini`
@@ -17,10 +19,14 @@
 > restante del **FIFO**, sobreproducía ~5–6% → cola SDL hasta el watermark (150 ms) → **descartes
 > (clics)**. Fix (`ultramodern/src/audio.cpp`): `get_remaining_audio_bytes` reporta la **cola SDL real
 > − `HH_AI_HEADROOM_MS`** (30 ms); el FIFO sigue llevando el **evento AI**. `HH_AI_REPORT_SDL=0`
-> revierte. Validado en Windows (sin petardeo) y Linux (`frames/s≈43.2k`, `drops/s=0`).
+> revierte. **Estéreo L/R** des-swapeado en `queue_samples` (`HH_AUDIO_NO_SWAP=1` off). Validado en
+> Windows (sin petardeo) y Linux (`frames/s≈43.2k`, `drops/s=0`).
 >
-> **Push pendiente (ya validado):** fork NMR (`lib/N64ModernRuntime`) y `main`. El `main` ya **no**
-> requiere `--force` (la reescritura se publicó). Opcional: sacar Release `v0.1.2` con el fix de audio.
+> **Plan de cobertura nativa (ADR 0009, actualización)**: el microcódigo RSP ya es **generado**
+> (`build/recomp/rsp/hh_aspMain.cpp`, RSPRecomp), así que el repo público queda **sin traducción de
+> código del juego**. Al **congelar el baseline (100 % features)** se **clonará** y se abrirá un
+> **repo separado** para la reescritura nativa (**derivada**); baseline = producto/oráculo. Norte:
+> **clean-room**. Backup fuera de GitHub.
 >
 > **Hecho (contexto):** ELF/splat M0–M5 y M4c en `notes/2026-09-21-migracion-via-referencia-elf.md` y
 > `notes/2026-09-21-m4c-teardown-segv.md`; publicación en `TODO.md` (Hecho).
