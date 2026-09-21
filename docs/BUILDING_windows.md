@@ -52,21 +52,40 @@ Reparar/forzar el runtime a lo que fija el submódulo:
 cd <raiz del repo>
 git -c safe.directory=* submodule update --init --recursive
 ```
-(o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build\windowsdows.bat`.)
+(o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build_windows.bat`.)
 
 ## 2. Configurar y compilar
 
-Recomendado: ejecutar `build\windowsdows.bat`. Por defecto **omite git** si `lib\rt64` y
+Recomendado: ejecutar `build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
 `lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas) y compila en
 **Release** (la build Debug sin optimizar hace que el juego caiga a 30 fps y que el hilo de audio
-solo produzca la mitad de buffers -> petardeo). Usa `build\windowsdows.bat --force-libs` si quieres
+solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si quieres
 clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
-`build\windowsdows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
+`build_windows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
 omitió git). El submódulo fija un commit **publicado** en el fork (y `runtime.lock` como
 fallback): si necesitas probar commits locales del runtime sin publicarlos, usa
-**`build\windowsdows.local.bat`**, que compila `lib\` tal cual (sin fetch/checkout) e imprime el
+**`build_windows.local.bat`**, que compila `lib\` tal cual (sin fetch/checkout) e imprime el
 commit local que usa.
+
+### 2a. Accesos directos por config (doble clic)
+
+| Build | Compilar | Ejecutar |
+|---|---|---|
+| **Release** (GUI: 1 ventana, sin consola) | `build_windows_release.bat` | `run_windows_release.bat` |
+| **Debug** (con consola) | `build_windows_debug.bat` | `run_windows_debug.bat` |
+| **Release local** ¹ | `build_windows_release.local.bat` | `run_windows_release.bat` |
+| **Debug local** ¹ | `build_windows_debug.local.bat` | `run_windows_debug.bat` |
+
+¹ *Build local del mantenedor*: compila el árbol `lib\` tal cual (sin git, con commits sin
+publicar). Los `.local` **no se versionan** (`.gitignore`) y son envoltorios de
+`build_windows.local.bat`. **Ejecutar no tiene variante local**: el `.exe` sale en el mismo sitio
+(`build\windows\bin\<config>`), así que `run_windows_release/debug.bat` sirve para ambas builds.
+
+Todos son **envoltorios** de `build_windows[.local].bat [--debug]` / `run_windows.bat [release|debug]`
+(no duplican lógica). **Consola:** en **Debug** el `.exe` es de subsistema consola (verás la
+terminal); en **Release** es **GUI -> una sola ventana**, sin consola de fondo (por eso la build que
+se distribuye es Release). `run_windows.bat` sin argumento usa Release si existe y, si no, Debug.
 
 Manual:
 
@@ -80,11 +99,13 @@ cmake --build build\windows --target HybridHeavenRecomp --config Release
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
 - ROM: al ejecutar, el `.exe` busca `rom\baserom.us.z64` (o `baserom.us.z64` junto al `.exe`).
 
-### 2b. Build local del mantenedor (`build\windowsdows.local.bat`, no versionado)
+### 2b. Build local del mantenedor (`build_windows.local.bat`, no versionado)
 
-`build\windowsdows.local.bat` está en `.gitignore` (es una comodidad local, no forma parte del
+`build_windows.local.bat` está en `.gitignore` (es una comodidad local, no forma parte del
 proyecto reproducible). Compila `lib\` **tal cual** está en disco (sin git), avisa si falta `lib\` e
-imprime la ruta y el commit del runtime local. Contenido de referencia para recrearlo:
+imprime la ruta y el commit del runtime local. Atajos por config (también gitignored):
+`build_windows_release.local.bat` y `build_windows_debug.local.bat`. Contenido de referencia para
+recrearlo:
 
 ```bat
 @echo off
@@ -102,8 +123,8 @@ set "PORT=%ROOT%"
 set "RT64=%PORT%\lib\rt64"
 set "NMR=%PORT%\lib\N64ModernRuntime"
 
-if not exist "%RT64%\CMakeLists.txt" ( echo ERROR: falta lib\rt64 ^(usa build\windowsdows.bat --force-libs^). & goto :err )
-if not exist "%NMR%\CMakeLists.txt" ( echo ERROR: falta lib\N64ModernRuntime ^(usa build\windowsdows.bat --force-libs^). & goto :err )
+if not exist "%RT64%\CMakeLists.txt" ( echo ERROR: falta lib\rt64 ^(usa build_windows.bat --force-libs^). & goto :err )
+if not exist "%NMR%\CMakeLists.txt" ( echo ERROR: falta lib\N64ModernRuntime ^(usa build_windows.bat --force-libs^). & goto :err )
 
 set "NMR_SHA=desconocido (no es repo git)"
 if exist "%NMR%\.git" for /f "usebackq delims=" %%s in (`git -c safe.directory=* -C "%NMR%" rev-parse --short HEAD 2^>nul`) do set "NMR_SHA=%%s"
@@ -137,7 +158,7 @@ exit /b 1
 
 ## 3b. Grabar una partida (para reproducir el crash)
 
-Doble clic a **`port\run_windows.bat`**: graba tu partida automáticamente en
+Doble clic a **`run_windows.bat`**: graba tu partida automáticamente en
 `hybrid-heaven-recomp\tests\mi_partida.txt` (no hay que configurar nada; hoy va comentado en
 `run_windows.bat`, descomenta la línea `HH_RECORD` si la quieres). Juega hasta que crashee y
 envía ese `.txt`. El replay en el entorno de desarrollo es determinista (RMSE=0).
@@ -156,7 +177,9 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
 
 ## 3c-2. Bats de diagnóstico (los que quedan)
 
-- **`run_windows.bat`** — ejecución normal. Admite `noaudio` y/o `audlog` como argumentos.
+- **`run_windows.bat`** — ejecución normal. Admite `noaudio` y/o `audlog`, y `release`/`debug` para
+  elegir la build (sin argumento: Release si existe, si no Debug). Accesos directos:
+  **`run_windows_release.bat`** / **`run_windows_debug.bat`**.
 - **`run_pacing.bat`** — pasada de pacing: lanza el port y guarda los logs de la sesión en
   `logs_pacing_<fecha_hora>\` junto al `.exe`, e imprime las últimas líneas de `hh_state.log`.
   Modos: `run_pacing.bat trace` (traza frame/disp) y `run_pacing.bat gate` (~20-30 s con

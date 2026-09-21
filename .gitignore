@@ -81,3 +81,5 @@ config.ini
 
 # Build local del mantenedor (compila lib/ tal cual, sin git; no se publica)
 build_windows.local.bat
+build_windows_release.local.bat
+build_windows_debug.local.bat

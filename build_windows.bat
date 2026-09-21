@@ -9,6 +9,7 @@ REM  Uso:
 REM    build_windows.bat                 Release (recomendado: 3-5x mas rapido)
 REM    build_windows.bat --debug         -> Debug (solo para diagnosticar crashes)
 REM    build_windows.bat --force-libs    -> clonar/actualizar libs antes
+REM  Accesos directos: build_windows_release.bat / build_windows_debug.bat (doble clic).
 REM =====================================================================
 setlocal enabledelayedexpansion
 chcp 65001 >nul
