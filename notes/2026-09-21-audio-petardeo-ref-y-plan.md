@@ -53,6 +53,10 @@
 
 1. **Probar `HH_AI_LEN_OFFSET` > 0** (reconstruir Windows): objetivo `frames/s → 43200`,
    `drops/s → 0`. Es la palanca rápida (conceptual al headroom). Probar 50/100/150/200 y anotar.
+1b. **Experimento ya montado** (opt-in, fork NMR `21af731`): `HH_AI_REPORT_SDL=1` hace que
+   `get_remaining_audio_bytes` reporte la **cola SDL real − headroom** (`HH_AI_HEADROOM_MS`=30) en
+   vez del FIFO; el FIFO sigue llevando el **evento AI** (`hh_ai_fifo_poll`). Es el modelo de la
+   referencia. Objetivo: `queued` asentada en ~headroom (~1300 frames) y `drops/s=0`.
 2. **Adoptar el enfoque de la referencia** si (1) no basta o el audio sigue sucio:
    resampler propio (adaptar `resample.{h,cpp}`, crédito MIT) + dispositivo a tasa de hardware +
    **headroom** en el reporte + periodo 512. Decidir cómo convive con `HH_AI_FIFO`.

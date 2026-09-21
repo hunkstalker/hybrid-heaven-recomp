@@ -545,9 +545,11 @@ size_t hh::get_frames_remaining() {
     // HH_AI_QUEUE_REPORT=full restaura el comportamiento anterior (cola real sin cap) para
     // pruebas de regresion sin recompilar.
     const char* qrep = getenv("HH_AI_QUEUE_REPORT");
-    const size_t cap = (qrep != nullptr && strcmp(qrep, "full") == 0)
-                           ? static_cast<size_t>(-1)
-                           : static_cast<size_t>(sample_rate / 60);
+    // HH_AI_REPORT_SDL (experimento): reporta la cola REAL (sin cap) para el modelo de la referencia.
+    const bool full = (qrep != nullptr && strcmp(qrep, "full") == 0) ||
+                      (getenv("HH_AI_REPORT_SDL") != nullptr);
+    const size_t cap = full ? static_cast<size_t>(-1)
+                            : static_cast<size_t>(sample_rate / 60);
     const size_t reported = queued < cap ? queued : cap;
     const char* qlog = getenv("HH_AUDIOLOG");
     if (qlog != nullptr && *qlog != '\0') {
