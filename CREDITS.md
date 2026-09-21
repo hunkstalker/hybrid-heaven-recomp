@@ -37,7 +37,7 @@ se conserva el vínculo “forked from …” y los avisos de licencia):
 | [hunkstalker/N64Recomp](https://github.com/hunkstalker/N64Recomp) | `include/recomp.h` (`MEM_*` seguro, watchpoint) + `src/symbol_lists.cpp` (PFS reimplementado) | `N64Recomp/N64Recomp` (MIT) |
 
 `lib/N64ModernRuntime` y `lib/N64Recomp` se incluyen como **submódulos git** (ADR 0010) apuntando a
-estos forks (el `N64Recomp` sale del `.gitmodules` anidado del fork NMR). `port/runtime.lock` queda
+estos forks (el `N64Recomp` sale del `.gitmodules` anidado del fork NMR). `runtime.lock` queda
 como referencia/fallback. Los cambios quedan marcados en los propios commits de cada fork (GPL-3.0 §5).
 
 `RT64` **no** se modifica: se clona del upstream en el commit fijo

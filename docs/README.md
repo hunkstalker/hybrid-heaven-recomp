@@ -26,7 +26,7 @@ El recomp es el **andamiaje**; encima se sustituyen piezas:
    función guest por C nativo.
 2. **Hooks / wrappers** (runtime, `get_function`): interceptar funciones y sustituir cuerpo o salida.
 3. **Runtime** (`N64ModernRuntime`): reimplementa el hardware/libultra; cada vez más lógica vive aquí.
-4. **Port** (`port/HybridHeavenRecomp/src/`): glue y módulos que sacan el juego de la ROM
+4. **Port** (`src/`): glue y módulos que sacan el juego de la ROM
    (p. ej. la Fase B: `trans_cache.cpp` reemplaza el loader `FUN_80003824`).
 
 Ejemplo de referencia: la **Fase B** ya bypassa un bloque grande de lógica del juego con C nativo.

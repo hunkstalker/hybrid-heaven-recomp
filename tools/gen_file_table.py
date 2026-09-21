@@ -5,7 +5,7 @@
 tambien el orden de `overlay_sections_by_index` generado por N64Recomp. Ese invariante permite que
 `load_overlay_by_id(i)` / `unload_overlay_by_id(i)` usen el indice de `kCodeFiles` directamente.
 
-Uso:  python3 tools/gen_file_table.py [--out port/HybridHeavenRecomp/include/hh/file_table.h]
+Uso:  python3 tools/gen_file_table.py [--out ./include/hh/file_table.h]
 """
 
 import argparse
@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "recomp/code_files.json"
-DEFAULT_OUT = ROOT / "port/HybridHeavenRecomp/include/hh/file_table.h"
+DEFAULT_OUT = ROOT / "include/hh/file_table.h"
 
 
 def main() -> int:

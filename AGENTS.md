@@ -1,12 +1,15 @@
 # AGENTS.md — arranque de sesión
 
 Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + Steam Deck.
-Fase actual (**2026-09-20**): **reset de la recompilación a per-file** (causa raíz del freeze CaC: extracción
-incompleta; `notes/2026-09-20-lecciones-recompilacion-per-file.md`). Pipeline **hecho** (91 code files, Ghidra por
-fichero, N64Recomp rc=0) y **el C deja de versionarse** (obra derivada; ADR 0009) → `python3 tools/regenerate.py`.
-**Bloqueante**: el build per-file no pasa de la fase temprana (solo carga `file_008`; el viejo `file_055` en
-`vi≈77`); el código es idéntico, diverge el registro/estado de secciones. Detalle/siguiente paso: `RETOMAR.md`,
-`TODO.md`, nota `2026-09-20-pipeline-per-file-estado.md`.
+Fase actual (**2026-09-21**): **recompilación por ELF/splat** (ADR 0011; `tools/regenerate.py`). El C
+recompilado **no se versiona** (obra derivada; ADR 0009) → vive en `build/recomp/RecompiledFuncs`.
+**Validado en Windows**: START → menú → GAME START → gameplay, primer NPC, **primer CaC**, ~30 min hasta el
+6º combate sin cuelgues; mando y guardado OK (el bloqueante del CaC está resuelto). Pendiente: **Fase M5**
+(saneamiento/estructura: `recomp/tools`, docs, purga `HH_*`) y **M4c** (SEGV al salir). Ver `RETOMAR.md`,
+`TODO.md` y `notes/2026-09-21-migracion-via-referencia-elf.md`.
+
+Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}`, `include/`, `assets/`,
+`rsp/`, `lib/`), pipeline en `recomp/`, tooling en `tools/`, builds (gitignored) en `build/`.
 
 Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, ADR 0002/0003); menús, Controller Pak y audio `aspMain`; perfiles de mando (`config.ini`).
 
@@ -59,17 +62,17 @@ o (b) una tarea salga **exitosa/validada**. **No** commitear por cada nota ni po
 documentación rutinarias. Cuando se commitee una tarea validada, dejar el árbol limpio y listo para
 push.
 
-**Repos a pushear y orden** (los forks primero, porque `port/runtime.lock` los pinea; ver su
+**Repos a pushear y orden** (los forks primero, porque `runtime.lock` los pinea; ver su
 comentario). Orden obligatorio:
 
-1. **N64Recomp** (fork) — `port/HybridHeavenRecomp/lib/N64ModernRuntime/N64Recomp`:
+1. **N64Recomp** (fork) — `lib/N64ModernRuntime/N64Recomp`:
    `git push origin hybrid-heaven` → `https://github.com/hunkstalker/N64Recomp.git`
-2. **N64ModernRuntime** (fork) — `port/HybridHeavenRecomp/lib/N64ModernRuntime`:
+2. **N64ModernRuntime** (fork) — `lib/N64ModernRuntime`:
    `git push fork hybrid-heaven` → `https://github.com/hunkstalker/N64ModernRuntime.git`
 3. **Main repo** — raíz del repo: `git push origin main` → `https://github.com/hunkstalker/hybrid-heaven-recomp.git`
 
 Si el remoto rechaza por historial reescrito: `--force-with-lease`. Los submódulos de `lib/` (y el
-pin de `port/runtime.lock`) solo son válidos **después** de pushear los forks: hasta entonces un clon
+pin de `runtime.lock`) solo son válidos **después** de pushear los forks: hasta entonces un clon
 nuevo no podrá inicializar el submódulo (usa `build_windows.local.bat` para el árbol local).
 
 ## Calibración crítica
@@ -91,7 +94,7 @@ nuevo no podrá inicializar el submódulo (usa `build_windows.local.bat` para el
 - Commitear cuando se valide una tarea o cuando haya que commitear documentación. No tocar ROMs ni
   `work/*.so` sin pedirlo.
 - **Higiene**: scripts/bats **puntuales** se eliminan tras usarse (no dejar residuos); los de uso
-  recurrente van en `port/` y se documentan. Borrar builds locales que no se usen (`.vs`, builds
+  recurrente van en `tools/` (o la raíz para build/run) y se documentan. Borrar builds locales que no se usen (`.vs`, builds
   obsoletos) antes de dar por cerrada una tanda.
 
 ## Referencia de comportamiento (emulador que progresa)
@@ -121,8 +124,8 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
   documentation) y `docs/adr/` — técnico/decisiones.
 - `config/` — `game_code_files.toml` (config per-file activa), `code_files.json` +
   `code_files.overlays.txt` (manifiesto/orden de secciones), `n64recomp_changes/`, `rsp_hh_aspMain.toml`.
-- `port/HybridHeavenRecomp/` — port (CMake, `src/`, builds). `lib/rt64` y `lib/N64ModernRuntime`
-  son **submódulos git** (fork propio; `.gitmodules`, ADR 0010); `RecompiledFuncs/` es un
+- `./` — port (CMake, `src/`, builds). `lib/rt64` y `lib/N64ModernRuntime`
+  son **submódulos git** (fork propio; `.gitmodules`, ADR 0010); `build/recomp/RecompiledFuncs/` es un
   **directorio real** gitignored (generado; `regenerate.py` lo materializa desde `work/recomp/`; no
   symlink, Windows no los resuelve).
 - `tools/` — scripts propios (`regenerate.py`, `analyze_code_files.py`, `ghidra_sections.py`…) ·

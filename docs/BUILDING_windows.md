@@ -11,24 +11,26 @@ en el entorno Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.lo
   El `.exe` la busca al arrancar en la carpeta `rom\` junto al `.exe` (`rom\baserom.us.z64`); como
   salvaguarda también acepta `baserom.us.z64` junto al `.exe`. **Compilar no necesita la ROM.**
 
-## Estructura que debe existir en `port/HybridHeavenRecomp/`
+## Estructura (port en la raíz del repo)
 
 ```
-port/HybridHeavenRecomp/
-├── CMakeLists.txt          ← ya preparado (GLOB funcs_*.c, rsp/hh_aspMain.cpp, SDL2 win32, icono, DLLs)
-├── RecompiledFuncs/        ← SET UNIFICADO ACTUAL (funcs_0..N + funcs.h + recomp_overlays.inl + lookup.cpp)
-├── rsp/hh_aspMain.cpp      ← ucode de audio recompilado
-├── assets/                 ← HybridHeaven.ico, app.rc.in, HybridHeaven.png, icon_bmp.inc
-├── src/main/*.cpp          ← port (main, support, rt64_render_context, register_overlays, module_sources.inc)
-├── lib/rt64/               ← repo rt64 (upstream, commit fijo, sin cambios)
-└── lib/N64ModernRuntime/   ← runtime del FORK propio (rama hybrid-heaven, commit fijado)
+./
+├── CMakeLists.txt              ← raíz (GLOB build/recomp/RecompiledFuncs, rsp/, SDL2 win32, icono, DLLs)
+├── build/recomp/RecompiledFuncs/  ← C recompilado (generado; NO versionado, ADR 0009)
+├── rsp/hh_aspMain.cpp          ← ucode de audio recompilado
+├── assets/                     ← HybridHeaven.ico, app.rc.in, HybridHeaven.png, icon_bmp.inc
+├── src/platform/*              ← harness (main, support, rt64_render_context, icon, spin_yield)
+├── src/hooks/sections.cpp      ← capa de hooks (loaders + registro por dirección)
+├── src/subsystems/*            ← input.cpp, trans_cache.cpp, firmware.c
+├── lib/rt64/                   ← repo rt64 (upstream, commit fijo, sin cambios)
+└── lib/N64ModernRuntime/       ← runtime del FORK propio (rama hybrid-heaven, commit fijado)
 ```
 
 > **IMPORTANTE:** `lib/rt64` y `lib/N64ModernRuntime` son **submódulos git** (`.gitmodules`,
 > ADR 0010): `git clone --recursive` (o `git submodule update --init --recursive`) los trae. `rt64`
 > es upstream en el commit `43373749dac9bbc1b653e6a02aed40a9e1783bed`; el runtime es
 > **`hunkstalker/N64ModernRuntime`** (rama `hybrid-heaven`) con submódulos recursivos (`N64Recomp`
-> sale del fork `hunkstalker/N64Recomp`; `thirdparty`, de upstream). `port\runtime.lock` queda como
+> sale del fork `hunkstalker/N64Recomp`; `thirdparty`, de upstream). `runtime.lock` queda como
 > referencia/fallback. Créditos y licencias: `CREDITS.md`.
 
 ## 1. Runtime: forks propios (sin patch)
@@ -42,7 +44,7 @@ sincronizar). El cambio de `N64Recomp` que se **compila** dentro del port está 
 Para cambiar el runtime (mantenedor): editar el árbol local (`lib\N64ModernRuntime` o la copia
 `N64ModernRuntime` junto al proyecto) → commit en `hybrid-heaven` → `git push fork hybrid-heaven` →
 **bump** del gitlink en el port (`git -C lib\N64ModernRuntime checkout <sha>` + `git add` en la raíz)
-y, si aplica, actualizar `NMR_COMMIT` en `port\runtime.lock` (referencia/fallback).
+y, si aplica, actualizar `NMR_COMMIT` en `runtime.lock` (referencia/fallback).
 
 Reparar/forzar el runtime a lo que fija el submódulo:
 
@@ -50,37 +52,37 @@ Reparar/forzar el runtime a lo que fija el submódulo:
 cd <raiz del repo>
 git -c safe.directory=* submodule update --init --recursive
 ```
-(o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build_windows.bat`.)
+(o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build\windowsdows.bat`.)
 
 ## 2. Configurar y compilar
 
-Recomendado: ejecutar `port\build_windows.bat`. Por defecto **omite git** si `lib\rt64` y
+Recomendado: ejecutar `build\windowsdows.bat`. Por defecto **omite git** si `lib\rt64` y
 `lib\N64ModernRuntime` ya existen (evita cuelgues de git sobre unidades montadas) y compila en
 **Release** (la build Debug sin optimizar hace que el juego caiga a 30 fps y que el hilo de audio
-solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-libs` si quieres
+solo produzca la mitad de buffers -> petardeo). Usa `build\windowsdows.bat --force-libs` si quieres
 clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
-`build_windows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
-omitió git). El submódulo fija un commit **publicado** en el fork (y `port\runtime.lock` como
+`build\windowsdows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
+omitió git). El submódulo fija un commit **publicado** en el fork (y `runtime.lock` como
 fallback): si necesitas probar commits locales del runtime sin publicarlos, usa
-**`port\build_windows.local.bat`**, que compila `lib\` tal cual (sin fetch/checkout) e imprime el
+**`build\windowsdows.local.bat`**, que compila `lib\` tal cual (sin fetch/checkout) e imprime el
 commit local que usa.
 
 Manual:
 
 ```bat
-cd port\HybridHeavenRecomp
-cmake -B build_win -G "Visual Studio 18 2026" -A x64   REM o "Visual Studio 17 2022"
-cmake --build build_win --target HybridHeavenRecomp --config Release
+cd <raiz del repo>
+cmake -B build\windows -G "Visual Studio 18 2026" -A x64   REM o "Visual Studio 17 2022"
+cmake --build build\windows --target HybridHeavenRecomp --config Release
 ```
 
-- Exe: `build_win\bin\Release\Hybrid Heaven Recomp.exe` (con `--debug`: `build_win\bin\Debug\...`).
+- Exe: `build\windows\bin\Release\Hybrid Heaven Recomp.exe` (con `--debug`: `build\windows\bin\Debug\...`).
 - El build copia automáticamente `SDL2.dll`, `dxcompiler.dll`, `dxil.dll` junto al `.exe`.
 - ROM: al ejecutar, el `.exe` busca `rom\baserom.us.z64` (o `baserom.us.z64` junto al `.exe`).
 
-### 2b. Build local del mantenedor (`build_windows.local.bat`, no versionado)
+### 2b. Build local del mantenedor (`build\windowsdows.local.bat`, no versionado)
 
-`port\build_windows.local.bat` está en `.gitignore` (es una comodidad local, no forma parte del
+`build\windowsdows.local.bat` está en `.gitignore` (es una comodidad local, no forma parte del
 proyecto reproducible). Compila `lib\` **tal cual** está en disco (sin git), avisa si falta `lib\` e
 imprime la ruta y el commit del runtime local. Contenido de referencia para recrearlo:
 
@@ -92,16 +94,16 @@ chcp 65001 >nul
 set "BUILDCFG=Release"
 if /i "%~1"=="--debug" set "BUILDCFG=Debug"
 
-REM Detectar la raiz del repo (busca 'port\HybridHeavenRecomp' hacia arriba)
+REM Detectar la raiz del repo (busca 'src\platform' hacia arriba)
 set "ROOT="
-for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'port\HybridHeavenRecomp'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
-if "%ROOT%"=="NONE" ( echo ERROR: no encuentro 'port\HybridHeavenRecomp' hacia arriba. & goto :err )
-set "PORT=%ROOT%\port\HybridHeavenRecomp"
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'src\platform'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
+if "%ROOT%"=="NONE" ( echo ERROR: no encuentro 'src\platform' hacia arriba. & goto :err )
+set "PORT=%ROOT%"
 set "RT64=%PORT%\lib\rt64"
 set "NMR=%PORT%\lib\N64ModernRuntime"
 
-if not exist "%RT64%\CMakeLists.txt" ( echo ERROR: falta lib\rt64 ^(usa build_windows.bat --force-libs^). & goto :err )
-if not exist "%NMR%\CMakeLists.txt" ( echo ERROR: falta lib\N64ModernRuntime ^(usa build_windows.bat --force-libs^). & goto :err )
+if not exist "%RT64%\CMakeLists.txt" ( echo ERROR: falta lib\rt64 ^(usa build\windowsdows.bat --force-libs^). & goto :err )
+if not exist "%NMR%\CMakeLists.txt" ( echo ERROR: falta lib\N64ModernRuntime ^(usa build\windowsdows.bat --force-libs^). & goto :err )
 
 set "NMR_SHA=desconocido (no es repo git)"
 if exist "%NMR%\.git" for /f "usebackq delims=" %%s in (`git -c safe.directory=* -C "%NMR%" rev-parse --short HEAD 2^>nul`) do set "NMR_SHA=%%s"
@@ -113,10 +115,10 @@ if not defined VSGEN cmake -G "Visual Studio 17 2022" --help >nul 2>&1 && set "V
 if not defined VSGEN ( echo ERROR: no encuentro VS 2026/2022 con C++. & goto :err )
 
 pushd "%PORT%"
-cmake -B build_win -G "%VSGEN%" -A x64 || goto :err
-cmake --build build_win --target HybridHeavenRecomp --config %BUILDCFG% || goto :err
+cmake -B build\windows -G "%VSGEN%" -A x64 || goto :err
+cmake --build build\windows --target HybridHeavenRecomp --config %BUILDCFG% || goto :err
 popd
-echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
+echo Exe: %PORT%\build\windows\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
 echo Runtime usado: %NMR% @ %NMR_SHA%
 if not defined CI pause
 goto :eof
@@ -240,7 +242,7 @@ Valores válidos: `A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT
 
 ```bat
 REM 1) Grabar tu partida (botones+stick) hasta justo antes del crash.
-REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build_win\bin\Release).
+REM    Ruta absoluta = fiable; una relativa cae en el CWD (con run_windows.bat, en build\windows\bin\Release).
 set HH_RECORD=mi_partida.txt
 Hybrid Heaven Recomp.exe
 
@@ -265,9 +267,8 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
     D-Pad, stick izquierdo (botón = C-abajo) y eje analógico.
   - Hot-plug soportado (`SDL_CONTROLLERDEVICEADDED/REMOVED`).
   - Rumble no implementado (no-op).
-- Si sale `Failed to find function at 0xXXXX`: apuntar el vram, añadirlo en el entorno Linux
-  (`add_missing_funcs.py` / `config/module_extras.json`), regenerar el set y volver a copiar
-  `RecompiledFuncs/` a Windows.
+- Si sale `Failed to find function at 0xXXXX`: revisar las fronteras/nombres del pipeline ELF/splat
+  (en `recomp/`) y regenerar con `python3 tools/regenerate.py`.
 
 ## 4c. Audio
 

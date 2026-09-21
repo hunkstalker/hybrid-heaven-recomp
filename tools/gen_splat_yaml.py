@@ -69,6 +69,9 @@ options:
   find_file_boundaries: False
   use_legacy_include_asm: False
   asm_inc_header: ""
+  # Dir de include generado por splat (include_asm.h/labels.inc/macro.inc). Fuera de la raiz para no
+  # chocar con include/ (headers del port).
+  generated_asm_macros_directory: build/recomp/include
 
 segments:
   - name: header

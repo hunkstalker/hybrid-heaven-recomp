@@ -28,7 +28,7 @@ de compilar.
 
 - **Compilar requiere la ROM** (una vez, para recompilar): `python3 tools/regenerate.py` (necesita
   JDK 21 + Ghidra + N64Recomp; ver `docs/workflows.md`). El C generado vive en `work/recomp/` y
-  `regenerate.py` lo materializa como directorio real en `port/HybridHeavenRecomp/RecompiledFuncs/`.
+  `regenerate.py` lo materializa como directorio real en `build/recomp/RecompiledFuncs/`.
 - **Ejecutar también**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
   `0x0F6A72F2C36A216DULL`) en la carpeta `rom/` junto al ejecutable (`rom/baserom.us.z64`); como
   salvaguarda también se acepta `baserom.us.z64` junto al `.exe`. Nunca se distribuye la ROM ni una
@@ -38,15 +38,15 @@ de compilar.
 
 | Plataforma | Comando | Requisitos |
 |---|---|---|
-| Windows | `port\build_windows.bat` | Visual Studio 2022/2026 (C++), CMake, Git |
+| Windows | `build_windows.bat` | Visual Studio 2022/2026 (C++), CMake, Git |
 | Linux | `tools/build_linux.sh` | gcc, CMake, Ninja, SDL2-dev, Vulkan-dev, X11-dev, GTK3-dev |
 | Docker (Linux) | `docker compose build run` | Docker |
 
-Los scripts usan los **submódulos git** `port/HybridHeavenRecomp/lib/rt64` (upstream) y
+Los scripts usan los **submódulos git** `lib/rt64` (upstream) y
 `.../lib/N64ModernRuntime` (**fork propio**, rama `hybrid-heaven`, con su submódulo `N64Recomp`):
 `git clone --recursive` (o `git submodule update --init --recursive`) los trae;
-`port/runtime.lock` queda como referencia/fallback. Guías: `port/README_windows.md`,
-`port/README_linux.md`, `docs/workflows.md` §1, `docs/adr/0005`, `docs/adr/0010`.
+`runtime.lock` queda como referencia/fallback. Guías: `docs/BUILDING_windows.md`,
+`docs/BUILDING_linux.md`, `docs/workflows.md` §1, `docs/adr/0005`, `docs/adr/0010`.
 
 > Solo para **mantenedores**: regenera el C con tu ROM (`python3 tools/regenerate.py`). El C
 > recompilado **no se versiona** (ADR 0009); se genera en `work/recomp/` y es la entrada de build.

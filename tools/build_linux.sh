@@ -1,5 +1,5 @@
 #!/bin/sh
-# build_linux.sh — receta canonica de build del port en Linux (espejo de port/build_windows.bat).
+# build_linux.sh — receta canonica de build del port en Linux (espejo de build_windows.bat).
 # Reproduce las dependencias que no viven en este repo (gitignored):
 #
 #   1) lib/rt64: clon de upstream en un commit fijo (sin modificar)
@@ -7,7 +7,7 @@
 #      con sus submodulos recursivos (N64Recomp sale del fork propio; thirdparty de upstream)
 #   3) configura y compila con CMake
 #
-# URL/SHA del runtime: port/runtime.lock (env NMR_URL / NMR_COMMIT los sobreescriben).
+# URL/SHA del runtime: runtime.lock (env NMR_URL / NMR_COMMIT los sobreescriben).
 # Antes de compilar hay que regenerar el C recompilado desde TU ROM (no se versiona; ADR 0009):
 #   python3 tools/regenerate.py        (una vez; requiere JDK 21 + Ghidra + N64Recomp)
 # La ROM tambien hace falta para EJECUTAR: ponla en la carpeta rom/ junto al binario
@@ -27,7 +27,7 @@ RT64_COMMIT="${RT64_COMMIT:-43373749dac9bbc1b653e6a02aed40a9e1783bed}"
 
 FORCE_LIBS=0
 BUILD_TYPE=Release
-BUILD_DIR=build_linux
+BUILD_DIR=build/linux
 JOBS=""
 CONFIGURE_ONLY=0
 LIBS_ONLY=0
@@ -51,17 +51,17 @@ while [ "$#" -gt 0 ]; do
 done
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-PORT="$ROOT/port/HybridHeavenRecomp"
+PORT="$ROOT"
 RT64="$PORT/lib/rt64"
 NMR="$PORT/lib/N64ModernRuntime"
-LOCK="$ROOT/port/runtime.lock"
+LOCK="$ROOT/runtime.lock"
 
 if [ "$LIBS_ONLY" = 0 ] && [ ! -d "$PORT" ]; then
     echo "ERROR: no encuentro $PORT" >&2; exit 1
 fi
 mkdir -p "$PORT/lib"
 
-# --- URL/SHA del runtime: env > port/runtime.lock ---
+# --- URL/SHA del runtime: env > runtime.lock ---
 NMR_URL="${NMR_URL:-}"
 NMR_COMMIT="${NMR_COMMIT:-}"
 if [ -f "$LOCK" ]; then
@@ -78,7 +78,7 @@ setup_rt64() {
     # Forma estandar: submódulo del superproyecto. Best-effort; si falla (p.ej. commit aun sin
     # publicar) se cae al clonado por runtime.lock de abajo.
     if [ ! -e "$RT64/CMakeLists.txt" ]; then
-        gitc "$ROOT" submodule update --init --recursive -- port/HybridHeavenRecomp/lib/rt64 2>/dev/null || true
+        gitc "$ROOT" submodule update --init --recursive -- lib/rt64 2>/dev/null || true
     fi
     if [ ! -e "$RT64/CMakeLists.txt" ]; then
         echo "[1/4] clonando lib/rt64 (fallback runtime.lock) ..."
@@ -100,7 +100,7 @@ setup_nmr() {
     # Forma estandar: submódulo del superproyecto. Best-effort; si falla (p.ej. commit del fork aun
     # sin publicar) se cae al clonado por runtime.lock de abajo.
     if [ ! -e "$NMR/CMakeLists.txt" ]; then
-        gitc "$ROOT" submodule update --init --recursive -- port/HybridHeavenRecomp/lib/N64ModernRuntime 2>/dev/null || true
+        gitc "$ROOT" submodule update --init --recursive -- lib/N64ModernRuntime 2>/dev/null || true
     fi
     if [ ! -e "$NMR/CMakeLists.txt" ]; then
         echo "[2/4] clonando lib/N64ModernRuntime (fork, fallback runtime.lock) desde $NMR_URL ..."
@@ -114,7 +114,7 @@ setup_nmr() {
     else
         echo "ERROR: no se pudo hacer checkout de $NMR_COMMIT en N64ModernRuntime." >&2
         echo "       El commit fijado no esta en el clon: publica el fork (git push fork hybrid-heaven)" >&2
-        echo "       o corrige NMR_COMMIT en port/runtime.lock. Se aborta para no compilar otro runtime." >&2
+        echo "       o corrige NMR_COMMIT en runtime.lock. Se aborta para no compilar otro runtime." >&2
         exit 1
     fi
     # Al cambiar de rama cambia .gitmodules: sincronizar URLs antes de bajar los submodulos

@@ -18,7 +18,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 
 AS=llvm-mc
-ASFLAGS="-triple=mips -mcpu=mips3 -filetype=obj -I recomp -I include"
+ASFLAGS="-triple=mips -mcpu=mips3 -filetype=obj -I recomp -I build/recomp/include"
 LD=ld.lld
 OBJCOPY=llvm-objcopy
 JOBS=${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}

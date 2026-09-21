@@ -12,9 +12,9 @@ baserom.*
 
 # Assets del juego (imagenes derivadas) y capturas de referencia.
 # El icono de aplicacion (assets/HybridHeaven.ico) SI se versiona (lo embebe el .exe).
-port/HybridHeavenRecomp/assets/HybridHeaven.bmp
-port/HybridHeavenRecomp/assets/HybridHeaven.png
-port/HybridHeavenRecomp/assets/icon_bmp.inc
+assets/HybridHeaven.bmp
+assets/HybridHeaven.png
+assets/icon_bmp.inc
 Referencias screenshots/
 
 # Capturas/replays de test (imagenes del juego)
@@ -59,26 +59,16 @@ Thumbs.db
 .backup/
 
 # Submódulos git (lib/N64ModernRuntime, lib/rt64): se versionan como gitlinks + .gitmodules.
-# Para el build local del mantenedor sin publicar, usar port/build_windows.local.bat (compila el
+# Para el build local del mantenedor sin publicar, usar build_windows.local.bat (compila el
 # árbol tal cual). NO volver a ignorarlos aquí.
 
-# Salidas intermedias del pipeline de recompilación
-config/RecompiledFuncs_retail/
-config/RecompiledFuncs_retail_backup/
-config/RecompiledFuncs/
-config/RecompiledFuncs_unified/
-config/RecompiledFuncs_combined/
-config/RecompiledFuncs_code/
-config/RecompiledFuncs_module7/
-config/*.fixed.syms.toml
-config/*.syms.toml.bak
-config/*.bak
+# Salidas intermedias del pipeline de recompilación (generadas)
+recomp/*.bak
 
 # C recompilado: obra derivada del binario del juego -> NO se versiona (norma del ecosistema:
 # Goemon64Recomp, ports N64Recomp; ver docs/adr/0009). Se regenera desde TU ROM con
-# tools/regenerate.py. `port/HybridHeavenRecomp/RecompiledFuncs` es un DIRECTORIO REAL (no
-# symlink: Windows no resuelve symlinks de Linux) con el mismo contenido que work/recomp/RecompiledFuncs.
-port/HybridHeavenRecomp/RecompiledFuncs
+# tools/regenerate.py. `build/recomp/RecompiledFuncs` es un DIRECTORIO REAL (no symlink) y esta
+# cubierto por `build/`.
 work/recomp/
 
 # Recompilación por ELF/splat (ADR 0011): la imagen expandida, asm/, el linker script y los
@@ -86,7 +76,6 @@ work/recomp/
 # tools/splat_headless.sh (tools/install_splat.sh). Ver notes/2026-09-21-migracion-*.
 work/scratch/expanded/
 /asm/
-/include/
 /build-elf/
 /src_unused/
 /elf/
@@ -98,7 +87,7 @@ work/scratch/expanded/
 hhport_win.zip
 
 # Build local del mantenedor (compila lib/ tal cual, sin git; no se publica)
-port/build_windows.local.bat
+build_windows.local.bat
 
 # Config local del mantenedor (perfiles de mando); no versionar
 config.ini

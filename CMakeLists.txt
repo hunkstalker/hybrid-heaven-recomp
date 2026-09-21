@@ -54,16 +54,16 @@ endif()
 
 add_subdirectory(lib/N64ModernRuntime)
 
-file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS RecompiledFuncs/funcs_*.c)
+file(GLOB RECOMPILED_FUNCS CONFIGURE_DEPENDS build/recomp/RecompiledFuncs/funcs_*.c)
 
 # El C recompilado es obra derivada del binario del juego y NO se versiona (ADR 0009). Se regenera
-# una vez desde TU ROM con `tools/regenerate.py` (requiere N64Recomp + Ghidra; ver README).
+# una vez desde TU ROM con `tools/regenerate.py` (via ELF/splat; ver docs/workflows.md).
 if(NOT RECOMPILED_FUNCS)
     message(FATAL_ERROR
-        "Faltan RecompiledFuncs/funcs_*.c. El C recompilado NO se versiona (ADR 0009).\n"
+        "Faltan build/recomp/RecompiledFuncs/funcs_*.c. El C recompilado NO se versiona (ADR 0009).\n"
         "Regenera con TU ROM (una vez):\n"
         "  python3 tools/regenerate.py\n"
-        "  (requiere JDK 21 + Ghidra + N64Recomp; ver docs/workflows.md y tools/README.md)")
+        "  (requiere splat+spimdisasm y LLVM MIPS; ver tools/install_splat.sh y docs/workflows.md)")
 endif()
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
     message(FATAL_ERROR
@@ -72,19 +72,22 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
 endif()
 
 add_executable(HybridHeavenRecomp
-    src/main/main.cpp
-    src/main/icon.cpp
-    src/main/rt64_render_context.cpp
-    src/main/sections.cpp
-    src/main/spin_yield.cpp
-    src/main/support.cpp
-    src/game/input.cpp
-    src/game/trans_cache.cpp
-    src/game/firmware.c
+    # platform: harness (SDL, RT64, arranque)
+    src/platform/main.cpp
+    src/platform/icon.cpp
+    src/platform/rt64_render_context.cpp
+    src/platform/spin_yield.cpp
+    src/platform/support.cpp
+    # hooks: capa de interceptacion (loaders, registro por direccion)
+    src/hooks/sections.cpp
+    # subsystems: piezas del juego portadas (input, trans, firmware)
+    src/subsystems/input.cpp
+    src/subsystems/trans_cache.cpp
+    src/subsystems/firmware.c
 
     # Recompiled functions.
     ${RECOMPILED_FUNCS}
-    RecompiledFuncs/lookup.cpp
+    build/recomp/RecompiledFuncs/lookup.cpp
 
     # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
     rsp/hh_aspMain.cpp
@@ -92,7 +95,7 @@ add_executable(HybridHeavenRecomp
 
 target_include_directories(HybridHeavenRecomp PRIVATE
     include
-    RecompiledFuncs
+    build/recomp/RecompiledFuncs
     lib/rt64/src
     lib/rt64/src/contrib
     lib/rt64/src/contrib/imgui

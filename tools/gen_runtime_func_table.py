@@ -23,8 +23,8 @@ GENERATED = ROOT / "work/recomp_elf/RecompiledFuncs"
 OUT = GENERATED / "runtime_funcs.inl"
 ELF = "elf/hybrid-heaven.us.elf"
 CONFIG = ROOT / "recomp/hybrid-heaven.us.toml"
-RUNTIME_SRC = ROOT / "port/HybridHeavenRecomp/lib/N64ModernRuntime/librecomp/src"
-PORT_SRC = ROOT / "port/HybridHeavenRecomp/src"
+RUNTIME_SRC = ROOT / "lib/N64ModernRuntime/librecomp/src"
+PORT_SRC = ROOT / "src"
 
 
 def defined_recomp_functions():

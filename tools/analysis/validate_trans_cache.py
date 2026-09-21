@@ -8,7 +8,7 @@ Para cada registro (src, size, len, bytes) del cache:
 
 Uso:
   python3 tools/analysis/validate_trans_cache.py --rom baserom.us.z64 \
-      --cache port/HybridHeavenRecomp/build_dbg/cache/trans.bin
+      --cache build/linux/cache/trans.bin
 
 Salida: una linea por registro y un resumen. Codigo de salida != 0 si hay cualquier discrepancia.
 """
@@ -50,8 +50,8 @@ def find_rom(explicit):
         return Path(explicit)
     for cand in (
         "work/roms/us_retail.z64",
-        "port/HybridHeavenRecomp/build_dbg/baserom.us.z64",
-        "port/HybridHeavenRecomp/build_win/bin/Release/baserom.us.z64",
+        "build/linux/baserom.us.z64",
+        "build/windows/bin/Release/baserom.us.z64",
         "baserom.us.z64",
         "rom/baserom.us.z64",
     ):

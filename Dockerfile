@@ -3,10 +3,10 @@
 # Hybrid Heaven Recomp — imagen Linux (Debian bookworm, glibc).
 #
 #   deps    : dependencias de compilacion (la usa tambien el devcontainer).
-#   build   : clona las dependencias (rt64 de upstream + el runtime del FORK propio,
-#             commits fijados en port/runtime.lock) y compila el port. El C recompilado
-#             (RecompiledFuncs/) esta versionado, por lo que NO hacen falta Ghidra ni
-#             N64Recomp para compilar.
+#   build   : usa los submodulos (rt64 upstream + runtime del FORK propio, fijados en
+#             runtime.lock como fallback) y compila el port. El C recompilado
+#             (build/recomp/RecompiledFuncs/) NO se versiona (ADR 0009): el contexto Docker
+#             debe traerlo ya generado (tools/regenerate.py) o montarlo.
 #   runtime : solo ejecucion (GUI X11 o headless Xvfb+lavapipe).
 #
 # La ROM NO se distribuye: monta tu carpeta `rom/` en /work/rom (el binario busca
@@ -30,15 +30,15 @@ WORKDIR /src
 
 FROM deps AS build
 # Capa cacheable: reproduce las dependencias (rt64 upstream + runtime del fork,
-# commits fijados en port/runtime.lock) sin depender del codigo del port.
+# commits fijados en runtime.lock) sin depender del codigo del port.
 COPY tools/build_linux.sh /src/tools/build_linux.sh
-COPY port/runtime.lock /src/port/runtime.lock
+COPY runtime.lock /src/runtime.lock
 RUN sh /src/tools/build_linux.sh --libs-only
 # Codigo del port + build (ver .dockerignore para lo que NO entra en el contexto).
 COPY . .
-RUN sh tools/build_linux.sh --build-dir build_docker \
+RUN sh tools/build_linux.sh --build-dir build/docker \
     && mkdir -p /out \
-    && cp "port/HybridHeavenRecomp/build_docker/Hybrid Heaven Recomp" /out/hybrid-heaven-recomp
+    && cp "build/docker/Hybrid Heaven Recomp" /out/hybrid-heaven-recomp
 
 FROM debian:bookworm-slim AS runtime
 ENV DEBIAN_FRONTEND=noninteractive

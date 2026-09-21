@@ -48,7 +48,7 @@ jobs:
           # en el artefacto lo dejamos con el nombre "bonito".
           docker cp "$cid:/out/hybrid-heaven-recomp" "dist/HybridHeavenRecomp-Linux/Hybrid Heaven Recomp"
           docker rm "$cid"
-          cp port/README_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
+          cp docs/BUILDING_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
           cp CREDITS.md dist/HybridHeavenRecomp-Linux/CREDITOS.md
           cp LICENSE dist/HybridHeavenRecomp-Linux/LICENCIA.txt
           tar -C dist -czf dist/HybridHeavenRecomp-Linux.tar.gz HybridHeavenRecomp-Linux
@@ -69,15 +69,15 @@ jobs:
       - name: Compilar (clona deps por runtime.lock + MSVC)
         env:
           CI: '1'
-        run: cmd /c port\build_windows.bat
+        run: cmd /c build_windows.bat
       - name: Empaquetar (exe + DLLs + LEEME + creditos)
         shell: pwsh
         run: |
-          $dir = "port/HybridHeavenRecomp/build_win/bin/Release"
+          $dir = "build/windows/bin/Release"
           New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item "$dir/Hybrid Heaven Recomp.exe" dist/
           Copy-Item "$dir/*.dll" dist/
-          Copy-Item "port/README_windows.md" dist/LEEME.txt
+          Copy-Item "docs/BUILDING_windows.md" dist/LEEME.txt
           Copy-Item "CREDITS.md" dist/CREDITOS.md
           Copy-Item "LICENSE" dist/LICENCIA.txt
           Compress-Archive -Path "dist/*" -DestinationPath "dist/HybridHeavenRecomp-Windows.zip" -Force

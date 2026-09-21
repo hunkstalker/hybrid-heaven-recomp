@@ -33,8 +33,8 @@ python3 tools/regenerate.py --rom ROM       # ROM explicita
 ```
 
 Genera `work/recomp/RecompiledFuncs/` y lo **materializa como directorio real** en
-`port/HybridHeavenRecomp/RecompiledFuncs/` (no symlink: Windows no los resuelve), más
-`include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `port\build_windows.bat`.
+`build/recomp/RecompiledFuncs/` (no symlink: Windows no los resuelve), más
+`include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `build_windows.bat`.
 
 Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **data-as-code**), parte
 del pipeline:
@@ -63,13 +63,13 @@ tools/build_linux.sh --help
   `git submodule update --init --recursive`. `rt64` es upstream en su commit fijo;
   `N64ModernRuntime` es el fork, con su `.gitmodules` anidado (`N64Recomp` del fork, thirdparty de
   upstream). Si se añaden commits al runtime: push al fork y **bump** del gitlink
-  (`git -C lib/N64ModernRuntime checkout <sha> && git add` en el port). `port/runtime.lock` queda como
+  (`git -C lib/N64ModernRuntime checkout <sha> && git add` en el port). `runtime.lock` queda como
   referencia/fallback. Para iterar el fork local sin publicar: `build_windows.local.bat` (Windows) o
   `tools/build_linux.sh` sin `--force-libs` (si `lib/` ya existe, no toca git).
 - **Docker** (`Dockerfile` multi-stage, Debian/glibc): `docker compose build run`. Clona las deps
   (rt64 + fork del runtime) por el lock; stages `deps` (también devcontainer) / `build` / `runtime`.
   Headless: `HH_HEADLESS=1 docker compose run --rm run` (Xvfb + lavapipe). GUI en host Linux:
-  `--device /dev/dri` + socket X11 (ver `port/README_linux.md`).
+  `--device /dev/dri` + socket X11 (ver `docs/BUILDING_linux.md`).
 - **CI / releases (un solo flujo de compilación)**: `ci.yml` compila en cada push/PR y sube
   **artefactos** (`HybridHeavenRecomp-Windows.zip`, `HybridHeavenRecomp-Linux.tar.gz`) + valida docs.
   `release.yml` **no recompila**: localiza el run de CI **verde** de ese commit, descarga sus
@@ -80,7 +80,7 @@ tools/build_linux.sh --help
 ## 2. Ejecutar headless (Linux)
 
 ```sh
-cd port/HybridHeavenRecomp/build_dbg
+cd build/linux
 DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
   timeout 60 "./Hybrid Heaven Recomp"
 # Requiere Xvfb :99 (crear si falta) — ver note histórico de sesión.

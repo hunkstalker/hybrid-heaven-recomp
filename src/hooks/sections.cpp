@@ -19,8 +19,8 @@
 #include <mutex>
 #include <vector>
 
-#include "../../RecompiledFuncs/recomp_overlays.inl"
-#include "../../RecompiledFuncs/runtime_funcs.inl"
+#include "../../build/recomp/RecompiledFuncs/recomp_overlays.inl"
+#include "../../build/recomp/RecompiledFuncs/runtime_funcs.inl"
 
 #include "librecomp/overlays.hpp"
 #include "hh.h"

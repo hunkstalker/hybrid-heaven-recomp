@@ -13,7 +13,7 @@ Pipeline:
   5. build_elf.sh        -> elf/hybrid-heaven.us.elf (gate: byte-identico a la imagen).
   6. N64Recomp (ELF mode) -> work/recomp_elf/RecompiledFuncs.
   7. gen_reimplemented_decls + gen_runtime_func_table.
-  8. copia a port/HybridHeavenRecomp/RecompiledFuncs (dir real) + gen_file_table.
+  8. copia a build/recomp/RecompiledFuncs (dir real) + gen_file_table.
 
 Requiere (dev): Python 3.11+, splat+spimdisasm y LLVM MIPS (tools/install_splat.sh), N64Recomp
 (recomp/n64recomp_changes aplicados), y la ROM en work/roms/us_retail.z64.
@@ -33,8 +33,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PORT = ROOT / "port/HybridHeavenRecomp"
-PORT_RECOMP = PORT / "RecompiledFuncs"
+PORT = ROOT
+PORT_RECOMP = ROOT / "build/recomp/RecompiledFuncs"
 RECOMP_OUT = ROOT / "work/recomp_elf/RecompiledFuncs"
 ELF = ROOT / "elf/hybrid-heaven.us.elf"
 TOML = ROOT / "recomp/hybrid-heaven.us.toml"
@@ -84,7 +84,7 @@ def main() -> int:
         else:
             shutil.rmtree(PORT_RECOMP)
     shutil.copytree(RECOMP_OUT, PORT_RECOMP)
-    print("[regenerate] port/RecompiledFuncs materializado (%d ficheros)" % len(list(PORT_RECOMP.glob("*"))))
+    print("[regenerate] build/recomp/RecompiledFuncs materializado (%d ficheros)" % len(list(PORT_RECOMP.glob("*"))))
 
     run([sys.executable, ROOT / "tools/gen_file_table.py"])
 
@@ -92,7 +92,7 @@ def main() -> int:
         run([ROOT / "tools/build_linux.sh"])
 
     print("\n[regenerate] listo: %s" % RECOMP_OUT)
-    print("  compila con: tools/build_linux.sh   (o port\\build_windows.bat / build_windows.local.bat)")
+    print("  compila con: tools/build_linux.sh   (o build_windows.bat / build_windows.local.bat)")
     return 0
 
 

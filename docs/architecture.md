@@ -49,7 +49,7 @@ registrar en la base determinista.
 ### 2.2 Rol conocido de los módulos (evidencia runtime)
 
 Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga con su instante, y
-`port/HybridHeavenRecomp/RecompiledFuncs/recomp_overlays.inl` mapea sección → módulo Nisitenma.
+`build/recomp/build/recomp/RecompiledFuncs/recomp_overlays.inl` mapea sección → módulo Nisitenma.
 
 | idx | sección port | base RAM | rol conocido | evidencia |
 |---|---|---|---|---|
@@ -103,7 +103,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
     `register_flat_code()` omite las secciones de módulos y el loader (`FUN_80003824`, wrapper
     siempre activo en `get_function`) registra la sección recompilada en la base real que pide el
     juego. La tabla `src_rom → rom_addr` la genera `setup_module.py`
-    (`port/.../src/main/module_sources.inc`); los mid-entries salen de `HH_JALTRACE` +
+    (`legacy (module_sources.inc)`); los mid-entries salen de `HH_JALTRACE` +
     `tools/analysis/gen_module_extras.py` y de `add_missing_funcs.py` (planos), protegidos por
     `config/keep_syms.txt` en el validador. El pipeline es consciente de sección:
     `validate_syms.py` (por sección + `--keep-file`) y `fix_fallthroughs.py` (continuación por
@@ -177,7 +177,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   con `RSPRecomp`: texto en ROM `0x37130` (`0xE18`), base IMEM `0x04001080`, **16 targets indirectos**
   (los 14 iniciales + `0x144C`/`0x170C` para los comandos `0x0F`/`0x0E`, que abortaban las tasks
   desde t≈13,4 s);
-  integrado en `port/HybridHeavenRecomp/rsp/hh_aspMain.cpp` (config reproducible
+  integrado en `rsp/hh_aspMain.cpp` (config reproducible
   `recomp/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
   `hh::get_rsp_microcode` para `M_AUDTASK`. Parches de runtime asociados: `sp_complete` de las tasks
   gfx en `submit_rsp_task` (el RSP real completa sin esperar al RDP/render), completación sintética
@@ -192,7 +192,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   **negativo (~4 GiB)** y `osAiSetNextBuffer` lo encolaba; `osAiGetLength` quedaba envenenado
   (~2³⁰ frames) y el juego construía **command lists runaway** cuyos DMAs de `A_SAVEBUFF` pisaban
   las voces. **Fixes runtime**: `librecomp/src/ai.cpp` ignora byte_counts negativos/absurdos
-  (`>0x200000`) y `src/main/support.cpp` acota la cola virtual a ~1 VI (`sample_rate/60`). Resultado:
+  (`>0x200000`) y `src/platform/support.cpp` acota la cola virtual a ~1 VI (`sample_rate/60`). Resultado:
   300-420 s sin crash, ~18k audio tasks, iteraciones del mixer estables, 0 `[RSPW] PISA`, voces
   intactas. Instrumentación permanente (gated): `[CTXW]` (`HH_CTXWATCH`), `[AI ]` con timestamps,
   `[EVQ]`, `HH_TRCTRACE` (separa el flood `[TRC]` de `HH_TBLTRACE`).
@@ -211,7 +211,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
 ## 6. Toolchain de recompilación
 
 - Config activa (per-file): `recomp/hybrid-heaven.us.toml` → `code_files.fixed.syms.toml` (generada)
-  → `RecompiledFuncs_code/` → `work/recomp/RecompiledFuncs/` (symlink desde el port). El set es el
+  → `work/recomp_elf/RecompiledFuncs/` y se materializa en `build/recomp/RecompiledFuncs/`. El set es el
   **residente `.text` + 91 secciones `.file_NN`**; se regenera con `tools/regenerate.py`.
   Configs antiguas (`game_combined.toml`, `setup_module.py`, `module_sources.inc`) → obsoletas.
 - **El C recompilado no se versiona** (obra derivada; ADR 0009): vive en `work/recomp/` (gitignored).
@@ -222,7 +222,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   `__osInitialize_common`, `osCreatePiManager`, `__osDevMgrMain`, `__osViInit`, `__osViSwapContext`,
   `__osGetSR/SetSR/GetCause/SetCause`, `__osSpRawReadIo/WriteIo`) para que se recompile la versión del
   ROM. `toolchain/` está gitignored: el parche se documenta aquí (y en ADR 0002), no se versiona.
-- Registro de secciones: `port/HybridHeavenRecomp/src/main/sections.cpp` (`file_table.h` + hooks
+- Registro de secciones: `src/hooks/sections.cpp` (`file_table.h` + hooks
   `add_loaded_function` / `load_overlay_by_id` / `unload_overlay_by_id`).
 - Post-paso obligatorio: `tools/analysis/fix_fallthroughs.py` (lo invoca `tools/regenerate.py`).
 - Regla: **nunca editar a mano el C generado**; se regenera desde la config/syms (ADR 0009).

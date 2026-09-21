@@ -29,7 +29,7 @@ BTN_KEYS = {"A","B","Z","Start","L","R",
             "Dpad-U","Dpad-D","Dpad-L","Dpad-R",
             "C-Up","C-Down","C-Left","C-Right"}
 
--- Encoding N64 del port (port/HybridHeavenRecomp/src/game/input.cpp, enum N64Buttons).
+-- Encoding N64 del port (src/subsystems/input.cpp, enum N64Buttons).
 BTN_BITS = {
   ["A"]        = 0x8000,
   ["B"]        = 0x4000,

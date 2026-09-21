@@ -19,8 +19,8 @@ REM set HH_RES=2x
 if /i "%~1"=="noaudio" set HH_NOAUDIO=1
 if /i "%~1"=="audlog"  set HH_AUDIOLOG=1
 
-set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Release"
-if not exist "%HHBIN%\Hybrid Heaven Recomp.exe" set "HHBIN=%~dp0HybridHeavenRecomp\build_win\bin\Debug"
+set "HHBIN=%~dp0build\windows\bin\Release"
+if not exist "%HHBIN%\Hybrid Heaven Recomp.exe" set "HHBIN=%~dp0build\windows\bin\Debug"
 cd /d "%HHBIN%"
 if not exist "%HHBIN%\rom\baserom.us.z64" if not exist "%HHBIN%\baserom.us.z64" (
   echo AVISO: no veo la ROM. Ponla en "%HHBIN%\rom\baserom.us.z64".

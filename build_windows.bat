@@ -4,7 +4,7 @@ REM  Hybrid Heaven Recomp - Build para Windows
 REM  Si lib\rt64 y lib\N64ModernRuntime ya existen, NO hace git (evita
 REM  cuelgues sobre unidades montadas) y compila directamente.
 REM  Runtime: clon del FORK propio (rama hybrid-heaven) en el commit fijado en
-REM  port\runtime.lock. rt64: upstream en su commit fijo. Creditos: CREDITS.md.
+REM  runtime.lock. rt64: upstream en su commit fijo. Creditos: CREDITS.md.
 REM  Uso:
 REM    build_windows.bat                 Release (recomendado: 3-5x mas rapido)
 REM    build_windows.bat --debug         -> Debug (solo para diagnosticar crashes)
@@ -20,31 +20,31 @@ if /i "%~1"=="--force-libs" set "FORCE_LIBS=1"
 if /i "%~1"=="--debug" set "BUILDCFG=Debug"
 if /i "%~2"=="--debug" set "BUILDCFG=Debug"
 
-REM --- Detectar la raiz del repo (busca 'port\HybridHeavenRecomp' hacia arriba) ---
+REM --- Detectar la raiz del repo (busca 'src\platform' hacia arriba) ---
 set "ROOT="
-for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'port\HybridHeavenRecomp'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
+for /f "usebackq delims=" %%d in (`powershell -NoProfile -Command "$cur='%~dp0'; while($cur -and -not (Test-Path (Join-Path $cur 'src\platform'))){$cur=Split-Path $cur -Parent}; if($cur){$cur}else{'NONE'}"`) do set "ROOT=%%d"
 if "%ROOT%"=="NONE" (
-    echo ERROR: no encuentro 'port\HybridHeavenRecomp' hacia arriba desde este .bat.
+    echo ERROR: no encuentro 'src\platform' hacia arriba desde este .bat.
     goto :err
 )
-set "PORT=%ROOT%\port\HybridHeavenRecomp"
+set "PORT=%ROOT%"
 set "RT64=%PORT%\lib\rt64"
 set "NMR=%PORT%\lib\N64ModernRuntime"
 set "RT64_COMMIT=43373749dac9bbc1b653e6a02aed40a9e1783bed"
 
-REM --- URL/SHA del runtime desde port\runtime.lock ---
+REM --- URL/SHA del runtime desde runtime.lock ---
 set "NMR_URL="
 set "NMR_COMMIT="
-if exist "%ROOT%\port\runtime.lock" for /f "usebackq tokens=1,* delims==" %%a in ("%ROOT%\port\runtime.lock") do (
+if exist "%ROOT%\runtime.lock" for /f "usebackq tokens=1,* delims==" %%a in ("%ROOT%\runtime.lock") do (
     if /i "%%a"=="NMR_URL" set "NMR_URL=%%b"
     if /i "%%a"=="NMR_COMMIT" set "NMR_COMMIT=%%b"
 )
 if not defined NMR_URL (
-    echo ERROR: falta NMR_URL en %ROOT%\port\runtime.lock
+    echo ERROR: falta NMR_URL en %ROOT%\runtime.lock
     goto :err
 )
 if not defined NMR_COMMIT (
-    echo ERROR: falta NMR_COMMIT en %ROOT%\port\runtime.lock
+    echo ERROR: falta NMR_COMMIT en %ROOT%\runtime.lock
     goto :err
 )
 
@@ -106,7 +106,7 @@ goto :cmake
 echo.
 echo ERROR: no se pudo hacer checkout de %NMR_COMMIT% en N64ModernRuntime.
 echo        Ese commit no esta en el clon: publica el fork ^(git push fork hybrid-heaven^)
-echo        o corrige NMR_COMMIT en port\runtime.lock. Se aborta para no compilar un runtime
+echo        o corrige NMR_COMMIT en runtime.lock. Se aborta para no compilar un runtime
 echo        distinto al fijado.
 popd
 goto :err
@@ -154,7 +154,7 @@ if not defined VSGEN (
 echo.
 echo [3/4] Configurando con CMake (%VSGEN% x64) ...
 pushd "%PORT%"
-cmake -B build_win -G "%VSGEN%" -A x64
+cmake -B build\windows -G "%VSGEN%" -A x64
 if errorlevel 1 goto :err
 popd
 
@@ -164,14 +164,14 @@ echo [4/4] Compilando HybridHeavenRecomp (%BUILDCFG%) ...
 echo       (Release es 3-5x mas rapido que Debug: sin optimizar el juego cae a 30fps
 echo        y el hilo de audio solo produce la mitad de buffers: petardeo)
 pushd "%PORT%"
-cmake --build build_win --target HybridHeavenRecomp --config %BUILDCFG%
+cmake --build build\windows --target HybridHeavenRecomp --config %BUILDCFG%
 if errorlevel 1 goto :err
 popd
 
 echo.
 echo === LISTO ===
-echo Exe: %PORT%\build_win\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
-echo Pon la ROM en la carpeta rom junto al .exe: build_win\bin\%BUILDCFG%\rom\baserom.us.z64
+echo Exe: %PORT%\build\windows\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
+echo Pon la ROM en la carpeta rom junto al .exe: build\windows\bin\%BUILDCFG%\rom\baserom.us.z64
 echo (tambien se acepta baserom.us.z64 junto al .exe como salvaguarda).
 echo.
 if not defined CI pause

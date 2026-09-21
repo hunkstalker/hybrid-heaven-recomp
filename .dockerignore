@@ -1,6 +1,6 @@
 # Contexto de build de Docker: NO meter nada pesado ni derivado.
 # El Dockerfile clona las dependencias por su cuenta (rt64 upstream + runtime del fork,
-# URL+SHA de port/runtime.lock).
+# URL+SHA de runtime.lock).
 
 # Git / herramientas locales
 .git
@@ -25,9 +25,9 @@ hhport_win.zip
 *.v64
 baserom.*
 
-# Libs: se clonan dentro de la imagen (URL+SHA de port/runtime.lock)
-port/HybridHeavenRecomp/lib
+# Libs: se clonan dentro de la imagen (URL+SHA de runtime.lock)
+./lib
 
 # Artefactos de build locales del port
-port/HybridHeavenRecomp/build*
-port/HybridHeavenRecomp/out
+./build*
+./out

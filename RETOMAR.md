@@ -97,9 +97,9 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
   `tools/ghidra_sections.py` (Ghidra por fichero → syms `.file_NN`), `tools/regenerate.py`
   (ROM → … → N64Recomp → `work/recomp/RecompiledFuncs`). **N64Recomp rc=0**; el port **compila**.
 - **Saneamiento**: el **C recompilado no se versiona** (obra derivada; **ADR 0009**): vive en
-  `work/recomp/RecompiledFuncs` y `port/.../RecompiledFuncs` es un **symlink**. **Historia reescrita**
+  `work/recomp/RecompiledFuncs` y `build/recomp/RecompiledFuncs` es un **symlink**. **Historia reescrita**
   (filter-branch) para borrar el C derivado del pasado (`.git` 15.4→1.8 MB; **force-push pendiente**).
-- **Loaders estilo referencia** en `port/HybridHeavenRecomp/src/main/sections.cpp` (`file_table.h` +
+- **Loaders estilo referencia** en `src/hooks/sections.cpp` (`file_table.h` +
   `announce_load` con evicción + hooks `add_loaded_function` de `FUN_8000469C` y `FUN_80004838`,
   registrados en `on_init`). Sustituyen a `register_overlays.cpp`/`module_sources.inc` (borrados).
 - **Boot ARREGLADO**: carga `file_008 → file_055 → file_024 (heap) → resource loads`, bucle principal
@@ -124,10 +124,10 @@ el nuevo, no. Divergencias de estado medidas a ~28 s (A/B binario, mismo runtime
 ```sh
 # 1) build pre-reset aislado (config game_combined; compila entero)
 git worktree add --detach /tmp/oldb 8fd6ddf
-cp -a port/HybridHeavenRecomp/lib/{N64ModernRuntime,rt64} /tmp/oldb/port/HybridHeavenRecomp/lib/
+cp -a lib/{N64ModernRuntime,rt64} /tmp/oldb/lib/
 mkdir -p /tmp/oldb/work/roms && ln -s "$PWD/work/roms/us_retail.z64" /tmp/oldb/work/roms/
-cmake -S /tmp/oldb/port/HybridHeavenRecomp -B /tmp/oldb/port/HybridHeavenRecomp/build_dbg -DCMAKE_BUILD_TYPE=Release
-cmake --build /tmp/oldb/port/HybridHeavenRecomp/build_dbg -j28
+cmake -S /tmp/oldb/. -B /tmp/oldb/build/linux -DCMAKE_BUILD_TYPE=Release
+cmake --build /tmp/oldb/build/linux -j28
 # 2) comparar con HH_HANG_FORCE=N (dumps word-swapped) o HH_CALLTRACE; el replay
 #    work/debug/replays/cac_full_20260918_210956.txt sirve en ambos.
 ```
@@ -206,7 +206,7 @@ Regenerables con la receta de arriba.
   `detect_lzkn64`, `textseg`, `parse_exec_trace`, `fix_fallthroughs`).
 - **`config/`**: keep `n64recomp_changes/`, `rsp_hh_aspMain.toml`; rewrite `game_*.toml`; legacy
   `us_*.syms.toml`, `*.fixed`, `keep_syms*`, `module_extras.json`, `merge_loop.py`, `RecompiledFuncs*`.
-- **`port/HybridHeavenRecomp/`**: keep `src/main/main.cpp`,`icon.cpp`,`rt64_render_context.cpp`,
+- **`./`**: keep `src/platform/main.cpp`,`icon.cpp`,`rt64_render_context.cpp`,
   `support.cpp`, `src/game/*`, `include/`, `rsp/hh_aspMain.cpp`, `assets/`, `lib/`; rewrite
   `register_overlays.cpp`(+`module_sources.inc`) y `CMakeLists.txt`; regenerar `RecompiledFuncs/`.
 - **`port/*.bat`**: keep/adapt `build_windows*.bat`, `run_windows.bat`; legacy los diagnósticos CaC.
@@ -227,7 +227,7 @@ Regenerables con la receta de arriba.
 
 - **Main repo** (`origin` → `hunkstalker/hybrid-heaven-recomp`, `main`).
 - **N64ModernRuntime** (fork, rama `hybrid-heaven`) y **N64Recomp** (fork, `hybrid-heaven`).
-- Orden de push: **N64Recomp → N64ModernRuntime → main** (`port/runtime.lock` los pinea).
+- Orden de push: **N64Recomp → N64ModernRuntime → main** (`runtime.lock` los pinea).
 - **Historia reescrita (2026-09-20)**: se eliminó el C recompilado de **todos los commits**
   (`git filter-branch`, 258 commits; `.git` 15.4 → 1.8 MB). Los **hashes cambiaron** y `origin/main`
   queda divergente → **`git push --force-with-lease origin main`** (pendiente; hacerlo cuando valide).
@@ -267,7 +267,7 @@ Regenerables con la receta de arriba.
 
 ## 7b. Uso obligatorio de las tools
 - Pipeline completo: **`python3 tools/regenerate.py`** (ROM → … → `work/recomp/RecompiledFuncs`;
-  `--skip-ghidra` reutiliza syms). Compilar: `tools/build_linux.sh` / `port\build_windows.bat`.
+  `--skip-ghidra` reutiliza syms). Compilar: `tools/build_linux.sh` / `build_windows.bat`.
 - Nunca editar el C generado; todo fix va a `config/*.toml` + syms y se regenera (ADR 0009).
 - Dependencias de **recompilación** (dev): JDK 21 + Ghidra (`tools/install_ghidra.sh`), N64Recomp.
   **Build del port**: solo C++/CMake/SDL2/RT64 + la ROM.
@@ -290,7 +290,7 @@ Regenerables con la receta de arriba.
   y `FUN_80004838`). **Sin** `module_sources`, **sin** `hh_stream_id_to_src`, **sin** wrappers
   manuales de registro.
 - Config única `recomp/game.toml` (hoy `recomp/hybrid-heaven.us.toml`).
-- Artefacto versionado: el **C recompilado** (`port/HybridHeavenRecomp/RecompiledFuncs/`); las syms
+- Artefacto versionado: el **C recompilado** (`build/recomp/RecompiledFuncs/`); las syms
   y el ROM combinado viven en `work/` (dev, gitignored) — salvo decisión explícita de versionar la
   syms agregada para reproducir sin Ghidra.
 
@@ -385,7 +385,7 @@ Regenerables con la receta de arriba.
    recomp/            # pipeline per-file (dev)
      game.toml  code_files.json  code_files.overlays.txt
      n64recomp_changes/  rsp/  ghidra/  syms/(opcional)
-   port/HybridHeavenRecomp/{src,RecompiledFuncs,assets,rsp,lib,...}
+   ./{src,RecompiledFuncs,assets,rsp,lib,...}
    ```
    `config/` deja de ser un cajón (hoy 62 entradas mezclando 5 `game_*.toml`, syms, `RecompiledFuncs_*`,
    `module_extras.json`, `n64recomp_changes/`, `rsp_hh_aspMain.toml`, `config.ini`).
