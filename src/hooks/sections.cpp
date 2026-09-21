@@ -148,10 +148,8 @@ void hh::register_runtime_functions() {
         recomp::overlays::add_loaded_function(static_cast<int32_t>(entry.ram_addr), entry.func);
     }
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadAddress), file_load_hook);
-    if (!env_set("HH_NO_STREAMED_LOADS")) {
-        recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadStreamedAddress),
-                                              file_load_streamed_hook);
-    }
+    recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadStreamedAddress),
+                                          file_load_streamed_hook);
     std::fprintf(stderr, "[hh] %zu code files; loaders envueltos en 0x%08X y 0x%08X\n",
                  kFileCount, kFileLoadAddress, kFileLoadStreamedAddress);
     std::fflush(stderr);

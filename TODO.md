@@ -7,9 +7,6 @@
 
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
-- [ ] **Limpieza de instrumentación**: decidir sobre `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*`,
-  el watchpoint y `HH_NO_STREAMED_LOADS` (`src/hooks/sections.cpp:149`). Todo gated tras `HH_DIAG` salvo
-  el último; los workarounds per-file (`HH_S0FIX`/`HH_VI_EVERY`/`HH_FLAT_ALL`) ya no existen.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
@@ -37,6 +34,11 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Limpieza de instrumentación (2026-09-21)**: `[BADMQ]`/`[MQDROP]` gateados tras `HH_DIAG`
+  (consola limpia por defecto; fork NMR); `HH_NO_STREAMED_LOADS` eliminado (el hook streamed se
+  registra siempre). Se **quedan** (funcionales/opt-in): `requeue_pi=true` (evita cuelgue de PI DMA),
+  la sombra `hh_sh_*` (el scheduler lee/escribe ahí los enlaces de hilo) y el watchpoint
+  (`HH_WATCH_ADDR`, opt-in).
 - [x] **Mando/teclado (2026-09-21)**: mapeo **fijo** (sin remapeo por contexto) — B físico = N64 B
   (atrás/mapa), **X = agacharse**, A=A, Y=C-Down, LB/RB=L/R. **D-pad → stick** por defecto
   (`HH_DPAD_TO_STICK=0` off) → el D-pad navega menús; stick→D-pad también. **Teclado**: WASD=stick,
