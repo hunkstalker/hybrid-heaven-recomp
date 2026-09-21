@@ -283,6 +283,7 @@ constexpr uint32_t bytes_per_frame = input_channels * sizeof(int16_t);
 // 2026-09-13-audio-ai-length.md). Cola virtual drenada a tiempo real con la frecuencia del juego.
 static double virtual_frames = 0.0;
 static std::chrono::steady_clock::time_point virtual_clock = std::chrono::steady_clock::now();
+static std::atomic<unsigned long long> hh_audio_drops{0};  // buffers descartados (salvaguarda dura)
 
 static void virtual_ai_drain() {
     const auto now = std::chrono::steady_clock::now();
@@ -337,28 +338,70 @@ static void hh_audio_diag_log(size_t sample_count, size_t queued_frames, size_t 
     static double last_t = -1.0;
     static unsigned long last_calls = 0;
     static unsigned long long last_samples = 0;
+    static unsigned long long last_drops = 0;
     calls++;
     samples += sample_count;
     static const auto diag_t0 = std::chrono::steady_clock::now();
     const double now = std::chrono::duration<double>(
         std::chrono::steady_clock::now() - diag_t0).count();
-    if (last_t < 0.0) { last_t = now; last_calls = 0; last_samples = 0; return; }
+    if (last_t < 0.0) { last_t = now; last_calls = 0; last_samples = 0; last_drops = hh_audio_drops.load(); return; }
     if (now - last_t < 1.0) return;
     const double dt = now - last_t;
     const double fps_eq = (double)(samples - last_samples) / 2.0 / dt;
+    const unsigned long long drops = hh_audio_drops.load();
     if (FILE* f = fopen("hh_audio.log", "a")) {
-        fprintf(f, "t=%.2f calls/s=%.1f frames/s=%.0f queued=%zu reported=%zu rate=%u dev=%u\n",
+        fprintf(f, "t=%.2f calls/s=%.1f frames/s=%.0f queued=%zu reported=%zu drops/s=%.1f rate=%u dev=%u\n",
                 now, (double)(calls - last_calls) / dt, fps_eq, queued_frames, reported_frames,
-                sample_rate, device_rate);
+                (double)(drops - last_drops) / dt, sample_rate, device_rate);
         fclose(f);
     }
-    last_t = now; last_calls = calls; last_samples = samples;
+    last_t = now; last_calls = calls; last_samples = samples; last_drops = drops;
 }
 
 static std::atomic<unsigned long long> hh_audio_calls{0};
 
 extern "C" unsigned long long hh_get_audio_calls() {
     return hh_audio_calls.load();
+}
+
+// --- Resampler adaptativo (PLL de reloj de audio) ----------------------------------------------
+// Sincroniza la produccion del juego con la reproduccion del dispositivo ajustando la tasa de
+// salida +-HH_AI_MAXC (1% por defecto) segun el error de la cola respecto a HH_AI_TARGET_MS. Asi la
+// cola se mantiene centrada SIN descartar buffers (los descartes del watermark producian clics
+// periodicos). Estado continuo entre llamadas. Ver `notes/2026-09-18-suavizado-fase1-*.md` §2.
+static double hh_rs_phase = 0.0;                    // fraccion entre la muestra previa y la actual
+static int16_t hh_rs_last[input_channels] = {0};    // ultima muestra (frame) de la llamada previa
+static std::vector<int16_t> hh_rs_out;              // buffer de salida reutilizado
+
+// `step` = frames de entrada por frame de salida (>1 reduce, <1 amplía). Interpolacion lineal.
+static void hh_queue_resampled(const int16_t* in, size_t in_frames, double step) {
+    const size_t max_out = in_frames * 2 + 4;       // step en ~[0.99,1.01]: <=2 salidas por entrada
+    hh_rs_out.resize(max_out * input_channels);
+    size_t out_frames = 0;
+    for (size_t i = 0; i < in_frames; ++i) {
+        const int16_t* cur = in + i * input_channels;
+        while (hh_rs_phase < 1.0) {
+            if (out_frames >= max_out) break;
+            int16_t* dst = &hh_rs_out[out_frames * input_channels];
+            const double t = hh_rs_phase;
+            for (uint32_t c = 0; c < input_channels; ++c) {
+                const double a = static_cast<double>(hh_rs_last[c]);
+                const double b = static_cast<double>(cur[c]);
+                double v = a + (b - a) * t;
+                if (v >= 32767.0) v = 32767.0;
+                else if (v <= -32768.0) v = -32768.0;
+                dst[c] = static_cast<int16_t>(v >= 0.0 ? v + 0.5 : v - 0.5);
+            }
+            ++out_frames;
+            hh_rs_phase += step;
+        }
+        hh_rs_phase -= 1.0;
+        for (uint32_t c = 0; c < input_channels; ++c) hh_rs_last[c] = cur[c];
+    }
+    if (out_frames > 0) {
+        SDL_QueueAudio(audio_device, hh_rs_out.data(),
+                       static_cast<Uint32>(out_frames * input_channels * sizeof(int16_t)));
+    }
 }
 
 void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
@@ -431,16 +474,30 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
     }
 
-    // Backpressure: cola acotada (watermark) para que la latencia no crezca sin limite por el
-    // desajuste de reloj juego<->dispositivo (medido ~0.8% en un caso real: 38k frames de cola a
-    // los 2 min). Al superar el limite se descarta el buffer entrante (pequeno clic) y la cola
-    // vuelve a bajar. HH_AI_MAX_MS ajusta el limite (por defecto 150 ms).
+    // Sincronizacion de tasa por error de cola (PLL) + salvaguarda dura.
+    // HH_AI_SYNC=0 vuelve al comportamiento antiguo (sin resamplear). HH_AI_TARGET_MS (50) fija el
+    // objetivo de cola; HH_AI_MAXC (0.01) la correccion maxima; HH_AI_MAX_MS (150) la salvaguarda.
+    static const bool hh_sync = [] {
+        const char* e = getenv("HH_AI_SYNC");
+        return !(e != nullptr && *e != '\0' && strcmp(e, "0") == 0);
+    }();
+    static const double hh_target_ms = [] {
+        const char* e = getenv("HH_AI_TARGET_MS");
+        return (e != nullptr && *e != '\0') ? strtod(e, nullptr) : 50.0;
+    }();
+    static const double hh_maxc = [] {
+        const char* e = getenv("HH_AI_MAXC");
+        return (e != nullptr && *e != '\0') ? strtod(e, nullptr) : 0.01;
+    }();
+
+    // Salvaguarda DURA (deberia ser rara con el PLL): si la cola supera HH_AI_MAX_MS, descartar.
     {
         const char* mx = getenv("HH_AI_MAX_MS");
         const double max_ms = (mx != nullptr && *mx != '\0') ? strtod(mx, nullptr) : 150.0;
         const Uint32 queued = SDL_GetQueuedAudioSize(audio_device);
         const Uint32 limit = (Uint32)((double)sample_rate * bytes_per_frame * max_ms / 1000.0);
         if (queued > limit) {
+            hh_audio_drops.fetch_add(1, std::memory_order_relaxed);
             if (hh_audlog != nullptr && *hh_audlog != '\0') {
                 static int hh_drop_n = 0;
                 if (hh_drop_n++ < 10) {
@@ -451,8 +508,18 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         }
     }
 
-    // SDL convierte internamente al formato real del dispositivo.
-    SDL_QueueAudio(audio_device, audio_data, static_cast<Uint32>(byte_len));
+    if (hh_sync) {
+        const double queued = (double)SDL_GetQueuedAudioSize(audio_device) / bytes_per_frame;
+        const double target = (double)sample_rate * hh_target_ms / 1000.0;
+        double corr = target > 0.0 ? (queued - target) / target : 0.0;
+        if (corr > 1.0) corr = 1.0;
+        else if (corr < -1.0) corr = -1.0;
+        const double step = 1.0 + corr * hh_maxc;   // >1 => menos salida => drena la cola
+        hh_queue_resampled(audio_data, sample_count / input_channels, step);
+    } else {
+        // SDL convierte internamente al formato real del dispositivo.
+        SDL_QueueAudio(audio_device, audio_data, static_cast<Uint32>(byte_len));
+    }
 
     {
         const size_t queued = static_cast<size_t>(
