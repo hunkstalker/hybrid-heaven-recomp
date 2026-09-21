@@ -399,11 +399,12 @@ static void hh_hang_watchdog() {
                         fprintf(state_file,
                                 "[STATE] trans 42D0=%08X 7730=%08X 7738=%08X 7748=%08X 7750=%08X "
                                 "g2=%08X cnt30=%08X objCB=%08X a8=%04X a8b=%04X q4F0=%08X q268=%08X "
-                                "m188=%08X m181=%02X\n",
+                                 "m188=%08X m181=%02X b908=%08X t37760=%08X aa90=%08X\n",
                                 r32(0x8008D580), r32(0x80037730), r32(0x80037738), r32(0x80037748),
                                 r32(0x80037750), r32(0x801D8CE8), r32(0x801D8DA8), r32(0x8024AB14),
                                 r16(0x8024ABA0), r16(0x8024AA38), r32(0x8005C4F0), r32(0x8005C268),
-                                r32(0x801BBD78), r32(0x801BBD71) & 0xFFu);
+                                r32(0x801BBD78), r32(0x801BBD71) & 0xFFu,
+                                r32(0x8004B908), r32(0x80037760), r32(0x8018AA90));
                         // HH: estado de las colas sospechosas (1 vez cada HH_STATE_SECS, sin perturbar):
                         // addr=bOR/bOS/msg/validCount. Localiza la cola donde se atasca el softlock.
                         {

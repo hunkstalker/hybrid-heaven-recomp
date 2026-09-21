@@ -1,3 +1,26 @@
+# RETOMAR — migración a la vía de recompilación de la referencia (ELF + splat)
+
+> Handoff para la sesión nueva. **Última sesión: 2026-09-21.**
+>
+> **DIRECCIÓN ACTUAL (2026-09-21):** se **abandona la vía Ghidra-per-file** (per-`file_NN` con syms y
+> residente reciclado) y se migra a la **vía de la referencia**: **ELF desde splat/spimdisasm sobre
+> la imagen expandida** + **residente limpio** + **gates de verificación**. Motivo: el build per-file
+> arranca y llega al **título sin fondo 3D** (confirmado por el mantenedor y por captura): ejecuta un
+> subconjunto de funciones y no emite `G_MTX`; las fronteras por-fichero pierden el contexto de imagen
+> completa. Decisión: **calidad antes que prisa**.
+>
+> **Lee primero, en este orden:** `notes/2026-09-21-migracion-via-referencia-elf.md` (plan por fases
+> M0–M5, alcance, riesgos) → `docs/adr/0011-via-recompilacion-elf-splat.md` (decisión) →
+> `notes/2026-09-20-ab-bloqueo-boot-per-file.md` (evidencia del fallo). El **handoff largo** de la
+> etapa per-file queda abajo como contexto histórico (superado por la migración).
+
+---
+
+# ▓▓ HISTÓRICO — etapa per-file (superada por la migración ELF) ▓▓
+
+> Documentación de la etapa anterior (reset per-file, 2026-09-20). Se conserva como contexto; el plan
+> vigente es la migración a la vía de la referencia (arriba).
+
 # RETOMAR — recompilación per-file completa (reset)
 
 > Handoff para la sesión nueva. **Contexto**: se rehace la **recompilación per-file completa** porque

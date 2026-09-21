@@ -15,6 +15,19 @@ Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, ADR 0002/000
 `RETOMAR.md` (raíz): estado sintetizado, **tarea actual y pasos exactos**, instrumentación de
 diagnóstico y bats. Empezar por ahí; detalle en `TODO.md`, `PROYECTO.md` y la nota de handoff.
 
+## Forma de trabajo (por defecto)
+
+- **Recomendar, no preguntar.** Al cerrar un análisis o antes de una decisión, **no** dejes al
+  mantenedor eligiendo entre opciones. Da **primero una recomendación única y clara** (el siguiente
+  paso que ejecutarás), **luego alternativas opcionales etiquetadas `a)`, `b)`, `c)`…**, y explica
+  **por qué recomiendas esa** y **por qué cada alternativa es opcional**.
+- Ejecuta la recomendación sin esperar confirmación salvo que sea destructiva, irreversible o toque
+  ROMs/forks/push. Si el mantenedor quiere desviarse, lo dirá.
+- **El plan establecido es la opción recomendada por defecto** (`RETOMAR.md`/`TODO.md`/Fases). Solo
+  se recomienda otra vía si el contexto o el conocimiento de la sesión demuestran que es mejor; en
+  ese caso, **avísalo explícitamente** (qué parte del plan se aparta y por qué).
+- Sé conciso: recomendación → motivo → alternativas. Nada de menús de opciones equivalentes.
+
 ## Persistencia y entorno (CRÍTICO)
 
 - **Lo importante vive dentro del repo, bien clasificado**: código, herramientas (`tools/`), documentación
@@ -55,11 +68,15 @@ comentario). Orden obligatorio:
    `git push fork hybrid-heaven` → `https://github.com/hunkstalker/N64ModernRuntime.git`
 3. **Main repo** — raíz del repo: `git push origin main` → `https://github.com/hunkstalker/hybrid-heaven-recomp.git`
 
-Si el remoto rechaza por historial reescrito: `--force-with-lease`. El pin de `port/runtime.lock` solo
-es válido **después** de pushear los forks.
+Si el remoto rechaza por historial reescrito: `--force-with-lease`. Los submódulos de `lib/` (y el
+pin de `port/runtime.lock`) solo son válidos **después** de pushear los forks: hasta entonces un clon
+nuevo no podrá inicializar el submódulo (usa `build_windows.local.bat` para el árbol local).
 
 ## Calibración crítica
 
+- **No concluir el estado de ejecución (freeze/cuelgue, qué se ve, dónde está el juego) solo desde
+  logs headless.** Antes de afirmar "el juego se congela", ofrece al mantenedor que lo **valide
+  visualmente** (build Windows/port) y espera su confirmación; el harness sin ventana puede engañar.
 - **Visión disponible** (verificado 2026-09-11; modelo DeepSeek V4.1 Flash): puedo leer imágenes.
   Aun así el usuario **no ve adjuntos del chat** → los PNG se guardan en archivo y él los abre desde
   su filesystem. Usar la visión con criterio (cada imagen consume contexto); para análisis masivo de
@@ -104,7 +121,9 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
   documentation) y `docs/adr/` — técnico/decisiones.
 - `config/` — `game_code_files.toml` (config per-file activa), `code_files.json` +
   `code_files.overlays.txt` (manifiesto/orden de secciones), `n64recomp_changes/`, `rsp_hh_aspMain.toml`.
-- `port/HybridHeavenRecomp/` — port (CMake, `src/`, `lib/`, builds); `RecompiledFuncs/` es un
-  **symlink** gitignored a `work/recomp/RecompiledFuncs` (generado).
+- `port/HybridHeavenRecomp/` — port (CMake, `src/`, builds). `lib/rt64` y `lib/N64ModernRuntime`
+  son **submódulos git** (fork propio; `.gitmodules`, ADR 0010); `RecompiledFuncs/` es un
+  **directorio real** gitignored (generado; `regenerate.py` lo materializa desde `work/recomp/`; no
+  symlink, Windows no los resuelve).
 - `tools/` — scripts propios (`regenerate.py`, `analyze_code_files.py`, `ghidra_sections.py`…) ·
   `notes/` — histórico (no editar). · `work/`, `toolchain/` — gitignored.

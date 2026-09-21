@@ -5,13 +5,15 @@
 
 ## Ahora (priorizado)
 
-- [•] **Recompilación per-file (reset de la recompilación)**: Fase 0 + Fase 2.1-2.5 **hechas**
-  (manifiesto 91 code files, extracción, Ghidra per-file, syms agregada, `relocatable_sections_path`
-  y **N64Recomp rc=0**; el port **compila y arranca** con las 91 secciones). **Bloqueante nuevo**: el
-  boot no pasa de la fase temprana (solo carga `file_008`; el build viejo cargaba `file_055` en
-  `vi≈85`). Diagnóstico y siguiente paso (diff de `hh_hang.log` viejo↔nuevo):
-  `notes/2026-09-20-pipeline-per-file-estado.md` §9; método:
-  `notes/2026-09-20-lecciones-recompilacion-per-file.md`; plan: `RETOMAR.md`.
+- [•] **Migrar a la vía de recompilación de la referencia (ELF + splat + residente limpio)**. Decisión
+  2026-09-21 (ADR 0011): se abandona Ghidra-per-file (fronteras de imagen incompleta; el build llega
+  al título sin fondo 3D). Plan por fases M0–M5 con gates:
+  `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 pendiente**: instalar splat + spimdisasm +
+  binutils MIPS (deps de desarrollo). Sub-paso posterior: evaluar libultra del runtime (choca con ADR
+  0002/0003).
+- [ ] **Migración a submódulos (hecho, sin commitear)**: `lib/{N64ModernRuntime,rt64}` como submódulos
+  (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push/force-push de los forks
+  para que un clon limpio los resuelva.
 - [ ] **Audio: sincronizar la tasa** (feedback del error de cola SDL en `osAiGetLength`) para quitar
   los descartes periódicos del watermark. Ver `notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (módulo idx 23).

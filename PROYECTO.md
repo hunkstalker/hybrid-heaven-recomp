@@ -47,7 +47,14 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
+**Estado actual (2026-09-21)**: **migración a la vía de recompilación de la referencia** (ADR 0011):
+se abandona Ghidra-per-file (fronteras de imagen incompleta) y se va a **ELF desde splat/spimdisasm
+sobre la imagen expandida + residente limpio + gates**. Motivo: el build per-file arranca y llega al
+título pero **sin el fondo 3D** (ejecuta un subconjunto de funciones; no emite `G_MTX`). Decisión:
+calidad antes que prisa. Plan M0–M5 en `notes/2026-09-21-migracion-via-referencia-elf.md`. Además, en
+esta sesión: `lib/` migrado a **submódulos** (ADR 0010) y el C recompilado se materializa como
+directorio real (fix del build de Windows).
+**Estado anterior (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
 incompleta: solo 11 de 91 code files y un solo loader; ver `notes/2026-09-20-lecciones-*.md`). Se
 rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero): el
 pipeline **completo** (Fase 0-2.5) está hecho (**N64Recomp rc=0**); el C **deja de versionarse**
