@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 GENERATED = ROOT / "work/recomp_elf/RecompiledFuncs"
 OUT = GENERATED / "runtime_funcs.inl"
 ELF = "elf/hybrid-heaven.us.elf"

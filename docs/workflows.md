@@ -15,8 +15,8 @@ python3 tools/regenerate.py     # ROM -> manifiesto (91 code files) -> extracci�
                                 # fichero -> syms -> N64Recomp -> work/recomp/RecompiledFuncs
 ```
 
-`sus` herramientas: `tools/analyze_code_files.py` (manifiesto + extracción), `tools/ghidra_sections.py`
-(Ghidra per-file), `tools/gen_file_table.py` (`include/hh/file_table.h`). El pipeline antiguo por
+`sus` herramientas: `recomp/tools/analyze_code_files.py` (manifiesto + extracción), `tools/ghidra_sections.py`
+(Ghidra per-file), `recomp/tools/gen_file_table.py` (`include/hh/file_table.h`). El pipeline antiguo por
 módulos (`setup_module.py` + `module_sources.inc`) queda **obsoleto** (ver `legacy/`).
 
 ## 1. Regenerar la recompilación y construir
@@ -144,7 +144,7 @@ código como secciones relocalizables. Método/porqué en
 tools/install_ghidra.sh
 
 # 1) manifiesto de los 91 code files + extracción
-python3 tools/analyze_code_files.py work/roms/us_retail.z64 --extract work/scratch/code_files
+python3 recomp/tools/analyze_code_files.py work/roms/us_retail.z64 --extract work/scratch/code_files
 
 # 2) Ghidra por fichero -> work/scratch/syms/file_NN.toml + ROM combinado
 python3 tools/ghidra_sections.py --only 57      # prueba de un fichero
@@ -165,17 +165,17 @@ regenerado excluyendo overlays y los loaders `recomp_load_overlays`/`unload_over
 
 > **EN MIGRACIÓN (2026-09-21, ADR 0011):** esta vía Ghidra-per-file se sustituye por **splat/ELF**
 > (fronteras de imagen completa). Plan y fases: `../notes/2026-09-21-migracion-via-referencia-elf.md`.
-> Toolchain de desarrollo: `tools/install_splat.sh` (venv con splat + spimdisasm) y ensamblador/
-> enlazador MIPS por LLVM (`llvm-mc`/`ld.lld`). Wrapper: `tools/splat_headless.sh`.
+> Toolchain de desarrollo: `recomp/tools/install_splat.sh` (venv con splat + spimdisasm) y ensamblador/
+> enlazador MIPS por LLVM (`llvm-mc`/`ld.lld`). Wrapper: `recomp/tools/splat_headless.sh`.
 
 ## 5c. Recompilación por ELF + splat (vía nueva, en curso)
 
 Sustituye a §5b (ADR 0011). Piezas:
-1. `tools/analyze_code_files.py` → **imagen expandida** (`hh.expanded.z64`: ROM + cada code file
+1. `recomp/tools/analyze_code_files.py` → **imagen expandida** (`hh.expanded.z64`: ROM + cada code file
    descomprimido en offset sintético >16 MB) + `segments.json` + `file_table.h`.
 2. `gen_splat_yaml` → config de **splat** (residente + `file_008` globales; resto
    `exclusive_ram_id: overlay`; `asm_data_macro: dlabel`, `asm_jtbl_label_macro: jlabel`).
-3. `tools/splat_headless.sh split …` → `asm/`; ensamblar con `llvm-mc -triple=mips-linux-gnu` y
+3. `recomp/tools/splat_headless.sh split …` → `asm/`; ensamblar con `llvm-mc -triple=mips-linux-gnu` y
    enlazar con `ld.lld -m elf32btsmip` → `hybrid-heaven.us.elf`.
 4. N64Recomp en **ELF mode** (`elf_path`, `use_lookup_for_all_function_calls`,
    `relocatable_sections_path`).

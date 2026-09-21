@@ -14,7 +14,7 @@
 # Uso:  tools/build_elf.sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT"
 
 AS=llvm-mc
@@ -55,7 +55,7 @@ done
 
 echo "=== asignaciones de símbolos ==="
 # shellcheck disable=SC2046
-python3 tools/gen_link_syms.py $(find build-elf/asm -name '*.o' | sort)
+python3 recomp/tools/gen_link_syms.py $(find build-elf/asm -name '*.o' | sort)
 
 echo "=== combinando linker scripts ==="
 LINK_LD=build-elf/hybrid-heaven.us.link.ld

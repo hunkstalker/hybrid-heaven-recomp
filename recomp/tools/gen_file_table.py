@@ -12,7 +12,7 @@ import argparse
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "recomp/code_files.json"
 DEFAULT_OUT = ROOT / "include/hh/file_table.h"
 

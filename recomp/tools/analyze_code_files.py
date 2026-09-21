@@ -37,7 +37,7 @@ import sys
 import zlib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 BOOT_VRAM = 0x80000400
 BOOT_ROM = 0x1000

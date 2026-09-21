@@ -12,7 +12,7 @@
 # Uso:  tools/install_splat.sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 VENV="$ROOT/toolchain/splat-venv"
 
 # --- Python venv + splat/spimdisasm ----------------------------------------

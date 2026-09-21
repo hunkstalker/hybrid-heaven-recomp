@@ -9,9 +9,9 @@
   2026-09-21 (ADR 0011): se abandona Ghidra-per-file (fronteras de imagen incompleta; el build llega
   al título sin fondo 3D). Plan por fases M0–M5 con gates:
   `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 HECHO** (splat 0.50.0 + spimdisasm 1.42.4
-  en `toolchain/splat-venv`; MIPS por LLVM `llvm-mc`/`ld.lld`; `tools/install_splat.sh`,
-  `tools/splat_headless.sh`). **M1 HECHO** (`tools/unpack_rom.py`: imagen expandida + `segments.json`
-  + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`tools/build_elf.sh` + `gen_link_syms.py`:
+  en `toolchain/splat-venv`; MIPS por LLVM `llvm-mc`/`ld.lld`; `recomp/tools/install_splat.sh`,
+  `recomp/tools/splat_headless.sh`). **M1 HECHO** (`recomp/tools/unpack_rom.py`: imagen expandida + `segments.json`
+  + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`recomp/tools/build_elf.sh` + `gen_link_syms.py`:
   splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; gate: reconstruye la imagen byte a byte).
   **M3 HECHO** (N64Recomp ELF mode, rc=0). **M4 HECHO — regresión resuelta**: N64Recomp ELF mode no
   aplicaba `use_lookup_for_all_function_calls` (fix en `main.cpp` del tool) + nombres libultra

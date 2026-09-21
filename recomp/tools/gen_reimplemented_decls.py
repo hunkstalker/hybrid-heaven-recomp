@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "toolchain/src/N64Recomp/src/symbol_lists.cpp"
 OUT = ROOT / "work/recomp_elf/RecompiledFuncs/reimplemented_decls.h"
 CONFIG = ROOT / "recomp/hybrid-heaven.us.toml"

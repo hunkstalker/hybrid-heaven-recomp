@@ -60,14 +60,14 @@ def main() -> int:
     if not args.rom.exists():
         sys.exit("falta la ROM: %s (gitignored; la aporta el usuario)" % args.rom)
 
-    run([sys.executable, ROOT / "tools/analyze_code_files.py", args.rom])
-    run([sys.executable, ROOT / "tools/unpack_rom.py", args.rom])
-    run([sys.executable, ROOT / "tools/gen_splat_yaml.py"])
+    run([sys.executable, ROOT / "recomp/tools/analyze_code_files.py", args.rom])
+    run([sys.executable, ROOT / "recomp/tools/unpack_rom.py", args.rom])
+    run([sys.executable, ROOT / "recomp/tools/gen_splat_yaml.py"])
 
     if not args.skip_splat:
-        run([ROOT / "tools/splat_headless.sh", "split", ROOT / "recomp/hybrid-heaven.us.yaml"])
+        run([ROOT / "recomp/tools/splat_headless.sh", "split", ROOT / "recomp/hybrid-heaven.us.yaml"])
     if not args.skip_elf:
-        run([ROOT / "tools/build_elf.sh"])
+        run([ROOT / "recomp/tools/build_elf.sh"])
 
     if not N64RECOMP.exists():
         sys.exit("falta N64Recomp en %s (ver docs/workflows.md)" % N64RECOMP)
@@ -75,8 +75,8 @@ def main() -> int:
         shutil.rmtree(RECOMP_OUT)
     run([N64RECOMP, TOML])
 
-    run([sys.executable, ROOT / "tools/gen_reimplemented_decls.py"])
-    run([sys.executable, ROOT / "tools/gen_runtime_func_table.py"])
+    run([sys.executable, ROOT / "recomp/tools/gen_reimplemented_decls.py"])
+    run([sys.executable, ROOT / "recomp/tools/gen_runtime_func_table.py"])
 
     if PORT_RECOMP.exists() or PORT_RECOMP.is_symlink():
         if PORT_RECOMP.is_symlink() or PORT_RECOMP.is_file():
@@ -86,7 +86,7 @@ def main() -> int:
     shutil.copytree(RECOMP_OUT, PORT_RECOMP)
     print("[regenerate] build/recomp/RecompiledFuncs materializado (%d ficheros)" % len(list(PORT_RECOMP.glob("*"))))
 
-    run([sys.executable, ROOT / "tools/gen_file_table.py"])
+    run([sys.executable, ROOT / "recomp/tools/gen_file_table.py"])
 
     if args.build:
         run([ROOT / "tools/build_linux.sh"])

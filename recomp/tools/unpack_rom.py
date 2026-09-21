@@ -25,8 +25,8 @@ import struct
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "tools"))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import analyze_code_files as acf  # noqa: E402
 
 OUT_DIR = ROOT / "work/scratch/expanded"

@@ -5,7 +5,7 @@
 # Uso:  tools/splat_headless.sh split recomp/hybrid-heaven.us.yaml
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 VENV="$ROOT/toolchain/splat-venv"
 
 if [ ! -x "$VENV/bin/python" ]; then

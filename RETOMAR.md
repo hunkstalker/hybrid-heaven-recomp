@@ -14,10 +14,10 @@
 > `notes/2026-09-20-ab-bloqueo-boot-per-file.md` (evidencia del fallo). El **handoff largo** de la
 > etapa per-file queda abajo como contexto histórico (superado por la migración).
 >
-> **Progreso de la migración:** **M0 HECHO** (toolchain: `tools/install_splat.sh` →
+> **Progreso de la migración:** **M0 HECHO** (toolchain: `recomp/tools/install_splat.sh` →
 > `toolchain/splat-venv` con splat 0.50.0 + spimdisasm 1.42.4; MIPS por LLVM `llvm-mc`/`ld.lld`;
-> wrapper `tools/splat_headless.sh`). **M1 HECHO** (`tools/unpack_rom.py` → imagen expandida +
-> `segments.json` + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`tools/build_elf.sh`:
+> wrapper `recomp/tools/splat_headless.sh`). **M1 HECHO** (`recomp/tools/unpack_rom.py` → imagen expandida +
+> `segments.json` + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`recomp/tools/build_elf.sh`:
 > splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; **gate: el ELF reconstruye la imagen byte
 > a byte**). **M3 HECHO** (N64Recomp ELF mode → C; rc=0, 0 datos-como-código). **M4 HECHO — regresión
 > resuelta**: causa raíz = N64Recomp ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas
@@ -93,7 +93,7 @@ Referencias de consulta (solo consulta, no copiar): `danielgomesvieira2000/hybri
 ## 2. ESTADO ACTUAL (checkpoint)
 
 ### Hecho (sesión 2026-09-20)
-- **Pipeline per-file completo**: `tools/analyze_code_files.py` (manifiesto de los **91 code files**),
+- **Pipeline per-file completo**: `recomp/tools/analyze_code_files.py` (manifiesto de los **91 code files**),
   `tools/ghidra_sections.py` (Ghidra por fichero → syms `.file_NN`), `tools/regenerate.py`
   (ROM → … → N64Recomp → `work/recomp/RecompiledFuncs`). **N64Recomp rc=0**; el port **compila**.
 - **Saneamiento**: el **C recompilado no se versiona** (obra derivada; **ADR 0009**): vive en
