@@ -206,15 +206,15 @@ antes de cerrarla para que dé tiempo al volcado.
   (idx8/9/10/12/55) y entra en la primera escena jugable con HUD (`work/debug/port_v3_*.png`).
 - **Resolución**: por defecto Auto (escalado entero a la ventana). Override `HH_RES=original|2x|<n>`
   (p. ej. `set HH_RES=2x`).
-- **Mando Xbox** (perfiles por contexto, 2026-09-15): en juego A = salto/acción; **B = agacharse**
-  (Z); **Back/Select = mapa** (B); **X = libre por ahora** (el B contextual abría también el mapa; cuando
-  identifiquemos el botón del menú de combate se asigna en `config.ini`); **Y = C-Down** (vista en 1ª
-  persona, verificado con capturas); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C**
-  (digital, umbral 0.5; no emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico (eje Y por defecto correcto; `HH_INVERT_Y=1` lo invierte). En
-  **menús** (pausa/mapa **y los previos al gameplay**: título/menú principal) el B físico pasa a ser
-  **B del N64 (atrás/cancelar)** automáticamente. La deteccion usa el flag de UI in-game `0x802690D0`
-  y, para el front-end, el directorio de recursos del juego (pocas entradas antes de GAME START).
-  Libres: L3 y R3. El port imprime `[PAD]` al arrancar y `[PAD] contexto:` al entrar/salir de menús.
+- **Mando Xbox** (mapeo FIJO, 2026-09-21): cada botón físico = un botón del N64, **sin remapeo por
+  contexto** (antes B cambiaba de función con el mapa/menú abierto → variabilidad en la misma
+  partida). Por defecto: **A = acción/confirmar**; **B = N64 B (atrás/mapa/cancelar)**;
+  **X = N64 Z (agacharse)**; **Back = B** (alias de atrás); **Y = C-Down** (vista en 1ª persona,
+  verificado); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C** (digital,
+  umbral 0.5; no emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico
+  (`HH_INVERT_Y=1` lo invierte). La detección de contexto (`0x802690D0`/front-end) queda **inerte**
+  (ambos perfiles son idénticos). Referencia/Goemon (`recompinput`) usan **B del N64 en X** y **Z en
+  el gatillo izquierdo**; aquí se prefirió **B físico = atrás** y **Z en X**. Libres: L3 y R3.
 
 ### config.ini (mapeo configurable)
 
@@ -222,13 +222,14 @@ Junto al `.exe` (se crea solo en el primer arranque, editable con cualquier edit
 
 ```ini
 [game]            ; exploración/combate
-b = Z             ; B físico = agacharse
-back = B          ; Select = mapa
-x = NONE          ; X libre (pendiente botón real del menú de combate)
+b = B             ; B físico = atrás/mapa/cancelar
+x = Z             ; X = agacharse
+back = B          ; Back = alias de atrás/mapa
 y = CDOWN         ; vista en 1ª persona (verificado)
 cstick = on       ; stick derecho -> botones C
-[menu]            ; menús (pausa/mapa y front-end; detección automática)
-b = B             ; B físico = atrás/cancelar
+[menu]            ; idéntico a [game] (formato por compatibilidad)
+b = B
+x = Z
 ```
 
 Valores válidos: `A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE`. El port relee

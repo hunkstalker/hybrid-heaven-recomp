@@ -75,17 +75,20 @@ uint8_t* hh::get_game_rdram() {
 }
 
 struct PadProfile {
-    // Y = C-DOWN: verificado con capturas que la vista en 1a persona es C-Down (C-Up no hace nada).
-    // X = NONE: el B del N64 abre el MAPA fuera de combate; hasta identificar el boton del menu de
-    // combate cuerpo a cuerpo, X queda libre (config.ini: x = CLEFT / CRIGHT / ...).
-    n64_button a = A_BUTTON, b = Z_BUTTON, x = 0, y = CDOWN_BUTTON;
+    // Mapeo FIJO (sin remapeo por contexto): cada boton fisico envia SIEMPRE el mismo boton del N64.
+    // Antes B cambiaba de funcion segun si habia un menu/mapa abierto -> variabilidad en la misma
+    // partida; eliminado. La referencia (y Goemon, via recompinput) tambien usa mapeo fijo.
+    //   B fisico -> N64 B (atras/mapa/cancelar)  [intuitivo]
+    //   X fisico -> N64 Z (agacharse)            [X estaba libre; en combate se usa A]
+    //   Y -> C-Down (1a persona, verificado); Back -> N64 B (alias); LB/RB -> L/R; cruceta -> D-pad.
+    n64_button a = A_BUTTON, b = B_BUTTON, x = Z_BUTTON, y = CDOWN_BUTTON;
     n64_button lb = L_BUTTON, rb = R_BUTTON, back = B_BUTTON, start = START_BUTTON;
     n64_button dup = DUP_BUTTON, ddown = DDOWN_BUTTON, dleft = DLEFT_BUTTON, dright = DRIGHT_BUTTON;
     bool cstick = true;  // stick derecho -> botones C
 };
 
 static PadProfile hh_pad_game;
-static PadProfile hh_pad_menu = [] { PadProfile p; p.b = B_BUTTON; return p; }();
+static PadProfile hh_pad_menu;  // identico a game: el contexto ya NO cambia los botones
 
 static const char* hh_pad_button_name(n64_button b) {
     switch (b) {
@@ -164,14 +167,13 @@ static void hh_pad_write_template(FILE* f) {
     fprintf(f,
         "# Hybrid Heaven Recomp - mapeo de mando (editable; se relee en cada arranque)\n"
         "# Valores: A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE\n"
-        "# Contextos: [game] = exploracion/combate, [menu] = menus del juego (pausa/mapa).\n"
-        "# Y = CDOWN es la vista en primera persona (verificado); C-Up no hace nada.\n"
-        "# El port detecta el menu automaticamente: flag de UI 0x802690D0 (pausa/mapa) o\n"
-        "# front-end (titulo/menu principal) antes de GAME START.\n"
+        "# Mapeo FIJO (sin remapeo por contexto): B fisico = N64 B (atras/mapa), X = N64 Z\n"
+        "# (agacharse), Y = CDOWN (1a persona), Back = B (alias), LB/RB = L/R, cruceta = D-pad.\n"
+        "# [game] y [menu] son identicos; se mantienen por compatibilidad de formato.\n"
         "[game]\n"
         "a = A\n"
-        "b = Z\n"
-        "x = NONE\n"
+        "b = B\n"
+        "x = Z\n"
         "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
@@ -184,10 +186,9 @@ static void hh_pad_write_template(FILE* f) {
         "cstick = on\n"
         "\n"
         "[menu]\n"
-        "# En menus el B fisico debe actuar como B del N64 (atras/cancelar).\n"
         "a = A\n"
         "b = B\n"
-        "x = NONE\n"
+        "x = Z\n"
         "y = CDOWN\n"
         "lb = L\n"
         "rb = R\n"
@@ -911,10 +912,9 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
     if (controller != nullptr && controller_num == 0) {
-        // Mapeo por contexto (config.ini). Por defecto:
-        //   game: A=A, B=Z (agacharse), X=B (menus de combate), Y=CUP (1a persona),
-        //         Back/Select=B (mapa), Start=START, LB=L, RB=R (apuntar), cruceta=D-pad.
-        //   menu: B=B (atras/cancelar); el resto igual.
+        // Mapeo FIJO (config.ini [game]/[menu], identicos). Por defecto:
+        //   A=A, B=B (atras/mapa/cancelar), X=Z (agacharse), Y=CDOWN (1a persona),
+        //   Back=B (alias), Start=START, LB=L, RB=R (apuntar), cruceta=D-pad.
         // Los botones C del N64 se emulan con el STICK DERECHO (digital, umbral 0.5).
         const PadProfile& prof = hh_active_profile();
         input |= n64_button(
