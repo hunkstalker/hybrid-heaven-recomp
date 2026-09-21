@@ -58,11 +58,12 @@ push.
 
 1. **N64Recomp** (fork) — `git -C lib/N64ModernRuntime/N64Recomp push origin hybrid-heaven`
 2. **N64ModernRuntime** (fork) — `git -C lib/N64ModernRuntime push fork hybrid-heaven`
-3. **Main repo** — `git push origin main`
+3. **Main repo** — **requiere `--force`** (el remoto conserva la historia per-file pre-reescritura y
+   diverge de la local): `git fetch origin && git tag backup-per-file origin/main &&
+   git push --force-with-lease origin main` (tag de seguridad opcional: `git push origin backup-per-file`).
 
-Si el remoto rechaza por historia reescrita: `--force-with-lease`. Los gitlinks de `lib/` (y el pin
-`runtime.lock`) solo valen **tras** pushear los forks (si no, un clon nuevo no inicializa el
-submódulo; usa `build_windows.local.bat`).
+Los gitlinks de `lib/` (y el pin `runtime.lock`) solo valen **tras** pushear los forks (si no, un clon
+nuevo no inicializa el submódulo; usa `build_windows.local.bat`).
 
 ## Calibración crítica
 

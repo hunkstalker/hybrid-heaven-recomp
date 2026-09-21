@@ -26,9 +26,13 @@
 > (`symbol_addrs.txt`) y 47 funciones del runtime registradas. Resultado: boot carga 8/55/24, `polls`
 > avanza y **título con fondo 3D**. **VALIDADO EN WINDOWS**: gameplay, primer NPC, cajas, **primer CaC**
 > y ~30 min hasta el 6º combate **sin cuelgues ni crashes** — **bloqueante original RESUELTO**.
-> **Siguiente: M5 (saneamiento y estructura)** — retirar Ghidra-per-file a `legacy/`, unificar
-> `config/`→`recomp/`, purgar workarounds `HH_*`, reescribir docs, actualizar pins y **push**. Aparte:
-> **M4c** (SEGV al salir/teardown; plan: `notes/2026-09-21-m4c-teardown-segv.md`). Detalle: `notes/2026-09-21-migracion-via-referencia-elf.md`.
+> **M5 HECHO (saneamiento y estructura)**: port en la raíz, `recomp/tools/`, intermedios→`build/recomp/`,
+> vía Ghidra→`legacy/`, docs vivas + créditos, purga `HH_*`. **Pendiente: push**, con matiz: los forks
+> son fast-forward, pero el **main requiere `--force`** (el remoto conserva la historia per-file
+> pre-reescritura y diverge). Recomendado: `git fetch origin` + tag `backup-per-file` y
+> `git push --force-with-lease origin main` (ver `AGENTS.md`). Siguiente tarea: **M4c** (SEGV al
+> salir/teardown; plan: `notes/2026-09-21-m4c-teardown-segv.md`). Detalle:
+> `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 ---
 
