@@ -2,13 +2,16 @@
 
 > Handoff para sesión nueva. **Última sesión: 2026-09-21.**
 >
-> **DIRECCIÓN ACTUAL:** el port está **validado en Windows** (gameplay, primer CaC, mando, guardado),
-> **publicado** (Release `v0.1.1`), **M4c** (teardown) resuelto y **audio sin petardeo** (modelo de la
-> referencia: reportar la cola real − headroom). **Queda el push** (fork NMR + `main`).
+> **DIRECCIÓN ACTUAL:** el port está **validado en Windows** (gameplay, primer CaC, **mando/teclado**,
+> guardado), **publicado** (Release `v0.1.1`), **M4c** (teardown) resuelto y **audio sin petardeo**.
+> **Queda el push** (fork NMR + `main`).
 >
-> **Siguientes tareas** (por prioridad, `TODO.md` "Ahora"): **mando X del CaC** (desbloqueado) →
-> **menú in-game (ADR 0008, con spike previo)** → **limpieza de instrumentación** → smoke de arranque
-> → **ADR 0009** (cobertura nativa).
+> **Siguientes tareas** (por prioridad, `TODO.md` "Ahora"): **menú in-game (ADR 0008, con spike
+> previo)** → **limpieza de instrumentación** → smoke de arranque → **ADR 0009** (cobertura nativa).
+>
+> **Mando/teclado (cerrado):** mapeo **fijo** B=B (atrás/mapa), X=agacharse, A=A, Y=C-Down, LB/RB=L/R;
+> **D-pad → stick** por defecto (navega menús); teclado WASD + H/J/K/L + U/I + O/P + Enter. `config.ini`
+> con `b=B`/`x=Z`. Detalle en `docs/BUILDING_windows.md` (sección Mando/Teclado).
 >
 > **Audio (cerrado)** — detalle en `notes/2026-09-21-audio-petardeo-ref-y-plan.md`: el juego veía el
 > restante del **FIFO**, sobreproducía ~5–6% → cola SDL hasta el watermark (150 ms) → **descartes

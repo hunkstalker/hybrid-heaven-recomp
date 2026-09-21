@@ -5,8 +5,6 @@
 
 ## Ahora (priorizado)
 
-- [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
-  en CaC** y asignarlo a **X** (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Limpieza de instrumentación**: decidir sobre `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*`,
@@ -39,6 +37,10 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Mando/teclado (2026-09-21)**: mapeo **fijo** (sin remapeo por contexto) — B físico = N64 B
+  (atrás/mapa), **X = agacharse**, A=A, Y=C-Down, LB/RB=L/R. **D-pad → stick** por defecto
+  (`HH_DPAD_TO_STICK=0` off) → el D-pad navega menús; stick→D-pad también. **Teclado**: WASD=stick,
+  H/J/K/L = X/A/B/Y, U/I=L/R, O/P=Z/R, Enter=Start. Validado en Windows.
 - [x] **Audio sin petardeo (2026-09-21)**: el juego sobreproducía ~5–6% (modelo FIFO) → cola hasta el
   watermark → descartes. Fix (modelo de la referencia): reportar la **cola SDL real − headroom**
   (`HH_AI_HEADROOM_MS`=30); el FIFO sigue con el evento AI. `frames/s≈43.2k`, `drops/s=0`. Validado en
