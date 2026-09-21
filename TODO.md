@@ -16,7 +16,10 @@
   **M3 HECHO** (N64Recomp ELF mode, rc=0). **M4 HECHO — regresión resuelta**: N64Recomp ELF mode no
   aplicaba `use_lookup_for_all_function_calls` (fix en `main.cpp` del tool) + nombres libultra
   (`symbol_addrs.txt`) + 47 funciones del runtime registradas → boot carga 8/55/24 y **título con fondo
-  3D**. **Siguiente: M4c** (SEGV tardío) → M5 (limpieza).
+  3D**. **VALIDADO EN WINDOWS** (mantenedor): gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta
+  el 6º combate **sin cuelgues ni crashes** → **bloqueante original RESUELTO**. **Siguiente: M5**
+  (saneamiento y estructura: `legacy/` para la vía Ghidra, `config/`→`recomp/`, purgar `HH_*`, docs, pins
+  y **push**). Aparte: **M4c** (SEGV al salir/teardown).
 - [ ] **Migración a submódulos (hecho, sin commitear)**: `lib/{N64ModernRuntime,rt64}` como submódulos
   (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push/force-push de los forks
   para que un clon limpio los resuelva.
@@ -40,37 +43,9 @@
 
 ## Backlog (priorizado)
 
-- [ ] **CaC: el port no entra al combate (BLOQUEANTE)**. Estado 2026-09-20 (noche-5); **detalle y
-  plan único**: `RETOMAR.md` y
-  **`notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`** (empezar aquí); antes:
-  `notes/2026-09-19-causa-raiz-cadencia-frames.md`, `notes/2026-09-19-bat-stall-check.md`,
-  `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md` y
-  `notes/2026-09-17-replay-mode-vi-vis-negativo.md` (§3/§5).
-  - **MECANISMO INMEDIATO (RESUELTO, noche-5)**: en el CaC la **cadena del disable** tiene
-    **mid-entries** (`M55_FUN_80379410/424/444/464`, sin prólogo) **y** el dispatcher `FUN_80005270`
-    que devuelven `sp +0x58`; el `sp` del hilo 5 trepaba `~0x58/frame` y pisaba el marco de
-    `FUN_800011b0` (nodo de suscriptores `0x8005BF14`) → `[BADMQ]`/deadlock. **Fix `HH_M55SPFIX=1`**
-    (restaura `sp`): **validado en Windows** — el nodo ya no se corrompe y **el juego llega al CaC con
-    el HUD de combate apareciendo**.
-  - **NUEVO BLOQUEO**: el port sigue instalando el veneno y hace un **livelock** de tid 5 en M10/M12
-    del CaC (`M10_FUN_80228298`, `ra=000000FE`) con el HUD apareciendo (sin corrupción de pila).
-  - **AGUAS ARRIBA**: el port despacha el evento temporizado `0x39` y ejecuta el instalador
-    `M10_FUN_8021b240` (puerta `M7_FUN_80126A0C(obj,0x39,1)` devuelve 1 con `42D0=0x2B88`); el
-    **emulador nunca** lo hace (0 ejecuciones). `42D0` (`[0x8008D580]`) = acumulador del scheduler
-    `FUN_80004bb0` (`FUN_80001454` lo resetea cada frame; la puerta compara con `0x3001`).
-  - **Plan restante** (`RETOMAR.md` §5): (1) test `run_stackfix_nob280.bat` (`HH_NO_B280=1` con la pila
-    sana): ¿el combate avanza? → el veneno es el bloqueador restante; (2) si no, analizar el livelock
-    (`M10_FUN_80228298`); (3) arreglo limpio de la clase de fugas = corregir **fronteras de símbolos**
-    (mid-entries internos a su contenedor).
-  - **Descartado** (no repetir, ver inventario `RETOMAR.md` §3): cadencia de frames/`HH_VI_EVERY`,
-    front-end, reloj, fallthroughs de la cadena, watchpoint de acceso y `HH_DRWATCH` (solo arranque).
-  Detalle: `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md`,
-  `notes/2026-09-19-causa-raiz-cadencia-frames.md`,
-  `notes/2026-09-19-verificacion-cadencia-y-harness-replay.md`,
-  `notes/2026-09-19-inventario-y-nueva-evidencia-fase-previa.md`,
-  `notes/2026-09-19-clasificacion-adelanto-fase-previa.md`,
-  `notes/2026-09-19-bat-stall-check.md` y
-  `notes/2026-09-18-diferencial-port-emu-vi-cac-paridad.md` (§2d/§2e/§6).
+- [x] **CaC: el port no entra al combate (RESUELTO 2026-09-21)**. Con la migración a la vía ELF/splat
+  (ADR 0011) y el fix de `use_lookup_for_all_function_calls` en ELF mode, el port entra al CaC. Histórico
+  de la etapa per-file: `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md` y `notes/2026-09-19-*`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
 - [ ] **Builds/empaquetado**: validar "build once, promote" en GitHub y empaquetado **Steam Deck**.
@@ -88,8 +63,11 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Vía de recompilación ELF/splat (ADR 0011)** + **entrada al CaC validada en Windows (2026-09-21)**:
+  START → menú → GAME START → gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta el **6º combate**
+  sin cuelgues; **mando** y **guardado/carga** correctos.
 - [x] Arranque completo, gameplay, menús, combate y cinemáticas en Windows (RTX 4080) con mando Xbox.
-- [x] Guardado en cápsula (Controller Pak) validado (`osPfsFindFile`→5).
+- [x] Guardado en cápsula (Controller Pak) validado (`osPfsFindFile`→5) y carga en el playtest del 2026-09-21.
 - [x] Audio `aspMain` del ROM recompilado a 43200 Hz; perfiles de mando por contexto.
 - [x] Fase B (ADR 0007): cache de assets + loader LZKN64 nativo.
 - [x] Rendimiento: `get_function` sin `getenv` por llamada → stalls de 1-4 s a 0 y 30 ticks/s

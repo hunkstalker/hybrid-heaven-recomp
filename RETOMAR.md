@@ -24,8 +24,11 @@
 > directas same-section saltaban los hooks de loader → file_008 no se registraba → título sin 3D). Fix
 > en `main.cpp` del tool (snapshot en `config/n64recomp_changes/main.cpp`); + nombres libultra
 > (`symbol_addrs.txt`) y 47 funciones del runtime registradas. Resultado: boot carga 8/55/24, `polls`
-> avanza y **título con fondo 3D**. **Siguiente: M4c** (SEGV tardío) → M5 (limpieza). Detalle:
-> `notes/2026-09-21-migracion-via-referencia-elf.md`.
+> avanza y **título con fondo 3D**. **VALIDADO EN WINDOWS**: gameplay, primer NPC, cajas, **primer CaC**
+> y ~30 min hasta el 6º combate **sin cuelgues ni crashes** — **bloqueante original RESUELTO**.
+> **Siguiente: M5 (saneamiento y estructura)** — retirar Ghidra-per-file a `legacy/`, unificar
+> `config/`→`recomp/`, purgar workarounds `HH_*`, reescribir docs, actualizar pins y **push**. Aparte:
+> **M4c** (SEGV al salir/teardown). Detalle: `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 ---
 

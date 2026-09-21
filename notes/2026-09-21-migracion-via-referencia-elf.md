@@ -132,6 +132,13 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   **Resultado**: el boot carga `file_008/055/024` (hooks activos), `polls` avanza (1510 a t=45) y el
   título renderiza el **fondo 3D** (captura ≈ idéntica al build viejo; `nonblack` 0.577 vs 0.243 del
   per-file y 0.570 del viejo). **Gate M4 superado.**
+- **VALIDADO EN WINDOWS (playtest del mantenedor)**: `build_windows.local.bat`, ejecutado y jugado.
+  Pasó de **START → menú → GAME START → gameplay**, la animación del primer NPC funcionó, las cajas
+  no congelan, entró al **primer CaC**, peleó, terminó el combate, y **jugó ~30 min hasta el 6º
+  combate sin cuelgues ni crashes**. Cerró él. **El bloqueante original (entrar al primer CaC) está
+  resuelto.** Además validó: **mapeo del mando** correcto y **guardado/carga de partidas** funcionando.
+  Único fallo: SEGV **al salir** (teardown; M4c). Con esto el port **supera el alcance del repo de
+  referencia** documentado (que llegaba a las primeras batallas).
 - **M4b (propiedad de libultra)**: resuelto en el proceso: nombres libultra + `gen_reimplemented_decls.py`
   + `gen_runtime_func_table.py` (47 funciones del runtime registradas por dirección de cartucho).
 - *Abierto*: un SEGV **tardío** (no bloquea el título; probablemente el teardown conocido). Investigar

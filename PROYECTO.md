@@ -47,13 +47,16 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-21)**: **migración a la vía de recompilación de la referencia** (ADR 0011):
-se abandona Ghidra-per-file (fronteras de imagen incompleta) y se va a **ELF desde splat/spimdisasm
-sobre la imagen expandida + residente limpio + gates**. Motivo: el build per-file arranca y llega al
-título pero **sin el fondo 3D** (ejecuta un subconjunto de funciones; no emite `G_MTX`). Decisión:
-calidad antes que prisa. Plan M0–M5 en `notes/2026-09-21-migracion-via-referencia-elf.md`. Además, en
-esta sesión: `lib/` migrado a **submódulos** (ADR 0010) y el C recompilado se materializa como
-directorio real (fix del build de Windows).
+**Estado actual (2026-09-21)**: **migración a la vía de recompilación de la referencia (ADR 0011)
+COMPLETADA hasta M4**, y **validada en Windows**: se abandonó Ghidra-per-file por **ELF desde
+splat/spimdisasm + residente limpio + gates** (M0–M3). Causa raíz de la regresión (título sin 3D):
+N64Recomp en ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas directas saltaban los
+hooks de loader); arreglado en el tool. **Playtest del mantenedor**: START → menú → GAME START →
+gameplay, primer NPC, cajas, **primer CaC y combate**, y ~30 min hasta el **6º combate sin cuelgues ni
+crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. Pendiente: **M5 saneamiento y
+estructura** (retirar la vía Ghidra a `legacy/`, unificar `config/`→`recomp/`, purgar `HH_*`, docs,
+pins y push) y **M4c** (SEGV al salir/teardown). Plan: `notes/2026-09-21-migracion-via-referencia-elf.md`.
+Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
 **Estado anterior (2026-09-20)**: **reset de la recompilación** (causa raíz del freeze CaC = extracción
 incompleta: solo 11 de 91 code files y un solo loader; ver `notes/2026-09-20-lecciones-*.md`). Se
 rehace **per-file** (todos los code files como secciones relocalizables; Ghidra por fichero): el
