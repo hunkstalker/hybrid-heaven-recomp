@@ -5,80 +5,59 @@
 
 ## Ahora (priorizado)
 
-- [•] **Migrar a la vía de recompilación de la referencia (ELF + splat + residente limpio)**. Decisión
-  2026-09-21 (ADR 0011): se abandona Ghidra-per-file (fronteras de imagen incompleta; el build llega
-  al título sin fondo 3D). Plan por fases M0–M5 con gates:
-  `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 HECHO** (splat 0.50.0 + spimdisasm 1.42.4
-  en `toolchain/splat-venv`; MIPS por LLVM `llvm-mc`/`ld.lld`; `recomp/tools/install_splat.sh`,
-  `recomp/tools/splat_headless.sh`). **M1 HECHO** (`recomp/tools/unpack_rom.py`: imagen expandida + `segments.json`
-  + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`recomp/tools/build_elf.sh` + `gen_link_syms.py`:
-  splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; gate: reconstruye la imagen byte a byte).
-  **M3 HECHO** (N64Recomp ELF mode, rc=0). **M4 HECHO — regresión resuelta**: N64Recomp ELF mode no
-  aplicaba `use_lookup_for_all_function_calls` (fix en `main.cpp` del tool) + nombres libultra
-  (`symbol_addrs.txt`) + 47 funciones del runtime registradas → boot carga 8/55/24 y **título con fondo
-  3D**. **VALIDADO EN WINDOWS** (mantenedor): gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta
-  el 6º combate **sin cuelgues ni crashes** → **bloqueante original RESUELTO**. **M5 HECHO** (saneamiento
-  y estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
-  créditos, purga `HH_*`; **pendiente solo el push**, ver `AGENTS.md`). **M4c HECHO** (SEGV de teardown
-  resuelto; ver Hecho y `notes/2026-09-21-m4c-teardown-segv.md`).
-- [ ] **Migración a submódulos (hecho y commiteado; falta el push)**: `lib/{N64ModernRuntime,rt64}` como
-  submódulos (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push de los forks
-  para que un clon limpio los resuelva.
-- [ ] **Audio: sincronizar la tasa** (feedback del error de cola SDL en `osAiGetLength`) para quitar
-  los descartes periódicos del watermark. Ver `notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2.
-- [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (módulo idx 23).
-  **Antes: spike go/no-go** (nota 09-18 §6: handler de módulo end-to-end, rótulo con fuentes del juego,
-  aplicar/persistir `GraphicsConfig`).
-- [ ] **Definir ADR 0009** (estrategia de cobertura nativa / clean-room) **cuando se adopte la visión**
-  de `docs/README.md`. Incluye el **manifiesto de reimplementadas** + **métrica de cobertura** (§5).
-- [x] **Teardown SEGV** al cerrar (**RESUELTO 2026-09-21**): al salir, el runtime liberaba RDRAM y el
-  planificador seguía despachando hilos liberados, mientras el hilo de frame del juego aún ejecutaba
-  código recompilado (SEGV en `func_80001454_2054`). Fix en el fork NMR: no liberar RDRAM + parar el
-  planificador al salir. Validado en Linux (`HH_AUTOQUIT`: rc=0, sin `[SEGV]`, 3/3). Además,
-  `gen_runtime_func_table.py` leía el ELF en la ruta vieja (tabla vacía → fallo MSVC C2466), arreglado
-  (47 registros). Detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
-- [ ] **Mando**: identificar el botón N64 que abre el menú de **acciones/lucha en CaC** y asignarlo a
-  **X** (`config.ini`). **Bloqueado por el CaC** (el juego se congela antes del combate): revisar cuando
-  se resuelva la entrada al combate. Lo normal (pausa/inventario) sale con **Start** y está bien.
-  Decidir también `LB` y el atajo de cámara/1ª persona.
-- [ ] **Limpieza de instrumentación**: decidir sobre `requeue_pi=true`, los `[MQDROP]`, la sombra
-  `hh_sh_*`, el watchpoint y `HH_NO_STREAMED_LOADS` (hook de carga streamed en `src/hooks/sections.cpp:149`;
-  hoy opt-out de diagnóstico). Ya está todo gated tras `HH_DIAG` salvo el último. Los workarounds de la
-  era per-file (`HH_S0FIX`, `HH_VI_EVERY`, `HH_FLAT_ALL`) ya no existen.
-- [ ] **Smoke de arranque** (opcional, requiere ROM): con la ROM en `rom\` junto al `.exe`, comprobar
-  que la encuentra y que no hay `Failed to find function`. En Docker: `HH_HEADLESS=1` + `rom/`.
+- [ ] **Cerrar la publicación (2026-09-21)**: push de `main` + **re-publicar `RecompiledFuncs`** en el
+  repo privado de secretos (`HH_SECRETS_REPO`/`HH_SECRETS_PAT`; ADR 0009) → CI verde (Windows debe
+  compilar con la tabla runtime de 47) → **Release `v0.1.1`** (tag o `workflow_dispatch`).
+  **Validar en Windows**: cierre limpio (M4c) y gameplay.
+- [ ] **Audio: sincronizar la tasa**: quitar los descartes periódicos del watermark con el *feedback*
+  del error de cola SDL en `osAiGetLength` (`notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2).
+- [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
+  en CaC** y asignarlo a **X** (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
+- [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
+  **Antes: spike go/no-go** (nota 09-18 §6).
+- [ ] **Limpieza de instrumentación**: decidir sobre `requeue_pi=true`, `[MQDROP]`, la sombra `hh_sh_*`,
+  el watchpoint y `HH_NO_STREAMED_LOADS` (`src/hooks/sections.cpp:149`). Todo gated tras `HH_DIAG` salvo
+  el último; los workarounds per-file (`HH_S0FIX`/`HH_VI_EVERY`/`HH_FLAT_ALL`) ya no existen.
+- [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
+  `rom/` en Docker): la encuentra y sin `Failed to find function`.
+- [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
+  `docs/README.md`: manifiesto de reimplementadas + métrica de cobertura.
 
 ## Backlog (priorizado)
 
-- [x] **CaC: el port no entra al combate (RESUELTO 2026-09-21)**. Con la migración a la vía ELF/splat
-  (ADR 0011) y el fix de `use_lookup_for_all_function_calls` en ELF mode, el port entra al CaC. Histórico
-  de la etapa per-file: `notes/2026-09-20-nodo-8005bf14-origen-y-captura.md` y `notes/2026-09-19-*`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
-- [ ] **Builds/empaquetado**: validar "build once, promote" en GitHub y empaquetado **Steam Deck**.
+- [ ] **Builds/empaquetado**: **Steam Deck**; validar `release.yml` end-to-end.
 - [ ] **Tarea #3**: mapa overlay→RAM por BizHawk (complementa la medición empírica de bases).
 - [ ] **Cadencia/hitches de puertas** (mejora): precarga/decode y enganche a VI
   (`notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`).
 - [ ] **Símbolos**: fronteras gruesas (`0xADDR:0xSIZE`) y auto-mid del módulo 12 (datos como código).
-- [ ] **Data-as-code** (189 sospechosas): limpiar → permite reevaluar `use_lookup_for_all_function_calls`.
+- [ ] **Data-as-code**: limpiar sospechosas → permite reevaluar `use_lookup_for_all_function_calls`.
 - [ ] **Ramas del toolchain**: publicar `hybrid-heaven-tool` (13 ficheros) para reproducir la
   regeneración (el build no la necesita).
-- [ ] **Higiene del repo** (`notes/2026-09-16-limpieza-repo-inventario.md`): archivar scripts one-off
-  de `tools/analysis/`, variantes obsoletas de `config/`, decidir el `work/` rastreado. **NO borrar**
-  `*.syms.toml.keep`, `keep_syms*.txt`, `module_extras.json`, `recomp/n64recomp_changes/*`.
+- [ ] **Higiene**: archivar scripts one-off de `tools/analysis/`. **NO borrar** los `*.keep`,
+  `keep_syms*.txt`, `module_extras.json`, `recomp/n64recomp_changes/*`.
 - [ ] **Sanear menciones a la ROM en docs/notas** (frases cortas del juego en `notes/`).
 
 ## Hecho (resumen; detalle en `notes/`)
 
-- [x] **Vía de recompilación ELF/splat (ADR 0011)** + **entrada al CaC validada en Windows (2026-09-21)**:
-  START → menú → GAME START → gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta el **6º combate**
-  sin cuelgues; **mando** y **guardado/carga** correctos.
-- [x] Arranque completo, gameplay, menús, combate y cinemáticas en Windows (RTX 4080) con mando Xbox.
-- [x] Guardado en cápsula (Controller Pak) validado (`osPfsFindFile`→5) y carga en el playtest del 2026-09-21.
+- [x] **Vía de recompilación ELF/splat (ADR 0011), M0–M5** + **entrada al CaC validada en Windows
+  (2026-09-21)**: START → menú → GAME START → gameplay, primer NPC, cajas, **primer CaC**, ~30 min
+  hasta el **6º combate** sin cuelgues; **mando** y **guardado/carga** correctos.
+- [x] **Estructura/higiene (M5)**: port en la raíz (`src/{platform,hooks,subsystems}`), `recomp/tools/`,
+  intermedios → `build/recomp/`, vía Ghidra → `legacy/`, `config/`→`recomp/`, `work/` fuera del repo
+  (scratch gitignored), purga `HH_*`, docs vivas + créditos.
+- [x] **Teardown SEGV (M4c) RESUELTO** (Linux): el runtime liberaba RDRAM y el planificador seguía
+  despachando hilos al salir; fix en el fork NMR (no liberar RDRAM + parar el planificador).
+  `notes/2026-09-21-m4c-teardown-segv.md`.
+- [x] **CI con el C recompilado (ADR 0009)**: repo privado de secretos + PAT
+  (`notes/2026-09-21-ci-recompilado-desde-repo-privado.md`).
+- [x] **Submódulos** `lib/{N64ModernRuntime,rt64}` publicados (forks propios; ADR 0010).
+- [x] Arranque completo, gameplay, menús, combate y cinemáticas en Windows con mando Xbox.
+- [x] Guardado en cápsula (Controller Pak) validado (`osPfsFindFile`→5).
 - [x] Audio `aspMain` del ROM recompilado a 43200 Hz; perfiles de mando por contexto.
 - [x] Fase B (ADR 0007): cache de assets + loader LZKN64 nativo.
-- [x] Rendimiento: `get_function` sin `getenv` por llamada → stalls de 1-4 s a 0 y 30 ticks/s
-  (`notes/2026-09-18-faseb-cache-trans-implementado.md` §8/§8b).
+- [x] Rendimiento: `get_function` sin `getenv` por llamada → stalls de 1-4 s a 0 y 30 ticks/s.
 - [x] Replay fiel (`HH_REPLAY_MODE=vi`); build reproducible + CI/Releases (ADR 0005).
 
 ## Documentos de detalle (no duplicar)
