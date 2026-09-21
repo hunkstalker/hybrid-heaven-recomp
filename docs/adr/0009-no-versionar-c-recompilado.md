@@ -34,3 +34,21 @@
     una ROM en secreto (no se sube nunca la ROM a un repo público).
 - **Criterio de salida**: `tools/regenerate.py` reproduce el C; `CMakeLists` falla con un mensaje
   claro si falta y apunta al regenerador; el port compila tras regenerar.
+
+## Actualización (2026-09-21)
+
+- **El microcódigo RSP ya no se versiona** (antes era la excepción de esta ADR). Se trata como el C
+  recompilado: **generado con RSPRecomp** (`recomp/rsp_hh_aspMain.toml` →
+  `build/recomp/rsp/hh_aspMain.cpp`, gitignored) por `tools/regenerate.py`. Quien clone el repo lo
+  genera con su ROM (RSPRecomp, dep. de dev); el CI lo trae del repo privado de secretos
+  (`secrets/rsp/hh_aspMain.cpp`). Así el repo público queda **sin traducción de código del juego**
+  (el C recompilado ya estaba fuera).
+- **Plan futuro (cobertura nativa)**: cuando el baseline esté **congelado (100 % features)**, se
+  **clonará** y se abrirá un **repo separado** para la **reimplementación nativa progresiva** (que
+  será **código derivado**). El baseline (menos expuesto: tooling + port, sin traducción del juego)
+  queda como **producto y oráculo**; la reescritura (más expuesta) en su repo → **radio de explosión**
+  ante un DMCA. Nota: un takedown puede ir contra repos *y/o* la cuenta, y los **binarios** también
+  embeben derivado; la protección real es el **backup fuera de GitHub**.
+- El **norte legal sigue siendo clean-room** (reimplementar desde comportamiento, no desde el
+  código original); la reescritura derivada es un paso pragmático, no el fin.
+- El microcódigo RSP generado es **byte-idéntico** al que se versionaba (verificado con RSPRecomp).
