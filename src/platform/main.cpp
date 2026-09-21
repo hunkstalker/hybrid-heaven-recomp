@@ -719,7 +719,7 @@ int main(int argc, char** argv) {
     install_crash_handlers();
 #endif
 
-    recomp::Version version = recomp::Version(0, 1, 0);
+    recomp::Version version = recomp::Version(hh::kVersionMajor, hh::kVersionMinor, hh::kVersionPatch);
     recomp::register_config_path(app_folder_path);
 
     // Portada: la carpeta de datos es la del .exe, asi que `saves/` queda al lado del ejecutable

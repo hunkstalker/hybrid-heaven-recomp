@@ -74,7 +74,10 @@ void hh::log(const char* fmt, ...) {
 }
 
 const char* hh::get_version_string() {
-    return "0.1.0";
+    static const std::string version =
+        std::to_string(hh::kVersionMajor) + "." + std::to_string(hh::kVersionMinor) + "." +
+        std::to_string(hh::kVersionPatch);
+    return version.c_str();
 }
 
 static std::filesystem::path get_executable_path() {
