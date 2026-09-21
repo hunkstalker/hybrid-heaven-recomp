@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# Adaptado del tooling del port de referencia (MIT); ver CREDITS.md y licenses/hybrid-heaven-recomp-MIT.txt.
 # build_elf.sh — ensambla la salida de splat y la enlaza en un ELF con símbolos (vía ELF, ADR 0011).
 #
 # Enlazado SOLO de ensamblador (nombres/direcciones/tamaños; sin C recuperado). El ELF resultante

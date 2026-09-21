@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Adaptado del tooling del port de referencia (MIT); ver CREDITS.md y licenses/hybrid-heaven-recomp-MIT.txt.
 """gen_splat_yaml.py — escribe `recomp/hybrid-heaven.us.yaml` (config de splat) desde
 `work/scratch/expanded/segments.json`.
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Adaptado del tooling del port de referencia (MIT); ver CREDITS.md y licenses/hybrid-heaven-recomp-MIT.txt.
 """gen_link_syms.py — fragmento de linker script con símbolos que ningún objeto define.
 
 Dos fuentes de asignaciones `NAME = 0xADDR;` alimentan el enlazado:

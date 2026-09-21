@@ -43,6 +43,27 @@ como referencia/fallback. Los cambios quedan marcados en los propios commits de 
 `RT64` **no** se modifica: se clona del upstream en el commit fijo
 `43373749dac9bbc1b653e6a02aed40a9e1783bed` (MIT). `SDL2` también se toma del sistema.
 
+## Repo de referencia (tooling adoptado, MIT)
+
+Parte del **tooling de recompilación por ELF** (ADR 0011) se adapta del port de referencia
+**[danielgomesvieira2000/hybrid-heaven-recomp](https://github.com/danielgomesvieira2000/hybrid-heaven-recomp)**
+(**MIT**, © 2026 Hybrid Heaven: Recompiled contributors; aviso completo en
+[`licenses/hybrid-heaven-recomp-MIT.txt`](licenses/hybrid-heaven-recomp-MIT.txt)). Es compatible con
+nuestra GPL-3.0 al preservar el aviso de copyright.
+
+| Script/decisión nuestra | Origen en la referencia |
+|---|---|
+| `tools/unpack_rom.py` (imagen expandida + `segments.json`) | `unpack_rom.py` |
+| `tools/gen_splat_yaml.py` (config de splat) | `gen_splat_yaml.py` |
+| `tools/gen_link_syms.py` (asignaciones sin shadowing ABS) | `gen_link_syms.py` |
+| `tools/gen_reimplemented_decls.py` (declaraciones `_recomp`) | `gen_reimplemented_decls.py` |
+| `tools/gen_runtime_func_table.py` (registro por dirección de cartucho) | `gen_runtime_func_table.py` |
+| `tools/build_elf.sh` (ensamblar/enlazar el ELF; aquí con LLVM en vez de GNU) | `wsl_split.sh` + `wsl_build_elf.sh` |
+| `recomp/macro.inc` + `recomp/*.yaml/toml` (esqueleto) | `recomp/macro.inc`, `hybrid-heaven.us.{yaml,ld,toml}` |
+
+El `macro.inc` de la referencia, a su vez, procede de **Rayman 2: Recompiled** (MIT); aquí está
+reescrito con el mismo propósito.
+
 ## Herramientas de desarrollo (no se distribuyen)
 
 | Herramienta | Autoría | Licencia | Uso |

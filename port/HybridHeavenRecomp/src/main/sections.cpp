@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "../../RecompiledFuncs/recomp_overlays.inl"
+#include "../../RecompiledFuncs/runtime_funcs.inl"
 
 #include "librecomp/overlays.hpp"
 #include "hh.h"
@@ -139,6 +140,11 @@ void hh::register_overlays() {
 // Debe correr en on_init, DESPUES de init_overlays(): init_overlays hace func_map.clear() y
 // borraria los hooks si se registraran antes (register_overlays() si va antes, para las tablas).
 void hh::register_runtime_functions() {
+    // libultra que provee el runtime, en su direccion de cartucho: con use_lookup_for_all_function_calls
+    // cada llamada es un lookup, y estas funciones no viven en ninguna tabla de seccion.
+    for (const auto& entry : runtime_provided_funcs) {
+        recomp::overlays::add_loaded_function(static_cast<int32_t>(entry.ram_addr), entry.func);
+    }
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadAddress), file_load_hook);
     if (!env_set("HH_NO_STREAMED_LOADS")) {
         recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadStreamedAddress),

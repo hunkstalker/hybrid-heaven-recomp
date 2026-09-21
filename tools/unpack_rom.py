@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Adaptado del tooling del port de referencia (MIT); ver CREDITS.md y licenses/hybrid-heaven-recomp-MIT.txt.
 """unpack_rom.py — construye la imagen expandida que leen splat y N64Recomp (vía ELF, ADR 0011).
 
 El 94% del código de Hybrid Heaven está comprimido (LZKN64, tabla Nisitenma-Ichigo). splat necesita

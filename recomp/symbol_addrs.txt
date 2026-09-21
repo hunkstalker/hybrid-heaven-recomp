@@ -1,0 +1,6 @@
+osStopThread = 0x800265F0;
+osDestroyThread = 0x80026CE0;
+osCreateThread = 0x80028260;
+osStartThread = 0x80034C90;
+__osDisableInt = 0x80032660;
+__osRestoreInt = 0x800326D0;

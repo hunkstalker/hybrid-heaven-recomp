@@ -132,6 +132,21 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   registrar las funciones del runtime en sus direcciones de cartucho en el port (como
   `runtime_provided_funcs` de la referencia) y re-generar. Gate: boot + título con 3D.
 - **Siguiente: M4b** (libultra del runtime) → M5 (limpieza).
+- **M4b (en curso)**: se nombraron libultra en `recomp/symbol_addrs.txt` (hilos:
+  `osStopThread`, `osDestroyThread`, `osCreateThread`, `osStartThread`, `__osDisableInt`,
+  `__osRestoreInt`) para que N64Recomp los reconozca como reimplementados (el runtime los provee).
+  Nuevos generadores: `tools/gen_reimplemented_decls.py` (declaraciones `_recomp`) y
+  `tools/gen_runtime_func_table.py` (registro por dirección de cartucho; 6 funciones). `sections.cpp`
+  las registra. **Resultado**: ya no se recompilan los hilos (sin la recursión de `osDestroyThread`),
+  y el SEGV que queda es del watchdog (`hh_dump_stack_scan`), no del juego.
+  **Bloqueo**: el juego llega a `main` (0x80001078) pero el **bucle por frame nunca corre**
+  (`polls=0`, `audio=0`, sin `[trans] load`), con `osTvType=1` (NTSC) y VI avanzando. Los hilos
+  creados no llegan a ejecutar la lógica. Sospecha: el runtime de hilos necesita también
+  `__osDispatchThread`/`__osDequeueThread`, que **nuestro runtime no implementa** (la referencia sí
+  los tiene en su fork). **M4b.2**: portar/implementar `__osDispatchThread`/`__osDequeueThread` en el
+  fork del runtime (o comparar con el fork de la referencia) y volver a validar.
+- **Créditos**: el tooling adaptado de la referencia es **MIT**; añadido a `CREDITS.md` y
+  `licenses/hybrid-heaven-recomp-MIT.txt`, con aviso en cada script.
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.

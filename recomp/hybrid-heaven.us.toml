@@ -9,6 +9,10 @@ output_func_path = "../work/recomp_elf/RecompiledFuncs"
 functions_per_output_file = 200
 relocatable_sections_path = "overlays.txt"
 
+# Declaraciones de las libultra delegadas al runtime (tools/gen_reimplemented_decls.py).
+recomp_include = """#include "recomp.h"
+#include "reimplemented_decls.h""""
+
 [patches]
 # Reset de TLB en bucle (cop0 Index/EntryHi/EntryLo/PageMask + tlbwi). Solo lo llama osInitialize,
 # que es del runtime; el port no tiene MMU. N64Recomp no traduce cop0 reg 10.
