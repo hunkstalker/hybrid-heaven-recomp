@@ -476,7 +476,9 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
 
     // Sincronizacion de tasa por error de cola (PLL) + salvaguarda dura.
     // HH_AI_SYNC=0 vuelve al comportamiento antiguo (sin resamplear). HH_AI_TARGET_MS (50) fija el
-    // objetivo de cola; HH_AI_MAXC (0.01) la correccion maxima; HH_AI_MAX_MS (150) la salvaguarda.
+    // objetivo de cola; HH_AI_MAXC (0.03) la correccion maxima; HH_AI_MAX_MS (150) la salvaguarda.
+    // El tope debe SUPERAR el desajuste real (~1% medido) para poder drenar; si queda justo, la
+    // cola se queda pegada al watermark y sigue descartando (petardeo).
     static const bool hh_sync = [] {
         const char* e = getenv("HH_AI_SYNC");
         return !(e != nullptr && *e != '\0' && strcmp(e, "0") == 0);
@@ -487,7 +489,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     }();
     static const double hh_maxc = [] {
         const char* e = getenv("HH_AI_MAXC");
-        return (e != nullptr && *e != '\0') ? strtod(e, nullptr) : 0.01;
+        return (e != nullptr && *e != '\0') ? strtod(e, nullptr) : 0.03;
     }();
 
     // Salvaguarda DURA (deberia ser rara con el PLL): si la cola supera HH_AI_MAX_MS, descartar.

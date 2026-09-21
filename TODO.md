@@ -9,8 +9,10 @@
   repo privado de secretos (`HH_SECRETS_REPO`/`HH_SECRETS_PAT`; ADR 0009) → CI verde (Windows debe
   compilar con la tabla runtime de 47) → **Release `v0.1.1`** (tag o `workflow_dispatch`). Windows ya
   validado (compila y cierra limpio, M4c).
-- [ ] **Audio: sincronizar la tasa**: quitar los descartes periódicos del watermark con el *feedback*
-  del error de cola SDL en `osAiGetLength` (`notes/2026-09-18-suavizado-fase1-y-cache-loader.md` §2).
+- [•] **Audio: sincronizar la tasa**: **implementado** (`src/platform/support.cpp`: resampler PLL por
+  error de cola; objetivo `HH_AI_TARGET_MS`=50ms, tope `HH_AI_MAXC`=3%, watermark `HH_AI_MAX_MS`=150ms
+  como salvaguarda; `hh_audio.log` con `drops/s`). **Pendiente validar en Windows**: `drops/s`≈0 y
+  `queued`≈60-75ms → sin petardeo. `HH_AI_SYNC=0` revierte.
 - [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
   en CaC** y asignarlo a **X** (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
@@ -26,6 +28,10 @@
 ## Backlog (priorizado)
 
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
+- [ ] **Audio (futuro): desacoplar de los fps** — hoy el audio va atado al tick de 30 Hz, así que un
+  hitch puede afectarlo. `PROYECTO.md §7`, `notes/2026-09-15-fix-modulo9-cuelgue-npc-y-handoff.md:68`.
+- [ ] **Audio: `osAiGetStatus` real** (hoy devuelve 0 fijo, `librecomp/src/ai.cpp`); completar con el
+  estado del DMA **solo si se observa algún síntoma** (`notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5b).
 - [ ] **Guardado**: validar Controller Pak contra el emulador; ficheros en disco + **Rumble**.
 - [ ] **Builds/empaquetado**: **Steam Deck**; validar `release.yml` end-to-end.
 - [ ] **Tarea #3**: mapa overlay→RAM por BizHawk (complementa la medición empírica de bases).
