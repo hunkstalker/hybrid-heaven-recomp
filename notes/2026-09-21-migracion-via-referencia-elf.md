@@ -106,12 +106,20 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   *Abierto*: el SHA-1 de la imagen no coincide con el documentado por la referencia
   (`99ba14e6…`); la puerta real es ELF↔nuestra imagen. Revisar si aparece una divergencia.
 - **Siguiente: M2** (splat → asm → ELF).
+- **M2 en curso**: split de splat **OK** (95 segmentos, 225 `.s`, 15944 `glabel`, linker script +
+  `undefined_*`). `recomp/hybrid-heaven.us.yaml` + `recomp/macro.inc` versionados; `asm/`, `include/`
+  (splat), `build-elf/`, `ld` y `undefined_*` gitignored (derivados). Ensamblado con `llvm-mc`: viable
+  tras normalizar el único GNU-ismo (`.set gp=64` → `.set gp,64`); `file_008.s` produce objeto OK.
+  *Pendiente*: enlazar (`gen_link_syms` + segmentos bin `ipl3`/`gap` + `ld.lld`) → ELF; y el gate
+  ELF↔imagen.
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
 
 ## 6. Notas de toolchain (M0)
 - Se usa **LLVM** para MIPS en lugar de binutils GNU (Alpine no trae cross-binutils MIPS y el
-  paquete `binutils-cross-embedded` no incluye mips). Riesgo: diferencias de sintaxis del `.s` de
-  splat con `llvm-mc`; se validará en M2 (si aparece, se compila binutils GNU `--target=mips-linux-gnu`).
+  paquete `binutils-cross-embedded` no incluye mips). **Medido**: el único GNU-ismo que `llvm-mc` no
+  acepta es `.set gp=64` (→ `.set gp,64`); normalizarlo basta para ensamblar el código. `llvm-mc` no
+  reconoce `-mcpu=vr4300` (usar `mips3`, que es la ISA del R4300i). Si surgieran más incompatibilidades
+  al enlazar, se compila binutils GNU `--target=mips-linux-gnu`.
 - Version determinista pendiente de fijar (splat/spimdisasm + LLVM) al cerrar M2.
