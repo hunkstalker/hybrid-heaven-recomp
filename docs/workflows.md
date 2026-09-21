@@ -163,6 +163,25 @@ Artefactos: `config/code_files.json` + `config/code_files.overlays.txt` (set de 
 **Pendiente** (no cierra aún): jump-tables, funciones que acaban en `jal`/`jr` no-RA, residente
 regenerado excluyendo overlays y los loaders `recomp_load_overlays`/`unload_overlays`.
 
+> **EN MIGRACIÓN (2026-09-21, ADR 0011):** esta vía Ghidra-per-file se sustituye por **splat/ELF**
+> (fronteras de imagen completa). Plan y fases: `../notes/2026-09-21-migracion-via-referencia-elf.md`.
+> Toolchain de desarrollo: `tools/install_splat.sh` (venv con splat + spimdisasm) y ensamblador/
+> enlazador MIPS por LLVM (`llvm-mc`/`ld.lld`). Wrapper: `tools/splat_headless.sh`.
+
+## 5c. Recompilación por ELF + splat (vía nueva, en curso)
+
+Sustituye a §5b (ADR 0011). Piezas:
+1. `tools/analyze_code_files.py` → **imagen expandida** (`hh.expanded.z64`: ROM + cada code file
+   descomprimido en offset sintético >16 MB) + `segments.json` + `file_table.h`.
+2. `gen_splat_yaml` → config de **splat** (residente + `file_008` globales; resto
+   `exclusive_ram_id: overlay`; `asm_data_macro: dlabel`, `asm_jtbl_label_macro: jlabel`).
+3. `tools/splat_headless.sh split …` → `asm/`; ensamblar con `llvm-mc -triple=mips-linux-gnu` y
+   enlazar con `ld.lld -m elf32btsmip` → `hybrid-heaven.us.elf`.
+4. N64Recomp en **ELF mode** (`elf_path`, `use_lookup_for_all_function_calls`,
+   `relocatable_sections_path`).
+5. **Gates**: segmentos byte-idénticos a la imagen; `jal` 0 mid-function/nowhere; conteos
+   reconciliados; sin datos-como-código.
+
 ## 6. Oráculo con emulador (comparar port vs juego real)
 
 `work/r64dump` corre la ROM bajo `libmupen64plus` **headless** y vuelca RDRAM por la API de depuración.

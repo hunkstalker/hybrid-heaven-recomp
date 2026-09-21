@@ -8,9 +8,10 @@
 - [•] **Migrar a la vía de recompilación de la referencia (ELF + splat + residente limpio)**. Decisión
   2026-09-21 (ADR 0011): se abandona Ghidra-per-file (fronteras de imagen incompleta; el build llega
   al título sin fondo 3D). Plan por fases M0–M5 con gates:
-  `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 pendiente**: instalar splat + spimdisasm +
-  binutils MIPS (deps de desarrollo). Sub-paso posterior: evaluar libultra del runtime (choca con ADR
-  0002/0003).
+  `notes/2026-09-21-migracion-via-referencia-elf.md`. **M0 HECHO** (splat 0.50.0 + spimdisasm 1.42.4
+  en `toolchain/splat-venv`; MIPS por LLVM `llvm-mc`/`ld.lld`; `tools/install_splat.sh`,
+  `tools/splat_headless.sh`). **Siguiente: M1** (imagen expandida) → **M2** (splat → ELF). Sub-paso
+  posterior: evaluar libultra del runtime (choca con ADR 0002/0003).
 - [ ] **Migración a submódulos (hecho, sin commitear)**: `lib/{N64ModernRuntime,rt64}` como submódulos
   (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push/force-push de los forks
   para que un clon limpio los resuelva.

@@ -13,6 +13,11 @@
 > M0–M5, alcance, riesgos) → `docs/adr/0011-via-recompilacion-elf-splat.md` (decisión) →
 > `notes/2026-09-20-ab-bloqueo-boot-per-file.md` (evidencia del fallo). El **handoff largo** de la
 > etapa per-file queda abajo como contexto histórico (superado por la migración).
+>
+> **Progreso de la migración:** **M0 HECHO** (toolchain: `tools/install_splat.sh` →
+> `toolchain/splat-venv` con splat 0.50.0 + spimdisasm 1.42.4; MIPS por LLVM `llvm-mc`/`ld.lld`;
+> wrapper `tools/splat_headless.sh`). **Siguiente: M1** (imagen expandida + `segments.json` +
+> `file_table.h`) → **M2** (splat → asm → ELF).
 
 ---
 

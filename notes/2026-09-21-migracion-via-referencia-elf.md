@@ -95,7 +95,18 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
   mientras no cierre cada gate.
 
 ## 5. Estado al cerrar esta sesión
-- Decisión tomada y documentada; migración **no empezada** (queda en M0).
-- Cambios de esta sesión (sin commitear): submódulos (ADR 0010), `regenerate.py` materializa el C
-  como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
+- Decisión tomada y documentada (`docs/adr/0011`); **M0 hecho**: toolchain instalado en
+  `toolchain/splat-venv/` (splat 0.50.0, spimdisasm 1.42.4, n64img, pygfxd, crunch64, pypng) y
+  backend MIPS de LLVM (`llvm-mc`, `ld.lld`, `llvm-objcopy`, `llvm-readelf`; paquetes `llvm`+`lld`).
+  Scripts: `tools/install_splat.sh`, `tools/splat_headless.sh`. Verificado: `llvm-mc` ensambla MIPS
+  BE y `ld.lld -m elf32btsmip` enlaza un ELF32 MIPS correcto (`jr $ra; nop`).
+- **Siguiente: M1** (imagen expandida + `segments.json` + `file_table.h`) y **M2** (splat → asm → ELF).
+- Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
+  el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
 - El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
+
+## 6. Notas de toolchain (M0)
+- Se usa **LLVM** para MIPS en lugar de binutils GNU (Alpine no trae cross-binutils MIPS y el
+  paquete `binutils-cross-embedded` no incluye mips). Riesgo: diferencias de sintaxis del `.s` de
+  splat con `llvm-mc`; se validará en M2 (si aparece, se compila binutils GNU `--target=mips-linux-gnu`).
+- Version determinista pendiente de fijar (splat/spimdisasm + LLVM) al cerrar M2.
