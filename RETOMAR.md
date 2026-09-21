@@ -1,39 +1,38 @@
-# RETOMAR — migración a la vía de recompilación de la referencia (ELF + splat)
+# RETOMAR — Audio: petardeo ligero (siguiente tarea)
 
-> Handoff para la sesión nueva. **Última sesión: 2026-09-21.**
+> Handoff para sesión nueva. **Última sesión: 2026-09-21.**
 >
-> **DIRECCIÓN ACTUAL (2026-09-21):** se **abandona la vía Ghidra-per-file** (per-`file_NN` con syms y
-> residente reciclado) y se migra a la **vía de la referencia**: **ELF desde splat/spimdisasm sobre
-> la imagen expandida** + **residente limpio** + **gates de verificación**. Motivo: el build per-file
-> arranca y llega al **título sin fondo 3D** (confirmado por el mantenedor y por captura): ejecuta un
-> subconjunto de funciones y no emite `G_MTX`; las fronteras por-fichero pierden el contexto de imagen
-> completa. Decisión: **calidad antes que prisa**.
+> **DIRECCIÓN ACTUAL:** cerrar el **petardeo ligero de audio**. Todo lo demás está hecho: vía
+> ELF/splat (ADR 0011) **validada en Windows** (gameplay, primer CaC, mando, guardado), M4c
+> (teardown) resuelto y **Release `v0.1.1` publicado**.
 >
-> **Lee primero, en este orden:** `notes/2026-09-21-migracion-via-referencia-elf.md` (plan por fases
-> M0–M5, alcance, riesgos) → `docs/adr/0011-via-recompilacion-elf-splat.md` (decisión) →
-> `notes/2026-09-20-ab-bloqueo-boot-per-file.md` (evidencia del fallo). El **handoff largo** de la
-> etapa per-file queda abajo como contexto histórico (superado por la migración).
+> **Síntoma:** petardeo ligero, **igual antes y después** del PLL. En `hh_audio.log` (Windows):
+> `frames/s≈44–46k` (el juego produce ~3–6% de más sobre 43200), `queued≈6000–6900` (pegado al
+> watermark 150 ms) y `drops/s≈2–6` (descartes = clics).
 >
-> **Progreso de la migración:** **M0 HECHO** (toolchain: `recomp/tools/install_splat.sh` →
-> `toolchain/splat-venv` con splat 0.50.0 + spimdisasm 1.42.4; MIPS por LLVM `llvm-mc`/`ld.lld`;
-> wrapper `recomp/tools/splat_headless.sh`). **M1 HECHO** (`recomp/tools/unpack_rom.py` → imagen expandida +
-> `segments.json` + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`recomp/tools/build_elf.sh`:
-> splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; **gate: el ELF reconstruye la imagen byte
-> a byte**). **M3 HECHO** (N64Recomp ELF mode → C; rc=0, 0 datos-como-código). **M4 HECHO — regresión
-> resuelta**: causa raíz = N64Recomp ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas
-> directas same-section saltaban los hooks de loader → file_008 no se registraba → título sin 3D). Fix
-> en `main.cpp` del tool (snapshot en `recomp/n64recomp_changes/main.cpp`); + nombres libultra
-> (`symbol_addrs.txt`) y 47 funciones del runtime registradas. Resultado: boot carga 8/55/24, `polls`
-> avanza y **título con fondo 3D**. **VALIDADO EN WINDOWS**: gameplay, primer NPC, cajas, **primer CaC**
-> y ~30 min hasta el 6º combate **sin cuelgues ni crashes** — **bloqueante original RESUELTO**.
-> **M5 HECHO (saneamiento y estructura)**: port en la raíz, `recomp/tools/`, intermedios→`build/recomp/`,
-> vía Ghidra→`legacy/`, docs vivas + créditos, purga `HH_*`. **Pendiente: push**, con matiz: los forks
-> son fast-forward, pero el **main requiere `--force`** (el remoto conserva la historia per-file
-> pre-reescritura y diverge). Recomendado: `git fetch origin` + tag `backup-per-file` y
-> `git push --force-with-lease origin main` (ver `AGENTS.md`). **M4c HECHO** (SEGV de teardown
-> resuelto y **validado en Linux y Windows**; fix en el fork NMR: no liberar RDRAM + parar el
-> planificador al salir). Detalle: `notes/2026-09-21-m4c-teardown-segv.md` y
-> `notes/2026-09-21-migracion-via-referencia-elf.md`.
+> **Lee primero:** `notes/2026-09-21-audio-petardeo-ref-y-plan.md` (evidencia, lo que hace la
+> **referencia** y el plan). Luego `docs/architecture.md` §5 y
+> `notes/2026-09-17-replay-mode-vi-vis-negativo.md` §5b–5d.
+>
+> **Lo esencial (referencia, MIT):** (a) **resampler propio** (windowed-sinc) + dispositivo a la
+> **tasa del hardware** (SDL resamplea mal: pierde continuidad en cada bloque → crackle); (b)
+> **headroom** en `get_frames_remaining` (el juego dimensiona cada buffer con ese valor → la cola se
+> asienta más profunda y no toca cero; SDL rellena con ceros al drenar → si toca cero, hueco =
+> crackle); (c) periodo del dispositivo **512**; (d) **des-swapear L/R** (posible estéreo invertido en
+> el nuestro — **verificar**). Ficheros ref: `/tmp/opencode/ref-hh/src/resample.cpp`,
+> `.../include/hh/resample.h`, `.../src/callbacks.cpp`.
+>
+> **Estado de la tarea:** implementados y **sin resolver**: PLL (`src/platform/support.cpp`;
+> `HH_AI_SYNC`, `HH_AI_MAXC`=3%) y offset `HH_AI_LEN_OFFSET` (fork NMR `cae028e`; **sin probar**).
+> **Siguiente:** probar el offset **positivo** (que el juego produzca menos; `frames/s`→43200,
+> `drops/s`→0); si no basta, adoptar el enfoque de la referencia y **re-validar el CaC** (el modelo AI
+> influye en su timing).
+>
+> **Push pendiente (no subir hasta validar el audio):** `main` (4 commits: audio PLL×2 + TODO) y fork
+> NMR (1 commit: offset). El **main ya no requiere `--force`** (la reescritura ya se publicó).
+>
+> **Hecho (contexto):** ELF/splat M0–M5 y M4c en `notes/2026-09-21-migracion-via-referencia-elf.md` y
+> `notes/2026-09-21-m4c-teardown-segv.md`; publicación en `TODO.md` (Hecho).
 
 ---
 

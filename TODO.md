@@ -5,10 +5,11 @@
 
 ## Ahora (priorizado)
 
-- [•] **Audio: sincronizar la tasa**: **implementado** (`src/platform/support.cpp`: resampler PLL por
-  error de cola; objetivo `HH_AI_TARGET_MS`=50ms, tope `HH_AI_MAXC`=3%, watermark `HH_AI_MAX_MS`=150ms
-  como salvaguarda; `hh_audio.log` con `drops/s`). **Pendiente validar en Windows**: `drops/s`≈0 y
-  `queued`≈60-75ms → sin petardeo. `HH_AI_SYNC=0` revierte.
+- [•] **Audio: petardeo ligero** (siguiente tarea): el juego produce ~3–6% de más (`frames/s≈44–46k`),
+  `queued` pegado al watermark (150 ms) y `drops/s≈2–6`. Implementados y **sin resolver**: PLL
+  (`src/platform/support.cpp`; `HH_AI_SYNC`/`HH_AI_MAXC`) y offset `HH_AI_LEN_OFFSET` (fork NMR;
+  **sin probar**). **Plan + enfoque de la referencia** (resampler propio + headroom + periodo 512 +
+  posible swap L/R): `notes/2026-09-21-audio-petardeo-ref-y-plan.md`.
 - [ ] **Mando (desbloqueado por el CaC)**: identificar el botón N64 que abre el menú de **acciones/lucha
   en CaC** y asignarlo a **X** (`config.ini`); decidir `LB` y el atajo de cámara/1ª persona.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
