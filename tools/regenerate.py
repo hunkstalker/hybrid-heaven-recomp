@@ -9,8 +9,8 @@ Pipeline:
   1. analyze_code_files  -> manifiesto (recomp/code_files.json) + overlays.
   2. unpack_rom          -> imagen expandida + segments.json + file_table.h.
   3. gen_splat_yaml      -> recomp/hybrid-heaven.us.yaml.
-  4. splat split         -> asm/ (+ linker script, undefined_*).
-  5. build_elf.sh        -> elf/hybrid-heaven.us.elf (gate: byte-identico a la imagen).
+  4. splat split         -> build/recomp/asm (+ linker script, undefined_*).
+  5. build_elf.sh        -> build/recomp/elf/hybrid-heaven.us.elf (gate: byte-identico a la imagen).
   6. N64Recomp (ELF mode) -> work/recomp_elf/RecompiledFuncs.
   7. gen_reimplemented_decls + gen_runtime_func_table.
   8. copia a build/recomp/RecompiledFuncs (dir real) + gen_file_table.
@@ -21,8 +21,8 @@ Requiere (dev): Python 3.11+, splat+spimdisasm y LLVM MIPS (tools/install_splat.
 Uso:
   python3 tools/regenerate.py                 # todo
   python3 tools/regenerate.py --rom ROM
-  python3 tools/regenerate.py --skip-splat    # reutiliza asm/ (iterar build_elf/N64Recomp)
-  python3 tools/regenerate.py --skip-elf      # reutiliza elf/ (iterar N64Recomp)
+  python3 tools/regenerate.py --skip-splat    # reutiliza build/recomp/asm (iterar build_elf/N64Recomp)
+  python3 tools/regenerate.py --skip-elf      # reutiliza build/recomp/elf (iterar N64Recomp)
   python3 tools/regenerate.py --build         # compila el port al final
 """
 
@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PORT = ROOT
 PORT_RECOMP = ROOT / "build/recomp/RecompiledFuncs"
 RECOMP_OUT = ROOT / "work/recomp_elf/RecompiledFuncs"
-ELF = ROOT / "elf/hybrid-heaven.us.elf"
+ELF = ROOT / "build/recomp/elf/hybrid-heaven.us.elf"
 TOML = ROOT / "recomp/hybrid-heaven.us.toml"
 N64RECOMP = ROOT / "toolchain/src/N64Recomp/build_recomp/N64Recomp"
 DEFAULT_ROM = ROOT / "work/roms/us_retail.z64"

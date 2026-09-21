@@ -15,7 +15,7 @@ baserom.*
 assets/HybridHeaven.bmp
 assets/HybridHeaven.png
 assets/icon_bmp.inc
-Referencias screenshots/
+notes/reference/screenshots/
 
 # Capturas/replays de test (imagenes del juego)
 muestra-menu-hybrid-heaven.png
@@ -71,23 +71,16 @@ recomp/*.bak
 # cubierto por `build/`.
 work/recomp/
 
-# Recompilación por ELF/splat (ADR 0011): la imagen expandida, asm/, el linker script y los
-# undefined_* se derivan de la ROM -> NO se versionan. Se regeneran con tools/unpack_rom.py y
-# tools/splat_headless.sh (tools/install_splat.sh). Ver notes/2026-09-21-migracion-*.
+# Recompilación por ELF/splat (ADR 0011): la imagen expandida y TODO el intermedio (asm/, ELF,
+# linker script, undefined_*) se derivan de la ROM -> NO se versionan. Se regeneran con
+# tools/regenerate.py (recomp/tools/*, install_splat.sh). Ver notes/2026-09-21-migracion-*.
+# Todos los intermedios viven bajo build/recomp/ (build/ ya esta ignorado arriba): nada que anadir.
 work/scratch/expanded/
-/asm/
-/build-elf/
-/src_unused/
-/elf/
-/recomp/hybrid-heaven.us.ld
-/recomp/undefined_funcs_auto.txt
-/recomp/undefined_syms_auto.txt
 
-# Artefactos de build del usuario (release de Windows)
+# Artefactos de build del usuario (release de Windows) y config local de runtime:
+# ahora viven bajo build/ (ya ignorado). config.ini tambien se ignora en cualquier ruta.
 hhport_win.zip
+config.ini
 
 # Build local del mantenedor (compila lib/ tal cual, sin git; no se publica)
 build_windows.local.bat
-
-# Config local del mantenedor (perfiles de mando); no versionar
-config.ini

@@ -13,10 +13,10 @@ options:
   platform: n64
   compiler: GCC
 
-  asm_path: asm
-  data_path: asm/data
-  src_path: src_unused
-  build_path: build-elf
+  asm_path: build/recomp/asm
+  data_path: build/recomp/asm/data
+  src_path: build/recomp/src_unused
+  build_path: build/recomp/build-elf
   asset_path: work/scratch/expanded/assets
 
   create_c_files: False
@@ -27,12 +27,12 @@ options:
   symbol_name_format: $VRAM_$ROM
   symbol_name_format_no_rom: $VRAM_$SEG
 
-  ld_script_path: recomp/hybrid-heaven.us.ld
+  ld_script_path: build/recomp/hybrid-heaven.us.ld
   symbol_addrs_path:
     - recomp/symbol_addrs.txt
     - recomp/auto_funcs.txt
-  undefined_funcs_auto_path: recomp/undefined_funcs_auto.txt
-  undefined_syms_auto_path: recomp/undefined_syms_auto.txt
+  undefined_funcs_auto_path: build/recomp/undefined_funcs_auto.txt
+  undefined_syms_auto_path: build/recomp/undefined_syms_auto.txt
 
   asm_function_macro: glabel
   asm_data_macro: dlabel

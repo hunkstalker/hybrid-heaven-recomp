@@ -11,7 +11,7 @@ de verdad en un objeto (lo normal en una llamada entre segmentos), la definició
 a la real (ligada a sección) y N64Recomp deja de verla ("No function found for jal target"). Por eso
 solo se emite la asignación para símbolos que **ningún objeto define**.
 
-Uso:  python3 tools/gen_link_syms.py <objetos...>   (escribe build-elf/link_syms.ld)
+Uso:  python3 recomp/tools/gen_link_syms.py <objetos...>   (escribe build/recomp/build-elf/link_syms.ld)
 """
 import pathlib
 import re
@@ -19,9 +19,9 @@ import subprocess
 import sys
 
 NM = "llvm-nm"
-OUT = pathlib.Path("build-elf/link_syms.ld")
-FRAGMENTS = [pathlib.Path("recomp/undefined_syms_auto.txt"),
-             pathlib.Path("recomp/undefined_funcs_auto.txt")]
+OUT = pathlib.Path("build/recomp/build-elf/link_syms.ld")
+FRAGMENTS = [pathlib.Path("build/recomp/undefined_syms_auto.txt"),
+             pathlib.Path("build/recomp/undefined_funcs_auto.txt")]
 
 ASSIGN = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(0x[0-9A-Fa-f]+|\d+)\s*;")
 ADDR_NAME = re.compile(r"^(?:D|func|jtbl|jpt|L)_([0-9A-Fa-f]{8})(?:_[0-9A-Za-z_]+)?$")

@@ -3,19 +3,25 @@
 # build_elf.sh — ensambla la salida de splat y la enlaza en un ELF con símbolos (vía ELF, ADR 0011).
 #
 # Enlazado SOLO de ensamblador (nombres/direcciones/tamaños; sin C recuperado). El ELF resultante
-# (elf/hybrid-heaven.us.elf) es lo que consume N64Recomp. Todo es derivado de la ROM: no se versiona.
+# (build/recomp/elf/hybrid-heaven.us.elf) es lo que consume N64Recomp. Todo es derivado de la ROM:
+# no se versiona (vive bajo build/, gitignored).
 #
 # Ensamblador/enlazador: LLVM (llvm-mc + ld.lld + llvm-objcopy). Se normaliza el único GNU-ismo que
 # llvm-mc no acepta (`.set gp=64` -> `.set gp,64`) y se reetiquetan los `glabel D_` dentro de texto.
 #
-# Requisitos: tools/install_splat.sh (splat) y `llvm`/`lld`; haber hecho el split
-# (tools/splat_headless.sh split recomp/hybrid-heaven.us.yaml).
+# Requisitos: recomp/tools/install_splat.sh y `llvm`/`lld`; haber hecho el split
+# (recomp/tools/splat_headless.sh split recomp/hybrid-heaven.us.yaml).
 #
-# Uso:  tools/build_elf.sh
+# Uso:  recomp/tools/build_elf.sh
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 cd "$ROOT"
+
+ASM=build/recomp/asm
+BUILD=build/recomp/build-elf
+OUT_ELF=build/recomp/elf
+LDSCRIPT=build/recomp/hybrid-heaven.us.ld
 
 AS=llvm-mc
 ASFLAGS="-triple=mips -mcpu=mips3 -filetype=obj -I recomp -I build/recomp/include"
@@ -23,46 +29,46 @@ LD=ld.lld
 OBJCOPY=llvm-objcopy
 JOBS=${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}
 
-[ -d asm ] || { echo "falta asm/ -- corre el split de splat primero" >&2; exit 1; }
-[ -f recomp/hybrid-heaven.us.ld ] || { echo "falta recomp/hybrid-heaven.us.ld" >&2; exit 1; }
+[ -d "$ASM" ] || { echo "falta $ASM -- corre el split de splat primero" >&2; exit 1; }
+[ -f "$LDSCRIPT" ] || { echo "falta $LDSCRIPT" >&2; exit 1; }
 
-rm -rf build-elf/asm build-elf/src build-elf/link_syms.ld
-mkdir -p build-elf/asm build-elf/src elf
+rm -rf "$BUILD/asm" "$BUILD/src" "$BUILD/link_syms.ld"
+mkdir -p "$BUILD/asm" "$BUILD/src" "$OUT_ELF"
 
 echo "=== normalizando fuentes (.set gp=64; glabel D_ -> dlabel D_) ==="
-find asm -name '*.s' | while IFS= read -r s; do
-    dst="build-elf/src/$s"
+find "$ASM" -name '*.s' | while IFS= read -r s; do
+    dst="$BUILD/src/$s"
     mkdir -p "$(dirname "$dst")"
     sed -e 's/\.set gp=64/.set gp,64/' -e '/^[[:space:]]*glabel D_/s/glabel D_/dlabel D_/' "$s" > "$dst"
 done
 
 echo "=== ensamblando ($JOBS jobs) ==="
 export AS ASFLAGS
-find build-elf/src/asm -name '*.s' | sort | xargs -P "$JOBS" -I{} sh -c \
-    'rel="${1#build-elf/src/}"; o="build-elf/$rel.o"; mkdir -p "$(dirname "$o")"; $AS $ASFLAGS "$1" -o "$o"' _ {}
-echo "  objetos: $(find build-elf/asm -name '*.o' | wc -l) de $(find asm -name '*.s' | wc -l) fuentes"
+find "$BUILD/src/$ASM" -name '*.s' | sort | xargs -P "$JOBS" -I{} sh -c \
+    'rel="${1#'"$BUILD"'/src/}"; o="'"$BUILD"'/$rel.o"; mkdir -p "$(dirname "$o")"; $AS $ASFLAGS "$1" -o "$o"' _ {}
+echo "  objetos: $(find "$BUILD/$ASM" -name '*.o' | wc -l) de $(find "$ASM" -name '*.s' | wc -l) fuentes"
 
 echo "=== envolviendo segmentos bin (ipl3, gap) ==="
 # En vez de objcopy (los .bin.o salian con ABI n64, incompatible con o32), se ensambla un stub con
-# .incbin, que hereda la ABI/target de llvm-mc (o32).
+# .incbin, que hereda la ABI/target de llvm-mc (o32). Los .bin viven en work/scratch/expanded/assets.
 for f in ipl3 gap; do
-    o="build-elf/work/scratch/expanded/assets/$f.bin.o"
+    o="$BUILD/work/scratch/expanded/assets/$f.bin.o"
     mkdir -p "$(dirname "$o")"
-    stub="build-elf/src/_$f.bin.s"
+    stub="$BUILD/src/_$f.bin.s"
     printf '.section .data\n.incbin "%s"\n' "$ROOT/work/scratch/expanded/assets/$f.bin" > "$stub"
     $AS $ASFLAGS "$stub" -o "$o"
 done
 
 echo "=== asignaciones de símbolos ==="
 # shellcheck disable=SC2046
-python3 recomp/tools/gen_link_syms.py $(find build-elf/asm -name '*.o' | sort)
+python3 recomp/tools/gen_link_syms.py $(find "$BUILD" -name '*.o' | sort)
 
 echo "=== combinando linker scripts ==="
-LINK_LD=build-elf/hybrid-heaven.us.link.ld
+LINK_LD="$BUILD/hybrid-heaven.us.link.ld"
 {
-    echo "/* generado por tools/build_elf.sh -- no editar */"
-    cat build-elf/link_syms.ld
-    cat recomp/hybrid-heaven.us.ld
+    echo "/* generado por recomp/tools/build_elf.sh -- no editar */"
+    cat "$BUILD/link_syms.ld"
+    cat "$LDSCRIPT"
 } > "$LINK_LD"
 
 # lld rechaza `/DISCARD/ { *(*) }` (intenta descartar .shstrtab). Se descartan solo las secciones de
@@ -78,19 +84,19 @@ open(p, "w").write(t2)
 PY
 
 echo "=== enlazando ==="
-$LD -T "$LINK_LD" $(find build-elf -name '*.o' | sort) \
-    -Map build-elf/hybrid-heaven.us.map --no-check-sections \
-    -o elf/hybrid-heaven.us.elf
+$LD -T "$LINK_LD" $(find "$BUILD" -name '*.o' | sort) \
+    -Map "$BUILD/hybrid-heaven.us.map" --no-check-sections \
+    -o "$OUT_ELF/hybrid-heaven.us.elf"
 
 echo "=== resultado ==="
-ls -l elf/hybrid-heaven.us.elf
-llvm-readelf -S elf/hybrid-heaven.us.elf | grep -cE 'PROGBITS' | xargs echo "  secciones PROGBITS:"
+ls -l "$OUT_ELF/hybrid-heaven.us.elf"
+llvm-readelf -S "$OUT_ELF/hybrid-heaven.us.elf" | grep -cE 'PROGBITS' | xargs echo "  secciones PROGBITS:"
 
 echo "=== gate: ELF reconstruye la imagen byte a byte ==="
-$OBJCOPY -O binary elf/hybrid-heaven.us.elf build-elf/rebuilt.bin
+$OBJCOPY -O binary "$OUT_ELF/hybrid-heaven.us.elf" "$BUILD/rebuilt.bin"
 python3 - <<'PY'
 img = open("work/scratch/expanded/hh.expanded.z64", "rb").read()
-rb = open("build-elf/rebuilt.bin", "rb").read()
+rb = open("build/recomp/build-elf/rebuilt.bin", "rb").read()
 n = min(len(img), len(rb))
 diff = [i for i in range(n) if img[i] != rb[i]]
 if diff or len(img) != len(rb):

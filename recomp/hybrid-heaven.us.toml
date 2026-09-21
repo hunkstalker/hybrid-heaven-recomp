@@ -1,8 +1,8 @@
 # N64Recomp en ELF mode (via de la referencia; ADR 0011).
-# Entrada: elf/hybrid-heaven.us.elf (tools/build_elf.sh), byte-identico a la imagen expandida.
+# Entrada: build/recomp/elf/hybrid-heaven.us.elf (recomp/tools/build_elf.sh), byte-identico a la imagen expandida.
 
 [input]
-elf_path = "../elf/hybrid-heaven.us.elf"
+elf_path = "../build/recomp/elf/hybrid-heaven.us.elf"
 entrypoint = 0x80000400
 use_lookup_for_all_function_calls = true
 output_func_path = "../work/recomp_elf/RecompiledFuncs"
