@@ -208,12 +208,13 @@ antes de cerrarla para que dé tiempo al volcado.
   (p. ej. `set HH_RES=2x`).
 - **Mando Xbox** (mapeo FIJO, 2026-09-21): cada botón físico = un botón del N64, **sin remapeo por
   contexto** (antes B cambiaba de función con el mapa/menú abierto → variabilidad en la misma
-  partida). Por defecto: **A = acción/confirmar**; **B = N64 Z (agacharse)**; **X = libre**;
-  **Back = N64 B (atrás/mapa/cancelar)**; **Y = C-Down** (vista en 1ª persona, verificado);
-  Start = START; LB = L; RB = R (apuntar); **stick derecho = botones C** (digital, umbral 0.5; no
-  emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico (`HH_INVERT_Y=1` lo
-  invierte). La detección de contexto (`0x802690D0`/front-end) queda **inerte** (perfiles idénticos).
-  Referencia/Goemon (`recompinput`) usan N64 B en **X** y Z en el **gatillo izquierdo**. Libres: X, L3, R3.
+  partida). Por defecto: **A = acción/confirmar**; **B = N64 B (atrás/mapa/cancelar)**;
+  **X = N64 Z (agacharse)**; **Back = B** (alias de atrás); **Y = C-Down** (vista en 1ª persona,
+  verificado); Start = START; LB = L; RB = apuntar (R); **stick derecho = botones C** (digital,
+  umbral 0.5; no emite C-Down, que va en Y); cruceta = D-pad; stick izquierdo = analógico
+  (`HH_INVERT_Y=1` lo invierte). La detección de contexto (`0x802690D0`/front-end) queda **inerte**
+  (ambos perfiles son idénticos). Referencia/Goemon (`recompinput`) usan **B del N64 en X** y **Z en
+  el gatillo izquierdo**; aquí se prefirió **B físico = atrás** y **Z en X**. Libres: L3 y R3.
 
 ### config.ini (mapeo configurable)
 
@@ -221,14 +222,14 @@ Junto al `.exe` (se crea solo en el primer arranque, editable con cualquier edit
 
 ```ini
 [game]            ; exploración/combate
-b = Z             ; B físico = agacharse
-x = NONE          ; X libre
-back = B          ; Back = atrás/mapa/cancelar
+b = B             ; B físico = atrás/mapa/cancelar
+x = Z             ; X = agacharse
+back = B          ; Back = alias de atrás/mapa
 y = CDOWN         ; vista en 1ª persona (verificado)
 cstick = on       ; stick derecho -> botones C
 [menu]            ; idéntico a [game] (formato por compatibilidad)
-b = Z
-x = NONE
+b = B
+x = Z
 ```
 
 Valores válidos: `A B Z START L R CUP CDOWN CLEFT CRIGHT DUP DDOWN DLEFT DRIGHT NONE`. El port relee
@@ -263,8 +264,8 @@ El replay es **por índice de poll** (una muestra por frame), así que reproduce
   (exige **Controller Pak**, ya emulado con PFS en RAM + `saves\*.bin.pak` **junto al .exe**; si esa
   carpeta no es escribible se usa `%APPDATA%\HybridHeavenRecomp`; `HH_DATA_DIR=<ruta>` lo fuerza).
 - **Mando Xbox compatible** (SDL2 GameController):
-  - `A`=A, `B`=Z (agacharse), `Back`=B (atrás/mapa), `Y`=C-Down, `LB`=L, `RB`=R, `Start`=Start,
-    stick derecho=C (botones C), D-Pad y stick izquierdo analógico. `X` libre.
+  - `A`=A, `B`=B (y C-derecha), `X`=C-izq, `Y`=C-arriba, `LB`=L, `RB`=R, `Back`=Z, `Start`=Start,
+    D-Pad, stick izquierdo (botón = C-abajo) y eje analógico.
   - Hot-plug soportado (`SDL_CONTROLLERDEVICEADDED/REMOVED`).
   - Rumble no implementado (no-op).
 - Si sale `Failed to find function at 0xXXXX`: revisar las fronteras/nombres del pipeline ELF/splat
