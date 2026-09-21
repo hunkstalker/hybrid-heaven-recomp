@@ -55,8 +55,9 @@ hooks de loader); arreglado en el tool. **Playtest del mantenedor**: START → m
 gameplay, primer NPC, cajas, **primer CaC y combate**, y ~30 min hasta el **6º combate sin cuelgues ni
 crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. **M5 HECHO** (saneamiento y
 estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
-créditos, purga `HH_*`; **pendiente solo el push**). **M4c** (SEGV al salir/teardown) abierto con plan
-en `notes/2026-09-21-m4c-teardown-segv.md`. Plan general: `notes/2026-09-21-migracion-via-referencia-elf.md`.
+créditos, purga `HH_*`; **pendiente solo el push**). **M4c HECHO** (SEGV de teardown resuelto: el
+runtime liberaba RDRAM al salir con el hilo de frame aún corriendo; fix en el fork NMR). Plan general:
+`notes/2026-09-21-migracion-via-referencia-elf.md`; detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
 Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
 por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18
@@ -115,5 +116,5 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-21): **M5** (saneamiento/estructura: docs,
-purga `HH_*`, pins y push) y **M4c** (SEGV al salir). Visión a largo plazo: `docs/README.md`.
+Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-21): cerrar el **push** (forks + main) y
+validar el cierre en Windows (M4c). Visión a largo plazo: `docs/README.md`.

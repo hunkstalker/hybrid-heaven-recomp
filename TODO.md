@@ -19,8 +19,8 @@
   3D**. **VALIDADO EN WINDOWS** (mantenedor): gameplay, primer NPC, cajas, **primer CaC**, ~30 min hasta
   el 6º combate **sin cuelgues ni crashes** → **bloqueante original RESUELTO**. **M5 HECHO** (saneamiento
   y estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
-  créditos, purga `HH_*`; **pendiente solo el push**, ver `AGENTS.md`). **Siguiente: M4c** (SEGV al
-  salir/teardown; plan en `notes/2026-09-21-m4c-teardown-segv.md`).
+  créditos, purga `HH_*`; **pendiente solo el push**, ver `AGENTS.md`). **M4c HECHO** (SEGV de teardown
+  resuelto; ver Hecho y `notes/2026-09-21-m4c-teardown-segv.md`).
 - [ ] **Migración a submódulos (hecho y commiteado; falta el push)**: `lib/{N64ModernRuntime,rt64}` como
   submódulos (ADR 0010); `regenerate.py` materializa el C como dir real; falta el push de los forks
   para que un clon limpio los resuelva.
@@ -31,8 +31,10 @@
   aplicar/persistir `GraphicsConfig`).
 - [ ] **Definir ADR 0009** (estrategia de cobertura nativa / clean-room) **cuando se adopte la visión**
   de `docs/README.md`. Incluye el **manifiesto de reimplementadas** + **métrica de cobertura** (§5).
-- [ ] **Teardown SEGV** al cerrar en Windows (`exe +0x12A602`): mapear con el `.map`, reproducir en
-  Linux y arreglar el orden de deinit (respuesta a `EXCEPTION_EXECUTE_HANDLER`). Plan: `notes/2026-09-21-m4c-teardown-segv.md`.
+- [x] **Teardown SEGV** al cerrar (**RESUELTO 2026-09-21**): causa = `recomp::start` liberaba RDRAM
+  (`munmap`) mientras el hilo de frame del juego seguía ejecutando código recompilado; SEGV en
+  `func_80001454_2054`. Fix en el fork NMR (`librecomp/src/recomp.cpp`): no liberar RDRAM al salir.
+  Validado en Linux (`HH_AUTOQUIT`: rc=0, sin `hh_crash.log`). Detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
 - [ ] **Mando**: identificar el botón N64 que abre el menú de **acciones/lucha en CaC** y asignarlo a
   **X** (`config.ini`). **Bloqueado por el CaC** (el juego se congela antes del combate): revisar cuando
   se resuelva la entrada al combate. Lo normal (pausa/inventario) sale con **Start** y está bien.

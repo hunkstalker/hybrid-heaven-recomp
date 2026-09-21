@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 119 | 2026-09-21 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 120 | 2026-09-21 |
 | [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 71 | 2026-09-21 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 83 | 2026-09-21 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 85 | 2026-09-21 |
 
 ## Técnico y guías (vivos)
 
@@ -45,7 +45,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [2026-09-21 — Migración a la vía de recompilación de la referencia (ELF + splat + residente limpio)](../notes/2026-09-21-migracion-via-referencia-elf.md) | Nota de sesión (evidencia + PLAN). Continúa `2026-09-20-ab-bloqueo-boot-per-file.md`. | 165 | 2026-09-21 |
-| [2026-09-21 — M4c: SEGV en el teardown (al cerrar)](../notes/2026-09-21-m4c-teardown-segv.md) | Nota de plan. Es el **último defecto conocido** del hito ya validado (vía ELF/splat, entrada al CaC | 60 | 2026-09-21 |
+| [2026-09-21 — M4c: SEGV en el teardown (al cerrar)](../notes/2026-09-21-m4c-teardown-segv.md) | Nota de plan. Es el **último defecto conocido** del hito ya validado (vía ELF/splat, entrada al CaC | 81 | 2026-09-21 |
 | [2026-09-21 — CI con el C recompilado desde un repo privado de secretos](../notes/2026-09-21-ci-recompilado-desde-repo-privado.md) | Nota de decisión/implementación. Cierra el fallo de `ci.yml` tras ADR 0009 (el C recompilado dejó | 60 | 2026-09-21 |
 | [2026-09-20 — Pipeline de recompilación per-file: estado y bloqueos](../notes/2026-09-20-pipeline-per-file-estado.md) | Nota de sesión (evidencia). Continúa `2026-09-20-lecciones-recompilacion-per-file.md` (método). | 326 | 2026-09-20 |
 | [2026-09-20 (noche-5) — Origen del nodo `0x8005BF14` y captura del pisado](../notes/2026-09-20-nodo-8005bf14-origen-y-captura.md) | Continuación de `2026-09-19-causa-raiz-cadencia-frames.md` §13-§16. Aquí se **corrige** el | 429 | 2026-09-20 |

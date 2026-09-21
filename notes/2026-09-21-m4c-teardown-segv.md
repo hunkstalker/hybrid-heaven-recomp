@@ -58,3 +58,24 @@ de deinit.
 
 - Para F1 se necesita el `.map` del build Windows **o** la reproducción del cierre con su
   `hh_crash.log`. Sin eso, F0 (Linux) da el mismo frame de forma simbólica.
+
+## 7. Resolución (2026-09-21) — RESUELTO en Linux
+
+**F0/F1 (reproducido y simbolizado, Linux)**: con `HH_AUTOQUIT=22` bajo Xvfb el cierre da `rc=139`
+(SIGSEGV) y `hh_crash.log` con `[CRASH] modulo: ./Hybrid Heaven Recomp +0x12673DB`. `addr2line`
+resuelve ese offset a **`func_80001454_2054`** (código recompilado del juego). Backtrace (gdb): el
+hilo de **frame** del juego (`func_800011B0_1DB0 → hh_wrap_FUN_80001454 → func_80001454_2054`)
+sigue ejecutando durante el apagado. La instrucción que falla es `movslq 0x37764(%rbp),%rax` con
+**`rbp` = base de RDRAM** (`0x7de9b5800000`): lee la dirección de juego `0x80037764` **después** de
+que `recomp::start` haga `munmap(rdram)` → SIGSEGV.
+
+**Causa raíz**: al salir, el runtime libera RDRAM mientras un hilo de juego aún puede estar
+ejecutando código recompilado (que accede a RDRAM). El hilo de frame no se detiene antes del `free`.
+
+**F2 (fix)**: en el fork `N64ModernRuntime` (`librecomp/src/recomp.cpp`), **no liberar RDRAM al
+salir** (se elimina el `munmap`/`VirtualFree` final). El SO recupera la memoria al terminar el
+proceso; no hay coste real. Commit del fork `54b076c` (pin actualizado en `runtime.lock`).
+
+**F3 (gate)**: Linux `HH_AUTOQUIT=22` → **`rc=0`, sin `hh_crash.log`** (antes `rc=139`). Pendiente
+validar el cierre en **Windows** (playtest del mantenedor) — no bloquea.
+

@@ -30,8 +30,9 @@
 > vía Ghidra→`legacy/`, docs vivas + créditos, purga `HH_*`. **Pendiente: push**, con matiz: los forks
 > son fast-forward, pero el **main requiere `--force`** (el remoto conserva la historia per-file
 > pre-reescritura y diverge). Recomendado: `git fetch origin` + tag `backup-per-file` y
-> `git push --force-with-lease origin main` (ver `AGENTS.md`). Siguiente tarea: **M4c** (SEGV al
-> salir/teardown; plan: `notes/2026-09-21-m4c-teardown-segv.md`). Detalle:
+> `git push --force-with-lease origin main` (ver `AGENTS.md`). **M4c HECHO** (SEGV de teardown
+> resuelto en Linux; fix en el fork NMR: no liberar RDRAM al salir; pendiente validar el cierre en
+> Windows). Detalle: `notes/2026-09-21-m4c-teardown-segv.md` y
 > `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 ---
