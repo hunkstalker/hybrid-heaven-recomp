@@ -7,7 +7,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 if(MSVC)
     # Required for correct recompiled function callbacks.
     add_compile_options(/EHsc)
-    add_link_options(/SUBSYSTEM:CONSOLE)
     # Mapa de enlazado: permite resolver un crash "exe+0xNNNN" a la funcion recompilada.
     add_link_options("/MAP:${CMAKE_BINARY_DIR}/HybridHeavenRecomp-$<CONFIG>.map")
 else()
@@ -111,6 +110,17 @@ add_executable(HybridHeavenRecomp
     # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
     build/recomp/rsp/hh_aspMain.cpp
 )
+
+if(MSVC)
+    # Subsistema Windows: consola solo en Debug (terminal para depurar); en el resto de configs
+    # (Release/RelWithDebInfo) el .exe es GUI -> una sola ventana, sin consola de fondo.
+    # El punto de entrada es main() (SDL_MAIN_HANDLED), no WinMain -> /ENTRY:mainCRTStartup.
+    target_link_options(HybridHeavenRecomp PRIVATE
+        $<$<CONFIG:Debug>:/SUBSYSTEM:CONSOLE>
+        $<$<NOT:$<CONFIG:Debug>>:/SUBSYSTEM:WINDOWS>
+        $<$<NOT:$<CONFIG:Debug>>:/ENTRY:mainCRTStartup>
+    )
+endif()
 
 target_include_directories(HybridHeavenRecomp PRIVATE
     include
