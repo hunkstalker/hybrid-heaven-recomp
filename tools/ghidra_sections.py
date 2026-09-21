@@ -44,6 +44,11 @@ MANIFEST = CONFIG / "code_files.json"
 OUT_SYMS = SCRATCH / "code_files.syms.toml"
 FLAT_SYMS = CONFIG / "us_ghidra.syms.toml"
 
+# Inicio de la bss del residente (fin de codigo+datos residentes; ver docs/GAME-INTERNALS).
+# Por encima solo hay microcodigo/datos y ventanas de overlay: cualquier "funcion" plana ahi
+# es data-as-code o un stub obsoleto que enmascara a las secciones `.file_NN`. No se incluye.
+RESIDENT_BSS_START = 0x8004DBD0
+
 RETAIL_ROM = ROOT / "work/roms/us_retail.z64"
 COMBINED_BASE = 0x1000000  # tras la ROM retail (0x1000000)
 ALIGN = 0x10
@@ -154,6 +159,8 @@ def aggregate(sections):
         kept = []
         for f in flat["functions"]:
             v, sz = f["vram"], f["size"]
+            if v >= RESIDENT_BSS_START:
+                continue
             if not any(v < hi and (v + sz) > lo for lo, hi in ranges):
                 kept.append(f)
         lines.append("")
