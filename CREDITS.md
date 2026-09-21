@@ -64,6 +64,27 @@ nuestra GPL-3.0 al preservar el aviso de copyright.
 El `macro.inc` de la referencia, a su vez, procede de **Rayman 2: Recompiled** (MIT); aquí está
 reescrito con el mismo propósito.
 
+## Referencias de diseño y código adaptado (ports previos)
+
+Además del runtime/RT64/SDL, el port sigue el modelo y algunos patrones de ports anteriores del
+ecosistema N64Recomp. Cuando hay código adaptado, se indica; cuando solo es referencia de diseño, se
+dice también:
+
+| Port | Licencia | Uso aquí |
+|---|---|---|
+| [Rayman 2: Recompiled](https://github.com/Rayman2Recomp) | MIT | **Código adaptado**: el hook de yield del frame limiter (`src/platform/spin_yield.cpp`, `wait_for_external_message_timed` + `check_running_queue`). También el patrón del `macro.inc` (vía el repo de referencia). |
+| [Wave Race 64: Recompiled](https://github.com/WaveRace64Recomp) | MIT | **Referencia de diseño**: estructura de port, `use_lookup_for_all_function_calls`, build once/promote. |
+| [Zelda64Recomp](https://github.com/N64Recomp/Zelda64Recomp) | MIT | **Referencia de diseño**: modelo de repo (exe sin ROM), sin código copiado. |
+| [Goemon64Recomp](https://github.com/klorfmorf/Goemon64Recomp) | GPL-3.0 | **Referencia de diseño**: seam del file-loader y parche del clamp de audio (mismo código de gestor de audio de Nintendo). Sin código copiado. |
+
+El **harness** (`src/platform/{main,support,rt64_render_context,icon}.cpp`, `src/subsystems/{input,trans_cache,firmware}.c`)
+es **propio** de este proyecto (historial git del repo), escrito sobre la API de N64ModernRuntime/RT64;
+sigue los patrones de los ports anteriores pero no es copia de ninguno.
+
+`rsp/hh_aspMain.cpp` es **microcódigo RSP derivado de la ROM del usuario** (libultra `aspMain`, de
+Konami/Nintendo); se versiona como excepción pequeña y estable (ver `docs/adr/0009`), no es código
+original del proyecto.
+
 ## Herramientas de desarrollo (no se distribuyen)
 
 | Herramienta | Autoría | Licencia | Uso |
