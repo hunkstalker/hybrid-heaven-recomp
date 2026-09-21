@@ -1029,6 +1029,30 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
 
+    // D-pad fisico -> stick izquierdo (opt-in, HH_DPAD_TO_STICK=1): para menus/UI que esperan el
+    // stick si el juego ignora el D-pad. Lee el D-pad fisico (mando + flechas), no los bits N64.
+    if (controller_num == 0) {
+        static const bool hh_dpad_to_stick = [] {
+            const char* e = getenv("HH_DPAD_TO_STICK");
+            return e != nullptr && *e != '\0' && strcmp(e, "0") != 0;
+        }();
+        if (hh_dpad_to_stick) {
+            const Uint8* kb = SDL_GetKeyboardState(nullptr);
+            float dx = 0.0f, dy = 0.0f;
+            if (controller != nullptr) {
+                if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP))    dy += 1.0f;
+                if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN))  dy -= 1.0f;
+                if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT))  dx -= 1.0f;
+                if (SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) dx += 1.0f;
+            }
+            if (kb[SDL_SCANCODE_UP])    dy += 1.0f;
+            if (kb[SDL_SCANCODE_DOWN])  dy -= 1.0f;
+            if (kb[SDL_SCANCODE_LEFT])  dx -= 1.0f;
+            if (kb[SDL_SCANCODE_RIGHT]) dx += 1.0f;
+            if (dx != 0.0f || dy != 0.0f) { axis_x = dx; axis_y = dy; }
+        }
+    }
+
     // Stick izquierdo -> D-pad (para menus/UI): umbral 0.5. Desactivable con HH_STICK_TO_DPAD=0.
     // Si el juego ignora el D-pad no tiene efecto; si su UI lo usa, el stick tambien navega.
     if (controller_num == 0) {

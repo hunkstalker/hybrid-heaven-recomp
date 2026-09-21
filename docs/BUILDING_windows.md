@@ -251,9 +251,10 @@ Mapeo fijo, espejo del mando (misma semántica N64):
 | Enter | Start | Start |
 | flechas | D-pad | D-pad |
 
-**Stick → D-Pad**: al empujar el stick izquierdo (mando o WASD) más allá de 0.5 se emite también la
-cruceta correspondiente, para poder moverse por **menús/UI** que esperen D-pad. Desactivable con
-`HH_STICK_TO_DPAD=0`.
+**Stick ↔ D-Pad (menús/UI)**: al empujar el stick izquierdo (mando o WASD) >0.5 se emite también la
+cruceta (`HH_STICK_TO_DPAD`, por defecto on). Si el juego **ignora** el D-pad y sus menús se navegan
+con el stick, activa `HH_DPAD_TO_STICK=1` (opt-in): el D-pad físico mueve el stick. Prueba cuál
+responde.
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
