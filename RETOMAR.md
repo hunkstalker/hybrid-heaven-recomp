@@ -19,11 +19,13 @@
 > wrapper `tools/splat_headless.sh`). **M1 HECHO** (`tools/unpack_rom.py` → imagen expandida +
 > `segments.json` + `file_table.h`; 91 code files, 0x368070 bytes). **M2 HECHO** (`tools/build_elf.sh`:
 > splat → `llvm-mc` → `ld.lld` → `elf/hybrid-heaven.us.elf`; **gate: el ELF reconstruye la imagen byte
-> a byte**). **M3 HECHO** (N64Recomp ELF mode → C; rc=0, 0 datos-como-código). **M4/M4b en curso**: el
-> port compila con el C del ELF; nombrar los hilos libultra (`symbol_addrs` + `gen_runtime_func_table`)
-> quitó la recursión de `osDestroyThread`, pero el juego se queda en `main` sin correr el bucle
-> (`polls=0`). **Siguiente: M4b.2** — `__osDispatchThread`/`__osDequeueThread` en el runtime.
-> Detalle: `notes/2026-09-21-migracion-via-referencia-elf.md`. → M5 (limpieza).
+> a byte**). **M3 HECHO** (N64Recomp ELF mode → C; rc=0, 0 datos-como-código). **M4 HECHO — regresión
+> resuelta**: causa raíz = N64Recomp ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas
+> directas same-section saltaban los hooks de loader → file_008 no se registraba → título sin 3D). Fix
+> en `main.cpp` del tool (snapshot en `config/n64recomp_changes/main.cpp`); + nombres libultra
+> (`symbol_addrs.txt`) y 47 funciones del runtime registradas. Resultado: boot carga 8/55/24, `polls`
+> avanza y **título con fondo 3D**. **Siguiente: M4c** (SEGV tardío) → M5 (limpieza). Detalle:
+> `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 ---
 

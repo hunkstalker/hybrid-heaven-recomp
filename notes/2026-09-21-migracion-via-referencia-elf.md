@@ -117,39 +117,29 @@ Referencia de diseño (consulta, no copiar): `danielgomesvieira2000/hybrid-heave
 - **M3 HECHO**: `recomp/hybrid-heaven.us.toml` (ELF mode) + `recomp/overlays.txt`; N64Recomp **rc=0**,
   80 unidades, 15947 funciones, **0 datos-como-código**, 0 errores. Los `No function found for jal
   target` son los jal cross-window (van por lookup).
-- **M4 (integrar en el port) — BLOQUEADO en M4b (propiedad de libultra)**:
-  `port/.../src/main/sections.cpp` actualizado a los nombres ELF (`func_8000469C_529C`,
-  `func_80004838_5438`); `recomp/hybrid-heaven.us.toml` con los patches de boot (stub TLB, hook de
-  yield, clamp de audio). El port **compila** con el C del ELF pero **segfaultea al arrancar**:
-  `osDestroyThread` (0x80026CE0) entra en **recursión** y desborda la pila nativa. gdb muestra que
-  `__osDispatchThread` (`func_80027824`) se **genera del ROM** (aviso "eret treated as nop"), pero
-  **el runtime debe poseerlo**. Causa: `recomp/symbol_addrs.txt` está **vacío** → N64Recomp no conoce
-  los nombres libultra → no aplica las listas de reimplementadas y recompila hilos/dispatch. Es el
-  sub-paso que ADR 0011 §2 dejó explícito.
-  **M4b (siguiente)**: poblar `recomp/symbol_addrs.txt` con los nombres libultra (al menos
-  hilos/dispatch: `__osDispatchThread`, `osCreateThread`, `osDestroyThread`, `__osDisableInt`…),
-  alinear las listas reimplementadas/ignored del toolchain (`config/n64recomp_changes/symbol_lists.cpp`),
-  registrar las funciones del runtime en sus direcciones de cartucho en el port (como
-  `runtime_provided_funcs` de la referencia) y re-generar. Gate: boot + título con 3D.
-- **Siguiente: M4b** (libultra del runtime) → M5 (limpieza).
-- **M4b (en curso)**: se nombraron libultra en `recomp/symbol_addrs.txt` (hilos:
-  `osStopThread`, `osDestroyThread`, `osCreateThread`, `osStartThread`, `__osDisableInt`,
-  `__osRestoreInt`) para que N64Recomp los reconozca como reimplementados (el runtime los provee).
-  Nuevos generadores: `tools/gen_reimplemented_decls.py` (declaraciones `_recomp`) y
-  `tools/gen_runtime_func_table.py` (registro por dirección de cartucho; 6 funciones). `sections.cpp`
-  las registra. **Resultado**: ya no se recompilan los hilos (sin la recursión de `osDestroyThread`),
-  y el SEGV que queda es del watchdog (`hh_dump_stack_scan`), no del juego.
-  **Bloqueo**: el juego llega a `main` (0x80001078) pero el **bucle por frame nunca corre**
-  (`polls=0`, `audio=0`, sin `[trans] load`), con `osTvType=1` (NTSC) y VI avanzando. Los hilos
-  creados no llegan a ejecutar la lógica. Sospecha: el runtime de hilos necesita también
-  `__osDispatchThread`/`__osDequeueThread`, que **nuestro runtime no implementa** (la referencia sí
-  los tiene en su fork). **M4b.2**: portar/implementar `__osDispatchThread`/`__osDequeueThread` en el
-  fork del runtime (o comparar con el fork de la referencia) y volver a validar.
+- **M4 HECHO — la regresión está resuelta**. Al integrar el C del ELF el port compilaba pero no
+  arrancaba. Tres causas encadenadas:
+  1. Los hilos libultra se recompilaban del ROM (recursión de `osDestroyThread`). Fix: **nombrarlos**
+     (`recomp/symbol_addrs.txt`) para que N64Recomp los delegue al runtime.
+  2. `recomp/symbol_addrs.txt` estaba **vacío**: se perdieron los **96 nombres libultra** que el build
+     per-file sí tenía (de `config/us_ghidra.syms.toml`, vía n64sym). Recuperados (se nombran los 47
+     que el runtime realmente implementa).
+  3. **Causa raíz principal**: N64Recomp en **ELF mode no aplicaba `use_lookup_for_all_function_calls`**
+     (solo la rama symbols-file lo hacía). Las llamadas dentro de la **misma sección** salían
+     **directas** → saltaban el lookup → los hooks de loader no se disparaban → `file_008` nunca se
+     registraba → el código de escena no corría (título sin 3D). **Fix en `main.cpp`** (propagar el
+     flag también en la rama ELF); snapshot en `config/n64recomp_changes/main.cpp`.
+  **Resultado**: el boot carga `file_008/055/024` (hooks activos), `polls` avanza (1510 a t=45) y el
+  título renderiza el **fondo 3D** (captura ≈ idéntica al build viejo; `nonblack` 0.577 vs 0.243 del
+  per-file y 0.570 del viejo). **Gate M4 superado.**
+- **M4b (propiedad de libultra)**: resuelto en el proceso: nombres libultra + `gen_reimplemented_decls.py`
+  + `gen_runtime_func_table.py` (47 funciones del runtime registradas por dirección de cartucho).
+- *Abierto*: un SEGV **tardío** (no bloquea el título; probablemente el teardown conocido). Investigar
+  en M4c antes de M5.
 - **Créditos**: el tooling adaptado de la referencia es **MIT**; añadido a `CREDITS.md` y
   `licenses/hybrid-heaven-recomp-MIT.txt`, con aviso en cada script.
 - Cambios de esta sesión (commitear antes de M1): submódulos (ADR 0010), `regenerate.py` materializa
   el C como dir real, Fase A.1 en `ghidra_sections.py`, campos de estado en `main.cpp`, notas y ADRs.
-- El build actual (per-file) arranca y llega al título sin 3D; la vía nueva lo reemplazará.
 
 ## 6. Notas de toolchain (M0)
 - Se usa **LLVM** para MIPS en lugar de binutils GNU (Alpine no trae cross-binutils MIPS y el
