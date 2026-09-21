@@ -74,7 +74,7 @@ tools/build_linux.sh --help
   **C recompilado (ADR 0009)**: no se versiona; como no cabe en un secret de Actions (límite 48 KB),
   el CI lo trae de un **repo privado de secretos** (patrón Goemon/Zelda64Recomp) clonado con un PAT:
   variable `HH_SECRETS_REPO` (por defecto `hunkstalker/hh-recomp-secrets`) + secreto `HH_SECRETS_PAT`
-  (fine-grained, `Contents:Read`); copia `RecompiledFuncs/` a `build/recomp/`. **Sin el PAT, los
+  (fine-grained, `Contents:Read`); copia `RecompiledFuncs/` y `rsp/hh_aspMain.cpp` a `build/recomp/`. **Sin el PAT, los
   builds se saltan** (CI verde) con un aviso. Publicar el `RecompiledFuncs` (y la ROM) a ese repo es
   paso manual del mantenedor (`tools/regenerate.py` + `git push`).
 - Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md` y
@@ -155,7 +155,9 @@ Sustituye a §5b (ADR 0011). Piezas (todas generan salida bajo `build/recomp/`, 
    `llvm-mc -triple=mips -mcpu=mips3` y enlaza con `ld.lld` → `build/recomp/elf/hybrid-heaven.us.elf`.
 4. N64Recomp en **ELF mode** (`recomp/hybrid-heaven.us.toml`: `elf_path`,
    `use_lookup_for_all_function_calls`, `relocatable_sections_path`).
-5. **Gates**: segmentos byte-idénticos a la imagen; `jal` 0 mid-function/nowhere; conteos
+5. **RSPRecomp** (`recomp/rsp_hh_aspMain.toml`) → `build/recomp/rsp/hh_aspMain.cpp` (ucode de audio;
+   también derivado → generado, no versionado).
+6. **Gates**: segmentos byte-idénticos a la imagen; `jal` 0 mid-function/nowhere; conteos
    reconciliados; sin datos-como-código.
 
 ## 6. Oráculo con emulador (comparar port vs juego real)

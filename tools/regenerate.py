@@ -12,11 +12,12 @@ Pipeline:
   4. splat split         -> build/recomp/asm (+ linker script, undefined_*).
   5. build_elf.sh        -> build/recomp/elf/hybrid-heaven.us.elf (gate: byte-identico a la imagen).
   6. N64Recomp (ELF mode) -> work/recomp_elf/RecompiledFuncs.
-  7. gen_reimplemented_decls + gen_runtime_func_table.
-  8. copia a build/recomp/RecompiledFuncs (dir real) + gen_file_table.
+  7. RSPRecomp            -> build/recomp/rsp/hh_aspMain.cpp (microcodigo RSP ASCII).
+  8. gen_reimplemented_decls + gen_runtime_func_table.
+  9. copia a build/recomp/RecompiledFuncs (dir real) + gen_file_table.
 
-Requiere (dev): Python 3.11+, splat+spimdisasm y LLVM MIPS (tools/install_splat.sh), N64Recomp
-(recomp/n64recomp_changes aplicados), y la ROM en work/roms/us_retail.z64.
+Requiere (dev): Python 3.11+, splat+spimdisasm y LLVM MIPS (tools/install_splat.sh), N64Recomp +
+RSPRecomp (con `recomp/n64recomp_changes/` aplicados), y la ROM en work/roms/us_retail.z64.
 
 Uso:
   python3 tools/regenerate.py                 # todo
@@ -39,6 +40,8 @@ RECOMP_OUT = ROOT / "work/recomp_elf/RecompiledFuncs"
 ELF = ROOT / "build/recomp/elf/hybrid-heaven.us.elf"
 TOML = ROOT / "recomp/hybrid-heaven.us.toml"
 N64RECOMP = ROOT / "toolchain/src/N64Recomp/build_recomp/N64Recomp"
+RSPRECOMP = ROOT / "toolchain/src/N64Recomp/build_recomp/RSPRecomp"
+RSP_TOML = ROOT / "recomp/rsp_hh_aspMain.toml"
 DEFAULT_ROM = ROOT / "work/roms/us_retail.z64"
 
 
@@ -74,6 +77,13 @@ def main() -> int:
     if RECOMP_OUT.exists():
         shutil.rmtree(RECOMP_OUT)
     run([N64RECOMP, TOML])
+
+    # Microcodigo RSP (aspMain) recompilado; tambien derivado -> generado, no versionado (ADR 0009).
+    if not RSPRECOMP.exists():
+        sys.exit("falta RSPRecomp en %s (se construye junto a N64Recomp; ver docs/workflows.md)" % RSPRECOMP)
+    (ROOT / "build/recomp/rsp").mkdir(parents=True, exist_ok=True)
+    run([RSPRECOMP, RSP_TOML])
+    print("[regenerate] build/recomp/rsp/hh_aspMain.cpp generado")
 
     run([sys.executable, ROOT / "recomp/tools/gen_reimplemented_decls.py"])
     run([sys.executable, ROOT / "recomp/tools/gen_runtime_func_table.py"])

@@ -49,8 +49,9 @@ jobs:
           fi
           [ -n "$REPO" ] || REPO="hunkstalker/hh-recomp-secrets"
           git clone --depth 1 "https://x-access-token:${PAT}@github.com/${REPO}.git" secrets
-          mkdir -p build/recomp
+          mkdir -p build/recomp/rsp
           cp -r secrets/RecompiledFuncs build/recomp/RecompiledFuncs
+          cp secrets/rsp/hh_aspMain.cpp build/recomp/rsp/hh_aspMain.cpp
           echo "have=1" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
         if: steps.prep.outputs.have == '1'
@@ -108,8 +109,9 @@ jobs:
           fi
           [ -n "$REPO" ] || REPO="hunkstalker/hh-recomp-secrets"
           git clone --depth 1 "https://x-access-token:${PAT}@github.com/${REPO}.git" secrets
-          mkdir -p build/recomp
+          mkdir -p build/recomp/rsp
           cp -r secrets/RecompiledFuncs build/recomp/RecompiledFuncs
+          cp secrets/rsp/hh_aspMain.cpp build/recomp/rsp/hh_aspMain.cpp
           echo "have=1" >> "$GITHUB_OUTPUT"
       - name: Compilar (clona deps por runtime.lock + MSVC)
         if: steps.prep.outputs.have == '1'

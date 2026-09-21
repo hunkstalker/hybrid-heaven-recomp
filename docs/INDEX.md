@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 255 | 2026-09-21 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
-| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 253 | 2026-09-21 |
+| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 255 | 2026-09-21 |
 
 ## Decisiones (ADR, inmutables)
 
@@ -36,7 +36,7 @@
 | [ADR 0006 — Política de rutas relativas y contenido externo](adr/0006-politica-de-rutas-relativas-y-contenido-externo.md) | - **Estado**: Aceptado (2026-09-16). | 48 | 2026-09-16 |
 | [ADR 0007 — Cache de assets y loader LZKN64 nativo (la ROM solo la primera vez)](adr/0007-cache-assets-y-loader-nativo.md) | - **Estado**: **Implementado v1** (2026-09-18; validado headless; pendiente validación Windows) | 71 | 2026-09-18 |
 | [ADR 0008 — Menú in-game de opciones PC (reutilizando el menú del Expansion Pak)](adr/0008-menu-ingame-opciones-pc.md) | - **Estado**: Aceptado (2026-09-18; implementación pendiente, tras el cache de assets) | 55 | 2026-09-18 |
-| [ADR 0009 — No versionar el C recompilado (obra derivada)](adr/0009-no-versionar-c-recompilado.md) | - **Estado**: Aceptado (2026-09-20). | 36 | 2026-09-21 |
+| [ADR 0009 — No versionar el C recompilado (obra derivada)](adr/0009-no-versionar-c-recompilado.md) | - **Estado**: Aceptado (2026-09-20). | 54 | 2026-09-21 |
 | [ADR 0010 — Dependencias del runtime como submódulos git (estándar del ecosistema)](adr/0010-dependencias-runtime-como-submodulos.md) | - **Estado**: Aceptado (2026-09-20). Supersede la parte de **clonado por `port/runtime.lock`** de | 48 | 2026-09-21 |
 | [ADR 0011 — Adoptar la vía de recompilación de la referencia (ELF + splat + residente limpio)](adr/0011-via-recompilacion-elf-splat.md) | - **Estado**: Aceptado (2026-09-21). | 65 | 2026-09-21 |
 

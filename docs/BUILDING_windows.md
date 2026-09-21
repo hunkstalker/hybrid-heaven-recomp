@@ -15,9 +15,9 @@ en el entorno Linux; en Windows solo se compila y se prueba (`boot.log` / `hh.lo
 
 ```
 ./
-├── CMakeLists.txt              ← raíz (GLOB build/recomp/RecompiledFuncs, rsp/, SDL2 win32, icono, DLLs)
+├── CMakeLists.txt              ← raíz (GLOB build/recomp/RecompiledFuncs, SDL2 win32, icono, DLLs)
 ├── build/recomp/RecompiledFuncs/  ← C recompilado (generado; NO versionado, ADR 0009)
-├── rsp/hh_aspMain.cpp          ← ucode de audio recompilado
+├── build/recomp/rsp/hh_aspMain.cpp ← ucode de audio recompilado (generado; NO versionado)
 ├── assets/                     ← HybridHeaven.ico, app.rc.in, HybridHeaven.png, icon_bmp.inc
 ├── src/platform/*              ← harness (main, support, rt64_render_context, icon, spin_yield)
 ├── src/hooks/sections.cpp      ← capa de hooks (loaders + registro por dirección)

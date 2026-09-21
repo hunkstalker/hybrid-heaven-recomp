@@ -178,7 +178,7 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   con `RSPRecomp`: texto en ROM `0x37130` (`0xE18`), base IMEM `0x04001080`, **16 targets indirectos**
   (los 14 iniciales + `0x144C`/`0x170C` para los comandos `0x0F`/`0x0E`, que abortaban las tasks
   desde t≈13,4 s);
-  integrado en `rsp/hh_aspMain.cpp` (config reproducible
+  integrado en `build/recomp/rsp/hh_aspMain.cpp` (**generado** con RSPRecomp; config reproducible
   `recomp/rsp_hh_aspMain.toml`, build con `-msse4.1` por `rsp_vu_impl.hpp`) y registrado en
   `hh::get_rsp_microcode` para `M_AUDTASK`. Parches de runtime asociados: `sp_complete` de las tasks
   gfx en `submit_rsp_task` (el RSP real completa sin esperar al RDP/render), completación sintética

@@ -73,9 +73,9 @@ if(NOT RECOMPILED_FUNCS)
         "  python3 tools/regenerate.py\n"
         "  (requiere splat+spimdisasm y LLVM MIPS; ver tools/install_splat.sh y docs/workflows.md)")
 endif()
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rsp/hh_aspMain.cpp")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build/recomp/rsp/hh_aspMain.cpp")
     message(FATAL_ERROR
-        "Falta rsp/hh_aspMain.cpp (microcodigo RSP recompilado, tambien derivado).\n"
+        "Falta build/recomp/rsp/hh_aspMain.cpp (microcodigo RSP recompilado, tambien derivado).\n"
         "Se regenera con tools/regenerate.py (RSPRecomp de tu ROM).")
 endif()
 
@@ -85,7 +85,7 @@ if(MSVC)
     set_source_files_properties(
         ${RECOMPILED_FUNCS}
         build/recomp/RecompiledFuncs/lookup.cpp
-        rsp/hh_aspMain.cpp
+        build/recomp/rsp/hh_aspMain.cpp
         PROPERTIES COMPILE_OPTIONS "/W0")
 endif()
 
@@ -108,7 +108,7 @@ add_executable(HybridHeavenRecomp
     build/recomp/RecompiledFuncs/lookup.cpp
 
     # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
-    rsp/hh_aspMain.cpp
+    build/recomp/rsp/hh_aspMain.cpp
 )
 
 target_include_directories(HybridHeavenRecomp PRIVATE

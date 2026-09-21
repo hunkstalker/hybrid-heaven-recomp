@@ -24,7 +24,7 @@ del usuario. Sub-objetivo obligatorio: **extraer y traducir todo el texto**. Pla
 
 Stack: **N64Recomp** (MIPS→C) + **N64ModernRuntime** (`ultramodern`+`librecomp`) + **RT64** +
 SDL2. Microcode gfx **F3DEX2 fifo 2.06** (RT64 lo soporta nativo). Audio: **`aspMain` del ROM**
-recompilado con RSPRecomp (`rsp/hh_aspMain.cpp`), reproducción a **43200 Hz** (720 frames/VI) con
+recompilado con RSPRecomp (`build/recomp/rsp/hh_aspMain.cpp`, generado), reproducción a **43200 Hz** (720 frames/VI) con
 feedback de cola; dispositivo WASAPI vía SDL. Release por defecto (Debug caía a 30 fps).
 
 **Modelo unificado: imagen plana + módulos.** El boot es una imagen de código plana; el juego

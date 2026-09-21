@@ -13,7 +13,7 @@ hasta el 6º combate sin cuelgues; mando y guardado OK (bloqueante del CaC resue
 `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}`, `include/`, `assets/`,
-`rsp/`, `lib/`), pipeline en `recomp/`, tooling en `tools/`, builds (gitignored) en `build/`.
+`lib/`), pipeline en `recomp/`, tooling en `tools/`, builds (gitignored) en `build/`.
 
 ## Forma de trabajo (por defecto)
 
@@ -101,7 +101,7 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
   `macro.inc`, `symbol_addrs.txt`, `auto_funcs.txt`, `code_files.json`+`code_files.overlays.txt`
   (manifiesto/orden de secciones), `n64recomp_changes/`, `rsp_hh_aspMain.toml` y `recomp/tools/`
   (pipeline: splat/ELF/N64Recomp).
-- `./` — port (CMake, `src/{platform,hooks,subsystems}`, `include/`, `assets/`, `rsp/`, builds).
+- `./` — port (CMake, `src/{platform,hooks,subsystems}`, `include/`, `assets/`, builds).
   `lib/rt64` y `lib/N64ModernRuntime` son **submódulos git** (fork propio; `.gitmodules`, ADR 0010).
 - `build/` — intermedios y salidas (gitignored): `build/recomp/{asm,build-elf,elf,RecompiledFuncs}`
   (el C recompilado: **directorio real**, no symlink —Windows no los resuelve—; `regenerate.py` lo
