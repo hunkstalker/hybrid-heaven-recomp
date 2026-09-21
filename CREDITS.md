@@ -60,6 +60,7 @@ nuestra GPL-3.0 al preservar el aviso de copyright.
 | `tools/gen_runtime_func_table.py` (registro por dirección de cartucho) | `gen_runtime_func_table.py` |
 | `tools/build_elf.sh` (ensamblar/enlazar el ELF; aquí con LLVM en vez de GNU) | `wsl_split.sh` + `wsl_build_elf.sh` |
 | `recomp/macro.inc` + `recomp/*.yaml/toml` (esqueleto) | `recomp/macro.inc`, `hybrid-heaven.us.{yaml,ld,toml}` |
+| `src/hooks/dl_snap.cpp` (widescreen: snap del *scissor* de overscan a full-frame) | `src/dlcensus.cpp` (Phase 07) |
 
 El `macro.inc` de la referencia, a su vez, procede de **Rayman 2: Recompiled** (MIT); aquí está
 reescrito con el mismo propósito.

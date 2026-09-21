@@ -15,6 +15,10 @@
 ## Backlog (priorizado)
 
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
+- [ ] **Widescreen: anclaje del HUD/mapa a los bordes (fase 07b, cosmético)**: con widescreen (default)
+  el 3D llena la ventana y el HUD/mapa **no se desmonta** (se queda en la zona 4:3). Falta **anclarlo a
+  los bordes** (radar, barras) adaptando el `hudrewrite` de la referencia (GBI extendido,
+  `gEXSetRectAspect`); tiene *issues* abiertos. `HH_FULL_FRAME=0` desactiva el widescreen.
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
@@ -38,6 +42,13 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
+  borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
+  borderless**; atajos **F3** (ventana), **F1** (aspecto), **F2** (MSAA). **Widescreen** con *snap*
+  del *scissor* de overscan a full-frame (`src/hooks/dl_snap.cpp`, adaptado de la referencia Phase 07;
+  `HH_FULL_FRAME=0` off) → con `aspect=auto`/`expand` (default) el 3D llena la ventana; el HUD/mapa
+  **no se desmonta** (queda en la zona 4:3, sin anclar). Validado en Linux y Windows.
+  **Pendiente**: anclaje del HUD a los bordes (fase 07b, cosmético).
 - [x] **Estéreo L/R corregido (2026-09-21)**: los samples llegaban con L/R invertidos (librecomp
   byte-swapped + puntero crudo); `queue_samples` ahora los des-swapea (`HH_AUDIO_NO_SWAP=1` off).
   Pendiente validar de oído en Windows. `notes/2026-09-21-audio-petardeo-ref-y-plan.md` §8.

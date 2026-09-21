@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -210,6 +212,127 @@ void hh::init_audio() {
     }
 }
 
+// ===== Config de video (config.ini [video]) =====
+// Lee [video] del mismo config.ini del mando (o HH_PAD_CONFIG). Defaults: borderless, resolucion
+// nativa, aspecto auto, MSAA 8x. Atajos en caliente: Alt+Enter (ventana), F1 (aspecto), F2 (MSAA).
+static std::string hh_video_trim(const std::string& s) {
+    size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos) return {};
+    size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, e - b + 1);
+}
+static std::string hh_video_lower(std::string s) {
+    for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+hh::VideoConfig& hh::video_config_mutable() {
+    static hh::VideoConfig cfg = [] {
+        hh::VideoConfig c;
+        const char* env = getenv("HH_PAD_CONFIG");
+        std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
+        FILE* f = fopen(path.c_str(), "rb");
+        if (f == nullptr) return c;
+        char line[512];
+        bool in_video = false;
+        while (fgets(line, sizeof line, f) != nullptr) {
+            std::string s = hh_video_trim(line);
+            if (s.empty() || s[0] == '#' || s[0] == ';') continue;
+            if (s[0] == '[') { in_video = (s.rfind("[video]", 0) == 0); continue; }
+            if (!in_video) continue;
+            size_t eq = s.find('=');
+            if (eq == std::string::npos) continue;
+            std::string k = hh_video_lower(hh_video_trim(s.substr(0, eq)));
+            std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
+            if (k == "wm") c.wm = v;
+            else if (k == "res") c.res = v;
+            else if (k == "aspect") c.aspect = v;
+            else if (k == "msaa") c.msaa = v;
+        }
+        fclose(f);
+        return c;
+    }();
+    return cfg;
+}
+const hh::VideoConfig& hh::video_config() { return hh::video_config_mutable(); }
+
+int hh::desktop_height() {
+    SDL_DisplayMode dm{};
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.h > 0) return dm.h;
+    if (SDL_GetCurrentDisplayMode(0, &dm) == 0 && dm.h > 0) return dm.h;
+    return 1080;
+}
+
+static ultramodern::renderer::WindowMode hh_video_window_mode() {
+    return (hh::video_config().wm == "windowed") ? ultramodern::renderer::WindowMode::Windowed
+                                                 : ultramodern::renderer::WindowMode::Fullscreen;
+}
+static ultramodern::renderer::AspectRatio hh_video_aspect_mode() {
+    const std::string& a = hh::video_config().aspect;
+    if (a == "original") return ultramodern::renderer::AspectRatio::Original;
+    if (a == "expand" || a == "auto") return ultramodern::renderer::AspectRatio::Expand;
+    return ultramodern::renderer::AspectRatio::Manual;
+}
+static ultramodern::renderer::Antialiasing hh_video_msaa_mode() {
+    const std::string& m = hh::video_config().msaa;
+    if (m == "off" || m == "none" || m == "0") return ultramodern::renderer::Antialiasing::None;
+    if (m == "2x") return ultramodern::renderer::Antialiasing::MSAA2X;
+    if (m == "4x") return ultramodern::renderer::Antialiasing::MSAA4X;
+    return ultramodern::renderer::Antialiasing::MSAA8X;
+}
+
+void hh::video_apply_config() {
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.wm_option = hh_video_window_mode();
+    cfg.ar_option = hh_video_aspect_mode();
+    cfg.msaa_option = hh_video_msaa_mode();
+    ultramodern::renderer::set_graphics_config(cfg);
+    fprintf(stderr, "[VIDEO] wm=%s res=%s aspect=%s msaa=%s\n",
+            hh::video_config().wm.c_str(), hh::video_config().res.c_str(),
+            hh::video_config().aspect.c_str(), hh::video_config().msaa.c_str());
+}
+
+void hh::video_toggle_fullscreen() {
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.wm_option = (cfg.wm_option == ultramodern::renderer::WindowMode::Fullscreen)
+                        ? ultramodern::renderer::WindowMode::Windowed
+                        : ultramodern::renderer::WindowMode::Fullscreen;
+    hh::video_config_mutable().wm = (cfg.wm_option == ultramodern::renderer::WindowMode::Fullscreen)
+                                        ? "borderless" : "windowed";
+    ultramodern::renderer::set_graphics_config(cfg);
+    fprintf(stderr, "[VIDEO] F3 -> wm=%s\n", hh::video_config().wm.c_str());
+}
+
+void hh::video_cycle_aspect() {
+    hh::VideoConfig& vc = hh::video_config_mutable();
+    static const char* modes[] = { "original", "expand", "4:3", "21:9" };
+    int idx = 0;
+    for (int i = 0; i < 4; ++i) if (vc.aspect == modes[i]) { idx = i; break; }
+    idx = (idx + 1) & 3;
+    vc.aspect = modes[idx];
+    if (idx == 2) vc.aspect_target = 4.0 / 3.0;
+    else if (idx == 3) vc.aspect_target = 21.0 / 9.0;
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.ar_option = (idx == 0) ? ultramodern::renderer::AspectRatio::Original
+                  : (idx == 1) ? ultramodern::renderer::AspectRatio::Expand
+                               : ultramodern::renderer::AspectRatio::Manual;
+    ultramodern::renderer::set_graphics_config(cfg);
+    fprintf(stderr, "[VIDEO] F1 -> aspect=%s\n", vc.aspect.c_str());
+}
+
+void hh::video_cycle_msaa() {
+    hh::VideoConfig& vc = hh::video_config_mutable();
+    static const char* modes[] = { "off", "2x", "4x", "8x" };
+    int idx = 3;
+    for (int i = 0; i < 4; ++i) if (vc.msaa == modes[i]) { idx = i; break; }
+    idx = (idx + 1) & 3;
+    vc.msaa = modes[idx];
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.msaa_option = hh_video_msaa_mode();
+    ultramodern::renderer::set_graphics_config(cfg);
+    fprintf(stderr, "[VIDEO] F2 -> msaa=%s\n", vc.msaa.c_str());
+}
+
 ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
     hh::log("create_gfx: initializing SDL\n");
     SDL_SetHint(SDL_HINT_WINDOWS_DPI_AWARENESS, "permonitorv2");
@@ -237,7 +360,15 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
 #endif
 
     hh::log("create_window: creating SDL window\n");
-    window = SDL_CreateWindow("Hybrid Heaven", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, flags);
+    // HH: tamano = resolucion nativa del monitor; el modo (borderless/windowed) lo aplica RT64
+    // (`app->setFullScreen` en el constructor) segun [video].wm.
+    int win_w = 1280, win_h = 720;
+    SDL_DisplayMode dm{};
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0) {
+        win_w = dm.w;
+        win_h = dm.h;
+    }
+    window = SDL_CreateWindow("Hybrid Heaven", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w, win_h, flags);
 
     if (window == nullptr) {
         error_box(("Failed to create window: " + std::string(SDL_GetError())).c_str());

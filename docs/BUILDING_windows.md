@@ -254,6 +254,30 @@ Mapeo fijo, espejo del mando (misma semántica N64):
 **Stick ↔ D-Pad (menús/UI)**: el **D-pad físico mueve el stick** (`HH_DPAD_TO_STICK`, por defecto
 on; `=0` lo desactiva) → el D-pad navega menús que esperan el stick. Además, al empujar el stick
 >0.5 se emite también la cruceta (`HH_STICK_TO_DPAD`, por defecto on; `=0` lo desactiva).
+
+### [video] (gráficos)
+
+Sección en `config.ini` (defaults: borderless, resolución nativa, aspecto auto, MSAA 8x):
+
+```ini
+[video]
+wm     = borderless   ; borderless | windowed
+res    = auto         ; auto (nativa) | original | 2x | <n> | 4k | 8k
+aspect = auto         ; auto|original|expand|4:3|16:9|<float>
+msaa   = 8x           ; off | 2x | 4x | 8x
+```
+
+- **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` la abre en ventana.
+- **Atajos en caliente**: **F3** = borderless ↔ windowed; **F1** = cicla aspecto; **F2** = cicla MSAA
+  (consola: líneas `[VIDEO] ...`).
+- **Resolución interna**: `auto` = alto del monitor / 240 (4K→9×, 8K→18×; `res=8k`/`4k`).
+- **MSAA**: `hh.log` imprime `RT64: sampleLocations=`; si es 0, el dispositivo no soporta el MSAA de RT64.
+- **Widescreen (por defecto)**: el juego dibuja la escena con un *scissor* 4:3; el port lo reescribe a
+  full-frame (*snap* de overscan, adaptado de la referencia Phase 07; `HH_FULL_FRAME=0` lo desactiva).
+  Con `aspect=auto`/`expand` (default) el 3D **llena la ventana**. El **HUD/mapa** (radar, barras
+  POWER/STAMINA/HP) **no se re-ancla** a los bordes: se queda en la zona 4:3, pero **no se desmonta**
+  (a diferencia del *issue* de la referencia). `aspect=original` = 4:3.
+
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`

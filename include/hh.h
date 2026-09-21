@@ -64,6 +64,26 @@ namespace hh {
         ultramodern::renderer::WindowHandle window_handle,
         bool developer_mode
     );
+
+    // Config de video (config.ini [video]): resolucion nativa, aspecto, MSAA y ventana.
+    struct VideoConfig {
+        std::string wm = "borderless";   // borderless | windowed
+        std::string res = "auto";        // auto | original | 2x | <n> | 8k
+        std::string aspect = "auto";     // auto | original | expand | 4:3 | 16:9 | <float>
+        std::string msaa = "8x";         // off | 2x | 4x | 8x
+        double aspect_target = 0.0;      // ratio para aspect manual
+    };
+    const VideoConfig& video_config();
+    VideoConfig& video_config_mutable();
+    int desktop_height();                // alto del monitor principal (para res=auto)
+    void video_apply_config();           // fija GraphicsConfig desde [video] (antes de crear el contexto)
+    void video_toggle_fullscreen();      // Alt+Enter
+    void video_cycle_aspect();           // F1
+    void video_cycle_msaa();             // F2
+
+    // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
+    bool full_frame_enabled();
+    void snap_overscan(uint8_t* rdram, uint32_t list_address);
 }
 
 // Defined in RecompiledFuncs/lookup.cpp (C++ linkage).

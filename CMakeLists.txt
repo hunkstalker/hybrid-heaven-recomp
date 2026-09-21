@@ -98,6 +98,7 @@ add_executable(HybridHeavenRecomp
     src/platform/support.cpp
     # hooks: capa de interceptacion (loaders, registro por direccion)
     src/hooks/sections.cpp
+    src/hooks/dl_snap.cpp
     # subsystems: piezas del juego portadas (input, trans, firmware)
     src/subsystems/input.cpp
     src/subsystems/trans_cache.cpp

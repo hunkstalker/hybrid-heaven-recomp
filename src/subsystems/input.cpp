@@ -198,7 +198,16 @@ static void hh_pad_write_template(FILE* f) {
         "ddown = DDOWN\n"
         "dleft = DLEFT\n"
         "dright = DRIGHT\n"
-        "cstick = on\n");
+        "cstick = on\n"
+        "\n"
+        "[video]\n"
+        "# Graficos. wm: borderless|windowed; res: auto|original|2x|<n>|4k|8k;\n"
+        "# aspect: auto|original|expand|4:3|16:9|<float>; msaa: off|2x|4x|8x.\n"
+        "# Atajos en caliente: Alt+Enter (ventana), F1 (aspecto), F2 (MSAA).\n"
+        "wm = borderless\n"
+        "res = auto\n"
+        "aspect = auto\n"
+        "msaa = 8x\n");
 }
 
 static void hh_pad_config_load() {
@@ -479,6 +488,19 @@ void hh::poll_input() {
                 SDL_GameController* controller = SDL_GameControllerFromInstanceID(event.cdevice.which);
                 if (controller != nullptr) {
                     SDL_GameControllerClose(controller);
+                }
+            } break;
+            case SDL_KEYDOWN: {
+                // Atajos de video en caliente (hasta que exista el menu in-game).
+                const SDL_Keysym& k = event.key.keysym;
+                if (k.sym == SDLK_F3) {
+                    hh::video_toggle_fullscreen();
+                }
+                else if (k.sym == SDLK_F1) {
+                    hh::video_cycle_aspect();
+                }
+                else if (k.sym == SDLK_F2) {
+                    hh::video_cycle_msaa();
                 }
             } break;
         }

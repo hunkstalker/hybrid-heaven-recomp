@@ -91,26 +91,81 @@ static void set_application_user_config(RT64::Application* application, const ul
     application->userConfig.graphicsAPI = to_rt64_graphics_api(config.api_option);
     application->userConfig.developerMode = config.developer_mode;
 
-    // HH: el runtime no persiste GraphicsConfig (useConfigurationFile=false), así que el default
-    // real es Original (240p escalado). Forzamos Auto (escalado entero a la ventana) por defecto,
-    // configurable con HH_RES=original|2x|<n>.
+    // Resolucion: HH_RES (env) > [video].res > auto (nativa del monitor: alto/240, tope 32).
+    const hh::VideoConfig& v = hh::video_config();
     const char* res_env = getenv("HH_RES");
-    std::string res = res_env != nullptr ? res_env : "auto";
+    std::string res = (res_env != nullptr && *res_env != '\0') ? res_env : v.res;
+    auto manual_mult = [](int m) { return std::clamp(m, 1, 32); };
     if (res == "original") {
         application->userConfig.resolution = RT64::UserConfiguration::Resolution::Original;
+    }
+    else if (!res.empty() && (res.back() == 'k' || res.back() == 'K')) {
+        const int k = std::max(atoi(res.c_str()), 1);   // "4k"->2160, "8k"->4320 de alto
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
+        application->userConfig.resolutionMultiplier = manual_mult((k * 540) / 240);
     }
     else if (!res.empty() && res.back() == 'x') {
         res.pop_back();
         application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
-        application->userConfig.resolutionMultiplier = std::max(atoi(res.c_str()), 1);
+        application->userConfig.resolutionMultiplier = manual_mult(std::max(atoi(res.c_str()), 1));
     }
     else if (!res.empty() && res.find_first_not_of("0123456789") == std::string::npos) {
         application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
-        application->userConfig.resolutionMultiplier = std::max(atoi(res.c_str()), 1);
+        application->userConfig.resolutionMultiplier = manual_mult(std::max(atoi(res.c_str()), 1));
     }
     else {
-        application->userConfig.resolution = RT64::UserConfiguration::Resolution::WindowIntegerScale;
+        // auto: resolucion nativa del monitor (alto/240).
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
+        application->userConfig.resolutionMultiplier = manual_mult(hh::desktop_height() / 240);
     }
+
+    // Aspecto (Original/Expand/Manual+target).
+    switch (config.ar_option) {
+        case ultramodern::renderer::AspectRatio::Expand:
+            application->userConfig.aspectRatio = RT64::UserConfiguration::AspectRatio::Expand;
+            application->userConfig.extAspectRatio = RT64::UserConfiguration::AspectRatio::Expand;
+            break;
+        case ultramodern::renderer::AspectRatio::Manual: {
+            const double t = (v.aspect_target > 0.0) ? v.aspect_target : (4.0 / 3.0);
+            application->userConfig.aspectRatio = RT64::UserConfiguration::AspectRatio::Manual;
+            application->userConfig.aspectTarget = t;
+            application->userConfig.extAspectRatio = RT64::UserConfiguration::AspectRatio::Manual;
+            application->userConfig.extAspectTarget = t;
+            break;
+        }
+        case ultramodern::renderer::AspectRatio::Original:
+        default:
+            application->userConfig.aspectRatio = RT64::UserConfiguration::AspectRatio::Original;
+            application->userConfig.extAspectRatio = RT64::UserConfiguration::AspectRatio::Original;
+            break;
+    }
+
+    // Antialiasing (MSAA).
+    switch (config.msaa_option) {
+        case ultramodern::renderer::Antialiasing::None:
+            application->userConfig.antialiasing = RT64::UserConfiguration::Antialiasing::None; break;
+        case ultramodern::renderer::Antialiasing::MSAA2X:
+            application->userConfig.antialiasing = RT64::UserConfiguration::Antialiasing::MSAA2X; break;
+        case ultramodern::renderer::Antialiasing::MSAA4X:
+            application->userConfig.antialiasing = RT64::UserConfiguration::Antialiasing::MSAA4X; break;
+        case ultramodern::renderer::Antialiasing::MSAA8X:
+        default:
+            application->userConfig.antialiasing = RT64::UserConfiguration::Antialiasing::MSAA8X; break;
+    }
+
+    // Diagnostico: valores REALES que quedan en RT64 (no solo la intencion).
+    const uint32_t aa_samples = application->userConfig.msaaSampleCount();
+    hh::log("RT64 userConfig: res=%s resolution=%d mult=%.2f aspectRatio=%d aspectTarget=%.3f"
+            " extAspect=%d extAspectTarget=%.3f aa=%d samples=%u\n",
+            res.c_str(), (int)application->userConfig.resolution,
+            application->userConfig.resolutionMultiplier,
+            (int)application->userConfig.aspectRatio, application->userConfig.aspectTarget,
+            (int)application->userConfig.extAspectRatio, application->userConfig.extAspectTarget,
+            (int)application->userConfig.antialiasing, (unsigned)aa_samples);
+    fprintf(stderr, "[VIDEO] aplicado: resolution=%d mult=%.2f aspectRatio=%d (target %.3f) msaa=%d (%u samples)\n",
+            (int)application->userConfig.resolution, application->userConfig.resolutionMultiplier,
+            (int)application->userConfig.aspectRatio, application->userConfig.aspectTarget,
+            (int)application->userConfig.antialiasing, (unsigned)aa_samples);
 }
 
 static bool configs_equivalent(const ultramodern::renderer::GraphicsConfig& lhs, const ultramodern::renderer::GraphicsConfig& rhs) {
@@ -199,6 +254,10 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
     }
     hh::log("RT64: setup SUCCESS\n");
 
+    // HH: el MSAA de RT64 requiere sample locations; si el dispositivo no las soporta,
+    // updateMultisampling() no aplica nada. Se registra para diagnostico.
+    hh::log("RT64: sampleLocations=%d\n", (int)app->device->getCapabilities().sampleLocations);
+
     // Set the application's fullscreen state.
     app->setFullScreen(cur_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
 }
@@ -211,6 +270,8 @@ bool hh::RT64Context::valid() {
 
 void hh::RT64Context::send_dl(const OSTask* task) {
     hh::log("RT64: send_dl ucode=0x%x data_ptr=0x%x\n", task->t.ucode, task->t.data_ptr);
+    // Widescreen: reescribe el scissor de overscan a full-frame antes de que RT64 procese la lista.
+    hh::snap_overscan(app->core.RDRAM, task->t.data_ptr);
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
     app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);

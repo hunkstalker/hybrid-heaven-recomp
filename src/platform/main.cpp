@@ -827,6 +827,9 @@ int main(int argc, char** argv) {
     hh::reset_audio(48000);
     hh::log("audio reset done\n");
 
+    // HH: fija la config de video ([video] en config.ini) antes de crear el contexto RT64.
+    hh::video_apply_config();
+
     // Set the game status to Running BEFORE recomp::start. The game thread created inside
     // recomp::start blocks until game_status != None, and recomp::start never returns (it sits
     // in a `while (!exited)` loop), so start_game must be issued beforehand for the boot to run.
