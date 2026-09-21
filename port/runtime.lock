@@ -1,14 +1,17 @@
-# Runtime del port (forks propios, rama hybrid-heaven). Lo leen tools/build_linux.sh y
-# port/build_windows.bat: clonan por URL y hacen checkout de NMR_COMMIT (no hay patch).
+# Pin del runtime del port (forks propios, rama hybrid-heaven).
 #
-# SHAs reescritos (bloque 8.B): TODOS los commits de los forks cambiaron de identidad; el pin
-# apunta al tip reescrito de la rama hybrid-heaven (incluye los commits de runtime de la sesion).
-# Es valido en cuanto el usuario haga force-push de los forks (N64Recomp y despues N64ModernRuntime).
-# Para probar el arbol local sin publicar, usar port/build_windows.local.bat (no toca git).
-# NMR_COMMIT: tip de `hybrid-heaven` con los hooks de diagnostico del CaC (HH_M7GATE/HH_GATE_A/
-# HH_EPOCHTRACE/HH_LDTRACE/HH_NO_B280, HH_DET_CLOCK=quant). Valido tras el push del fork.
+# DESDE LA MIGRACION A SUBMODULOS (ADR 0010) EL PIN CANONICO ES EL GITLINK + .gitmodules del
+# superproyecto: `git submodule update --init --recursive` trae la version correcta. Este fichero
+# queda como REFERENCIA (URL+commit legibles) y como FALLBACK de los scripts si `lib/` no existe
+# y el `git submodule update` no puede resolver (p.ej. commit del fork aun sin publicar).
+#
+# Para probar el arbol local sin publicar: port/build_windows.local.bat (Windows, no toca git) o
+# tools/build_linux.sh sin --force-libs (si lib/ ya existe, no toca git).
+#
+# Los commits de los forks deben existir en el remoto para que un clon limpio/submodulo funcione:
+# orden de push N64Recomp -> N64ModernRuntime -> main (ver AGENTS.md).
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=15f920d5e29ecb59d811988ea69e78ee09547d89
-# Referencia (los resuelve el .gitmodules del fork NMR; se listan para trazabilidad):
+NMR_COMMIT=840a94731b2178aa468765a1f2115dc535d13a56
+# Referencia (los resuelve el .gitmodules anidado del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=cab94d912ff858d6574974cead7dbbcca09e282f

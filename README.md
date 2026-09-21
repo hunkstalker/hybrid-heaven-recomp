@@ -27,8 +27,8 @@ binario del juego, obra derivada). El código recompilado se **regenera una vez 
 de compilar.
 
 - **Compilar requiere la ROM** (una vez, para recompilar): `python3 tools/regenerate.py` (necesita
-  JDK 21 + Ghidra + N64Recomp; ver `docs/workflows.md`). El C generado vive en `work/recomp/`
-  (gitignored) y el port lo toma por un symlink.
+  JDK 21 + Ghidra + N64Recomp; ver `docs/workflows.md`). El C generado vive en `work/recomp/` y
+  `regenerate.py` lo materializa como directorio real en `port/HybridHeavenRecomp/RecompiledFuncs/`.
 - **Ejecutar también**: aporta tu copia de Hybrid Heaven (USA, `NHVE`, 16 MB, hash
   `0x0F6A72F2C36A216DULL`) en la carpeta `rom/` junto al ejecutable (`rom/baserom.us.z64`); como
   salvaguarda también se acepta `baserom.us.z64` junto al `.exe`. Nunca se distribuye la ROM ni una
@@ -42,10 +42,11 @@ de compilar.
 | Linux | `tools/build_linux.sh` | gcc, CMake, Ninja, SDL2-dev, Vulkan-dev, X11-dev, GTK3-dev |
 | Docker (Linux) | `docker compose build run` | Docker |
 
-Los scripts **clonan las dependencias por URL+SHA fijados en `port/runtime.lock`**: `rt64` de su
-upstream y `N64ModernRuntime` de un **fork propio** (rama `hybrid-heaven`, con nuestros cambios y su
-submódulo `N64Recomp`). Guías: `port/README_windows.md`, `port/README_linux.md`,
-`docs/workflows.md` §1, `docs/adr/0005`.
+Los scripts usan los **submódulos git** `port/HybridHeavenRecomp/lib/rt64` (upstream) y
+`.../lib/N64ModernRuntime` (**fork propio**, rama `hybrid-heaven`, con su submódulo `N64Recomp`):
+`git clone --recursive` (o `git submodule update --init --recursive`) los trae;
+`port/runtime.lock` queda como referencia/fallback. Guías: `port/README_windows.md`,
+`port/README_linux.md`, `docs/workflows.md` §1, `docs/adr/0005`, `docs/adr/0010`.
 
 > Solo para **mantenedores**: regenera el C con tu ROM (`python3 tools/regenerate.py`). El C
 > recompilado **no se versiona** (ADR 0009); se genera en `work/recomp/` y es la entrada de build.

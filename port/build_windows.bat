@@ -55,6 +55,11 @@ echo Port      : %PORT%
 echo.
 
 set "SKIP_LIBS=0"
+REM --- Submodulos (lib/N64ModernRuntime, lib/rt64): forma estandar del ecosistema. Best-effort:
+REM     si falta lib/ y aun no estan publicados los commits del fork, se cae al clonado por
+REM     runtime.lock de abajo. El build local del mantenedor (build_windows.local.bat) ni entra aqui.
+if not exist "%RT64%\CMakeLists.txt" git -c safe.directory=* -C "%ROOT%" submodule update --init --recursive 2>nul
+if not exist "%NMR%\CMakeLists.txt" git -c safe.directory=* -C "%ROOT%" submodule update --init --recursive 2>nul
 if exist "%RT64%\CMakeLists.txt" if exist "%NMR%\CMakeLists.txt" if "%FORCE_LIBS%"=="0" set "SKIP_LIBS=1"
 
 if "%SKIP_LIBS%"=="1" goto :libs_ok

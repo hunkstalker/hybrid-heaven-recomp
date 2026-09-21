@@ -32,8 +32,9 @@ python3 tools/regenerate.py --skip-ghidra   # reutiliza work/scratch/syms (itera
 python3 tools/regenerate.py --rom ROM       # ROM explicita
 ```
 
-Genera `work/recomp/RecompiledFuncs/` (destino del symlink `port/HybridHeavenRecomp/RecompiledFuncs`)
-y `include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `port\build_windows.bat`.
+Genera `work/recomp/RecompiledFuncs/` y lo **materializa como directorio real** en
+`port/HybridHeavenRecomp/RecompiledFuncs/` (no symlink: Windows no los resuelve), más
+`include/hh/file_table.h`. Luego compila con `tools/build_linux.sh` / `port\build_windows.bat`.
 
 Validador de símbolos (detecta **delay-slot cortado**, **ramas cruzadas** y **data-as-code**), parte
 del pipeline:
@@ -57,10 +58,14 @@ tools/build_linux.sh --help
 ```
 
 - **Runtime y N64Recomp**: los cambios propios viven en **forks** (`hunkstalker/N64ModernRuntime` y
-  `hunkstalker/N64Recomp`, rama `hybrid-heaven`; `main` = upstream). Los scripts clonan por **URL+SHA
-  de `port/runtime.lock`** (submódulos incluidos: `N64Recomp` sale del fork, `thirdparty` de
-  upstream). No hay patch. Si se añaden commits al runtime: push al fork y actualizar el SHA en
-  `port/runtime.lock`. `rt64` se clona del upstream en su commit fijo (sin modificar).
+  `hunkstalker/N64Recomp`, rama `hybrid-heaven`; `main` = upstream). `lib/rt64` y
+  `lib/N64ModernRuntime` son **submódulos git** (ADR 0010): los trae `git clone --recursive` /
+  `git submodule update --init --recursive`. `rt64` es upstream en su commit fijo;
+  `N64ModernRuntime` es el fork, con su `.gitmodules` anidado (`N64Recomp` del fork, thirdparty de
+  upstream). Si se añaden commits al runtime: push al fork y **bump** del gitlink
+  (`git -C lib/N64ModernRuntime checkout <sha> && git add` en el port). `port/runtime.lock` queda como
+  referencia/fallback. Para iterar el fork local sin publicar: `build_windows.local.bat` (Windows) o
+  `tools/build_linux.sh` sin `--force-libs` (si `lib/` ya existe, no toca git).
 - **Docker** (`Dockerfile` multi-stage, Debian/glibc): `docker compose build run`. Clona las deps
   (rt64 + fork del runtime) por el lock; stages `deps` (también devcontainer) / `build` / `runtime`.
   Headless: `HH_HEADLESS=1 docker compose run --rm run` (Xvfb + lavapipe). GUI en host Linux:

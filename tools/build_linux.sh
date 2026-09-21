@@ -75,8 +75,13 @@ fi
 gitc() { _d="$1"; shift; git -c "safe.directory=*" -C "$_d" "$@"; }
 
 setup_rt64() {
+    # Forma estandar: submódulo del superproyecto. Best-effort; si falla (p.ej. commit aun sin
+    # publicar) se cae al clonado por runtime.lock de abajo.
     if [ ! -e "$RT64/CMakeLists.txt" ]; then
-        echo "[1/4] clonando lib/rt64 ..."
+        gitc "$ROOT" submodule update --init --recursive -- port/HybridHeavenRecomp/lib/rt64 2>/dev/null || true
+    fi
+    if [ ! -e "$RT64/CMakeLists.txt" ]; then
+        echo "[1/4] clonando lib/rt64 (fallback runtime.lock) ..."
         git clone --quiet "$RT64_URL" "$RT64"
     fi
     [ -d "$RT64/.git" ] || {
@@ -92,8 +97,13 @@ setup_rt64() {
 }
 
 setup_nmr() {
+    # Forma estandar: submódulo del superproyecto. Best-effort; si falla (p.ej. commit del fork aun
+    # sin publicar) se cae al clonado por runtime.lock de abajo.
     if [ ! -e "$NMR/CMakeLists.txt" ]; then
-        echo "[2/4] clonando lib/N64ModernRuntime (fork) desde $NMR_URL ..."
+        gitc "$ROOT" submodule update --init --recursive -- port/HybridHeavenRecomp/lib/N64ModernRuntime 2>/dev/null || true
+    fi
+    if [ ! -e "$NMR/CMakeLists.txt" ]; then
+        echo "[2/4] clonando lib/N64ModernRuntime (fork, fallback runtime.lock) desde $NMR_URL ..."
         git clone --quiet "$NMR_URL" "$NMR"
     fi
     [ -d "$NMR/.git" ] || {

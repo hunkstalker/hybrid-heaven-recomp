@@ -109,10 +109,20 @@ def main() -> int:
     RECOMP_DEST.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(RECOMP_OUT, RECOMP_DEST)
 
-    if not (PORT / "RecompiledFuncs").exists():
-        print("AVISO: falta el symlink port/HybridHeavenRecomp/RecompiledFuncs (recrea el repo)")
     run([sys.executable, ROOT / "tools/analysis/fix_fallthroughs.py",
          "--recomp-dir", str(RECOMP_DEST)])
+
+    # 6b) Materializar el C como DIRECTORIO REAL en el port. NO usar symlink: en Windows
+    #     (build_windows[.local].bat) un symlink creado en Linux no se resuelve y CMake aborta con
+    #     "Faltan RecompiledFuncs/funcs_*.c". El port es gitignored (ADR 0009).
+    PORT_RECOMP = PORT / "RecompiledFuncs"
+    if PORT_RECOMP.exists() or PORT_RECOMP.is_symlink():
+        if PORT_RECOMP.is_symlink() or PORT_RECOMP.is_file():
+            PORT_RECOMP.unlink()
+        else:
+            shutil.rmtree(PORT_RECOMP)
+    shutil.copytree(RECOMP_DEST, PORT_RECOMP)
+    print("[regenerate] port/RecompiledFuncs materializado (%d ficheros)" % len(list(PORT_RECOMP.glob("*"))))
 
     # 7) tabla id->{vram,size} del port (en el mismo orden que overlays.txt)
     run([sys.executable, ROOT / "tools/gen_file_table.py"])

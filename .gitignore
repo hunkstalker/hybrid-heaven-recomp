@@ -58,9 +58,9 @@ Thumbs.db
 # Backup temporal de trabajo (no versionar)
 .backup/
 
-# Repos git anidados (librerías vendored) — se versionan dentro de su PROPIO .git, no aquí
-port/HybridHeavenRecomp/lib/N64ModernRuntime/
-port/HybridHeavenRecomp/lib/rt64/
+# Submódulos git (lib/N64ModernRuntime, lib/rt64): se versionan como gitlinks + .gitmodules.
+# Para el build local del mantenedor sin publicar, usar port/build_windows.local.bat (compila el
+# árbol tal cual). NO volver a ignorarlos aquí.
 
 # Salidas intermedias del pipeline de recompilación
 config/RecompiledFuncs_retail/
@@ -76,8 +76,8 @@ config/*.bak
 
 # C recompilado: obra derivada del binario del juego -> NO se versiona (norma del ecosistema:
 # Goemon64Recomp, ports N64Recomp; ver docs/adr/0009). Se regenera desde TU ROM con
-# tools/regenerate.py. `port/HybridHeavenRecomp/RecompiledFuncs` es un symlink al output
-# (work/recomp/RecompiledFuncs).
+# tools/regenerate.py. `port/HybridHeavenRecomp/RecompiledFuncs` es un DIRECTORIO REAL (no
+# symlink: Windows no resuelve symlinks de Linux) con el mismo contenido que work/recomp/RecompiledFuncs.
 port/HybridHeavenRecomp/RecompiledFuncs
 work/recomp/
 

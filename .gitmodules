@@ -1,0 +1,6 @@
+[submodule "port/HybridHeavenRecomp/lib/N64ModernRuntime"]
+	path = port/HybridHeavenRecomp/lib/N64ModernRuntime
+	url = https://github.com/hunkstalker/N64ModernRuntime.git
+[submodule "port/HybridHeavenRecomp/lib/rt64"]
+	path = port/HybridHeavenRecomp/lib/rt64
+	url = https://github.com/rt64/rt64.git

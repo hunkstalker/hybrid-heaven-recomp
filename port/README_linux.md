@@ -65,13 +65,13 @@ Headless: añade `-e HH_HEADLESS=1`.
 ## Compilar desde fuente
 
 - **Docker** (recomendado, reproducible): `docker compose build run`
-- **Nativo**: `tools/build_linux.sh` (clona `rt64` de upstream y el runtime de su **fork** por
-  URL+SHA de `port/runtime.lock`, con submódulos; luego compila). Dependencias de compilación:
+- **Nativo**: `tools/build_linux.sh` (usa los **submódulos** `lib/rt64` y `lib/N64ModernRuntime`,
+  ADR 0010; `port/runtime.lock` como fallback; luego compila). Dependencias de compilación:
 
 ```sh
 sudo apt install build-essential cmake ninja-build git pkg-config \
   libsdl2-dev libvulkan-dev libx11-dev libxext-dev libxrandr-dev libxtst-dev libgtk-3-dev
 ```
 
-El C recompilado (`RecompiledFuncs/`) está versionado: **no** hacen falta Ghidra ni N64Recomp
-para compilar (solo para regenerar símbolos/módulos, que además requiere la ROM).
+El C recompilado (`RecompiledFuncs/`) **no está versionado** (obra derivada; ADR 0009): se regenera
+una vez desde tu ROM con `python3 tools/regenerate.py` (necesita JDK 21 + Ghidra + N64Recomp).

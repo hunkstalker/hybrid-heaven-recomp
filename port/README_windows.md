@@ -24,12 +24,12 @@ port/HybridHeavenRecomp/
 └── lib/N64ModernRuntime/   ← runtime del FORK propio (rama hybrid-heaven, commit fijado)
 ```
 
-> **IMPORTANTE:** los dos `lib/` están en `.gitignore` y los reproduce `build_windows.bat`:
-> `rt64` se clona de upstream en el commit `43373749dac9bbc1b653e6a02aed40a9e1783bed`; el runtime se
-> clona de **`hunkstalker/N64ModernRuntime`** (rama `hybrid-heaven`) en el commit que fija
-> **`port\runtime.lock`**, con submódulos recursivos (`N64Recomp` sale del fork
-> `hunkstalker/N64Recomp`; `thirdparty`, de upstream). Si los directorios ya existen, se respetan.
-> Créditos y licencias: `CREDITS.md`.
+> **IMPORTANTE:** `lib/rt64` y `lib/N64ModernRuntime` son **submódulos git** (`.gitmodules`,
+> ADR 0010): `git clone --recursive` (o `git submodule update --init --recursive`) los trae. `rt64`
+> es upstream en el commit `43373749dac9bbc1b653e6a02aed40a9e1783bed`; el runtime es
+> **`hunkstalker/N64ModernRuntime`** (rama `hybrid-heaven`) con submódulos recursivos (`N64Recomp`
+> sale del fork `hunkstalker/N64Recomp`; `thirdparty`, de upstream). `port\runtime.lock` queda como
+> referencia/fallback. Créditos y licencias: `CREDITS.md`.
 
 ## 1. Runtime: forks propios (sin patch)
 
@@ -41,14 +41,13 @@ sincronizar). El cambio de `N64Recomp` que se **compila** dentro del port está 
 
 Para cambiar el runtime (mantenedor): editar el árbol local (`lib\N64ModernRuntime` o la copia
 `N64ModernRuntime` junto al proyecto) → commit en `hybrid-heaven` → `git push fork hybrid-heaven` →
-actualizar `NMR_COMMIT` en `port\runtime.lock`.
+**bump** del gitlink en el port (`git -C lib\N64ModernRuntime checkout <sha>` + `git add` en la raíz)
+y, si aplica, actualizar `NMR_COMMIT` en `port\runtime.lock` (referencia/fallback).
 
-Reparar/forzar el runtime a lo que dice el lock:
+Reparar/forzar el runtime a lo que fija el submódulo:
 
 ```bat
-cd port\HybridHeavenRecomp\lib\N64ModernRuntime
-git -c safe.directory=* fetch
-git -c safe.directory=* checkout <NMR_COMMIT de port\runtime.lock>
+cd <raiz del repo>
 git -c safe.directory=* submodule update --init --recursive
 ```
 (o simplemente borra `lib\N64ModernRuntime` y vuelve a ejecutar `build_windows.bat`.)
@@ -62,9 +61,10 @@ solo produzca la mitad de buffers -> petardeo). Usa `build_windows.bat --force-l
 clonar/actualizar las libs, o `--debug` solo para diagnosticar crashes.
 
 `build_windows.bat` imprime **siempre** la ruta y el commit del runtime que va a compilar (y si
-omitió git). El pin de `port\runtime.lock` solo apunta a commits **publicados** en el fork: si
-necesitas probar commits locales del runtime sin publicarlos, usa **`port\build_windows.local.bat`**,
-que compila `lib\` tal cual (sin fetch/checkout) e imprime el commit local que usa.
+omitió git). El submódulo fija un commit **publicado** en el fork (y `port\runtime.lock` como
+fallback): si necesitas probar commits locales del runtime sin publicarlos, usa
+**`port\build_windows.local.bat`**, que compila `lib\` tal cual (sin fetch/checkout) e imprime el
+commit local que usa.
 
 Manual:
 
