@@ -1029,12 +1029,13 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
 
-    // D-pad fisico -> stick izquierdo (opt-in, HH_DPAD_TO_STICK=1): para menus/UI que esperan el
-    // stick si el juego ignora el D-pad. Lee el D-pad fisico (mando + flechas), no los bits N64.
+    // D-pad fisico -> stick izquierdo (por defecto ON; HH_DPAD_TO_STICK=0 lo desactiva): para
+    // menus/UI que esperan el stick (el juego ignora el D-pad). Lee el D-pad fisico (mando +
+    // flechas), no los bits N64.
     if (controller_num == 0) {
         static const bool hh_dpad_to_stick = [] {
             const char* e = getenv("HH_DPAD_TO_STICK");
-            return e != nullptr && *e != '\0' && strcmp(e, "0") != 0;
+            return !(e != nullptr && *e != '\0' && strcmp(e, "0") == 0);  // por defecto ON
         }();
         if (hh_dpad_to_stick) {
             const Uint8* kb = SDL_GetKeyboardState(nullptr);
