@@ -204,7 +204,9 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   buffers con eso → `frames/s≈43.2k` (60/s), la cola se asienta en ~headroom y `drops/s=0`. El FIFO
   sigue llevando el evento AI. `HH_AI_REPORT_SDL=0` revierte al modelo FIFO. Se mantienen como
   palancas de diagnóstico el PLL (`HH_AI_SYNC`/`HH_AI_MAXC`) y `HH_AI_LEN_OFFSET`. Diagnóstico:
-  `hh_audio.log` (`queued`, `drops/s`).
+  `hh_audio.log` (`queued`, `drops/s`). **Estéreo**: los samples llegan con **L/R invertidos**
+  (librecomp guarda RDRAM byte-swapped y el puntero crudo salta el XOR); `queue_samples` los
+  **des-swapea** (`HH_AUDIO_NO_SWAP=1` lo desactiva).
   **Frontera actual (2026-09-14)**: con el registro dinámico de módulos el port **cruza la
   transición y el burst**, y **renderiza geometría/píxeles reales en RT64** (logo, pantalla de
   título "PRESS START BUTTON" y attract 3D; capturas en `work/debug/port_shot_*.png`, nota

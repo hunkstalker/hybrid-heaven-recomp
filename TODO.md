@@ -15,10 +15,6 @@
 ## Backlog (priorizado)
 
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
-- [ ] **Verificar estéreo L/R**: la referencia **des-swapea** los canales (librecomp guarda RDRAM
-  byte-swapped y el puntero crudo invierte L/R). Nosotros **no** lo hacemos → posible estéreo
-  invertido. Comprobar (dump estéreo o emulador) y, si aplica, des-swapear en `queue_samples`
-  (`notes/2026-09-21-audio-petardeo-ref-y-plan.md` §3.4).
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
@@ -42,6 +38,9 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Estéreo L/R corregido (2026-09-21)**: los samples llegaban con L/R invertidos (librecomp
+  byte-swapped + puntero crudo); `queue_samples` ahora los des-swapea (`HH_AUDIO_NO_SWAP=1` off).
+  Pendiente validar de oído en Windows. `notes/2026-09-21-audio-petardeo-ref-y-plan.md` §8.
 - [x] **Limpieza de instrumentación (2026-09-21)**: `[BADMQ]`/`[MQDROP]` gateados tras `HH_DIAG`
   (consola limpia por defecto; fork NMR); `HH_NO_STREAMED_LOADS` eliminado (el hook streamed se
   registra siempre). Se **quedan** (funcionales/opt-in): `requeue_pi=true` (evita cuelgue de PI DMA),

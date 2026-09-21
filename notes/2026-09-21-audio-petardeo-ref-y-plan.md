@@ -93,3 +93,12 @@ ya corre a 43200):
 Pendiente de rutina al aplicar cambios de AI: confirmar en Windows que **gameplay/CaC** siguen bien
 (cambió lo que el juego ve en `osAiGetLength`).
 
+## 8. Estéreo L/R — RESUELTO (2026-09-21)
+
+Confirmado por análisis del código: el microcódigo RSP escribe el buffer vía
+`dma_dmem_to_rdram` (`librecomp/include/librecomp/rsp.hpp`), que usa `MEM_B` (byte-swapped), y
+`queue_samples` recibe el puntero **crudo** (`TO_PTR`) → cada palabra `(L,R)` sale como `(R,L)`.
+Es el mismo fallo que documenta la referencia. **Fix**: des-swapear los pares int16 en
+`hh::queue_samples` (`src/platform/support.cpp`); `HH_AUDIO_NO_SWAP=1` lo desactiva (A/B).
+Pendiente: validar de oído en Windows (sonidos paneados).
+

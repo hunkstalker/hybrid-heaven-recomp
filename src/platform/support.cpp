@@ -443,6 +443,28 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     }
     const size_t byte_len = sample_count * sizeof(int16_t);
 
+    // HH: los samples llegan con L/R INVERTIDOS. librecomp guarda la RDRAM byte-swapped (los macros
+    // MEM_* hacen XOR) y `queue_samples` recibe un puntero crudo (TO_PTR) que salta ese XOR: cada
+    // palabra de 4 B (L,R) queda como (R,L). Se des-swapea aqui (igual que la referencia).
+    // `HH_AUDIO_NO_SWAP=1` lo desactiva (A/B). Ver notes/2026-09-21-audio-petardeo-ref-y-plan.md §3.4.
+    static std::vector<int16_t> hh_unswapped;
+    static const bool hh_swap_lr = [] {
+        const char* e = getenv("HH_AUDIO_NO_SWAP");
+        return !(e != nullptr && *e != '\0' && strcmp(e, "0") != 0);  // por defecto: SÍ des-swapear
+    }();
+    const int16_t* hh_pcm = audio_data;
+    if (hh_swap_lr) {
+        hh_unswapped.resize(sample_count);
+        for (size_t i = 0; i + 1 < sample_count; i += 2) {
+            hh_unswapped[i] = audio_data[i + 1];
+            hh_unswapped[i + 1] = audio_data[i];
+        }
+        if (sample_count & 1) {
+            hh_unswapped[sample_count - 1] = audio_data[sample_count - 1];
+        }
+        hh_pcm = hh_unswapped.data();
+    }
+
     // Dump de audio OPT-IN: con HH_AUDIODUMP=<f> escribe hasta 4 MB de PCM en ese fichero (o
     // hh_audio_dump.bin). Por defecto NO se escribe: eran ~4 MB con fflush por buffer al arrancar
     // (I/O innecesario; el log textual hh_audio.log sigue activo siempre).
@@ -458,7 +480,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
                 if (df != nullptr) fprintf(stderr, "[AUD] dump en %s\n", dpath);
             }
             if (df != nullptr && dtotal < (4u << 20)) {
-                fwrite(audio_data, 1, byte_len, df);
+                fwrite(hh_pcm, 1, byte_len, df);
                 fflush(df);
                 dtotal += byte_len;
             }
@@ -517,10 +539,10 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         if (corr > 1.0) corr = 1.0;
         else if (corr < -1.0) corr = -1.0;
         const double step = 1.0 + corr * hh_maxc;   // >1 => menos salida => drena la cola
-        hh_queue_resampled(audio_data, sample_count / input_channels, step);
+        hh_queue_resampled(hh_pcm, sample_count / input_channels, step);
     } else {
         // SDL convierte internamente al formato real del dispositivo.
-        SDL_QueueAudio(audio_device, audio_data, static_cast<Uint32>(byte_len));
+        SDL_QueueAudio(audio_device, hh_pcm, static_cast<Uint32>(byte_len));
     }
 
     {
