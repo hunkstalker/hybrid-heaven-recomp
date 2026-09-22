@@ -69,6 +69,18 @@ Las capturas de la referencia confirman: `Display Refresh Rate (OS): 120`, `Aver
 ≈ 9.3 ms (**107 FPS**), `Presentation: Present Early`, `Refresh Rate Mode: Display`. Y a la vez
 `Update Screen (VI Changed)` y `Display List (API)` ≈ **28-29 FPS** = ritmo propio del juego.
 
+## Matriz de validación (Windows)
+
+| Caso | Envs | Esperado |
+|---|---|---|
+| Base | (ninguno) | present ≈ 30 fps (ritmo del juego) |
+| Present early | `HH_PRESENT_EARLY=1` | misma tasa, menos latencia |
+| Display rate | `HH_REFRESH_RATE=display` | present ≈ refresco del monitor (p. ej. 120), movimiento suave |
+| Ambos | `HH_PRESENT_EARLY=1` + `HH_REFRESH_RATE=display` | como la referencia (~107-144 fps) |
+
+Medir con `HH_FPS=1` (en `hh.log`) y comprobar que el **juego sigue a ~30 fps lógicos**. Vigilar
+audio, timing y carga de CPU/GPU (no forzar si el equipo no llega).
+
 ## Pendiente
 
 - Validar `HH_FPS` en Windows.
