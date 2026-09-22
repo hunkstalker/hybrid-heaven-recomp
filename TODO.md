@@ -75,7 +75,7 @@
   release `rom/`). **Release pendiente de tag** (ver `RETOMAR.md`).
 - [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
   borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
-  borderless**; atajos **F3** (ventana), **F1** (aspecto), **F2** (MSAA). **Widescreen** con *snap*
+  borderless**; atajos **F3** (ventana), **F2** (aspecto), **F4** (MSAA). **Widescreen** con *snap*
   del *scissor* de overscan a full-frame (`src/hooks/dl_snap.cpp`, adaptado de la referencia Phase 07;
   `HH_FULL_FRAME=0` off) → con `aspect=auto`/`expand` (default) el 3D llena la ventana; el HUD/mapa
   **no se desmonta** (queda en la zona 4:3, sin anclar). Validado en Linux y Windows.

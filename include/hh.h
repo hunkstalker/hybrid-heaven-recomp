@@ -83,9 +83,9 @@ namespace hh {
     VideoConfig& video_config_mutable();
     int desktop_height();                // alto del monitor principal (para res=auto)
     void video_apply_config();           // fija GraphicsConfig desde [video] (antes de crear el contexto)
-    void video_toggle_fullscreen();      // Alt+Enter
-    void video_cycle_aspect();           // F1
-    void video_cycle_msaa();             // F2
+    void video_toggle_fullscreen();      // F3
+    void video_cycle_aspect();           // F2
+    void video_cycle_msaa();             // F4
 
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();

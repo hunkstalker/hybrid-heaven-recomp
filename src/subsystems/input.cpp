@@ -503,13 +503,17 @@ void hh::poll_input() {
             case SDL_KEYDOWN: {
                 // Atajos de video en caliente (hasta que exista el menu in-game).
                 const SDL_Keysym& k = event.key.keysym;
-                if (k.sym == SDLK_F3) {
-                    hh::video_toggle_fullscreen();
-                }
-                else if (k.sym == SDLK_F1) {
+                // F1 queda libre: con `HH_DEVELOPER=1` RT64 abre su Inspector (FPS/frametimes) con F1.
+                if (k.sym == SDLK_F2) {
+                    // Widescreen: cicla el aspecto (expand / original / 4:3 ...).
                     hh::video_cycle_aspect();
                 }
-                else if (k.sym == SDLK_F2) {
+                else if (k.sym == SDLK_F3) {
+                    // Ventana: borderless <-> windowed.
+                    hh::video_toggle_fullscreen();
+                }
+                else if (k.sym == SDLK_F4) {
+                    // MSAA (apenas notable a alta resolucion; por config suele bastar).
                     hh::video_cycle_msaa();
                 }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {

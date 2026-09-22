@@ -13,7 +13,8 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 - **Recompilación estática** del binario original (sin emulador), microcódigo gfx **F3DEX2** y
   **audio `aspMain` del ROM** recompilado (~43.2 kHz, sin petardeo).
 - **Widescreen** con **anclaje del HUD/minimapa** a los bordes; ajustes `[video]` en `config.ini`
-  (aspecto, resolución nativa/4K/8K, MSAA, borderless/windowed) y atajos **F1/F2/F3**.
+  (aspecto, resolución nativa/4K/8K, MSAA, borderless/windowed) y atajos **F2** (aspecto) y **F3**
+  (ventana); **F1** abre el Inspector de RT64 con `HH_DEVELOPER=1`.
 - **Mando + teclado** (mapeo fijo; D-pad↔stick para navegar menús).
 - **Guardado** en cápsula (Controller Pak emulado → `saves/*.pak`).
 - **Cache de assets** + descompresor **LZKN64** nativo; módulos de código vía `trans`.

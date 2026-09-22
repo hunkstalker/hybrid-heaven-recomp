@@ -291,8 +291,9 @@ msaa   = 8x           ; off | 2x | 4x | 8x
 ```
 
 - **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` la abre en ventana.
-- **Atajos en caliente**: **F3** = borderless ↔ windowed; **F1** = cicla aspecto; **F2** = cicla MSAA;
-  **F11** = cierra la aplicación (cómodo a pantalla completa, sin Alt+F4) (consola: líneas `[VIDEO] ...`).
+- **Atajos en caliente**: **F2** = cicla aspecto (widescreen/4:3); **F3** = borderless ↔ windowed;
+  **F4** = cicla MSAA; **F11** = cierra la aplicación (cómodo a pantalla completa, sin Alt+F4) (consola:
+  líneas `[VIDEO] ...`). **F1** = Inspector de RT64, solo con `HH_DEVELOPER=1`.
 - **Resolución interna**: `auto` = alto del monitor / 240 (4K→9×, 8K→18×; `res=8k`/`4k`).
 - **MSAA**: `hh.log` imprime `RT64: sampleLocations=`; si es 0, el dispositivo no soporta el MSAA de RT64.
 - **Widescreen (por defecto)**: el juego dibuja la escena con un *scissor* 4:3; el port lo reescribe a
