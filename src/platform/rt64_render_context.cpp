@@ -96,7 +96,20 @@ static RT64::UserConfiguration::GraphicsAPI to_rt64_graphics_api(ultramodern::re
 }
 
 static void set_application_user_config(RT64::Application* application, const ultramodern::renderer::GraphicsConfig& config) {
-    application->userConfig.graphicsAPI = to_rt64_graphics_api(config.api_option);
+    // API grafica: env HH_GRAPHICS_API=d3d12|vulkan|metal|auto (default: lo que diga la config).
+    {
+        const char* api = getenv("HH_GRAPHICS_API");
+        if (api != nullptr && *api != '\0') {
+            const std::string a = api;
+            if (a == "d3d12")       application->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::D3D12;
+            else if (a == "vulkan") application->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Vulkan;
+            else if (a == "metal")  application->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Metal;
+            else                    application->userConfig.graphicsAPI = RT64::UserConfiguration::GraphicsAPI::Automatic;
+        }
+        else {
+            application->userConfig.graphicsAPI = to_rt64_graphics_api(config.api_option);
+        }
+    }
     application->userConfig.developerMode = config.developer_mode;
 
     // Resolucion: HH_RES (env) > [video].res > auto (nativa del monitor: alto/240, tope 32).

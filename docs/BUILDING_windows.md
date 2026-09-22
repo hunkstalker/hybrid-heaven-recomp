@@ -310,7 +310,8 @@ msaa   = 8x           ; off | 2x | 4x | 8x
   y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` la tasa real de
   present (`[hh-fps] N fps | M display lists`) una vez por segundo. Rendimiento (experimento):
   `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=1` (ver
-  `notes/2026-09-22-fps-y-present-early.md`).
+  `notes/2026-09-22-fps-y-present-early.md`). API gráfica: `HH_GRAPHICS_API=d3d12|vulkan|metal|auto`
+  (útil para probar overlays tipo RTSS o fallos por API).
 
 ### Grabar y reproducir una partida (depuración determinista)
 
