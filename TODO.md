@@ -20,9 +20,9 @@
   es un no-op). En **nuestro** port, `RT64Context::enable_instant_present()` **sí** enciende
   `EnhancementConfiguration::Presentation::Mode::PresentEarly` (`rt64_render_context.cpp:329`), pero
   **nadie lo llama**: nuestro NMR no tiene el *plumbing* de `PresentationMode`. **Hecho (2026-09-22)**:
-  contador mínimo `HH_FPS=1` (log a `hh.log`: fps de present + display lists/s). **Pendiente**: probar
-  a llamar `enable_instant_present()` (env/por defecto) y medir FPS + latencia + efecto en
-  audio/timing; ver `notes/2026-09-22-fps-y-present-early.md`.
+  contador `HH_FPS=1` y experimento **env-gated** `HH_PRESENT_EARLY=1` + `HH_REFRESH_RATE=display`.
+  **Pendiente**: validar en Windows (fps/latencia/audio/timing) y, si va bien, **activar por defecto**
+  (sería cambio visible → *bump* de versión); ver `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD

@@ -48,15 +48,31 @@ bloque de log en `update_screen`). Doc: `docs/BUILDING_windows.md` (envs).
 
 ```
 set HH_FPS=1
+set HH_REFRESH_RATE=display
+set HH_PRESENT_EARLY=1
 hybrid-heaven-recomp\run_windows_release.bat
 ```
-Mirar `build\windows\bin\Release\hh.log` (`[hh-fps] ...`). Comparar con `HH_NO_HUD_REWRITE`/aspectos
-si hace falta. Para el experimento de `PresentEarly`: invocar `enable_instant_present()` (p. ej. tras
-crear el contexto, gateado por env) y comparar fps/latencia.
+Mirar `build\windows\bin\Release\hh.log` (`[hh-fps] ...`). A/B con `HH_REFRESH_RATE=original`
+(comportamiento previo) y sin `HH_PRESENT_EARLY`.
+
+### Experimento implementado (env-gated, default OFF)
+
+En `src/platform/rt64_render_context.cpp`:
+- **`HH_REFRESH_RATE=original|display|manual:<hz>`** → fija `userConfig.refreshRate`. `Display`
+  pone el objetivo al refresco del monitor (RT64 interpola/presenta a esa tasa); `Original` = ritmo
+  del juego (30 Hz).
+- **`HH_PRESENT_EARLY=1`** → llama a `RT64Context::enable_instant_present()` tras el setup
+  (PresentEarly en RT64). La referencia tiene `Present Early` + `Refresh Rate Mode: Display`
+  (capturas del mantenedor).
+
+Las capturas de la referencia confirman: `Display Refresh Rate (OS): 120`, `Average Present (OS)`
+≈ 9.3 ms (**107 FPS**), `Presentation: Present Early`, `Refresh Rate Mode: Display`. Y a la vez
+`Update Screen (VI Changed)` y `Display List (API)` ≈ **28-29 FPS** = ritmo propio del juego.
 
 ## Pendiente
 
 - Validar `HH_FPS` en Windows.
-- Decidir si `PresentEarly` se activa por defecto (medir fps, latencia, audio/timing).
+- Validar el experimento (`HH_REFRESH_RATE=display` + `HH_PRESENT_EARLY=1`): fps, latencia, audio y
+  timing. Si va bien, **activar por defecto** (sería cambio visible → *bump* de versión).
 - (Opcional) overlay on-screen real → requeriría el Inspector/ImGui de RT64 (`developerMode`), hoy
   desactivado y con F1/F2/F3 en conflicto.

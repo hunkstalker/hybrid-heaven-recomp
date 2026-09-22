@@ -308,7 +308,9 @@ msaa   = 8x           ; off | 2x | 4x | 8x
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
   y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` la tasa real de
-  present (`[hh-fps] N fps | M display lists`) una vez por segundo.
+  present (`[hh-fps] N fps | M display lists`) una vez por segundo. Rendimiento (experimento):
+  `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=1` (ver
+  `notes/2026-09-22-fps-y-present-early.md`).
 
 ### Grabar y reproducir una partida (depuración determinista)
 
