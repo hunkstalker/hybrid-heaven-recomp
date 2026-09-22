@@ -620,6 +620,7 @@ struct Writer {
                             const int b_uly = static_cast<int>(map_panel_w0 & 0xFFF) + crop_q;
                             const int b_lrx = static_cast<int>((map_panel_w1 >> 12) & 0xFFF) - fbq - crop_q;
                             const int b_lry = static_cast<int>(map_panel_w1 & 0xFFF) - crop_q;
+                            const uint8_t panel_mode = static_cast<uint8_t>((map_panel_w1 >> 24) & 3);
                             static bool bg_traced = false;
                             if (!bg_traced) {
                                 bg_traced = true;
@@ -631,11 +632,16 @@ struct Writer {
                                         map_crop(),
                                         (b_ulx + fbq) >> 2, b_uly >> 2, (b_lrx + fbq) >> 2, b_lry >> 2);
                             }
-                            // Fondo y scissor comparten numeros y origenes: el rect "cubre" el
-                            // scissor (invRatioScale = 1, sin estiramiento) y encaja con el crop.
-                            trace_draw(id, "fill");
+                            // Se emite el scissor con las MISMAS coords y origenes que el propio rect
+                            // del fill: asi RT64 ve que el rect "cubre" el scissor -> invRatioScale = 1
+                            // (sin estirarlo por aspecto) y el negro llega justo al borde del panel. El
+                            // contenido ya se dibujo con el scissor del panel; despues se restaura.
+                            emit_scissor_q(panel_mode, G_EX_ORIGIN_RIGHT, G_EX_ORIGIN_RIGHT,
+                                           b_ulx, b_uly, b_lrx, b_lry);
                             emit_fill_rect_ext(G_EX_ORIGIN_RIGHT, G_EX_ORIGIN_RIGHT,
                                                b_ulx, b_uly, b_lrx, b_lry);
+                            anchored_scissor(kRight, map_panel_w0, map_panel_w1, map_crop_q());
+                            trace_draw(id, "fill");
                             ++applied;
                             break;
                         }
