@@ -2,42 +2,58 @@
 
 > Handoff para **sesión nueva**. **Última sesión: 2026-09-23.**
 
-## Estado
+## Tarea de ESTA sesión: spike de traducción — empezar por los textos del menú
 
-- **High frame rate por defecto (v0.4.0)**: `PresentEarly` + `Refresh Rate = Display` → el port
-  presenta al refresco del monitor (~109 fps validados con RTSS; la lógica sigue a 30 Hz). Revertir:
-  `HH_REFRESH_RATE=original` / `HH_PRESENT_EARLY=0`. `notes/2026-09-22-fps-y-present-early.md`.
-- **Atajos**: **F2** aspecto (widescreen/4:3), **F3** ventana, **F4** MSAA; **F1** = Inspector de
-  RT64 (solo con `HH_DEVELOPER=1`). Diagnóstico: `HH_FPS=1` (FPS a `hh.log`), `HH_GRAPHICS_API`.
-- **Publicado**: **v0.3.0** (widescreen HUD/minimapa, cursor, `rom/`, README). `lib/rt64` fork en
-  `hunkstalker/rt64` (`hybrid-heaven` = `a8f0a70`).
+Objetivo: probar que podemos **traducir en runtime** y ver cambiar textos del **menú** en pantalla
+(base del selector de idioma del ADR 0008). Sería la **primera traducción al español** del juego.
+
+Plan (detalle en `TODO.md` §Textos y `notes/archive/2026-09-11-proyecto-legacy.md` §4.5):
+1. **Charset** (encoding custom USA). Anclas: `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`,
+   `ITEM...WEAPON` @`0x06C33AF`, `WASHINGTON D.C.` @`0x061CD7A`. Zona `0x0530000-0x06D0000` (+ overlays
+   **262/264/303**). Paso: **volcar bytes alrededor de las anclas** y derivar la tabla byte→glifo
+   comparando con ASCII.
+2. **Text-emit**: localizar la rutina que dibuja un string (la que recibe esos punteros) y
+   **engancharla** (`[[patches.hook]]` o reimplementación ADR 0002) para sustituir el texto en runtime.
+3. **Prueba mínima**: traducir **un** texto de menú y verlo en pantalla (Windows).
+4. Si sale: variable `language` + persistencia + **cambio en vivo** desde el menú del Expansion Pak.
+
+**IMPORTANTE (permisos)**: hace falta **leer** la ROM del mantenedor
+(`build\windows\bin\Release\hh.us.z64`) — **solo lectura**; confirmar antes (regla: no tocar ROMs sin
+pedirlo). **No** modificar la ROM ni meterla en el repo. Herramientas nuevas en `tools/` (p. ej.
+`tools/text/`). Herramientas ya disponibles: `tools/lzkn64/lzkn64.py`, `tools/rommy.py`,
+`notes/us_manifest.yaml` (módulos; `expansionram` = idx 23).
+
+## Estado (ya cerrado)
+
+- **High frame rate por defecto (v0.4.0)**: `PresentEarly` + `Refresh Rate = Display` → presenta al
+  refresco del monitor (~109 fps validados con RTSS; lógica a 30 Hz). Revertir: `HH_REFRESH_RATE=original`
+  / `HH_PRESENT_EARLY=0`. `notes/2026-09-22-fps-y-present-early.md`.
+- **Atajos**: **F2** aspecto, **F3** ventana, **F4** MSAA; **F1** = Inspector de RT64 (con
+  `HH_DEVELOPER=1`). Diagnóstico: `HH_FPS=1`, `HH_GRAPHICS_API`.
+- **Publicado**: **v0.3.0**. `lib/rt64` en el fork `hunkstalker/rt64` (`hybrid-heaven` = `a8f0a70`).
 
 ## Pendiente inmediato (mantenedor)
 
-- **Publicar Release `v0.4.0`**:
+- **Push de 2 commits de docs** y **tag `v0.4.0`** tras CI verde:
   ```powershell
   git -C hybrid-heaven-recomp push origin main
   # esperar CI verde
   git -C hybrid-heaven-recomp tag -a v0.4.0 -m v0.4.0
   git -C hybrid-heaven-recomp push origin v0.4.0
   ```
-  `release.yml` usa `docs/releases/v0.4.0.md` (título + notas).
+  (`release.yml` usa `docs/releases/v0.4.0.md`.)
 
-## Qué toca ahora
+## Qué toca después
 
-Ver **`TODO.md`** §Ahora. Foco: **menú IN-GAME de opciones PC (ADR 0008)**, smoke de arranque,
-definir **ADR 0009**. Backlog: textos/traducción, barra HP y elementos `right`/`stretch` del HUD
-(POWER/STAMINA ya validados), Steam Deck, `osAiGetStatus`, mejoras de interpolación, etc.
+Ver **`TODO.md`** §Ahora: menú IN-GAME de opciones PC (ADR 0008, donde vivirá el selector de idioma),
+smoke de arranque, ADR 0009. Backlog: textos/traducción, barra HP + `right`/`stretch` del HUD, etc.
 
 ## Método
 
-- **Mapa / HUD**: solo se valida en Windows; Linux headless solo para compilar
-  (`cmake --build build/linux -j`). Trazas a `hh.log` junto al exe (`HH_HUD_*`, `HH_RECT_TRACE=1`).
-  Ajuste en caliente: `+`/`-` (crop del panel/scissor del mapa). **No** retomar el quad del fondo.
-- **Rendimiento**: medir con `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1` + **F1** (o RTSS).
-  Con dev-mode, RT64 consume F1-F4 (el F2/F3/F4 del port no actúa).
-- Envs: `HH_REFRESH_RATE`, `HH_PRESENT_EARLY`, `HH_GRAPHICS_API`, `HH_RES`, `HH_FULL_FRAME=0`,
-  `HH_NO_HUD_REWRITE=1`.
+- **Mapa/HUD**: solo se valida en Windows; Linux headless solo para compilar
+  (`cmake --build build/linux -j`). Trazas a `hh.log` (`HH_HUD_*`, `HH_RECT_TRACE=1`).
+- **Rendimiento**: medir con `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1` + F1 (o RTSS).
+- **Regla ROM**: no tocar ROMs/`work/*.so` sin permiso explícito.
 
 ## Build Windows
 
@@ -49,7 +65,8 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Git
 
-- **`main`**: versión `0.4.0`; pendiente de push (high frame rate + atajos + diagnósticos).
-- **`lib/rt64`** (fork `hunkstalker/rt64`): `hybrid-heaven` = `a8f0a70`.
+- **`main`**: `origin/main` = `c977bd5` (v0.4.0 versionada); **este handoff y los docs recientes**
+  sin push (haz `git log origin/main..HEAD` para verlos).
+- **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70`.
 - **`N64ModernRuntime` / `N64Recomp`**: en sync.
-- Tags: `v0.1.x`, `v0.2.0`, `v0.3.0` (publicados); **`v0.4.0` pendiente de tag**.
+- Tags publicados: `v0.1.x`, `v0.2.0`, `v0.3.0`. **`v0.4.0` pendiente de tag.**
