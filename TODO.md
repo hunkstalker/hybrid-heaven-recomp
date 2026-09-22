@@ -14,15 +14,12 @@
 
 ## Backlog (priorizado)
 
-- [ ] **Publicar fork de RT64** y apuntar `lib/rt64` a él (`.gitmodules` + remoto): hoy apunta a
-  upstream `rt64/rt64`, así que el commit de parches `a8f0a70` no se puede subir. Ver nota
-  `notes/2026-09-22-cursor-release-rom-readme.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
-  `left` ya estaban. Commits `cleanup(hud)`+`fix(map)`+`docs` (pendiente push). **Detalle**:
+  `left` ya estaban. Commits `cleanup(hud)`+`fix(map)`+`docs` (ya en `origin/main`). **Detalle**:
   `notes/2026-09-22-fix-mapa-rect-negro-widescreen.md` ·
-  `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`. **Commit pendiente** (a petición).
+  `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`.
 - [ ] **Widescreen: anclaje del HUD/mapa a los bordes (fase 07b, cosmético)**: **radar anclado a la
   izquierda** (2026-09-21; `src/hooks/hud_rewrite.cpp` + `HH_HUD_TRACE`; validado en Linux headless
   por centroide: OFF x=287 → ON x=125, y=const). **Mapa validado 2026-09-22** (ver arriba).
@@ -55,6 +52,10 @@
 - [x] **Cursor, release `rom/` y README (2026-09-22)**: cursor oculto sobre la ventana (validado en
   Windows); los artefactos de release incluyen `rom/PON_AQUI_LA_ROM.txt`; README con características
   y punto de control de estado. `notes/2026-09-22-cursor-release-rom-readme.md`.
+- [x] **Fork de RT64 publicado (2026-09-22)**: `hunkstalker/rt64` (rama `hybrid-heaven` = `a8f0a70`);
+  `.gitmodules` y el submódulo `lib/rt64` apuntan al fork. `main` y forks pusheados.
+- [x] **Versión `0.3.0` (2026-09-22)**: bump MINOR por las features (widescreen HUD/mapa, cursor,
+  release `rom/`). **Release pendiente de tag** (ver `RETOMAR.md`).
 - [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
   borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
   borderless**; atajos **F3** (ventana), **F1** (aspecto), **F2** (MSAA). **Widescreen** con *snap*

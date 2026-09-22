@@ -111,4 +111,5 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 ## 8. Próximos pasos
 
 Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-22): menú IN-GAME, smoke de arranque,
-ADR 0009; **commit del fix del mapa pendiente** (validado, a petición). Visión: `docs/README.md`.
+ADR 0009. Pendiente inmediato: **publicar Release `v0.3.0`** (tag; ver `RETOMAR.md`). Visión:
+`docs/README.md`.
