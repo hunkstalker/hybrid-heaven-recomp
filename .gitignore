@@ -17,9 +17,11 @@ assets/HybridHeaven.png
 assets/icon_bmp.inc
 notes/reference/screenshots/
 
-# Capturas/replays de test (imagenes del juego)
+# Capturas de test (imagenes del juego)
 muestra-menu-hybrid-heaven.png
-tests/
+# tests/ ignorado salvo los replays de input (texto: tiempos+botones, sin datos del juego)
+tests/*
+!tests/replays/
 
 # Datos extraidos de la ROM (tablas, textos, simbolos)
 notes/us_manifest.yaml

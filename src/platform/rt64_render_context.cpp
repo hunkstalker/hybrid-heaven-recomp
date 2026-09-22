@@ -20,6 +20,7 @@
 
 #include "hh_render.h"
 #include "hh.h"
+#include "hh/hudrewrite.h"
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
@@ -272,10 +273,17 @@ void hh::RT64Context::send_dl(const OSTask* task) {
     hh::log("RT64: send_dl ucode=0x%x data_ptr=0x%x\n", task->t.ucode, task->t.data_ptr);
     // Widescreen: reescribe el scissor de overscan a full-frame antes de que RT64 procese la lista.
     hh::snap_overscan(app->core.RDRAM, task->t.data_ptr);
+    // Widescreen: trace temporal de identidades 2D (HH_HUD_TRACE=1).
+    hh::hud_trace(app->core.RDRAM, task->t.data_ptr);
+    // Widescreen: anclaje del HUD. Si hay elementos clasificados, envia la copia reescrita.
+    uint32_t data_ptr = task->t.data_ptr;
+    if (const uint32_t rewritten = hh::hudrewrite::rewrite(app->core.RDRAM, data_ptr)) {
+        data_ptr = rewritten;
+    }
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
-    app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
-    last_dl_address = task->t.data_ptr;
+    app->processDisplayLists(app->core.RDRAM, data_ptr & 0x3FFFFFF, 0, true);
+    last_dl_address = data_ptr;
 }
 
 void hh::RT64Context::send_dummy_workload(uint32_t fb_address) {

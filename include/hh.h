@@ -90,6 +90,10 @@ namespace hh {
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();
     void snap_overscan(uint8_t* rdram, uint32_t list_address);
+
+    // Widescreen: trace temporal de identidades 2D (HH_HUD_TRACE=1); ver RETOMAR.md §3.1.
+    bool hud_trace_enabled();
+    void hud_trace(uint8_t* rdram, uint32_t list_address);
 }
 
 // Defined in RecompiledFuncs/lookup.cpp (C++ linkage).

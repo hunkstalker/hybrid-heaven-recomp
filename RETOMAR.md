@@ -1,198 +1,207 @@
-# RETOMAR — anclaje del HUD (widescreen, fase 07b)
+# RETOMAR — fondo negro del mapa alineado con el contenido (widescreen, fase 07b)
 
-> Handoff para una **sesión nueva** que coja el testigo. **Última sesión: 2026-09-21.**
-> **Tarea de esta etapa: anclar el HUD/mapa a los bordes** con el widescreen activo (el 3D ya llena la
-> ventana; el HUD/mapa se queda en la zona 4:3). Es **cosmético** y **opcional**; el widescreen por
-> defecto ya funciona sin él.
+> Handoff para **sesión nueva**. **Última sesión: 2026-09-22 (tarde).** Tarea: que el **fondo negro del
+> mapa** (el `G_FILLRECT` del juego) cuadre con el **contenido** (mapa verde + flecha roja) bajo
+> widescreen. El contenido se ancla y se recorta bien; el fondo (rect) quedaba desplazado respecto a él
+> (~1 px en bordes, ~2 px en esquinas).
 >
-> **Estado del repo**: `main` pusheado a `c94dce9` (3 commits: Release GUI sin consola, versión como
-> fuente única `0.2.0`, accesos directos build/run por config). El **mantenedor está creando el
-> Release `v0.2.0`** desde GitHub (el CI debe pasar antes). Sin cambios locales salvo `lib/rt64` en
-> `m` (dirty preexistente). Nada pendiente de commitear.
->
-> **Lee primero**: este fichero; `docs/BUILDING_windows.md` §“[video]” (widescreen y `HH_FULL_FRAME`);
-> `TODO.md` (backlog). El histórico per-file/ELF está en `notes/` (no hace falta para esta tarea).
+> **ESTADO**: el **fondo vuelve a ser rect** (se **abandonó** la vía del quad; ver §2). Los **parches de
+> RT64 están APLICADOS** en `lib/rt64` (modificación local, ver §5) y **completados los bugs del quad**
+> (por si se retoma). **Falta el ajuste fino de ancho/posición del fondo**, que se hace EN CALIENTE en
+> Windows (ver §6) y luego se fija en el código. La tarea sigue **abierta**.
+
+> **MÉTODO (lección de esta sesión)**: el mapa **solo se dibuja en Windows**. **NO** intentar
+> reproducirlo en Linux headless: el port no llega a la escena del mapa con los replays actuales (se
+> queda en la pantalla de carga). Cada minuto intentándolo ha sido un desperdicio. El dato debe salir
+> de una **sesión del mantenedor en Windows**. No recompilar solo para `HH_HUD_DRAWS_TRACE` en consola:
+> la build **Release es GUI** y no imprime; las trazas ahora van a **`hh.log`** (junto al exe) — ver §6.
+
+> **Lee primero**: este fichero; `notes/2026-09-21-anclaje-hud-widescreen-radar.md` (contexto previo);
+> `docs/BUILDING_windows.md` §“[video]”; `TODO.md`.
 
 ---
 
-## 0. OBJETIVO
+## 0. QUÉ ESTÁ HECHO Y QUÉ FALTA
 
-Con widescreen (`[video] aspect = auto|expand`, **default**) la escena 3D **llena la ventana**, pero
-el **HUD/mapa** (radar arriba-izquierda, barras POWER/STAMINA/HP, cajas de diálogo) siguen dibujándose
-en la zona 4:3 centrada — **no se desmontan**, solo no se re-anclan. Meta: que el radar (y los
-elementos que corresponda) se **anclen al borde** correspondiente (izquierda/derecha), como en el port
-de referencia.
+### Hecho y validado en Windows (sesiones previas)
+- **Radar** (`left`) y **HUD de combate POWER/STAMINA** (`left`): anclados, no se tocan.
+- **Mapa**: el **contenido** (mapa verde + flecha roja) se ancla a la derecha y se recorta con el
+  **scissor del panel** (`197,143..277,223`), recortado `kMapCrop` px por lado. Funciona.
+- **Recorte en caliente**: `+`/`-` (numérico o `=`/`-`) ajustan `kMapCrop`. Traza: `[hh] recorte del
+  mapa = N px`. Se conserva.
+- **F11** cierra la aplicación.
 
-## 1. CAUSA (por qué pasa)
+### Hecho esta sesión (2026-09-22 tarde)
+- **Bugs reales del quad, encontrados y corregidos** (en `src/hooks/hud_rewrite.cpp`):
+  - **Opcode del triángulo**: estaba `G_TRI1 = 0xBF` (eso es **F3D**); el juego es **F3DEX2**
+    (`docs/architecture.md`: «microcode F3DEX2 fifo 2.06»), donde `F3DEX2_G_TRI1 = 0x05`
+    (`lib/rt64/src/gbi/rt64_gbi_f3dex2.h:43`). Con `0xBF`, RT64 **descarta el opcode en silencio**
+    (`rt64_interpreter.cpp`: `if (func == nullptr) RT64_LOG_PRINTF("unknown opCode")`). **Era la razón
+    principal de que el quad nunca se viera.**
+  - **Tercer índice** del `G_TRI1`: iba en `<<25` (bit 26 = ya está en el opcode) en vez de `<<1`
+    (campo real `p0(1,7)` que lee `tri1()`). Dejaba un triángulo degenerado.
+  - **`extendRDRAM`**: la dirección de vértices `0x80000000|phys` exige emitir
+    `gEXSetRDRAMExtended(1)` antes del `G_VTX` y `(0)` después (`RSP::maskPhysicalAddress` solo limpia
+    el bit si `extended.extendRDRAM`, que **no** es el estado por defecto). Sin esto → `phys=0` (basura).
+  - **Ciclo RDP**: el fill viene en `G_CYC_FILL`; un triángulo bajo FILL lo desvía RT64 a `FillRect`
+    (clear, usa `callDesc.rect` vacío). Se fuerza `G_CYC_1CYCLE` alrededor del quad y se restaura.
+  - **Culling**: con `G_CULL_*` activo RT64 descarta caras frontales; se apaga y se restaura.
+  - Verificado con instrumentación temporal de RT64 (revertida): vértices cargados OK, draw procesado.
 
-El juego dibuja la escena dentro de un `G_SETSCISSOR` de *overscan* 4:3 y el HUD bajo una proyección
-**ortográfica** de 320×240. RT64, en `aspect = Expand`, ensancha el 3D pero **no** re-ancla la 2D: no
-hay opción de configuración para eso. Hay que **insertar GBI extendido de RT64** alrededor de cada
-elemento 2D clasificado.
-
-**Ya hecho** (`src/hooks/dl_snap.cpp`, adaptado de la referencia `src/dlcensus.cpp` Phase 07):
-recorremos cada display list enviada y **reescribimos in-place** el scissor de overscan
-(`16,8..304,232` → `0,0..320,240`; `32,16..608,464` → `0,0..640,480`, conservando bits de modo). Eso
-hace que el 3D llene. **Falta**: el anclaje del HUD (esto es lo que hay que hacer ahora).
-`HH_FULL_FRAME=0` desactiva todo el widescreen (A/B).
-
-## 2. CÓMO LO RESUELVE LA REFERENCIA (Phase 07, MIT)
-
-Repo de referencia: **`danielgomesvieira2000/hybrid-heaven-recomp`** (MIT; ver `CREDITS.md` y
-`licenses/hybrid-heaven-recomp-MIT.txt`). Ficheros clave (para consultar/re-clonar; el clon temporal
-de la sesión anterior estaba en `/tmp/opencode/ref-hh`, **puede no existir ya**):
-
-| Fichero (referencia) | Qué aporta |
-|---|---|
-| `docs/findings/phase-07.md` | **La crónica completa** (corridas, errores y hallazgos). Leer entero. |
-| `src/hudrewrite.cpp` (~398 líneas) | El reescritor: copia la lista a RDRAM scratch e inserta GBI extendido. |
-| `src/dlcensus.cpp` (~520) | Censo/identidades de los elementos 2D + el *snap* de overscan (`HH_FULL_FRAME`). |
-| `include/hh/hudid.h` (~69) | Identidades con hash (clave para no sobre-emparejar entre escenas). |
-| `include/hh/hudrewrite.h` | Contrato (`rewrite(rdram, list_address)` → dirección del copy, o 0). |
-| `include/hh/inspector.h` | Clases del inspector F1 (`kLeft`/`kRight`/`kStretch`/`kSpill`/`kAuto`). |
-
-### Mecanismo (resumen fiel)
-
-`rewrite(rdram, list_address)`:
-1. Si no hay ninguna clase asignada → devuelve 0 (se envía la lista del juego tal cual).
-2. Elige uno de **dos buffers scratch** en RDRAM (en la referencia `0x807A0000` / `0x807C8000`,
-   0x28000 bytes cada uno; se **alternan por frame**), y **copia la lista** ahí recorriéndola y:
-   - emite `gEXEnable` al **principio de cada lista** (RT64 olvida el GBI extendido al terminar cada
-     lista) y **tras cada llamada**;
-   - **calls** (`G_DL` push): copia el destino y salta por encima (placeholder reescrito a branch
-     no-push); **branches** (`G_DL` no-push): sigue el destino *inline* (¡el dial del radar se alcanza
-     así!);
-   - **rects** (`G_TEXRECT`/`G_TEXRECTFLIP` con su `RDPHALF`, y `G_FILLRECT`): envuelve con
-     `rect_begin(cls)`/`rect_end(cls)`;
-   - **grupos de triángulos** (listas llamadas): `group_begin(cls)`/`group_end(cls)`;
-   - mantiene estado: segmentos (`G_MOVEWORD` idx 6 → **F3DEX2: índice en bits 16-23**), `fb_width`
-     (`G_SETCIMG`: 320/640), imagen (`G_SETTIMG`), color de relleno (`G_SETFILLCOLOR`), viewport
-     (`G_MOVEMEM` idx 8), proyección (`G_MTX` idx 4).
-3. Si **desborda** o la lista no termina en `G_ENDDL` → devuelve 0 (envía la original; log de aviso).
-4. Devuelve la dirección KSEG0 (`0x80000000 | (base + start)`) y el frontend **envía esa** en vez de
-   la del juego.
-
-### Emisión de GBI extendido según clase
-
-- **left**: `widen_scissor()` + `gEXSetRectAlign(cmd, LEFT, LEFT, 0,0,0,0)` (rects) /
-  `gEXSetViewportAlign(cmd, LEFT, offset, 0)` + reemitir el viewport (grupos de triángulos).
-- **right**: igual con `RIGHT` y `off = origin_cancel(G_EX_ORIGIN_RIGHT)` (compensa el
-  desplazamiento que RT64 aplica a la coordenada anclada: `off = -(origin*fb_width*4)/G_EX_ORIGIN_RIGHT`).
-- **stretch**: `gEXSetRectAspect(cmd, G_EX_ASPECT_STRETCH)` (rects) / grupo de proyección con
-  `gEXMatrixGroup(..., G_EX_ASPECT_STRETCH)` + reemitir la proyección (triángulos).
-- **spill**: solo `widen_scissor()`.
-- Al cerrar: reverso (`G_EX_ORIGIN_NONE` / `G_EX_ASPECT_AUTO`, y restaurar scissor/viewport).
-- `widen_scissor()`: `gEXSetScissor(cmd, mode, G_EX_ORIGIN_LEFT, G_EX_ORIGIN_RIGHT, ulx, uly, lrx-fb_width, lry)`.
-
-GBI extendido disponible: **`lib/rt64/include/rt64_extended_gbi.h`** (definir `#define F3DEX_GBI_2`
-antes de incluirlo). Macros/constantes usadas:
-`gEXEnable(cmd)`, `gEXSetScissor(cmd,mode,lorigin,rorigin,ulx,uly,lrx,lry)`,
-`gEXSetRectAlign(cmd,lorigin,rorigin,ulxOff,ulyOff,lrxOff,lryOff)`,
-`gEXSetViewportAlign(cmd,origin,xOff,yOff)`, `gEXSetRectAspect(cmd,aspect)`,
-`gEXMatrixGroup(cmd,id,mode,push,proj,pos,rot,scale,skew,persp,vert,tile,order,edit,aspect,tc,lookat)`;
-`G_EX_ORIGIN_{NONE,LEFT,CENTER,RIGHT}`, `G_EX_ASPECT_{AUTO,STRETCH,ADJUST}`, `G_EX_ID_AUTO`,
-`G_EX_INTERPOLATE_SIMPLE`. Cada `gEX*` ocupa **2 commands Gfx (16 bytes)** → `reserve(2)`.
-
-### Identidades de los elementos HH (de la referencia, `HH_HUD_ELEMENTS_LOG=1`)
-
-Formato (ver `hudid.h`): `tex:<addr>#<hash 64B>`, `dl:<addr>#<hash 16 cmds>`,
-`fill:<color>@ulx,uly,lrx,lry`; **los fills a pantalla completa son *clears* y no tienen identidad**.
-
-Promocionados en la referencia:
-- **left**: `tex:0x802866f8#a3036828`, `tex:0x80286af8#dfde6ac5` (radar, dos capas de textura,
-  rects 27,19..59,51) y `dl:0x80181860#e59a0172` (dial del radar, 12..72 × 5..65, alcanzado por
-  **branch**).
-- **right**: `dl:0x03000f10#1427da33`, `dl:0x030002e0#bbb8c0ba`, `fill:0x00000000@197,143,277,223`.
-
-> **IMPORTANTE**: los hashes son de la build de la referencia. Como es la **misma ROM**, el
-> *contenido* debería coincidir, pero **hay que re-derivarlos con nuestra build** (los `#hash`
-> dependen del contenido, no de direcciones; las direcciones de heap pueden variar). Necesitamos un
-> **trace** propio (equivalente a `HH_HUD_ELEMENTS_LOG`) para listar identidades una vez y fijarlas.
+### Pendiente (esta tarea)
+- **Ajustar ancho y posición del fondo negro** para que cuadre con el mapa verde. Se hace **en
+  caliente** (§6) y luego se fija el valor en el código.
+- **Descartada** la vía del quad (fondo como `G_TRI1`): ver §2 («por qué»). El fondo es **rect**.
 
 ---
 
-## 3. QUÉ HAY QUE HACER (plan)
+## 1. CÓMO FUNCIONA (reescritor)
 
-1. **Re-derivar identidades**: añadir un trace temporal (p. ej. `HH_HUD_TRACE=1`) que, recorriendo las
-   listas como ya hace `dl_snap.cpp`, imprima `tex:`/`dl:`/`fill:` (con el mismo hash de `hudid.h`)
-   **una vez por identidad**, con su extensión en 320×240. Correr en exploración (radar visible) y
-   apuntar las identidades reales.
-2. **Clasificar**: por ahora **no** hay inspector F1. Empezar con una **tabla fija** (las identidades
-   del punto 1) → `left` (radar); valorar `right` (los 3 de la referencia) y `stretch`. Empezar por
-   **el radar a la izquierda** y validar antes de añadir más.
-3. **Reescribir la lista**: nuevo módulo `src/hooks/hud_rewrite.cpp` (o extender `dl_snap.cpp`)
-   implementando el `copy_list` + emisión del §2. Enganchar en el mismo sitio que el snap:
-   `src/platform/rt64_render_context.cpp:274` (`send_dl`, `hh::snap_overscan(app->core.RDRAM, task->t.data_ptr)`);
-   tras el snap, calcular `nueva = hh::hud_rewrite(rdram, data_ptr)` y usar `nueva` si ≠ 0.
-   Añadir el fichero a `CMakeLists.txt`.
-4. **Elegir RDRAM scratch segura** (ver §4).
-5. **Validar** visualmente (ver §5).
+`src/hooks/hud_rewrite.cpp` recorre cada lista enviada, la copia a un scratch de RDRAM
+(`0x7A0000`/`0x7C8000`, alternos) e envuelve cada elemento 2D **clasificado** con GBI extendido de
+RT64. Identidades con hash (`include/hh/hudid.h`). Tabla fija en `class_of()`. Enganche en `send_dl`
+(`src/platform/rt64_render_context.cpp`).
 
-## 4. SCRATCH RDRAM — ¡verificar en NUESTRA build!
+- **Panel único del mapa**: se fija **una vez** por frame del primer elemento `right` cuyo scissor NO
+  cubra todo el ancho (el del contenido), y se reutiliza para todo lo `right`. Estados en `panel_done`
+  (0 = sin fijar, 1 = por scissor, 2 = por rect/fill como fallback).
+- `anchored_scissor(kRight, map_panel_w0, map_panel_w1, crop)` emite el scissor recortado del panel.
+- **Fondo del mapa** (`case kFillRect`, `cls == kRight`): se emite **tal cual** el `G_FILLRECT` del
+  juego, con `rect_begin/rect_end` que aplican `gEXSetRectAlign(G_EX_ORIGIN_NONE, G_EX_ORIGIN_RIGHT,
+  leftOffset=0, topOffset=0, rightOffset=bg_shift, bottomOffset=-bg_crop)` (ver §6).
+- El **panel canónico** (`map_panel_w0/w1`) se captura del scissor del contenido y se usa para recortar
+  tanto el fondo como el contenido (mismo `anchored_scissor`).
 
-La referencia eligió `0x807A0000`/`0x807C8000` porque en **su** layout el fichero 3 termina en
-`0x80796000` y la lista de comandos de audio vive en `0x807F0000`. **Nuestro build debe confirmarse**
-(misma ROM ⇒ probablemente igual, pero comprobar): que la región elegida **no** la usa el juego ni el
-runtime. Pistas: el port no reserva ahí (no hay constantes `0x806/0x807` en `src/`); el `trans_cache`
-y el replay usan memoria host. Método seguro: dump de RDRAM + observar que la región no cambia de
-forma viva, o buscar las reservas del `.text`/heap en la config de recompilación (`recomp/`).
-Dos buffers **alternos por frame** (el frame anterior puede seguir en vuelo).
+**Gotchas**:
+- El dial del radar va por **`G_DL` branch**; F3DEX2 `G_MOVEWORD` idx 6 con índice en bits 16-23; los
+  fills a pantalla completa son *clears* (sin identidad); `gEXEnable` al inicio de cada lista.
+- El fondo se dibuja **después** del contenido y su viewport vigente es otro (el del último elemento).
 
-## 5. VALIDACIÓN
+---
 
-- Con `aspect=auto|expand` (default) y widescreen ON: el **radar queda pegado al borde izquierdo** de
-  la ventana (antes: en la zona 4:3). Barras/diálogos según se clasifiquen.
-- **A/B** con un interruptor (p. ej. `HH_NO_HUD_REWRITE=1`): con él, el radar vuelve a la zona 4:3.
-- **No romper otras escenas** (regresión conocida de la referencia: al promover tags por dirección,
-  la intro del **Expansion Pak** quedaba sin limpiar a la izquierda). Con identidades **hasheadas** no
-  dispara. Comprobar explícitamente: intro/Expansion Pak, título, exploración, combate.
-- En `hh.log`/stderr dejar trazas de “N elementos clasificados dibujados” (como la referencia).
+## 2. DIAGNÓSTICO (por qué rect y contenido se desfasan) y POR QUÉ SE DESCARTA EL QUAD
 
-## 6. GOTCHAS (aprendidos en la referencia)
+RT64 trata el mismo scissor por **dos caminos**:
+- **Rects** (fill/texrect) → `convertFixedRect` (`coord - (coord % resScale)`, truncado) y, si "cubre
+  el ancho del scissor", `invRatioScale=1` y `horizontalMisalignment=0`.
+- **Triángulos 2D** (`Projection::Type::Orthographic`, el contenido del mapa) → `convertViewportRect`
+  (`coord - fmod(...)`) y **sí** recibe `horizontalMisalignment`.
+- Archivo: `lib/rt64/src/render/rt64_framebuffer_renderer.cpp` (~1547 rects, ~1627-1680 triángulos).
 
-- El **dial del radar** se alcanza por `G_DL` **branch** (no call) → hay que envolver el branch.
-- **F3DEX2** `G_MOVEWORD` idx 6: el **índice va en bits 16-23** y el offset (segmento×4) en los 16
-  bajos (Fast3D lo decodifica mal; ya lo hacemos bien en `dl_snap.cpp`).
-- `fb_width` cambia (320/640) vía `G_SETCIMG` (`0x00400000` ⇒ 640); las extensiones se miden en
-  **320×240** (halvar en hi-res).
-- Los **fills a pantalla completa son *clears*** → sin identidad (si se clasifican, manchan otras
-  escenas).
-- Identidades **por contenido (hash)**, no por dirección/color.
-- `gEXEnable` al inicio de **cada** lista y tras **cada** call (RT64 resetea el GBI extendido).
-- Si el copy **desborda** o no acaba en `G_ENDDL` → **enviar la lista original** (nunca a medias).
-- Con el snap global ya activo, el `widen_scissor` por elemento puede ser redundante; decidir si el
-  reescritor sustituye al snap o convive con él.
+### Por qué se descartó pintar el fondo como quad (¡IMPORTANTE para no repetirlo!)
+**El contenido del mapa NO es 2D en píxeles**: son **triángulos en espacio de mapa** (coords del orden
+de `-1030..1027` en x, `-713..800` en y, z variable) transformados por un **modelview × proyección por
+elemento** (el mvp cambia entre `G_VTX` consecutivos; lo verificamos con instrumentación de RT64). El
+rect del juego, en cambio, es un `G_FILLRECT` **en píxeles de pantalla** que ignora matrices. Por eso:
+- Un quad en **píxeles del panel** con la modelview vigente cae **fuera** de pantalla (posScreen ≈
+  `(24..84, -71..1)`).
+- Un quad en **espacio de mapa** hereda la matriz del **último** elemento del mapa y **gira con el
+  mapa** (el mantenedor lo observó en Windows: «una línea negra que gira»). **Ese es el fallo**: metido
+  en el mismo grupo/transformación que los quads del mapa, gira igual.
+- **Conclusión**: el fondo NO puede compartir la transformación del contenido (no es única). La vía
+  correcta es **rect + parches de RT64**.
 
-## 7. FICHEROS NUESTROS
+El mantenedor lo explicó claro: lo verde son **figuras geométricas que representan el mapa**
+(habitaciones) y la **flecha roja** la posición del jugador; es el mapa del juego, no un plano 2D.
 
-- `src/hooks/dl_snap.cpp` — snap de overscan (base a reutilizar: `Walker`, `physical()`, `dl_word()`,
-  decodificación de `G_SETSCISSOR`/`G_DL`/`G_MOVEWORD`).
-- `src/platform/rt64_render_context.cpp:271-274` — `send_dl` (punto de enganche; llama `snap_overscan`).
-- `include/hh.h:76-92` — `VideoConfig`/`video_config()`/`full_frame_enabled()`/`snap_overscan()`.
-- `lib/rt64/include/rt64_extended_gbi.h` — GBI extendido.
-- `docs/BUILDING_windows.md` §“[video]” — widescreen y `HH_FULL_FRAME`.
-- `TODO.md` (backlog: “Widescreen: anclaje del HUD/mapa…”).
+---
 
-## 8. ENVS / INTERRUPTORES
+## 3. PARCHES RT64 (APLICADOS en `lib/rt64`)
 
-- `HH_FULL_FRAME=0` — desactiva el widescreen (snap de scissor). Default ON.
-- (a añadir) `HH_NO_HUD_REWRITE=1` — desactiva solo el anclaje del HUD (A/B).
-- (a añadir) `HH_HUD_TRACE=1` — lista identidades 2D una vez (para re-derivar).
+Los tres scripts están en `tools/`; **los dos primeros están aplicados** (modificación local del
+submódulo, sin commit; ver §5). Son idempotentes y reversibles (`--check` / `--revert`):
+
+1. **`tools/patch_rt64_misalignment.py`** — RT64 **issue #82**: `correctMisalignment` redondeaba
+   siempre hacia abajo; con `G_EX_ORIGIN_RIGHT` debe redondear hacia arriba (afecta a
+   `convertFixedRect` y `convertViewportRect`). **APLICADO.**
+2. **`tools/patch_rt64_2d_misalignment.py`** — los triángulos ortográficos 2D **no** recibían
+   `horizontalMisalignment` (solo los rects). El parche se lo aplica. **APLICADO.**
+3. **`tools/patch_rt64_scissor_quant.py`** — cuantiza el scissor de triángulos (`fmod`) igual que el de
+   rects (truncado). **NO aplicado**; probar **solo si tras 1+2 sigue habiendo desfase**.
+
+Estado de parches: `python3 tools/patch_rt64_misalignment.py --check` y
+`python3 tools/patch_rt64_2d_misalignment.py --check` → «aplicado».
+
+---
+
+## 4. ESTADO DEL CÓDIGO DEL QUAD (conservado por si se retoma)
+
+El código del quad **se eliminó** de `hud_rewrite.cpp` en la limpieza final (estaba inactivo y hacía
+ruido). Si se retoma, los hallazgos están en §0 y §2; el punto delicado es la **transformación por
+elemento** del contenido (§2), no los bugs (ya resueltos y documentados arriba).
+
+---
+
+## 5. GIT / SUBMÓDULO RT64
+
+- `lib/rt64` tiene **solo** `src/render/rt64_framebuffer_renderer.cpp` modificado (parches 1+2). No
+  está commiteado. `git -C lib/rt64 diff` lo muestra.
+- El build de Windows usa `lib/rt64` local (`SKIP_LIBS=1`), así que **los parches entran sin commit**.
+- Al cerrar la tarea: commitear los parches en el fork de RT64 (o dejar documentado el procedimiento)
+  según la política de commits. Alternativa oficial: proponer el fix upstream (issue #82).
+
+---
+
+## 6. AJUSTE DEL FONDO EN CALIENTE (lo que toca AHORA)
+
+El fondo ya es rect y la build está lista. **El mantenedor ajusta en Windows en vivo** hasta que el
+negro cuadre con el verde, y luego se fija el valor en el código.
+
+Controles (sin recompilar):
+- **`[` / `]`** → recorte del fondo por lado (`HH_MAP_BG_CROP`, reduce ancho/alto).
+- **`;` / `'`** → desplazamiento horizontal (`HH_MAP_BG_SHIFT`, `+` = derecha).
+- `+`/`-` → recorte del panel/scissor (`HH_MAP_CROP`), como antes.
+
+Trazas (van a **`hh.log`** junto al exe, ya no a stderr — la Release es GUI):
+- `[hh-bg] fill=A,B..C,D panel=… crop=… bg_crop=… bg_shift=…` (una vez): el rect del juego, el panel
+  canónico y los ajustes actuales.
+- `[hh-draw] …` (identidad, viewport, scissor), `[hh-scissor] …` (scissors únicos), `[hh-map] …`.
+  Se activan con `HH_HUD_DRAWS_TRACE=1` / `HH_HUD_SCISSOR_TRACE=1` (a `hh.log`).
+
+**Dato que necesito del mantenedor**: el `hh.log` tras abrir el mapa con **B**, o directamente el valor
+de `[`/`]`/`;`/`'` que dejó el negro cuadrado. Con eso se fija el valor por defecto y se cierra.
+
+---
+
+## 7. CÓMO COMPILAR / EJECUTAR EN WINDOWS
+
+```
+rmdir /s /q hybrid-heaven-recomp\build\windows
+hybrid-heaven-recomp\build_windows_release.bat
+hybrid-heaven-recomp\run_windows_release.bat
+```
+- **Gotcha MSBuild**: si un cambio no se ve, borrar `build\windows` (§ arriba) — `RETOMAR` clásico.
+- No hace falta `regenerate.py` (el C recompilado no cambia).
+- `hh.log` queda junto al exe:
+  `hybrid-heaven-recomp\build\windows\bin\Release\hh.log`.
+- Abrir el mapa con **B** (en gameplay/exploración).
+
+---
+
+## 8. FICHEROS
+
+- **Nuevos**: `include/hh/hudid.h`, `include/hh/hudrewrite.h`, `src/hooks/hud_rewrite.cpp`,
+  `tools/patch_rt64_misalignment.py`, `tools/patch_rt64_2d_misalignment.py`,
+  `tools/patch_rt64_scissor_quant.py`, `record_input.bat`, `tests/replays/*`.
+- **Modificados**: `src/hooks/dl_snap.cpp` (`hud_trace`, ahora a `hh.log`),
+  `src/platform/rt64_render_context.cpp` (`send_dl`), `src/subsystems/input.cpp` (`+`/`-`,
+  **`[`/`]`/`;`/`'`**, F11), `include/hh.h`, `CMakeLists.txt`, `docs/BUILDING_windows.md`, `TODO.md`,
+  `.gitignore`, `RETOMAR.md`. `lib/rt64/src/render/rt64_framebuffer_renderer.cpp` (parches 1+2).
+
+## 9. ENVS / INTERRUPTORES
+
+- `HH_FULL_FRAME=0` — desactiva el widescreen (snap). Default ON.
+- `HH_NO_HUD_REWRITE=1` — desactiva el anclaje del HUD (A/B). Útil para comparar.
+- `HH_MAP_CROP=<px>` — recorte del panel/scissor (o `+`/`-`). Default `kMapCrop` (1).
+- `HH_MAP_BG_CROP=<px>` — recorte del fondo negro (o `[`/`]`). Default 0.
+- `HH_MAP_BG_SHIFT=<px>` — desplazamiento horizontal del fondo (o `;`/`'`). Default 0.
+- `HH_HUD_DRAWS_TRACE=1` / `HH_HUD_SCISSOR_TRACE=1` / `HH_HUD_REWRITE_TRACE=1` — trazas (a `hh.log`).
 - `config.ini [video] aspect` — `auto`/`expand` (widescreen), `original` (4:3).
 
-## 9. PRIMEROS PASOS DE LA SESIÓN NUEVA
+## 10. PRIMEROS PASOS (sesión nueva)
 
-1. Leer `docs/findings/phase-07.md` de la referencia (re-clonar el repo si hace falta:
-   `https://github.com/danielgomesvieira2000/hybrid-heaven-recomp`).
-2. Re-derivar identidades (§3.1) en un run de exploración; confirmar radar (rects 27,19..59,51).
-3. Implementar el copy+emisión (§3.3) empezando **solo por el radar** → `left`.
-4. Confirmar la RDRAM scratch (§4) y validar (§5), incluida la no-regresión de la intro/Expansion Pak.
-5. Si funciona, ampliar a `right`/`stretch` (barras/cajas) según se vea.
-
----
-
-## ANEXO — Pendientes de otras áreas (no son esta tarea)
-
-- **Release `v0.2.0`**: el mantenedor lo crea desde GitHub; requiere CI verde del commit `c94dce9`.
-- **Estéreo L/R**: corregido (`queue_samples` des-swapea); **falta validar de oído en Windows** (cascos).
-- **Menú in-game (ADR 0008)**, **traducción/subtítulos**, **audio desacoplado de fps**: en `TODO.md`.
+1. **Compilar en Windows limpio** (§7) y abrir el mapa con **B** → leer `hh.log` (`[hh-bg]`).
+2. Cuadrar el negro con **`[` `]` `;` `'`** y pasar el valor que encaje.
+3. Fijar el valor por defecto en `hud_rewrite.cpp` (constantes del fondo), recompilar y validar.
+4. Si tras 1+2 sigue desfasado, aplicar `tools/patch_rt64_scissor_quant.py` (parche 3) y reevaluar.
+5. Cierre: actualizar `TODO.md`/`PROYECTO.md`, nota fechada en `notes/`, y commitear.

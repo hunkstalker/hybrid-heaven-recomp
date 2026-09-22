@@ -98,6 +98,7 @@ add_executable(HybridHeavenRecomp
     # hooks: capa de interceptacion (loaders, registro por direccion)
     src/hooks/sections.cpp
     src/hooks/dl_snap.cpp
+    src/hooks/hud_rewrite.cpp
     # subsystems: piezas del juego portadas (input, trans, firmware)
     src/subsystems/input.cpp
     src/subsystems/trans_cache.cpp
@@ -125,6 +126,7 @@ endif()
 target_include_directories(HybridHeavenRecomp PRIVATE
     include
     build/recomp/RecompiledFuncs
+    lib/rt64/include
     lib/rt64/src
     lib/rt64/src/contrib
     lib/rt64/src/contrib/imgui

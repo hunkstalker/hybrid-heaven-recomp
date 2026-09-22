@@ -291,15 +291,18 @@ msaa   = 8x           ; off | 2x | 4x | 8x
 ```
 
 - **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` la abre en ventana.
-- **Atajos en caliente**: **F3** = borderless ↔ windowed; **F1** = cicla aspecto; **F2** = cicla MSAA
-  (consola: líneas `[VIDEO] ...`).
+- **Atajos en caliente**: **F3** = borderless ↔ windowed; **F1** = cicla aspecto; **F2** = cicla MSAA;
+  **F11** = cierra la aplicación (cómodo a pantalla completa, sin Alt+F4) (consola: líneas `[VIDEO] ...`).
 - **Resolución interna**: `auto` = alto del monitor / 240 (4K→9×, 8K→18×; `res=8k`/`4k`).
 - **MSAA**: `hh.log` imprime `RT64: sampleLocations=`; si es 0, el dispositivo no soporta el MSAA de RT64.
 - **Widescreen (por defecto)**: el juego dibuja la escena con un *scissor* 4:3; el port lo reescribe a
   full-frame (*snap* de overscan, adaptado de la referencia Phase 07; `HH_FULL_FRAME=0` lo desactiva).
-  Con `aspect=auto`/`expand` (default) el 3D **llena la ventana**. El **HUD/mapa** (radar, barras
-  POWER/STAMINA/HP) **no se re-ancla** a los bordes: se queda en la zona 4:3, pero **no se desmonta**
-  (a diferencia del *issue* de la referencia). `aspect=original` = 4:3.
+  Con `aspect=auto`/`expand` (default) el 3D **llena la ventana**. El **radar/mapa** se **ancla al
+  borde izquierdo** (`src/hooks/hud_rewrite.cpp`, GBI extendido `gEXSetRectAlign`/`gEXSetViewportAlign`;
+  `HH_NO_HUD_REWRITE=1` lo desactiva para A/B). Barras POWER/STAMINA/HP y diálogos quedan en la zona
+  4:3 (sin clasificar) pero **no se desmontan**. `aspect=original` = 4:3.
+  - Dev: `HH_HUD_TRACE=1` lista una vez las identidades 2D (`tex:`/`dl:`/`fill:`) con su extensión
+    (re-derivar la tabla fija); `HH_HUD_REWRITE_TRACE=1` traza lo que ve el reescritor.
 
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
