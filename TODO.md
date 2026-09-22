@@ -23,6 +23,10 @@
   contador `HH_FPS=1` y experimento **env-gated** `HH_PRESENT_EARLY=1` + `HH_REFRESH_RATE=display`.
   **Pendiente**: validar en Windows (fps/latencia/audio/timing) y, si va bien, **activar por defecto**
   (sería cambio visible → *bump* de versión); ver `notes/2026-09-22-fps-y-present-early.md`.
+- [ ] **FPS en pantalla (overlay, opcional)**: hoy `HH_FPS=1` solo lo escribe en `hh.log`. El overlay
+  real requiere dibujar sobre el swapchain de RT64 → su **Inspector ImGui** (`developerMode` + **F1**,
+  en conflicto con F1/F2/F3 y consumiendo F1-F4 en Windows) o un overlay propio. Alternativa: exponer
+  `developerMode`/Inspector con una tecla dedicada. Ver `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
