@@ -14,6 +14,9 @@
 
 ## Backlog (priorizado)
 
+- [ ] **Publicar fork de RT64** y apuntar `lib/rt64` a él (`.gitmodules` + remoto): hoy apunta a
+  upstream `rt64/rt64`, así que el commit de parches `a8f0a70` no se puede subir. Ver nota
+  `notes/2026-09-22-cursor-release-rom-readme.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
@@ -49,6 +52,9 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Cursor, release `rom/` y README (2026-09-22)**: cursor oculto sobre la ventana (validado en
+  Windows); los artefactos de release incluyen `rom/PON_AQUI_LA_ROM.txt`; README con características
+  y punto de control de estado. `notes/2026-09-22-cursor-release-rom-readme.md`.
 - [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
   borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
   borderless**; atajos **F3** (ventana), **F1** (aspecto), **F2** (MSAA). **Widescreen** con *snap*

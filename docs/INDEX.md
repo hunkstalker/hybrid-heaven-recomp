@@ -10,8 +10,8 @@
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 114 | 2026-09-22 |
-| [Hybrid Heaven Recomp (N64 → PC port)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** No está terminado: puede haber fallos, | 71 | 2026-09-21 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 100 | 2026-09-22 |
+| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 64 | 2026-09-22 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 106 | 2026-09-22 |
 
 ## Técnico y guías (vivos)
 
@@ -45,6 +45,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |
+| [2026-09-22 — Cursor, carpeta `rom/` en release y README](../notes/2026-09-22-cursor-release-rom-readme.md) | Sesión de cierre tras validar el fix del mapa (fase 07b). Tres tareas pequeñas + hallazgo del | 33 | 2026-09-22 |
 | [2026-09-22 — Anclaje del HUD/mapa a los bordes (widescreen, fase 07b)](../notes/2026-09-22-anclaje-hud-widescreen-fase07b.md) | Nota de **tarea** (fase 07b). Contexto previo del radar: | 39 | 2026-09-22 |
 | [2026-09-21 — Migración a la vía de recompilación de la referencia (ELF + splat + residente limpio)](../notes/2026-09-21-migracion-via-referencia-elf.md) | Nota de sesión (evidencia + PLAN). Continúa `2026-09-20-ab-bloqueo-boot-per-file.md`. | 165 | 2026-09-21 |
 | [2026-09-21 — M4c: SEGV en el teardown (al cerrar)](../notes/2026-09-21-m4c-teardown-segv.md) | Nota de plan. Es el **último defecto conocido** del hito ya validado (vía ELF/splat, entrada al CaC | 94 | 2026-09-21 |
