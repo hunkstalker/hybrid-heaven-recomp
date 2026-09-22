@@ -14,19 +14,10 @@
 
 ## Backlog (priorizado)
 
-- [ ] **Rendimiento / present rate (`PresentEarly`)**: la recomp de **referencia** presenta a
-  **~120-144 fps** (panel F1) y se siente más suave; su código pasa **`PresentationMode::PresentEarly`**
-  a `create_render_context` (`ref-hh/src/frontend.cpp:170-180`; su `RT64Context::enable_instant_present`
-  es un no-op). En **nuestro** port, `RT64Context::enable_instant_present()` **sí** enciende
-  `EnhancementConfiguration::Presentation::Mode::PresentEarly` (`rt64_render_context.cpp:329`), pero
-  **nadie lo llama**: nuestro NMR no tiene el *plumbing* de `PresentationMode`. **Hecho (2026-09-22)**:
-  contador `HH_FPS=1` y experimento **env-gated** `HH_PRESENT_EARLY=1` + `HH_REFRESH_RATE=display`.
-  **Pendiente**: validar en Windows (fps/latencia/audio/timing) y, si va bien, **activar por defecto**
-  (sería cambio visible → *bump* de versión); ver `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **FPS en pantalla (overlay, opcional)**: hoy `HH_FPS=1` solo lo escribe en `hh.log`. El overlay
   real requiere dibujar sobre el swapchain de RT64 → su **Inspector ImGui**. **Vía rápida hecha**:
   `HH_DEVELOPER=1` habilita `developerMode` y **F1** abre el Inspector (FPS/frametimes); con dev-mode
-  RT64 consume F1-F4 (el F1/F2/F3 del port no actúa). Pendiente decidir si exponer una tecla propia
+  RT64 consume F1-F4 (el F2/F3/F4 del port no actúa). Pendiente decidir si exponer una tecla propia
   sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
   Nota: **RTSS funciona** una vez configurado (subir *detection level*), así que sirve como overlay
   externo; `HH_DEVELOPER=1` + F1 es la vía interna.
@@ -66,6 +57,10 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **High frame rate por defecto (v0.4.0, 2026-09-23)**: `PresentEarly` + `Refresh Rate = Display`
+  → presenta al refresco del monitor (~109 fps validado con RTSS), lógica a 30 Hz. Diagnóstico
+  `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1`+F1; `HH_GRAPHICS_API`; atajos **F2** aspecto /
+  **F3** ventana / **F4** MSAA (**F1** = Inspector). `notes/2026-09-22-fps-y-present-early.md`.
 - [x] **Cursor, release `rom/` y README (2026-09-22)**: cursor oculto sobre la ventana (validado en
   Windows); los artefactos de release incluyen `rom/PON_AQUI_LA_ROM.txt`; README con características
   y punto de control de estado. `notes/2026-09-22-cursor-release-rom-readme.md`.

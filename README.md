@@ -12,6 +12,9 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 
 - **Recompilación estática** del binario original (sin emulador), microcódigo gfx **F3DEX2** y
   **audio `aspMain` del ROM** recompilado (~43.2 kHz, sin petardeo).
+- **Alta tasa de refresco (movimiento suave)**: RT64 presenta hasta el refresco del monitor
+  interpolando los frames de 30 Hz del juego (la lógica sigue a 30 Hz). `HH_REFRESH_RATE=original`
+  y/o `HH_PRESENT_EARLY=0` recuperan el comportamiento anterior.
 - **Widescreen** con **anclaje del HUD/minimapa** a los bordes; ajustes `[video]` en `config.ini`
   (aspecto, resolución nativa/4K/8K, MSAA, borderless/windowed) y atajos **F2** (aspecto) y **F3**
   (ventana); **F1** abre el Inspector de RT64 con `HH_DEVELOPER=1`.
@@ -27,6 +30,7 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 - **Validado en Windows**: START → menú → GAME START → gameplay, primer NPC, cajas, primer CaC y
   combate, y una sesión de ~30 min hasta el **6º combate** sin cuelgues ni crashes.
 - **Guardado/carga** (cápsula) y **mando** validados; **widescreen** con HUD/minimapa anclados.
+- **Alta tasa de refresco**: presenta hasta el refresco del monitor (movimiento suave).
 - Teardown limpio (sin SEGV al salir).
 
 Limitaciones y pendientes (detalle en `TODO.md`): menú multijugador (SEGV, fuera de alcance),
