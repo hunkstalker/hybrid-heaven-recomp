@@ -370,6 +370,8 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
     if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0) {
         win_w = dm.w;
         win_h = dm.h;
+        // Diagnostico de present rate: refresco del escritorio segun SDL (comparar con swapChainRate).
+        hh::log("Video: desktop %dx%d @ %d Hz\n", dm.w, dm.h, dm.refresh_rate);
     }
     window = SDL_CreateWindow("Hybrid Heaven", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w, win_h, flags);
 
