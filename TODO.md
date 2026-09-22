@@ -24,9 +24,11 @@
   **Pendiente**: validar en Windows (fps/latencia/audio/timing) y, si va bien, **activar por defecto**
   (sería cambio visible → *bump* de versión); ver `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **FPS en pantalla (overlay, opcional)**: hoy `HH_FPS=1` solo lo escribe en `hh.log`. El overlay
-  real requiere dibujar sobre el swapchain de RT64 → su **Inspector ImGui** (`developerMode` + **F1**,
-  en conflicto con F1/F2/F3 y consumiendo F1-F4 en Windows) o un overlay propio. Alternativa: exponer
-  `developerMode`/Inspector con una tecla dedicada. Ver `notes/2026-09-22-fps-y-present-early.md`.
+  real requiere dibujar sobre el swapchain de RT64 → su **Inspector ImGui**. **Vía rápida hecha**:
+  `HH_DEVELOPER=1` habilita `developerMode` y **F1** abre el Inspector (FPS/frametimes); con dev-mode
+  RT64 consume F1-F4 (el F1/F2/F3 del port no actúa). Pendiente decidir si exponer una tecla propia
+  sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
+  Nota: **RivaTuner/RTSS no engancha** en DX12 con nuestro RT64 (probable hook de su ruta DXGI).
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD

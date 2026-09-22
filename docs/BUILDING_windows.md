@@ -311,7 +311,9 @@ msaa   = 8x           ; off | 2x | 4x | 8x
   present (`[hh-fps] N fps | M display lists`) una vez por segundo. Rendimiento (experimento):
   `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=1` (ver
   `notes/2026-09-22-fps-y-present-early.md`). API gráfica: `HH_GRAPHICS_API=d3d12|vulkan|metal|auto`
-  (útil para probar overlays tipo RTSS o fallos por API).
+  (útil para probar overlays tipo RTSS o fallos por API). FPS en pantalla: `HH_DEVELOPER=1` habilita
+  el Inspector de RT64 (abrir/cerrar con **F1**; ojo: con dev-mode RT64 consume F1-F4 y el F1/F2/F3
+  del port deja de actuar).
 
 ### Grabar y reproducir una partida (depuración determinista)
 

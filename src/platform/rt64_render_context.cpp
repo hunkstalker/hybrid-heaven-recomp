@@ -111,6 +111,11 @@ static void set_application_user_config(RT64::Application* application, const ul
         }
     }
     application->userConfig.developerMode = config.developer_mode;
+    // HH_DEVELOPER=1: habilita el modo desarrollador de RT64 -> Inspector (ImGui) con FPS/frametimes
+    // y shortcuts F1-F4 (ojo: con dev-mode RT64 consume F1-F4 y el F1/F2/F3 del port no actuan).
+    if (const char* dev = getenv("HH_DEVELOPER"); dev != nullptr && *dev != '\0' && *dev != '0') {
+        application->userConfig.developerMode = true;
+    }
 
     // Resolucion: HH_RES (env) > [video].res > auto (nativa del monitor: alto/240, tope 32).
     const hh::VideoConfig& v = hh::video_config();
