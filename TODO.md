@@ -14,6 +14,15 @@
 
 ## Backlog (priorizado)
 
+- [ ] **Rendimiento / contador de FPS**: la recomp de **referencia** parece presentar a **>120 fps**;
+  el port va a **30 Hz lógicos** (tick del juego) y no está claro el ritmo de *present*. **Paso
+  sencillo**: exponer un contador de FPS — RT64 ya trae uno en su **Inspector** (ImGui, pestaña
+  "Frametimes", `rt64_state.cpp:2423-2468`) que se abre con **F1** *si* `userConfig.developerMode`
+  está activo (`rt64_application.cpp:564-653`), hoy **desactivado** (`GraphicsConfig.developer_mode`
+  default `false`; el port lo enlaza en `rt64_render_context.cpp:93`) y con **F1/F2/F3** ya usados
+  por el port (aspecto/MSAA/fullscreen) + RT64 dev-mode consume F1-F4 en Windows. Alternativas:
+  activar `developerMode` (env/`[video]`) remapeando F1, o un contador propio (log a `hh.log` gateado
+  por env). Después: **evaluar desacople del present**.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
