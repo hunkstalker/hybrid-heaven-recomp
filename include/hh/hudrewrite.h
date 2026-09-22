@@ -27,14 +27,6 @@ bool any_classes();
 int map_crop();
 void map_crop_add(int delta);
 
-// Ajuste fino del FONDO negro del mapa (rect), independiente del contenido: recorte por lado
-// (reduce ancho/alto) y desplazamiento horizontal (+ = derecha). Env: HH_MAP_BG_CROP / HH_MAP_BG_SHIFT.
-// En caliente: `[`/`]` recorte, `;`/`'` desplazamiento.
-int map_bg_crop();
-int map_bg_shift();
-void map_bg_crop_add(int delta);
-void map_bg_shift_add(int delta);
-
 uint32_t rewrite(uint8_t* rdram, uint32_t list_address);
 
 }  // namespace hh::hudrewrite

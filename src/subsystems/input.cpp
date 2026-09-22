@@ -510,20 +510,6 @@ void hh::poll_input() {
                 else if (k.sym == SDLK_KP_MINUS || k.sym == SDLK_MINUS) {
                     hh::hudrewrite::map_crop_add(-1);
                 }
-                else if (k.sym == SDLK_LEFTBRACKET) {
-                    // Recorte del FONDO negro del mapa (reduce ancho/alto).
-                    hh::hudrewrite::map_bg_crop_add(+1);
-                }
-                else if (k.sym == SDLK_RIGHTBRACKET) {
-                    hh::hudrewrite::map_bg_crop_add(-1);
-                }
-                else if (k.sym == SDLK_SEMICOLON) {
-                    // Desplaza el fondo negro (+ = derecha).
-                    hh::hudrewrite::map_bg_shift_add(+1);
-                }
-                else if (k.sym == SDLK_QUOTE) {
-                    hh::hudrewrite::map_bg_shift_add(-1);
-                }
                 else if (k.sym == SDLK_F11) {
                     // Cierre rapido (comodo a pantalla completa, sin Alt+F4).
                     std::fprintf(stderr, "[HH] F11 -> ultramodern::quit()\n");

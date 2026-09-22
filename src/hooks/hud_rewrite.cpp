@@ -29,9 +29,6 @@ namespace {
 constexpr uint32_t kScratch[2] = { 0x007A0000u, 0x007C8000u };
 constexpr uint32_t kScratchSize = 0x28000u;
 
-// Compensacion fina (cuartos de pixel) del anclaje a la derecha por rect. 4 = +1 px. 0 = sin nudge.
-constexpr int kRightRectNudge = 0;
-
 // Recorte del scissor del mapa en px de juego por lado (0 = desactivado). RT64 coloca el fondo
 // (un rect) y el contenido (triangulos) del mapa con un desajuste sub-pixel (<1 px), de modo que uno
 // sobresale del otro. El borde VISIBLE tiene que ser el del scissor: si ambos comparten UN mismo
@@ -50,19 +47,6 @@ std::atomic<int> g_map_crop{ [] {
 int map_crop_q() {
     return g_map_crop.load(std::memory_order_relaxed) * 4;
 }
-
-// Ajuste fino del FONDO negro del mapa (independiente del contenido), para cuadrarlo con el mapa
-// verde cuando el rect del juego no cubre el panel exacto. Se leen en cada lista, sin recompilar.
-//   HH_MAP_BG_CROP=<px>  : recorta el fondo por cada lado (reduce el ancho/alto).
-//   HH_MAP_BG_SHIFT=<px> : desplaza el fondo en horizontal (+ = a la derecha) para moverlo.
-std::atomic<int> g_map_bg_crop{ [] {
-    const char* v = std::getenv("HH_MAP_BG_CROP");
-    return (v != nullptr && *v != '\0') ? std::atoi(v) : 0;
-}() };
-std::atomic<int> g_map_bg_shift{ [] {
-    const char* v = std::getenv("HH_MAP_BG_SHIFT");
-    return (v != nullptr && *v != '\0') ? std::atoi(v) : 0;
-}() };
 
 // F3DEX2.
 constexpr uint8_t kMtx = 0xDA, kMoveWord = 0xDB, kMoveMem = 0xDC, kDl = 0xDE, kEndDl = 0xDF;
@@ -132,11 +116,6 @@ struct Writer {
     bool have_map_panel = false;
     int panel_done = 0;
     uint32_t map_panel_w0 = 0, map_panel_w1 = 0;
-    // Viewport del contenido del mapa, capturado junto al panel. El fondo (que va despues) tiene
-    // otro viewport vigente (basura), asi que el quad de fondo debe reemitir ESTE viewport: RT64
-    // coloca los triangulos por el viewport, no por el scissor.
-    bool have_map_vport = false;
-    uint32_t map_vport_w0 = 0, map_vport_w1 = 0;
     uint32_t physical(uint32_t address) const {
         if ((address >> 24) >= 0x80) return address & 0x1FFFFFFF;
         return (segments[(address >> 24) & 0x0F] + (address & 0x00FFFFFF)) & 0x1FFFFFFF;
@@ -353,11 +332,9 @@ struct Writer {
             case kRight:
                 // El fondo del mapa: se ancla al borde derecho con el mismo align que el contenido
                 // y se recorta con el mismo scissor de panel (lo emite `group_begin`, llamado por
-                // el llamante antes del rect). Los offsets ajustan ancho/posicion del fondo.
+                // el llamante antes del rect).
                 if (GfxCommand* cmd = reserve(2)) {
-                    gEXSetRectAlign(cmd, G_EX_ORIGIN_NONE, G_EX_ORIGIN_RIGHT, 0, 0,
-                                    g_map_bg_shift.load(std::memory_order_relaxed),
-                                    -g_map_bg_crop.load(std::memory_order_relaxed));
+                    gEXSetRectAlign(cmd, G_EX_ORIGIN_NONE, G_EX_ORIGIN_RIGHT, 0, 0, 0, 0);
                 }
                 break;
             case kStretch:
@@ -415,11 +392,6 @@ struct Writer {
                         panel_done = 1;
                         map_panel_w0 = scissor_w0;
                         map_panel_w1 = scissor_w1;
-                        if (have_viewport) {
-                            have_map_vport = true;
-                            map_vport_w0 = viewport_w0;
-                            map_vport_w1 = viewport_w1;
-                        }
                     }
                 }
                 if (have_map_panel) anchored_scissor(kRight, map_panel_w0, map_panel_w1, map_crop_q());
@@ -726,29 +698,6 @@ void map_crop_add(int delta) {
     if (v < 0) v = 0;
     g_map_crop.store(v, std::memory_order_relaxed);
     std::fprintf(stderr, "[hh] recorte del mapa = %d px\n", v);
-    std::fflush(stderr);
-}
-
-int map_bg_crop() {
-    return g_map_bg_crop.load(std::memory_order_relaxed);
-}
-
-int map_bg_shift() {
-    return g_map_bg_shift.load(std::memory_order_relaxed);
-}
-
-void map_bg_crop_add(int delta) {
-    int v = g_map_bg_crop.load(std::memory_order_relaxed) + delta;
-    if (v < 0) v = 0;
-    g_map_bg_crop.store(v, std::memory_order_relaxed);
-    std::fprintf(stderr, "[hh] recorte del fondo del mapa = %d px\n", v);
-    std::fflush(stderr);
-}
-
-void map_bg_shift_add(int delta) {
-    int v = g_map_bg_shift.load(std::memory_order_relaxed) + delta;
-    g_map_bg_shift.store(v, std::memory_order_relaxed);
-    std::fprintf(stderr, "[hh] desplazamiento del fondo del mapa = %d px\n", v);
     std::fflush(stderr);
 }
 
