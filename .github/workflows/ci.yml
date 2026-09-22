@@ -79,6 +79,16 @@ jobs:
           cp docs/BUILDING_linux.md dist/HybridHeavenRecomp-Linux/LEEME.txt
           cp CREDITS.md dist/HybridHeavenRecomp-Linux/CREDITOS.md
           cp LICENSE dist/HybridHeavenRecomp-Linux/LICENCIA.txt
+          # Carpeta guia para la ROM del usuario (el juego no la incluye).
+          mkdir -p dist/HybridHeavenRecomp-Linux/rom
+          printf '%s\n' \
+            'Coloca aqui tu ROM de Hybrid Heaven (USA, NHVE, 16 MB).' \
+            '' \
+            '  Nombre esperado:  rom/baserom.us.z64' \
+            '' \
+            'El juego NO incluye la ROM (copyright de Konami): la aporta cada usuario.' \
+            'Ver LEEME.txt para mas detalles.' \
+            > dist/HybridHeavenRecomp-Linux/rom/PON_AQUI_LA_ROM.txt
           tar -C dist -czf dist/HybridHeavenRecomp-Linux.tar.gz HybridHeavenRecomp-Linux
       - uses: actions/upload-artifact@v4
         if: steps.prep.outputs.have == '1'
@@ -129,6 +139,16 @@ jobs:
           Copy-Item "docs/BUILDING_windows.md" dist/LEEME.txt
           Copy-Item "CREDITS.md" dist/CREDITOS.md
           Copy-Item "LICENSE" dist/LICENCIA.txt
+          # Carpeta guia para la ROM del usuario (el juego no la incluye).
+          New-Item -ItemType Directory -Force -Path dist/rom | Out-Null
+          @(
+            'Coloca aqui tu ROM de Hybrid Heaven (USA, NHVE, 16 MB).',
+            '',
+            '  Nombre esperado:  rom\baserom.us.z64',
+            '',
+            'El juego NO incluye la ROM (copyright de Konami): la aporta cada usuario.',
+            'Ver LEEME.txt para mas detalles.'
+          ) | Set-Content -Encoding UTF8 dist/rom/PON_AQUI_LA_ROM.txt
           Compress-Archive -Path "dist/*" -DestinationPath "dist/HybridHeavenRecomp-Windows.zip" -Force
       - uses: actions/upload-artifact@v4
         if: steps.prep.outputs.have == '1'
