@@ -34,6 +34,7 @@ jobs:
       contents: write
       actions: read
     steps:
+      - uses: actions/checkout@v4
       - name: Localizar el run de CI de este commit
         id: ci
         env:
@@ -59,7 +60,19 @@ jobs:
       - name: Crear release (y su tag si no existia)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$HH_VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --generate-notes --title "$HH_VERSION"
+        run: |
+          set -e
+          # Titulo/notas: si existe docs/releases/<tag>.md se usa (titulo = primer encabezado '# '),
+          # si no, se generan las notas automaticas y el titulo es el tag.
+          notes="docs/releases/${HH_VERSION}.md"
+          if [ -f "$notes" ]; then
+            title=$(head -n1 "$notes" | sed 's/^#\+\s*//')
+            gh release create "$HH_VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "$title" --notes-file "$notes"
+          else
+            gh release create "$HH_VERSION" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --generate-notes --title "$HH_VERSION"
+          fi
 
   image:
     name: Imagen ghcr (desde el binario de CI)

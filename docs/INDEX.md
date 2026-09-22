@@ -22,6 +22,9 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 257 | 2026-09-21 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
+| [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
+| [v0.2.0 — Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
+| [v0.3.0 — Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 255 | 2026-09-21 |
 
 ## Decisiones (ADR, inmutables)
@@ -44,7 +47,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 78 | 2026-09-22 |
+| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 90 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |
 | [2026-09-22 — Cursor, carpeta `rom/` en release y README](../notes/2026-09-22-cursor-release-rom-readme.md) | Sesión de cierre tras validar el fix del mapa (fase 07b). Tres tareas pequeñas + hallazgo del | 33 | 2026-09-22 |
 | [2026-09-22 — Anclaje del HUD/mapa a los bordes (widescreen, fase 07b)](../notes/2026-09-22-anclaje-hud-widescreen-fase07b.md) | Nota de **tarea** (fase 07b). Contexto previo del radar: | 39 | 2026-09-22 |
