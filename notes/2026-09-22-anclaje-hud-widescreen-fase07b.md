@@ -24,10 +24,10 @@ que le corresponde (izquierda / derecha / stretch) reescribiendo las display lis
 | Elemento | Estado |
 |---|---|
 | Radar (`left`) | ✅ anclado (09-21, Linux + Windows) |
-| HUD combate POWER/STAMINA (`left`) | ✅ anclado |
+| HUD combate POWER/STAMINA (`left`) | ✅ anclado y **validado en Windows** (2026-09-22) |
 | **Mapa contenido** (`right` + scissor panel) | ✅ anclado y recortado |
 | **Mapa fondo negro** (`right` + fill) | ✅ **validado 2026-09-22** (ver nota de fix) |
-| Barras HP y demás `right`/`stretch` | ⬜ re-derivar identidades con `HH_HUD_TRACE=1` en combate/diálogos |
+| Barra HP y demás `right`/`stretch` | ⬜ re-derivar identidades con `HH_HUD_TRACE=1` en combate/diálogos |
 
 ## Gotchas
 

@@ -22,8 +22,9 @@
   `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`.
 - [ ] **Widescreen: anclaje del HUD/mapa a los bordes (fase 07b, cosmético)**: **radar anclado a la
   izquierda** (2026-09-21; `src/hooks/hud_rewrite.cpp` + `HH_HUD_TRACE`; validado en Linux headless
-  por centroide: OFF x=287 → ON x=125, y=const). **Mapa validado 2026-09-22** (ver arriba).
-  **Falta**: barras POWER/STAMINA/HP y elementos de la derecha (`right`/`stretch`) — re-derivar sus
+  por centroide: OFF x=287 → ON x=125, y=const). **Mapa y HUD de combate POWER/STAMINA validados
+  en Windows (2026-09-22)** (ver arriba).
+  **Falta**: la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar sus
   identidades con `HH_HUD_TRACE=1` en las escenas donde aparecen (combate/diálogos) y añadirlas a
   la tabla fija. `HH_FULL_FRAME=0` desactiva el widescreen; `HH_NO_HUD_REWRITE=1` el anclaje.
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;

@@ -24,8 +24,8 @@
 ## Qué toca ahora
 
 Ver **`TODO.md`** §Ahora (priorizado). Foco: **menú IN-GAME de opciones PC (ADR 0008)**, smoke de
-arranque, definir **ADR 0009** (cobertura nativa). Backlog: textos/traducción, barras POWER/STAMINA/HP
-y elementos `right`/`stretch` del HUD, Steam Deck, `osAiGetStatus`, etc.
+arranque, definir **ADR 0009** (cobertura nativa). Backlog: textos/traducción, barra HP y elementos
+`right`/`stretch` del HUD (POWER/STAMINA ya validados), Steam Deck, `osAiGetStatus`, etc.
 
 ## Método (mapa / HUD — seguir si se retoca)
 
