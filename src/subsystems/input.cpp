@@ -480,6 +480,15 @@ void hh::poll_input() {
                 // limpia de recomp::start, que hace join de todos los hilos.
                 ultramodern::quit();
                 break;
+            case SDL_WINDOWEVENT:
+                // Cursor oculto solo mientras la ventana del juego tiene el foco.
+                if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+                    SDL_ShowCursor(SDL_DISABLE);
+                }
+                else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+                    SDL_ShowCursor(SDL_ENABLE);
+                }
+                break;
             case SDL_CONTROLLERDEVICEADDED:
                 if (SDL_IsGameController(event.cdevice.which)) {
                     SDL_GameControllerOpen(event.cdevice.which);

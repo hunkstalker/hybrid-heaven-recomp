@@ -381,6 +381,10 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
 
     hh::set_window_icon(window);
 
+    // Oculta el cursor sobre la ventana del juego. Se vuelve a mostrar al perder el foco y se
+    // oculta al recuperarlo (ver SDL_WINDOWEVENT en src/subsystems/input.cpp).
+    SDL_ShowCursor(SDL_DISABLE);
+
     SDL_SysWMinfo wm_info;
     SDL_VERSION(&wm_info.version);
     if (!SDL_GetWindowWMInfo(window, &wm_info)) {
