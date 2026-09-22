@@ -351,8 +351,9 @@ void hh::RT64Context::update_screen() {
         const double secs = std::chrono::duration<double>(now - t0).count();
         if (secs >= 1.0) {
             const uint64_t dl = g_hh_dl_count.load(std::memory_order_relaxed);
-            hh::log("[hh-fps] %.1f fps | %llu display lists en %.2fs\n",
-                    frames / secs, static_cast<unsigned long long>(dl - dl_last), secs);
+            hh::log("[hh-fps] %.1f fps | %llu display lists | swapChainRate=%u refresh=%d (%.2fs)\n",
+                    frames / secs, static_cast<unsigned long long>(dl - dl_last),
+                    get_display_framerate(), static_cast<int>(app->userConfig.refreshRate), secs);
             frames = 0;
             dl_last = dl;
             t0 = now;
