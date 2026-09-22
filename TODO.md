@@ -28,7 +28,8 @@
   `HH_DEVELOPER=1` habilita `developerMode` y **F1** abre el Inspector (FPS/frametimes); con dev-mode
   RT64 consume F1-F4 (el F1/F2/F3 del port no actúa). Pendiente decidir si exponer una tecla propia
   sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
-  Nota: **RivaTuner/RTSS no engancha** en DX12 con nuestro RT64 (probable hook de su ruta DXGI).
+  Nota: **RTSS funciona** una vez configurado (subir *detection level*), así que sirve como overlay
+  externo; `HH_DEVELOPER=1` + F1 es la vía interna.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
