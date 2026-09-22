@@ -181,10 +181,10 @@ static void set_application_user_config(RT64::Application* application, const ul
 
     // Refresh Rate (RT64): Original = ritmo del juego (30 Hz); Display = al refresco del monitor
     // (RT64 interpola y presenta a esa tasa -> movimiento suave). Manual:<hz> = tasa fija.
-    // Env: HH_REFRESH_RATE=original|display|manual:<hz>. Default: original (comportamiento previo).
+    // Env: HH_REFRESH_RATE=original|display|manual:<hz>. Default: display (high frame rate).
     {
         const char* rr = getenv("HH_REFRESH_RATE");
-        const std::string s = (rr != nullptr && *rr != '\0') ? rr : "original";
+        const std::string s = (rr != nullptr && *rr != '\0') ? rr : "display";
         if (s == "display") {
             application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Display;
         }
@@ -197,6 +197,7 @@ static void set_application_user_config(RT64::Application* application, const ul
         else {
             application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Original;
         }
+        hh::log("RT64: refresh rate mode = %s\n", s.c_str());
     }
 
     // Diagnostico: valores REALES que quedan en RT64 (no solo la intencion).
@@ -300,11 +301,11 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
     }
     hh::log("RT64: setup SUCCESS\n");
 
-    // HH_PRESENT_EARLY=1: presenta cada frame en cuanto se dibuja (menos latencia; como la
-    // referencia). Env-gated hasta validar efecto en fps/latencia/audio.
+    // High frame rate: presenta cada frame en cuanto se dibuja (menos latencia; como la referencia).
+    // Default ON; `HH_PRESENT_EARLY=0` lo desactiva (comportamiento anterior).
     static const bool present_early = [] {
         const char* e = std::getenv("HH_PRESENT_EARLY");
-        return e != nullptr && *e != '\0' && *e != '0';
+        return e == nullptr || *e == '\0' || (*e != '0');
     }();
     if (present_early) {
         enable_instant_present();

@@ -55,15 +55,17 @@ hybrid-heaven-recomp\run_windows_release.bat
 Mirar `build\windows\bin\Release\hh.log` (`[hh-fps] ...`). A/B con `HH_REFRESH_RATE=original`
 (comportamiento previo) y sin `HH_PRESENT_EARLY`.
 
-### Experimento implementado (env-gated, default OFF)
+### Implementado: **high frame rate por defecto (desde v0.4.0)**
 
 En `src/platform/rt64_render_context.cpp`:
-- **`HH_REFRESH_RATE=original|display|manual:<hz>`** → fija `userConfig.refreshRate`. `Display`
-  pone el objetivo al refresco del monitor (RT64 interpola/presenta a esa tasa); `Original` = ritmo
-  del juego (30 Hz).
-- **`HH_PRESENT_EARLY=1`** → llama a `RT64Context::enable_instant_present()` tras el setup
-  (PresentEarly en RT64). La referencia tiene `Present Early` + `Refresh Rate Mode: Display`
-  (capturas del mantenedor).
+- **`HH_REFRESH_RATE=original|display|manual:<hz>`** → fija `userConfig.refreshRate`. **Default
+  `display`**: objetivo = refresco del monitor (RT64 interpola/presenta a esa tasa). `original` =
+  ritmo del juego (30 Hz).
+- **`HH_PRESENT_EARLY=0`** desactiva PresentEarly. **Default ON**: `RT64Context::enable_instant_present()`
+  tras el setup (PresentEarly en RT64).
+
+**Validado por el mantenedor (2026-09-23)**: RTSS marca **~109 fps** (supera el cap de 60);
+F1/Inspector y el resto de atajos OK.
 
 Las capturas de la referencia confirman: `Display Refresh Rate (OS): 120`, `Average Present (OS)`
 ≈ 9.3 ms (**107 FPS**), `Presentation: Present Early`, `Refresh Rate Mode: Display`. Y a la vez
@@ -83,8 +85,6 @@ audio, timing y carga de CPU/GPU (no forzar si el equipo no llega).
 
 ## Pendiente
 
-- Validar `HH_FPS` en Windows.
-- Validar el experimento (`HH_REFRESH_RATE=display` + `HH_PRESENT_EARLY=1`): fps, latencia, audio y
-  timing. Si va bien, **activar por defecto** (sería cambio visible → *bump* de versión).
-- (Opcional) overlay on-screen real → requeriría el Inspector/ImGui de RT64 (`developerMode`), hoy
-  desactivado y con F1/F2/F3 en conflicto.
+- `HH_FPS` validado; high frame rate validado y **activado por defecto** (v0.4.0).
+- (Opcional) overlay on-screen propio sin dev-mode (hoy: `HH_DEVELOPER=1` + F1, o RTSS).
+- (Futuro) mejorar la interpolación (hints IHLE) y desacoplar audio/pacing.

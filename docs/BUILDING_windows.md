@@ -309,12 +309,12 @@ msaa   = 8x           ; off | 2x | 4x | 8x
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
   y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` la tasa real de
-  present (`[hh-fps] N fps | M display lists`) una vez por segundo. Rendimiento (experimento):
-  `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=1` (ver
-  `notes/2026-09-22-fps-y-present-early.md`). API gráfica: `HH_GRAPHICS_API=d3d12|vulkan|metal|auto`
-  (útil para probar overlays tipo RTSS o fallos por API). FPS en pantalla: `HH_DEVELOPER=1` habilita
-  el Inspector de RT64 (abrir/cerrar con **F1**; ojo: con dev-mode RT64 consume F1-F4 y el F1/F2/F3
-  del port deja de actuar).
+  present (`[hh-fps] N fps | M display lists`) una vez por segundo. **High frame rate (default ON)**:
+  presenta al refresco del monitor; `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=0`
+  lo ajustan/revienen (ver `notes/2026-09-22-fps-y-present-early.md`). API gráfica:
+  `HH_GRAPHICS_API=d3d12|vulkan|metal|auto` (útil para probar overlays tipo RTSS o fallos por API).
+  FPS en pantalla: `HH_DEVELOPER=1` habilita el Inspector de RT64 (abrir/cerrar con **F1**; ojo: con
+  dev-mode RT64 consume F1-F4 y el F2/F3/F4 del port deja de actuar).
 
 ### Grabar y reproducir una partida (depuración determinista)
 
