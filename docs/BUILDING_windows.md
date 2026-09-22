@@ -307,7 +307,8 @@ msaa   = 8x           ; off | 2x | 4x | 8x
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
-  y `HH_STICK=x,y` (input sintético para pruebas).
+  y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` la tasa real de
+  present (`[hh-fps] N fps | M display lists`) una vez por segundo.
 
 ### Grabar y reproducir una partida (depuración determinista)
 

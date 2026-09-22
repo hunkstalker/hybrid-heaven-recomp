@@ -14,15 +14,15 @@
 
 ## Backlog (priorizado)
 
-- [ ] **Rendimiento / contador de FPS**: la recomp de **referencia** parece presentar a **>120 fps**;
-  el port va a **30 Hz lógicos** (tick del juego) y no está claro el ritmo de *present*. **Paso
-  sencillo**: exponer un contador de FPS — RT64 ya trae uno en su **Inspector** (ImGui, pestaña
-  "Frametimes", `rt64_state.cpp:2423-2468`) que se abre con **F1** *si* `userConfig.developerMode`
-  está activo (`rt64_application.cpp:564-653`), hoy **desactivado** (`GraphicsConfig.developer_mode`
-  default `false`; el port lo enlaza en `rt64_render_context.cpp:93`) y con **F1/F2/F3** ya usados
-  por el port (aspecto/MSAA/fullscreen) + RT64 dev-mode consume F1-F4 en Windows. Alternativas:
-  activar `developerMode` (env/`[video]`) remapeando F1, o un contador propio (log a `hh.log` gateado
-  por env). Después: **evaluar desacople del present**.
+- [ ] **Rendimiento / present rate (`PresentEarly`)**: la recomp de **referencia** presenta a
+  **~120-144 fps** (panel F1) y se siente más suave; su código pasa **`PresentationMode::PresentEarly`**
+  a `create_render_context` (`ref-hh/src/frontend.cpp:170-180`; su `RT64Context::enable_instant_present`
+  es un no-op). En **nuestro** port, `RT64Context::enable_instant_present()` **sí** enciende
+  `EnhancementConfiguration::Presentation::Mode::PresentEarly` (`rt64_render_context.cpp:329`), pero
+  **nadie lo llama**: nuestro NMR no tiene el *plumbing* de `PresentationMode`. **Hecho (2026-09-22)**:
+  contador mínimo `HH_FPS=1` (log a `hh.log`: fps de present + display lists/s). **Pendiente**: probar
+  a llamar `enable_instant_present()` (env/por defecto) y medir FPS + latencia + efecto en
+  audio/timing; ver `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD

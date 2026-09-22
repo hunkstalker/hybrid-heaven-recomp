@@ -1,9 +1,11 @@
 #include <algorithm>
+#include <atomic>
 #include <cassert>
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
-#include <cstdlib>
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
@@ -37,6 +39,11 @@ unsigned int DPC_PIPEBUSY_REG = 0;
 unsigned int DPC_TMEM_REG = 0;
 
 static void dummy_check_interrupts() {}
+
+namespace {
+// HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
+std::atomic<uint64_t> g_hh_dl_count{ 0 };
+}
 
 static ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult setup_result) {
     switch (setup_result) {
@@ -270,6 +277,7 @@ bool hh::RT64Context::valid() {
 }
 
 void hh::RT64Context::send_dl(const OSTask* task) {
+    g_hh_dl_count.fetch_add(1, std::memory_order_relaxed);
     hh::log("RT64: send_dl ucode=0x%x data_ptr=0x%x\n", task->t.ucode, task->t.data_ptr);
     // Widescreen: reescribe el scissor de overscan a full-frame antes de que RT64 procese la lista.
     hh::snap_overscan(app->core.RDRAM, task->t.data_ptr);
@@ -298,6 +306,27 @@ void hh::RT64Context::send_dummy_workload(uint32_t fb_address) {
 }
 
 void hh::RT64Context::update_screen() {
+    // HH_FPS=1: registra 1 vez por segundo la tasa real de present (llamadas a update_screen) y
+    // cuantas display lists se enviaron en ese intervalo. Sirve para medir sin overlay ni dev-mode.
+    static const bool fps_log = [] {
+        const char* e = std::getenv("HH_FPS");
+        return e != nullptr && *e != '\0' && *e != '0';
+    }();
+    if (fps_log) {
+        static uint64_t frames = 0, dl_last = 0;
+        static auto t0 = std::chrono::steady_clock::now();
+        ++frames;
+        const auto now = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(now - t0).count();
+        if (secs >= 1.0) {
+            const uint64_t dl = g_hh_dl_count.load(std::memory_order_relaxed);
+            hh::log("[hh-fps] %.1f fps | %llu display lists en %.2fs\n",
+                    frames / secs, static_cast<unsigned long long>(dl - dl_last), secs);
+            frames = 0;
+            dl_last = dl;
+            t0 = now;
+        }
+    }
     app->updateScreen();
 }
 
