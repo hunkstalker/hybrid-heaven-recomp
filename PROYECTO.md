@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-22**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-23**.
 
 ## 1. Objetivo
 
@@ -47,12 +47,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-22)**: **mapa widescreen (fase 07b) validado en Windows** — anclaje del
-contenido + fondo negro del minimapa; radar/HUD `left` ya estaban
-(`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`). Antes: **migración ELF (ADR 0011) hasta M4**
-validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y **M4c** (SEGV
-teardown, fix en fork NMR) hechos. Plan general:
-`notes/2026-09-21-migracion-via-referencia-elf.md`. Además: `lib/` como **submódulos** (ADR 0010).
+**Estado actual (2026-09-23)**: **high frame rate por defecto** — el port presenta hasta el refresco
+del monitor (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a
+30 Hz). Antes: **mapa widescreen (fase 07b) validado** (HUD/minimapa anclados) y **migración ELF
+(ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y
+**M4c** (SEGV teardown, fix en fork NMR) hechos. `lib/` como **submódulos** (ADR 0010). Plan general:
+`notes/2026-09-21-migracion-via-referencia-elf.md`.
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
 por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18
 cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fixes de M55/`HH_S0FIX`.
@@ -62,7 +62,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 0. Entorno | ✅ | toolchain + repos + Ghidra + assets |
 | 1. Análisis estático | ✅/en curso | syms Ghidra; mapa overlay→RAM = tarea #3 (camino crítico, ver ADR 0001) |
 | 2. Recompilación | ✅ base | boot + game loop corren (Linux/Windows); pipeline **ELF/splat** (ADR 0011; vía Ghidra multi-módulo archivada en `legacy/`) |
-| 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
+| 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
 | 6. Textos/traducción | pendiente | encoding parcialmente localizado |
@@ -110,6 +110,6 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-22): menú IN-GAME, smoke de arranque,
-ADR 0009. Pendiente inmediato: **publicar Release `v0.3.0`** (tag; ver `RETOMAR.md`). Visión:
+Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-23): menú IN-GAME, smoke de arranque,
+ADR 0009. Pendiente inmediato: **publicar Release `v0.4.0`** (tag; ver `RETOMAR.md`). Visión:
 `docs/README.md`.

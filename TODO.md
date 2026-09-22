@@ -67,7 +67,7 @@
 - [x] **Fork de RT64 publicado (2026-09-22)**: `hunkstalker/rt64` (rama `hybrid-heaven` = `a8f0a70`);
   `.gitmodules` y el submódulo `lib/rt64` apuntan al fork. `main` y forks pusheados.
 - [x] **Versión `0.3.0` (2026-09-22)**: bump MINOR por las features (widescreen HUD/mapa, cursor,
-  release `rom/`). **Release pendiente de tag** (ver `RETOMAR.md`).
+  release `rom/`). **Release `v0.3.0` publicado.**
 - [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
   borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
   borderless**; atajos **F3** (ventana), **F2** (aspecto), **F4** (MSAA). **Widescreen** con *snap*
