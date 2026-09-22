@@ -21,7 +21,16 @@
   sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
   Nota: **RTSS funciona** una vez configurado (subir *detection level*), así que sirve como overlay
   externo; `HH_DEVELOPER=1` + F1 es la vía interna.
-- [ ] **Textos/traducción** (requisito de producto): encoding + extracción + re-inserción.
+- [ ] **Textos/traducción (requisito de producto) — spike de encoding**: sería la **primera
+  traducción al español** del juego. Primeros pasos acotados:
+  1. **Localizar** las tablas de texto de la ROM (anclas conocidas: `WASHINGTON D.C.` @`0x061CD7A`,
+     `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`, `ITEM...WEAPON` @`0x06C33AF`).
+  2. **Derivar el charset** (encoding custom USA) y construir un **extractor** ROM→texto.
+  3. **Reinsertar** con control de longitud (comprobar si los textos van en buffers de tamaño fijo y
+     si hay que preservar terminadores/control codes).
+  4. **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
+     necesarios tipo `ñ/¿/¡` en la fuente).
+  Ver `PROYECTO.md §4` y `notes/2026-09-05_asset-map.md`.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
   `left` ya estaban. Commits `cleanup(hud)`+`fix(map)`+`docs` (ya en `origin/main`). **Detalle**:
