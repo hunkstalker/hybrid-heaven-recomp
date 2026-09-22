@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-21**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-22**.
 
 ## 1. Objetivo
 
@@ -47,19 +47,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-21)**: **migración a la vía de recompilación de la referencia (ADR 0011)
-COMPLETADA hasta M4**, y **validada en Windows**: se abandonó Ghidra-per-file por **ELF desde
-splat/spimdisasm + residente limpio + gates** (M0–M3). Causa raíz de la regresión (título sin 3D):
-N64Recomp en ELF mode no aplicaba `use_lookup_for_all_function_calls` (llamadas directas saltaban los
-hooks de loader); arreglado en el tool. **Playtest del mantenedor**: START → menú → GAME START →
-gameplay, primer NPC, cajas, **primer CaC y combate**, y ~30 min hasta el **6º combate sin cuelgues ni
-crashes** → **el bloqueante original (entrar al CaC) está RESUELTO**. **M5 HECHO** (saneamiento y
-estructura: vía Ghidra→`legacy/`, `config/`→`recomp/`, intermedios→`build/recomp/`, docs vivas +
-créditos, purga `HH_*`; **pendiente solo el push**). **M4c HECHO** (SEGV de teardown resuelto: el
-runtime liberaba RDRAM y el planificador seguía despachando hilos al salir; fix en el fork NMR: no
-liberar RDRAM + parar el planificador). Plan general:
-`notes/2026-09-21-migracion-via-referencia-elf.md`; detalle: `notes/2026-09-21-m4c-teardown-segv.md`.
-Además: `lib/` como **submódulos** (ADR 0010) y el C recompilado materializado como dir real.
+**Estado actual (2026-09-22)**: **mapa widescreen (fase 07b) validado en Windows** — anclaje del
+contenido + fondo negro del minimapa; radar/HUD `left` ya estaban
+(`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`). Antes: **migración ELF (ADR 0011) hasta M4**
+validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y **M4c** (SEGV
+teardown, fix en fork NMR) hechos. Plan general:
+`notes/2026-09-21-migracion-via-referencia-elf.md`. Además: `lib/` como **submódulos** (ADR 0010).
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
 por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18
 cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fixes de M55/`HH_S0FIX`.
@@ -117,5 +110,5 @@ un ADR, consolidación y anti-patrones). Resumen: una fuente de verdad por tema;
 
 ## 8. Próximos pasos
 
-Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-21): cerrar el **push** (forks + main) y
-validar el cierre en Windows (M4c). Visión a largo plazo: `docs/README.md`.
+Ver **`TODO.md`** (sección "Ahora"). Foco actual (2026-09-22): menú IN-GAME, smoke de arranque,
+ADR 0009; **commit del fix del mapa pendiente** (validado, a petición). Visión: `docs/README.md`.
