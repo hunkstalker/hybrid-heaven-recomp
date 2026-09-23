@@ -100,6 +100,9 @@ muerto ni experimentos abandonados. Validar **visualmente en Windows** y con el 
 - `include/hh/overlay.h`, `src/platform/overlay.cpp` (render hook, atlas, paneles/texto, `publish`).
 - `src/hooks/menu_overlay.cpp` (lee etiquetas/selección, publica; F6 en `input.cpp`).
 - `src/hooks/sections.cpp`: `hh_title_menu_hook` + re-registro tras cada carga de módulo.
+- `src/platform/menu_sfx.cpp`: SFX de menú (move/accept/back) mezclados sobre el audio del juego;
+  WAV en `assets/sounds/` (solo los `.wav` van a `sounds/` en la release). Disparo por flancos de
+  botón en `hh_title_menu_hook`.
 - **OJO**: `SetRenderHooks` va **antes** de `app->setup()` (no después; el handoff anterior lo decía
   mal — el `init` se llama dentro de `setup`).
 

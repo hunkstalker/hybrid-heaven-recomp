@@ -115,6 +115,7 @@ add_executable(HybridHeavenRecomp
     src/platform/spin_yield.cpp
     src/platform/support.cpp
     src/platform/overlay.cpp
+    src/platform/menu_sfx.cpp
     # hooks: capa de interceptacion (loaders, registro por direccion)
     src/hooks/sections.cpp
     src/hooks/dl_snap.cpp
@@ -184,6 +185,16 @@ add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets/lang"
         "$<TARGET_FILE_DIR:HybridHeavenRecomp>/lang")
+
+# Efectos de sonido del menú: copiar solo los WAV junto al ejecutable (sounds/*.wav). Los .mp3 de
+# origen no van a la release. Ver src/platform/menu_sfx.cpp.
+file(GLOB MENU_SFX_WAVS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/assets/sounds/*.wav")
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/sounds"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${MENU_SFX_WAVS}
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/sounds")
 
 if(WIN32)
     target_compile_definitions(HybridHeavenRecomp PRIVATE

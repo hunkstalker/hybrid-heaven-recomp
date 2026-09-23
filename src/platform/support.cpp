@@ -605,6 +605,13 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         hh_pcm = hh_unswapped.data();
     }
 
+    // SFX del menú: se mezclan sobre el stream del juego. `hh_pcm` puede apuntar a un buffer const
+    // (audio_data), así que se trabaja sobre una copia mutable.
+    static std::vector<int16_t> hh_mixed;
+    hh_mixed.assign(hh_pcm, hh_pcm + sample_count);
+    hh::menu_sfx::mix(hh_mixed.data(), sample_count);
+    hh_pcm = hh_mixed.data();
+
     // Dump de audio OPT-IN: con HH_AUDIODUMP=<f> escribe hasta 4 MB de PCM en ese fichero (o
     // hh_audio_dump.bin). Por defecto NO se escribe: eran ~4 MB con fflush por buffer al arrancar
     // (I/O innecesario; el log textual hh_audio.log sigue activo siempre).
@@ -691,6 +698,10 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
         const size_t cap = static_cast<size_t>(sample_rate / 60);
         hh_audio_diag_log(sample_count, queued, queued < cap ? queued : cap);
     }
+}
+
+uint32_t hh::audio_output_rate() {
+    return device_rate != 0 ? device_rate : sample_rate;
 }
 
 size_t hh::get_frames_remaining() {

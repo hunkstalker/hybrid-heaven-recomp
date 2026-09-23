@@ -32,6 +32,7 @@ extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // carga bitmap de glifo
 extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
+extern "C" void func_801C1340_11BAE10(uint8_t* rdram, recomp_context* ctx);  // lee botones
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
@@ -171,6 +172,22 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
                 guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
     }
     func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original
+    // SFX del menú: lee los botones y detecta flancos (mover/aceptar/atrás).
+    {
+        recomp_context tb = *ctx;
+        func_801C1340_11BAE10(rdram, &tb);
+        const uint32_t btn = static_cast<uint32_t>(tb.r2);
+        static uint32_t prev_btn = 0;
+        const uint32_t pressed = btn & ~prev_btn;
+        prev_btn = btn;
+        if (pressed & 0xB000u) {        // A / START
+            hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+        } else if (pressed & 0x4000u) { // B
+            hh::menu_sfx::play(hh::menu_sfx::Sfx::Back);
+        } else if (pressed & 0xC00u) {  // UP (0x800) / DOWN (0x400)
+            hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+        }
+    }
     hh::menu_overlay::title_update(rdram);
 }
 

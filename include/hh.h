@@ -53,6 +53,7 @@ namespace hh {
     void init_audio();                // inicializa SDL_INIT_AUDIO antes de reset_audio
     bool reset_audio(uint32_t output_freq);
     void queue_samples(int16_t* audio_data, size_t sample_count);
+    uint32_t audio_output_rate();     // tasa real del dispositivo de audio (para resamplear SFX)
     size_t get_frames_remaining();
     void set_frequency(uint32_t freq);
 
@@ -124,6 +125,15 @@ namespace hh {
         void toggle();                        // F6
         // Calibración en vivo (Ctrl+flechas/etc.): suma a offset/escala y lo escribe en hh.log.
         void adjust(float dx, float dy, float dsx, float dsy);
+    }
+
+    // Efectos de sonido del menú (move/accept/back). Se mezclan sobre el stream del juego; los WAV
+    // se cargan de `<app>/sounds/*.wav`. Ver src/platform/menu_sfx.cpp.
+    namespace menu_sfx {
+        enum class Sfx { Move, Accept, Back };
+        void init();
+        void play(Sfx s);
+        void mix(int16_t* samples, size_t sample_count);   // desde hh::queue_samples
     }
 }
 

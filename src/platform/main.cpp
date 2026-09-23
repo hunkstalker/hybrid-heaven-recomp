@@ -825,6 +825,7 @@ int main(int argc, char** argv) {
 
     hh::init_audio();
     hh::reset_audio(48000);
+    hh::menu_sfx::init();  // SFX del menú (carga los WAV de sounds/ junto al .exe)
     hh::log("audio reset done\n");
 
     // HH: fija la config de video ([video] en config.ini) antes de crear el contexto RT64.

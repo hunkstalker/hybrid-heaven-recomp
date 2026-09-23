@@ -20,7 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 77 | 2026-09-21 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 364 | 2026-09-22 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 276 | 2026-09-21 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 276 | 2026-09-23 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
@@ -54,7 +54,7 @@
 | [B / A2-camino1 — Motor de texto del juego localizado (rutina de dibujo)](../notes/2026-09-23-b-motor-texto-localizado.md) | Sesión 2026-09-23. Camino elegido por el mantenedor: **reutilizar el motor de texto del juego** | 43 | 2026-09-23 |
 | [B — Localización de la fuente (en curso)](../notes/2026-09-23-b-fuente-localizacion.md) | Sesión 2026-09-23. Objetivo: poner acentos (ñ, tildes, ¿ ¡) al texto del juego, que en USA no | 44 | 2026-09-23 |
 | [B — Formato de la fuente del juego, ficheros y gaiji PAL (hallazgos)](../notes/2026-09-23-b-fuente-formato-y-gaiji.md) | Sesión 2026-09-23. Continúa `notes/2026-09-23-b-fuente-localizacion.md` y | 145 | 2026-09-23 |
-| [A2 — overlay por render hook de RT64: infra + atlas (Fase A)](../notes/2026-09-23-a2-render-hook-y-atlas.md) | Sesión 2026-09-23 (2.ª del día). Implementa la vía decidida en | 145 | 2026-09-23 |
+| [A2 — overlay por render hook de RT64: infra + atlas (Fase A)](../notes/2026-09-23-a2-render-hook-y-atlas.md) | Sesión 2026-09-23 (2.ª del día). Implementa la vía decidida en | 159 | 2026-09-23 |
 | [A2 — Plan: sección "Idioma" en el menú de AJUSTES in-game](../notes/2026-09-23-a2-plan-menu-ajustes-idioma.md) | Sesión 2026-09-23. Continuación de A1. Objetivo (del mantenedor): el selector de idioma debe ser un | 109 | 2026-09-23 |
 | [A2 — Overlay propio: intento por GBI (fallido) y cambio de vía al render hook](../notes/2026-09-23-a2-overlay-primer-paso.md) | Sesión 2026-09-23. Primer paso de A2 (overlay moderno imitando al juego). Se intentó dibujar el | 75 | 2026-09-23 |
 | [A1 — Sistema de idiomas + cambio en vivo (base del selector, ADR 0008)](../notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md) | Sesión 2026-09-23. Primera parte de la vía **A** (UI/selector propio). Funcional; falta la parte | 55 | 2026-09-23 |

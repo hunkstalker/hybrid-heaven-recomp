@@ -81,7 +81,6 @@ Hay que registrarlo **antes** de `setup()` (Goemon lo hace al inicio del constru
   la máscara sale siempre 0.
 
 ## 6. Validación en Windows (2026-09-23) y alineación
-
 El mantenedor validó en Windows (2560×1440, aspecto expand). Resultado: **funciona** — el overlay
 dibuja las etiquetas con la fuente del juego y **la entrada seleccionada se resalta al mover el cursor
 del juego** (enlace con el menú real confirmado). Sale **duplicado** (texto del juego + nuestro
@@ -143,3 +142,18 @@ dibujan a **tamaño nativo con `scale = 1.0`** (8 px → 48 px, igual que el jue
 Nota: el decode 2bpp de `font.cpp` es **correcto** (verificado contra la tabla real del motor en
 `0x800446AC`: `'A'→37` bloque 18 paridad 1; `'B'→38` y `'C'→39` comparten el bloque 19). El contacto
 4bpp de `font_dump.py` era una vista alternativa (unión de los dos glifos empaquetados).
+
+## 7. Efectos de sonido del menú (SFX)
+
+El juego no tiene SFX de UI decentes; se añadieron propios (`assets/sounds/*.wav`, aportados por el
+mantenedor). Implementación en `src/platform/menu_sfx.cpp`:
+
+- **Un solo dispositivo**: se **mezclan sobre el stream de audio del juego** (`hh::menu_sfx::mix`
+  llamado desde `hh::queue_samples`), no con un segundo dispositivo SDL (fallaba en algunos drivers:
+  "Audio device already open"). Resample a la tasa real del dispositivo (`hh::audio_output_rate()`).
+- **Assets**: los `.mp3` de origen se convirtieron a **WAV 48 kHz/S16/estéreo** (ffmpeg) para no
+  añadir decodificador de mp3. En la release se copian **solo los `.wav`** a `sounds/` junto al
+  ejecutable (`CMakeLists.txt`); los `.mp3` quedan como fuente en `assets/sounds/`.
+- **Disparo**: `hh_title_menu_hook` lee los botones (`func_801C1340`) tras delegar en el original y
+  detecta **flancos**: A/START → accept, B → back, arriba/abajo → move. Solo en el menú de título
+  (cuando exista `hh_menu` propio se ampliará).
