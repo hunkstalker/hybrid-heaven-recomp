@@ -161,5 +161,6 @@ mantenedor). Implementación en `src/platform/menu_sfx.cpp`:
     `hh_goto_hook`, registrado siempre) y se clasifica por el botón (A/START → accept, B → back).
   - Botones: hay **dos** funciones — `func_801C1340` (0x80089E80, direcciones) y `func_801C1334`
     (0x80089E78, A/START); se combinan. Traza `HH_MENU_TRACE=1`.
-  - `back` no sonará en el menú de título (es la raíz: B no provoca transición); sí en submenús. El
-    control fino se mudará a `hh_menu` (nuestro menú) cuando exista.
+  - **`back` no suena todavía**: en el título no aplica (es la raíz: B no provoca transición) y los
+    submenús **no están enganchados** (se intentó y se revirtió). El control fino se mudará a
+    `hh_menu` (nuestro menú) cuando exista.
