@@ -86,6 +86,18 @@ sigue los patrones de los ports anteriores pero no es copia de ninguno.
 Konami/Nintendo); se versiona como excepción pequeña y estable (ver `docs/adr/0009`), no es código
 original del proyecto.
 
+## Sonidos del menú (`assets/sounds/`, de Pixabay)
+
+Los efectos de sonido del menú (`assets/sounds/*.wav`) provienen de [Pixabay](https://pixabay.com/).
+Su [licencia de contenido](https://pixabay.com/service/license-summary/) permite **uso libre y
+modificación, sin obligación de atribución** (aunque se agradece); aun así se acredita:
+
+| Uso en el menú | Título | Autor |
+|---|---|---|
+| Move (mover cursor) | «Game UI Confirm Selection Sound #2 UI» | **Vadim_Makes_Sound** |
+| Accept (A) | «UI Sound 115» | **juniorsoundays** |
+| Back (B) | «UI Sound 116» | **juniorsoundays** |
+
 ## Herramientas de desarrollo (no se distribuyen)
 
 | Herramienta | Autoría | Licencia | Uso |

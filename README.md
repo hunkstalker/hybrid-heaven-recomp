@@ -67,3 +67,13 @@ recompilación estática con ayuda de IA (entrenada con código de la comunidad)
 resultado a la comunidad con las mismas libertades. Se apoya en **N64ModernRuntime** (GPL-3.0),
 **N64Recomp** y **RT64** (MIT) y xxHash/miniz/o1heap; autoría y commits exactos: [`CREDITS.md`](CREDITS.md).
 El repositorio **no** incluye la ROM de Hybrid Heaven (© Konami).
+
+### Créditos
+
+- **Repo de referencia**: [danielgomesvieira2000/hybrid-heaven-recomp](https://github.com/danielgomesvieira2000/hybrid-heaven-recomp)
+  (**MIT**) — tooling de recompilación por ELF adaptado (detalle en [`CREDITS.md`](CREDITS.md)).
+- **Sonidos del menú** (de [Pixabay](https://pixabay.com/); [licencia de contenido de Pixabay](https://pixabay.com/service/license-summary/):
+  uso libre y modificación permitidos, **sin obligación de atribución** — la damos igualmente):
+  - *Menu Move* — «Game UI Confirm Selection Sound #2 UI» de **Vadim_Makes_Sound**.
+  - *Menu Accept* — «UI Sound 115» de **juniorsoundays**.
+  - *Menu Back* — «UI Sound 116» de **juniorsoundays**.
