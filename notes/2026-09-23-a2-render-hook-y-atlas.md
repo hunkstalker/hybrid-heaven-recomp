@@ -154,8 +154,12 @@ mantenedor). Implementación en `src/platform/menu_sfx.cpp`:
 - **Assets**: los `.mp3` de origen se convirtieron a **WAV 48 kHz/S16/estéreo** (ffmpeg) para no
   añadir decodificador de mp3. En la release se copian **solo los `.wav`** a `sounds/` junto al
   ejecutable (`CMakeLists.txt`); los `.mp3` quedan como fuente en `assets/sounds/`.
-- **Disparo**: `hh_title_menu_hook` lee los botones tras delegar en el original y detecta
-  **flancos**: A/START → accept, B → back, arriba/abajo → move. OJO: hay **dos** funciones de lectura
-  — `func_801C1340` (0x80089E80, direcciones) y `func_801C1334` (0x80089E78, A/START); se leen las
-  dos y se combinan. Traza `HH_MENU_TRACE=1`: `[sfx] btn=.. pressed=..`. Solo en el menú de título
-  (cuando exista `hh_menu` propio se ampliará).
+- **Disparo por CAMBIO REAL, no por pulsación** (un botón puede no hacer nada: arriba en la primera
+  entrada, A sobre una opción deshabilitada, B sin "atrás"). En `hh_title_menu_hook`:
+  - **move**: cambia la selección (`0x801CC8C4`).
+  - **accept/back**: se ha producido una **transición de pantalla** (`func_800058DC`, contada por
+    `hh_goto_hook`, registrado siempre) y se clasifica por el botón (A/START → accept, B → back).
+  - Botones: hay **dos** funciones — `func_801C1340` (0x80089E80, direcciones) y `func_801C1334`
+    (0x80089E78, A/START); se combinan. Traza `HH_MENU_TRACE=1`.
+  - `back` no sonará en el menú de título (es la raíz: B no provoca transición); sí en submenús. El
+    control fino se mudará a `hh_menu` (nuestro menú) cuando exista.

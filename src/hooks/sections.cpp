@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <atomic>
 #include <mutex>
 #include <vector>
 
@@ -157,6 +158,10 @@ void hh::register_overlays() {
     }
 }
 
+// A2: contador de transiciones de pantalla (func_800058DC). El SFX del menú suena por CAMBIO REAL:
+// cursor movido -> move; pantalla cambiada -> aceptar/atrás. Así no suena si el botón no hace nada.
+static std::atomic<uint32_t> g_goto_count{ 0 };
+
 // Overlay A2: envuelve el handler del menú de título del módulo 23 (func_801C1DB8). Delega en el
 // ORIGINAL (el menú del juego sigue funcionando y su texto queda visible) y publica el frame del
 // overlay del port a partir del estado real (etiquetas + selección). Con HH_MENU_TRACE=1 registra
@@ -172,27 +177,36 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
                 static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
                 guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
     }
-    func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original
-    // SFX del menú: lee los botones (dos funciones distintas: direcciones y A/START) y detecta
-    // flancos (mover/aceptar/atrás).
+    // SFX del menú por CAMBIO REAL (no por pulsación de botón):
+    //   - cursor movido (selección 0x801CC8C4 cambia) -> move
+    //   - pantalla cambiada (goto) -> accept/back según el botón que lo provocó
+    // Así no suena si el botón no hace nada (p. ej. arriba en la primera entrada, o B sin "atrás").
     {
-        recomp_context ta = *ctx;
-        func_801C1334_11BAE04(rdram, &ta);   // A/START
-        recomp_context td = *ctx;
-        func_801C1340_11BAE10(rdram, &td);   // direcciones
-        const uint32_t btn = static_cast<uint32_t>(ta.r2) | static_cast<uint32_t>(td.r2);
-        static uint32_t prev_btn = 0;
-        const uint32_t pressed = btn & ~prev_btn;
-        prev_btn = btn;
-        if (env_set("HH_MENU_TRACE") && pressed != 0) {
-            hh::log("[sfx] btn=0x%04X pressed=0x%04X\n", btn, pressed);
-        }
-        if (pressed & 0xB000u) {        // A / START
-            hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
-        } else if (pressed & 0x4000u) { // B
-            hh::menu_sfx::play(hh::menu_sfx::Sfx::Back);
-        } else if (pressed & 0xC00u) {  // UP (0x800) / DOWN (0x400)
+        auto guest_byte = [&](uint32_t addr) -> unsigned {
+            return rdram[(addr - 0x80000000u) ^ 3u];
+        };
+        const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
+        const uint32_t sel_before = guest_byte(0x801CC8C4u);
+        func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original (puede mover cursor/cambiar pantalla)
+        const uint32_t sel_after = guest_byte(0x801CC8C4u);
+        const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
+
+        if (sel_after != sel_before) {
             hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+        } else if (goto_after != goto_before) {
+            recomp_context ta = *ctx;
+            func_801C1334_11BAE04(rdram, &ta);   // A/START
+            recomp_context td = *ctx;
+            func_801C1340_11BAE10(rdram, &td);   // direcciones
+            const uint32_t btn = static_cast<uint32_t>(ta.r2) | static_cast<uint32_t>(td.r2);
+            if (env_set("HH_MENU_TRACE")) {
+                hh::log("[sfx] pantalla cambiada: btn=0x%04X\n", btn);
+            }
+            if (btn & 0xB000u) {
+                hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            } else if (btn & 0x4000u) {
+                hh::menu_sfx::play(hh::menu_sfx::Sfx::Back);
+            }
         }
     }
     hh::menu_overlay::title_update(rdram);
@@ -253,11 +267,14 @@ extern "C" void hh_font_trace_bfe4(uint8_t* rdram, recomp_context* ctx) {
     func_8001BFE4_1CBE4(rdram, ctx);
 }
 
-// Diagnostico A2: envuelve func_800058DC (programar pantalla siguiente). Logea qué función se
-// programa y desde qué dirección, para mapear botón/entrada -> pantalla sin adivinar.
-extern "C" void hh_goto_trace(uint8_t* rdram, recomp_context* ctx) {
-    hh::log("[menu] goto pantalla=%08X (obj=%08X)\n", static_cast<uint32_t>(ctx->r5),
-            static_cast<uint32_t>(ctx->r4));
+// A2: contador de transiciones de pantalla (func_800058DC); definido arriba (antes del handler).
+
+extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
+    g_goto_count.fetch_add(1, std::memory_order_relaxed);
+    if (env_set("HH_MENU_TRACE")) {
+        hh::log("[menu] goto pantalla=%08X (obj=%08X)\n", static_cast<uint32_t>(ctx->r5),
+                static_cast<uint32_t>(ctx->r4));
+    }
     func_800058DC_64DC(rdram, ctx);
 }
 
@@ -279,11 +296,8 @@ void hh::register_runtime_functions() {
                                           file_load_streamed_hook);
     // Overlay A2: handler del menú de título (delega en el original + publica el overlay).
     register_title_menu_hook();
-    // Diagnostico A2 (opcional): instrumenta el goto entre pantallas del módulo 23.
-    if (env_set("HH_MENU_TRACE")) {
-        recomp::overlays::add_loaded_function(0x800058DC, hh_goto_trace);
-        std::fprintf(stderr, "[hh] HH_MENU_TRACE: goto de menú instrumentado\n");
-    }
+    // A2: transiciones de pantalla (cuenta para el SFX por cambio real; traza con HH_MENU_TRACE).
+    recomp::overlays::add_loaded_function(0x800058DC, hh_goto_hook);
     // Diagnostico B (opcional): mapea código->slot y color/estilo del motor de texto.
     if (env_set("HH_FONT_TRACE")) {
         recomp::overlays::add_loaded_function(0x8001D394, hh_font_trace_d394);
