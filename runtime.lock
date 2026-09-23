@@ -10,6 +10,8 @@
 #
 # Los commits de los forks deben existir en el remoto para que un clon limpio/submodulo funcione:
 # orden de push N64Recomp -> N64ModernRuntime -> main (ver AGENTS.md).
+RT64_URL=https://github.com/hunkstalker/rt64.git
+RT64_COMMIT=a8f0a70d42d944985b198e75ae686cae2ad1674b
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
 NMR_COMMIT=503957df1ed0fff62c6991716b78afc6648764a6
 # Referencia (los resuelve el .gitmodules anidado del fork NMR; se listan para trazabilidad):

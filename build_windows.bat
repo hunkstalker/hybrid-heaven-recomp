@@ -31,14 +31,25 @@ if "%ROOT%"=="NONE" (
 set "PORT=%ROOT%"
 set "RT64=%PORT%\lib\rt64"
 set "NMR=%PORT%\lib\N64ModernRuntime"
-set "RT64_COMMIT=43373749dac9bbc1b653e6a02aed40a9e1783bed"
 
-REM --- URL/SHA del runtime desde runtime.lock ---
+REM --- URL/SHA de lib/rt64 y runtime desde runtime.lock ---
+set "RT64_URL="
+set "RT64_COMMIT="
 set "NMR_URL="
 set "NMR_COMMIT="
 if exist "%ROOT%\runtime.lock" for /f "usebackq tokens=1,* delims==" %%a in ("%ROOT%\runtime.lock") do (
+    if /i "%%a"=="RT64_URL" set "RT64_URL=%%b"
+    if /i "%%a"=="RT64_COMMIT" set "RT64_COMMIT=%%b"
     if /i "%%a"=="NMR_URL" set "NMR_URL=%%b"
     if /i "%%a"=="NMR_COMMIT" set "NMR_COMMIT=%%b"
+)
+if not defined RT64_URL (
+    echo ERROR: falta RT64_URL en %ROOT%\runtime.lock
+    goto :err
+)
+if not defined RT64_COMMIT (
+    echo ERROR: falta RT64_COMMIT en %ROOT%\runtime.lock
+    goto :err
 )
 if not defined NMR_URL (
     echo ERROR: falta NMR_URL en %ROOT%\runtime.lock
@@ -67,8 +78,8 @@ if "%SKIP_LIBS%"=="1" goto :libs_ok
 
 REM ============ 1) lib/rt64 ============
 if exist "%RT64%\CMakeLists.txt" goto :rt64_present
-echo [1/4] Clonando lib/rt64 ...
-git clone https://github.com/rt64/rt64.git "%RT64%"
+echo [1/4] Clonando lib/rt64 (fork) ...
+git clone "%RT64_URL%" "%RT64%"
 if errorlevel 1 goto :err
 goto :rt64_checkout
 

@@ -48,14 +48,19 @@ versionar la ROM. Herramientas: `tools/text/extract_strings.py`, `tools/lzkn64/l
 
 ## Pendiente inmediato (mantenedor)
 
-- **Push de 2 commits de docs** y **tag `v0.4.0`** tras CI verde:
+- **`v0.4.0` YA está publicado** (tag en `origin`, commit `c977bd5`). Su **gitlink de `lib/rt64`
+  apunta al fork `a8f0a70`** (correcto) y `.gitmodules` también usa el fork → un clon con
+  submódulos obtiene lo correcto. **No borrar/re-tag.**
+- **Defecto conocido de v0.4.0** (corregido ya en `main`): su `build_windows.bat` clonaba de
+  **upstream** `rt64/rt64` en `4337374` (perdía el fix 2D) si no se inicializaban submódulos.
+  Ahora el script lee `RT64_URL`/`RT64_COMMIT` de `runtime.lock` (fork, `a8f0a70`).
+- **Plan**: dejar v0.4.0 como está (**a**) y publicar **`v0.4.1`** con este arreglo cuando toque la
+  próxima release (**c**).
+- Pendiente de push (normal): los commits locales de `main` (incluido el arreglo).
   ```powershell
   git -C hybrid-heaven-recomp push origin main
-  # esperar CI verde
-  git -C hybrid-heaven-recomp tag -a v0.4.0 -m v0.4.0
-  git -C hybrid-heaven-recomp push origin v0.4.0
   ```
-  (`release.yml` usa `docs/releases/v0.4.0.md`.)
+  Recuerda: el repo principal requiere **`--force-with-lease`** (ver AGENTS.md §Push).
 
 ## Qué toca después
 
@@ -86,8 +91,8 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Git
 
-- **`main`**: `origin/main` = `c977bd5` (v0.4.0 versionada); **este handoff y los docs recientes**
-  sin push (haz `git log origin/main..HEAD` para verlos).
-- **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70`.
+- **`main`**: `origin/main` = `c977bd5` (v0.4.0). Locales sin push: el commit de traducción/idiomas
+  (`ac4a89f`) y el arreglo de pin de rt64 (`build_windows.bat`/`runtime.lock`).
+- **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70` (gitlink correcto; árbol limpio).
 - **`N64ModernRuntime` / `N64Recomp`**: en sync.
-- Tags publicados: `v0.1.x`, `v0.2.0`, `v0.3.0`. **`v0.4.0` pendiente de tag.**
+- Tags publicados: `v0.1.x`, `v0.2.0`, `v0.3.0`, **`v0.4.0`**. Próximo: `v0.4.1` (arreglo del script).
