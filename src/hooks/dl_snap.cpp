@@ -262,4 +262,81 @@ void hud_trace(uint8_t* rdram, uint32_t list_address) {
     HudWalker w{ rdram };
     w.walk(list_address, 0);
 }
+
+// Diagnostico (HH_MENUTRACE=1): vuelca TODAS las DPs de la display list (opcode + palabras) y las
+// texturas (setTImg) con su direccion fisica. Sirve para localizar la rutina/fuente de texto del
+// menú. El volcado va a hh_menudl.log (word-swapped segun guarda el port). Ver
+// notes/2026-09-23-b-fuente-localizacion.md.
+namespace {
+struct DlDumper {
+    uint8_t* rdram;
+    FILE* f;
+    uint32_t segments[16] = {};
+    int count = 0;
+    bool saw_tex = false;
+    uint32_t physical(uint32_t address) const {
+        const uint32_t seg = (address >> 24) & 0x0F;
+        if ((address >> 24) >= 0x80) return address & 0x1FFFFFFF;
+        return (segments[seg] + (address & 0x00FFFFFF)) & 0x1FFFFFFF;
+    }
+    void walk(uint32_t address, int depth) {
+        if (depth > 12 || count > 4000) return;
+        uint32_t pc = physical(address);
+        for (int guard = 0; guard < 100000; ++guard) {
+            if (pc >= 0x800000) return;
+            const uint32_t w0 = hh::hudid::read_word(rdram, pc);
+            const uint32_t w1 = hh::hudid::read_word(rdram, pc + 4);
+            const uint8_t op = static_cast<uint8_t>(w0 >> 24);
+            if (op > 0x07 && op < 0xD3) return;
+            std::fprintf(f, "%06X: %02X  %08X %08X\n", pc, op, w0, w1);
+            ++count;
+            pc += 8;
+            switch (op) {
+                case kEndDl: return;
+                case kDl: {
+                    const bool branch = ((w0 >> 16) & 0xFF) != 0;
+                    const uint32_t target = physical(w1);
+                    if (branch) pc = target; else walk(w1, depth + 1);
+                    break;
+                }
+                case kMoveWord:
+                    if (((w0 >> 16) & 0xFF) == kMwSegment) {
+                        segments[((w0 & 0xFFFF) / 4) & 0x0F] = w1 & 0x1FFFFFFF;
+                    }
+                    break;
+                case kSetTImg:
+                    saw_tex = true;
+                    std::fprintf(f, "        TEX phys=%06X\n", physical(w1));
+                    break;
+                case kTexRect:
+                case kTexRectFlip:
+                    if (static_cast<uint8_t>(hh::hudid::read_word(rdram, pc) >> 24) == kRdpHalf1) pc += 8;
+                    if (static_cast<uint8_t>(hh::hudid::read_word(rdram, pc) >> 24) == kRdpHalf2) pc += 8;
+                    break;
+                default: break;
+            }
+        }
+    }
+};
+}  // namespace
+
+void menu_trace(uint8_t* rdram, uint32_t list_address) {
+    static const bool on = [] {
+        const char* e = getenv("HH_MENUTRACE");
+        return e != nullptr && *e != '\0' && strcmp(e, "0") != 0;
+    }();
+    if (!on || rdram == nullptr) return;
+    static FILE* f = nullptr;
+    static int n = 0;
+    if (f == nullptr) f = fopen("hh_menudl.log", "w");
+    if (f == nullptr) return;
+    DlDumper d{ rdram, f };
+    d.walk(list_address, 0);
+    // Solo conservamos las listas con texturas (donde estara la fuente); el resto (fondo/fill) se
+    // descarta para no inundar el log.
+    if (d.saw_tex) {
+        std::fprintf(f, "==== DL CON TEX 0x%08X (%d DPs) ====\n", list_address, d.count);
+        std::fflush(f);
+    }
+}
 }  // namespace hh

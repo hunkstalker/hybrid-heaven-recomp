@@ -333,6 +333,8 @@ void hh::RT64Context::send_dl(const OSTask* task) {
     hh::snap_overscan(app->core.RDRAM, task->t.data_ptr);
     // Widescreen: trace temporal de identidades 2D (HH_HUD_TRACE=1).
     hh::hud_trace(app->core.RDRAM, task->t.data_ptr);
+    // Diagnostico (HH_MENUTRACE=1): volcado de la DL del menú para localizar el text-emit.
+    hh::menu_trace(app->core.RDRAM, task->t.data_ptr);
     // Widescreen: anclaje del HUD. Si hay elementos clasificados, envia la copia reescrita.
     uint32_t data_ptr = task->t.data_ptr;
     if (const uint32_t rewritten = hh::hudrewrite::rewrite(app->core.RDRAM, data_ptr)) {
@@ -356,6 +358,35 @@ void hh::RT64Context::send_dummy_workload(uint32_t fb_address) {
 }
 
 void hh::RT64Context::update_screen() {
+    hh::text_debug_tick();  // diagnostico HH_LANG_CYCLE_AT (cambio de idioma en vivo)
+
+    // Diagnostico HH_DUMP_RDRAM_AT=<seg>: vuelca 8 MB de RDRAM una vez (para cazar assets, p. ej.
+    // la fuente de texto). El dump queda word-swapped (bswap32 al analizar).
+    {
+        static const double dump_at = [] {
+            const char* e = std::getenv("HH_DUMP_RDRAM_AT");
+            return (e != nullptr && *e != '\0') ? std::atof(e) : -1.0;
+        }();
+        if (dump_at >= 0.0) {
+            static bool done = false;
+            static const auto t0 = std::chrono::steady_clock::now();
+            if (!done) {
+                const double secs =
+                    std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                if (secs >= dump_at) {
+                    done = true;
+                    uint8_t* rdram = hh::get_game_rdram();
+                    FILE* f = std::fopen("hh_rdram_dump.bin", "wb");
+                    if (rdram != nullptr && f != nullptr) {
+                        std::fwrite(rdram, 1, 8u * 1024u * 1024u, f);
+                        std::fclose(f);
+                        hh::log("[HH] RDRAM volcada a hh_rdram_dump.bin (%.1fs)\n", secs);
+                    }
+                }
+            }
+        }
+    }
+
     // HH_FPS=1: registra 1 vez por segundo la tasa real de present (llamadas a update_screen) y
     // cuantas display lists se enviaron en ese intervalo. Sirve para medir sin overlay ni dev-mode.
     static const bool fps_log = [] {

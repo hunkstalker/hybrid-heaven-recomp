@@ -41,9 +41,17 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   `trans` por caracterizar.
 - Carga de módulos por el loader `trans` (`seg_RomDecode_sep`); directorio `id→base` en
   `0x8008DFC0`. Mapa dinámico = tarea #3 (BizHawk).
-- **Textos**: encoding custom (USA) en varias zonas; anclas: `WASHINGTON D.C.` @`0x061CD7A`,
-  `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`, `ITEM...WEAPON` @`0x06C33AF`.
-- Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`.
+- **Textos/idiomas**: el texto USA es **ASCII terminado en NUL en campos de ancho fijo** (el
+  "encoding custom" era en realidad los flujos LZKN64; el motor usa **EUC-JP** y los acentos PAL son
+  gaiji de 2 bytes). Sustitución en runtime vía el loader `trans` (`src/subsystems/text.cpp`).
+  **Sistema de idiomas A1 (2026-09-23)**: lista `en/es/ca/fr/de/ja` + mods, selección/ciclo (F5),
+  **cambio en vivo** (re-aplicación a módulos cargados) y persistencia en `config.ini [lang]`.
+  Anclas: `WASHINGTON D.C.` @`0x061CD7A`, `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`,
+  `ITEM...WEAPON` @`0x06C33AF`; módulo título/menú = Nisitenma idx 23. Detalle:
+  `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
+  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
+- Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
+  `tools/text/extract_strings.py` (ROM → cadenas).
 
 ## 5. Estado de avance
 
@@ -65,7 +73,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
-| 6. Textos/traducción | pendiente | encoding parcialmente localizado |
+| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime validada en Linux headless (`HH_LANG=es`, módulo 23); **A1: sistema de idiomas + cambio en vivo (F5)**; falta selector visual (A2) y glifos de acento |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 
 Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.

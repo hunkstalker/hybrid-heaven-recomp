@@ -1,0 +1,5 @@
+# 日本語 (de serie). NOTA: el motor usa EUC-JP y la fuente del juego SI tiene kanji/kana, pero esta
+# capa de tablas lee/escribe bytes crudos: aqui habria que escribir EUC-JP (no UTF-8) y respetar la
+# longitud de los registros (los kanji ocupan 2 bytes). Requiere definir el formato; por ahora se
+# muestra el texto original en ingles.
+# TODO: soportar texto EUC-JP en las tablas (binario) y anadir glifos si faltan.

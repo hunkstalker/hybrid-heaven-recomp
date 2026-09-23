@@ -516,6 +516,11 @@ void hh::poll_input() {
                     // MSAA (apenas notable a alta resolucion; por config suele bastar).
                     hh::video_cycle_msaa();
                 }
+                else if (k.sym == SDLK_F5) {
+                    // Idioma: cicla entre los disponibles (base del selector, ADR 0008) y lo aplica
+                    // en vivo a lo ya cargado. Se persiste en config.ini [lang].
+                    hh::text_cycle_language();
+                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);

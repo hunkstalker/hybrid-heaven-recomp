@@ -21,15 +21,39 @@
   sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
   Nota: **RTSS funciona** una vez configurado (subir *detection level*), así que sirve como overlay
   externo; `HH_DEVELOPER=1` + F1 es la vía interna.
-- [ ] **Textos/traducción (requisito de producto) — spike de encoding**: sería la **primera
-  traducción al español** del juego. Primeros pasos acotados:
-  1. **Localizar** las tablas de texto de la ROM (anclas conocidas: `WASHINGTON D.C.` @`0x061CD7A`,
+- [•] **Textos/traducción (requisito de producto) — spike de encoding + idiomas (EN CURSO)**: sería la
+  **primera traducción al español** del juego. **Hecho (2026-09-23)**: charset USA derivado (ASCII
+  en campos de ancho fijo + NUL; el "encoding custom" era en realidad los flujos LZKN64) y
+  **sustitución en runtime** vía el loader `trans` (`src/subsystems/text.cpp`; `HH_LANG=es`).
+  Extractor `tools/text/extract_strings.py`. Módulo 23 (título/menú/opciones) = 68 cadenas.
+  **Sistema de idiomas A1** (base del selector ADR 0008): lista `en/es/ca/fr/de/ja` + mods,
+  **cambio en vivo** (F5, re-aplicación a módulos cargados), persistencia en `config.ini [lang]`.
+  **Falta**: validar A1 en Windows; **A2** = selector visual; glifos de acento. Detalles:
+  `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
+  `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
+  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
+  Pasos originales:
+  1. [x] **Localizar** las tablas de texto de la ROM (anclas: `WASHINGTON D.C.` @`0x061CD7A`,
      `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`, `ITEM...WEAPON` @`0x06C33AF`).
-  2. **Derivar el charset** (encoding custom USA) y construir un **extractor** ROM→texto.
-  3. **Reinsertar** con control de longitud (comprobar si los textos van en buffers de tamaño fijo y
-     si hay que preservar terminadores/control codes).
-  4. **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
-     necesarios tipo `ñ/¿/¡` en la fuente).
+  2. [x] **Derivar el charset** (USA: ASCII + campos de ancho fijo) y **extractor** ROM→texto.
+     Encoding real del motor: **EUC-JP**; acentos = gaiji de 2 bytes (ver nota 2026-09-23 de glifos).
+     Importante: los bytes no-ASCII alrededor de las anclas eran **LZKN64**, no glifos.
+  3. [•] **Reinsertar**: sustitución en runtime preservando longitud (vía loader `trans`); falta
+     control de longitud variable y validación en Windows.
+  4. [•] **A2 — menú in-game (AJUSTES con IDIOMA y SONIDO)**. Camino elegido: **reutilizar el motor
+     de texto del juego** (estilo idéntico), con arquitectura `hh_menu → hh_font → backend_game`
+     (y `backend_modern` para fuentes HD en el futuro). **Motor de texto localizado**:
+     `0x8001B204` (set entrada) → `0x8001BC04` (colocar texto; color en `0x8009E48..E4F`).
+     Diagnóstico `HH_MENUTRACE=1`. **Descartados** los overrides de menú del juego (el módulo está
+     empaquetado, no hay offsets libres; corrompían el menú principal). Detalle:
+     `notes/2026-09-23-b-motor-texto-localizado.md` y `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+     Siguiente: entender `0x8001BC04` y montar `hh_font`/`backend_game`.
+  5. [ ] **Glifos (bloqueante de acentos ES/CA/FR/DE)**: la **PAL** trae los acentos como gaiji
+     (bloque JIS `B0A1..B0CA`, tabla @`0x01EA30`, p. ej. `B0B2`=ä, `B0B9`=é, `B0BF`=ö, `B0CA`=ß);
+     el **ROM USA no trae esa tabla ni esos glifos**. Vías: (A) fuente propia en la UI del port y/o
+     (B) **transplantar la fuente/gaiji de PAL** en runtime.
+  6. [ ] **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
+     necesarios tipo `ñ/¿/¡` en la fuente). La PAL (FR/DE) sirve de **referencia de estilo**.
   Ver `PROYECTO.md §4` y `notes/2026-09-05_asset-map.md`.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD

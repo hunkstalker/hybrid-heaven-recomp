@@ -7,21 +7,35 @@
 Objetivo: probar que podemos **traducir en runtime** y ver cambiar textos del **menú** en pantalla
 (base del selector de idioma del ADR 0008). Sería la **primera traducción al español** del juego.
 
-Plan (detalle en `TODO.md` §Textos y `notes/archive/2026-09-11-proyecto-legacy.md` §4.5):
-1. **Charset** (encoding custom USA). Anclas: `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`,
-   `ITEM...WEAPON` @`0x06C33AF`, `WASHINGTON D.C.` @`0x061CD7A`. Zona `0x0530000-0x06D0000` (+ overlays
-   **262/264/303**). Paso: **volcar bytes alrededor de las anclas** y derivar la tabla byte→glifo
-   comparando con ASCII.
-2. **Text-emit**: localizar la rutina que dibuja un string (la que recibe esos punteros) y
-   **engancharla** (`[[patches.hook]]` o reimplementación ADR 0002) para sustituir el texto en runtime.
-3. **Prueba mínima**: traducir **un** texto de menú y verlo en pantalla (Windows).
-4. Si sale: variable `language` + persistencia + **cambio en vivo** desde el menú del Expansion Pak.
+**PROGRESO (2026-09-23)** — detalle en `notes/2026-09-23-*.md`:
+1. [x] **Charset**: resuelto. El texto USA es **ASCII** en **campos de ancho fijo terminados en NUL**;
+   los bytes no-ASCII junto a las anclas eran **flujos LZKN64**, no glifos. Extractor:
+   `tools/text/extract_strings.py`. El título/menú/opciones está en **Nisitenma idx 23**.
+2. [x] **Sustitución en runtime** interceptando el loader `trans`
+   (`src/subsystems/text.cpp` + `src/subsystems/trans_cache.cpp`): `HH_LANG=es` traduce 68 cadenas
+   del módulo 23 antes de escribirlas a RDRAM. **Validado visualmente en Windows** (título/opciones
+   en español). Nota: `assets/lang/es.txt` editable junto al `.exe`.
+3. [x] **A1 — sistema de idiomas + cambio en vivo** (`text.cpp`): lista `en/es/ca/fr/de/ja` + mods,
+   `hh::text_set_language`/`text_cycle_language`, persistencia en `config.ini [lang]`, atajo **F5**,
+   re-aplicación a módulos cargados (cambio en vivo). Detalle:
+   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`.
+4. [•] **A2 — menú in-game AJUSTES → IDIOMA / SONIDO** (requisito del mantenedor). **Decisión**:
+   reutilizar el **motor de texto del juego** (estilo idéntico), con arquitectura
+   `hh_menu → hh_font → backend_game` (+ `backend_modern` futuro para fuentes HD). **Motor de texto
+   localizado**: `0x8001B204` (set entrada) → `0x8001BC04` (colocar texto; color `0x8009E48..E4F`).
+   Diagnóstico `HH_MENUTRACE=1`. **Importante**: los *overrides* del menú del juego quedan
+   **DESACTIVADOS** (`src/hooks/sections.cpp`) porque el módulo 23 está **empaquetado** (sin offsets
+   libres) y corrompían el menú principal. Detalle: `notes/2026-09-23-b-motor-texto-localizado.md` y
+   `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+   **Siguiente**: entender `0x8001BC04` (firma de colocar texto) → montar `hh_font`/`backend_game`.
+5. [ ] **B — glifos/acentos**: la PAL trae los acentos como gaiji (bloque JIS `B0A1..B0CA`); el ROM
+   USA **no** los trae. Vía elegida: reutilizar fuente del juego (camino 1). Detalle:
+   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
 
-**IMPORTANTE (permisos)**: hace falta **leer** la ROM del mantenedor
-(`build\windows\bin\Release\hh.us.z64`) — **solo lectura**; confirmar antes (regla: no tocar ROMs sin
-pedirlo). **No** modificar la ROM ni meterla en el repo. Herramientas nuevas en `tools/` (p. ej.
-`tools/text/`). Herramientas ya disponibles: `tools/lzkn64/lzkn64.py`, `tools/rommy.py`,
-`notes/us_manifest.yaml` (módulos; `expansionram` = idx 23).
+**Permisos**: solo **lectura** de la ROM (`build\windows\bin\Release\hh.us.z64`); no modificar ni
+versionar la ROM. Herramientas: `tools/text/extract_strings.py`, `tools/lzkn64/lzkn64.py`,
+`tools/rommy.py`, `notes/us_manifest.yaml` (`expansionram` = idx 23). Diagnósticos nuevos:
+`HH_LANG`, `HH_LANG_CYCLE_AT`, `HH_DUMP_RDRAM_AT`, `HH_MENU_TRACE`, `HH_MENUTRACE`.
 
 ## Estado (ya cerrado)
 
@@ -45,13 +59,20 @@ pedirlo). **No** modificar la ROM ni meterla en el repo. Herramientas nuevas en 
 
 ## Qué toca después
 
-Ver **`TODO.md`** §Ahora: menú IN-GAME de opciones PC (ADR 0008, donde vivirá el selector de idioma),
-smoke de arranque, ADR 0009. Backlog: textos/traducción, barra HP + `right`/`stretch` del HUD, etc.
+**Prioridad**: **A2/B** — entender `0x8001BC04` (rutina de "colocar texto" del motor del juego) para
+envolverla en `hh_font`/`backend_game` y montar el menú **AJUSTES → IDIOMA / SONIDO** con el estilo
+del juego. De paso, localizar la **textura de fuente** del módulo 23 (resuelve los acentos de B).
+Todo el contexto en `notes/2026-09-23-b-motor-texto-localizado.md` y
+`notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+
+Ver también **`TODO.md`** §Ahora (otros pendientes: smoke de arranque, ADR 0009).
 
 ## Método
 
 - **Mapa/HUD**: solo se valida en Windows; Linux headless solo para compilar
   (`cmake --build build/linux -j`). Trazas a `hh.log` (`HH_HUD_*`, `HH_RECT_TRACE=1`).
+- **Menú/traducción**: validar en Windows (headless no llega al menú sin input). Diagnósticos:
+  `HH_LANG=es`, `HH_MENU_TRACE=1`, `HH_MENUTRACE=1`, `HH_DUMP_RDRAM_AT=<seg>`.
 - **Rendimiento**: medir con `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1` + F1 (o RTSS).
 - **Regla ROM**: no tocar ROMs/`work/*.so` sin permiso explícito.
 

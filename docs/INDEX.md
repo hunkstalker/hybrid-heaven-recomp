@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 115 | 2026-09-22 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 123 | 2026-09-22 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 69 | 2026-09-22 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 119 | 2026-09-22 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 152 | 2026-09-22 |
 
 ## Técnico y guías (vivos)
 
@@ -48,6 +48,12 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Texto EUC-JP, gaiji europeos de la PAL y por qué USA no trae acentos](../notes/2026-09-23-texto-euc-jp-y-glifos-pal.md) | Sesión 2026-09-23. Investigación para traducir ES/CA/FR/DE con acentos. Complementa | 76 | 2026-09-23 |
+| [Spike de traducción — charset USA resuelto y sustitución en runtime (módulo 23)](../notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md) | Sesión 2026-09-23 (continuación del handoff `RETOMAR.md` §Tarea de ESTA sesión). | 105 | 2026-09-23 |
+| [B / A2-camino1 — Motor de texto del juego localizado (rutina de dibujo)](../notes/2026-09-23-b-motor-texto-localizado.md) | Sesión 2026-09-23. Camino elegido por el mantenedor: **reutilizar el motor de texto del juego** | 43 | 2026-09-23 |
+| [B — Localización de la fuente (en curso)](../notes/2026-09-23-b-fuente-localizacion.md) | Sesión 2026-09-23. Objetivo: poner acentos (ñ, tildes, ¿ ¡) al texto del juego, que en USA no | 44 | 2026-09-23 |
+| [A2 — Plan: sección "Idioma" en el menú de AJUSTES in-game](../notes/2026-09-23-a2-plan-menu-ajustes-idioma.md) | Sesión 2026-09-23. Continuación de A1. Objetivo (del mantenedor): el selector de idioma debe ser un | 109 | 2026-09-23 |
+| [A1 — Sistema de idiomas + cambio en vivo (base del selector, ADR 0008)](../notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md) | Sesión 2026-09-23. Primera parte de la vía **A** (UI/selector propio). Funcional; falta la parte | 55 | 2026-09-23 |
 | [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 90 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |
 | [2026-09-22 — Cursor, carpeta `rom/` en release y README](../notes/2026-09-22-cursor-release-rom-readme.md) | Sesión de cierre tras validar el fix del mapa (fase 07b). Tres tareas pequeñas + hallazgo del | 33 | 2026-09-22 |

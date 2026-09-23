@@ -99,9 +99,11 @@ add_executable(HybridHeavenRecomp
     src/hooks/sections.cpp
     src/hooks/dl_snap.cpp
     src/hooks/hud_rewrite.cpp
+    src/hooks/hh_menu.cpp
     # subsystems: piezas del juego portadas (input, trans, firmware)
     src/subsystems/input.cpp
     src/subsystems/trans_cache.cpp
+    src/subsystems/text.cpp
     src/subsystems/firmware.c
 
     # Recompiled functions.
@@ -146,6 +148,13 @@ target_link_libraries(HybridHeavenRecomp PRIVATE
 
 # Nombre del archivo de salida (sin afectar al nombre interno del target).
 set_target_properties(HybridHeavenRecomp PROPERTIES OUTPUT_NAME "Hybrid Heaven Recomp")
+
+# Tablas de idioma "de serie": copiar assets/lang junto al ejecutable (lang/<code>.txt). Los idiomas
+# extra se aportan como mods (mods/*/lang/<code>.txt). Ver src/subsystems/text.cpp.
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/assets/lang"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/lang")
 
 if(WIN32)
     target_compile_definitions(HybridHeavenRecomp PRIVATE

@@ -146,6 +146,51 @@ void read_guest(const uint8_t* rdram, uint32_t dst, uint8_t* out, uint32_t len) 
     for (uint32_t i = 0; i < len; i++) out[i] = p[i ^ 3u];
 }
 
+// Escribe a RDRAM aplicando antes la traduccion de texto (HH_LANG). No muta `src` (el cache
+// persistente debe quedar en el idioma original). Ver src/subsystems/text.cpp.
+void store_guest_translated(uint8_t* rdram, uint32_t dst, const uint8_t* src, uint32_t len) {
+    if (hh::text_enabled() && (dst & 3u) == 0u && len != 0) {
+        static std::vector<uint8_t> scratch;
+        scratch.assign(src, src + len);
+        if (hh_text_translate_guest(scratch.data(), len) > 0) {
+            store_guest(rdram, dst, scratch.data(), len);
+            return;
+        }
+    }
+    store_guest(rdram, dst, src, len);
+}
+
+// Aplica la traduccion a un bloque ya escrito en RDRAM por el loader original (fallback).
+void translate_rdram(uint8_t* rdram, uint32_t dst, uint32_t len) {
+    if (!hh::text_enabled() || (dst & 3u) != 0u || len == 0) return;
+    static std::vector<uint8_t> scratch;
+    scratch.resize(len);
+    read_guest(rdram, dst, scratch.data(), len);
+    if (hh_text_translate_guest(scratch.data(), len) > 0) {
+        store_guest(rdram, dst, scratch.data(), len);
+    }
+}
+
+// Modulos cargados actualmente (para cambiar el idioma en vivo re-aplicando a RDRAM sin recargar).
+struct Loaded {
+    uint32_t src;
+    uint32_t size;
+    uint32_t dst;
+    uint32_t len;
+};
+std::vector<Loaded> g_loaded;
+
+void remember_loaded(uint32_t src, uint32_t size, uint32_t dst, uint32_t len) {
+    if (len == 0) return;
+    for (Loaded& e : g_loaded) {
+        if (e.src == src && e.size == size && e.dst == dst) {
+            e.len = len;
+            return;
+        }
+    }
+    g_loaded.push_back({src, size, dst, len});
+}
+
 // Decodificador LZKN64 identico a tools/lzkn64/lzkn64.py. `in_len` = bytes disponibles (a2 del
 // loader). El header de 4 bytes es el tamano comprimido (limite del bucle de entrada).
 bool lzkn64_decode(const uint8_t* in, size_t in_len, std::vector<uint8_t>& out) {
@@ -365,7 +410,7 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
 
     if (hit) {
         out_len = it->second.len;
-        store_guest(rdram, dst, g_data.data() + it->second.off, out_len);
+        store_guest_translated(rdram, dst, g_data.data() + it->second.off, out_len);
         ctx->r2 = static_cast<uint64_t>(dst) + out_len;
         g_hits++;
         kind = "hit";
@@ -373,7 +418,7 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
         std::vector<uint8_t> native_out;
         uint32_t native_len = 0;
         if (try_native(native_out, native_len)) {
-            store_guest(rdram, dst, native_out.data(), native_len);
+            store_guest_translated(rdram, dst, native_out.data(), native_len);
             ctx->r2 = static_cast<uint64_t>(dst) + native_len;
             persist_record(src, size, native_out.data(), native_len);
             g_native_ok++;
@@ -384,6 +429,7 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
             real_loader(rdram, ctx);
             uint32_t real_len = (static_cast<uint32_t>(ctx->r2) > dst) ? (static_cast<uint32_t>(ctx->r2) - dst) : 0;
             if (real_len > kMaxOut) real_len = 0;
+            translate_rdram(rdram, dst, real_len);
             capture_real(rdram, src, size, dst, real_len);
             g_real++;
             out_len = real_len;
@@ -399,4 +445,44 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
         std::fprintf(stderr, "[TRANS] %s src=%08X size=%06X dst=%08X len=%u us=%.0f\n", kind, src,
                      size, dst, out_len, us);
     }
+    if (out_len != 0) remember_loaded(src, size, dst, out_len);
+}
+
+// Re-aplica el idioma activo a los modulos cargados (cambio en vivo). Mantiene longitudes, asi que
+// los punteros del juego siguen validos. Ver src/subsystems/text.cpp.
+extern "C" void hh_trans_reapply_language(void) {    std::lock_guard<std::recursive_mutex> lock(g_mutex);
+    if (g_loaded.empty()) return;
+
+    uint8_t* rdram = hh::get_game_rdram();
+    if (rdram == nullptr) return;
+
+    int count = 0;
+    static std::vector<uint8_t> tmp;
+    for (const Loaded& e : g_loaded) {
+        if ((e.dst & 3u) != 0u) continue;
+        tmp.clear();
+        auto it = g_index.find(key_of(e.src, e.size));
+        if (it != g_index.end()) {
+            tmp.assign(g_data.begin() + it->second.off,
+                       g_data.begin() + it->second.off + it->second.len);
+        } else {
+            std::span<const uint8_t> rom = recomp::get_rom();
+            if (static_cast<uint64_t>(e.src) + e.size > rom.size()) continue;
+            if (!lzkn64_decode(rom.data() + e.src, e.size, tmp)) continue;
+        }
+        if (tmp.size() != e.len) continue;
+        store_guest_translated(rdram, e.dst, tmp.data(), e.len);
+        count++;
+    }
+    hh::log("[text] idioma re-aplicado a %d modulos cargados\n", count);
+}
+
+// Base RAM cargada de un modulo (por su offset/tamano de ROM). 0 si no esta cargado. Util para
+// calcular direcciones guest de datos inyectados (p. ej. etiquetas del menu PC).
+extern "C" uint32_t hh_trans_dst_for(uint32_t src, uint32_t size) {
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
+    for (const Loaded& e : g_loaded) {
+        if (e.src == src && e.size == size) return e.dst;
+    }
+    return 0;
 }

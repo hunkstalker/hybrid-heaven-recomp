@@ -1,0 +1,4 @@
+# Deutsch (de serie). Gleiches Format wie es.txt: ORIGINAL=UEBERSETZUNG
+# Der Spieltext ist ASCII in Feldern fester Laenge; Umlaute (ä ö ü ß) nutzen Font-Glyphen (PAL-
+# Gaiji). Siehe notes/2026-09-23-texto-euc-jp-y-glifos-pal.md.
+# TODO: deutsche Uebersetzungen ergaenzen (PAL-ROM als Referenz nutzbar).

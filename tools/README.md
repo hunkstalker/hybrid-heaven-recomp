@@ -20,6 +20,7 @@ sistema para nada del proyecto. La referencia operativa completa está en `docs/
 | `tools/build_linux.sh` | Clona/actualiza las libs (`lib/`) + CMake + build (Release; `--debug`, `--force-libs`). |
 | `tools/rommy.py` | Extracción/compresión de la tabla Konami **Nisitenma-Ichigo** (konami_fs). |
 | `tools/lzkn64/lzkn64.py` | `lzkn64` en Python puro (`decompress`/`compress`); evita Rust. Se importa con `PYTHONPATH=tools`. |
+| `tools/text/` | Texto/traducción: `extract_strings.py` (ROM → cadenas de un módulo Nisitenma). Ver `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`. |
 | `tools/analysis/` | Análisis de ROM, oráculo de emulador, capturas e índice de docs. Ver abajo. |
 | `tools/diag/` | Bats de diagnóstico (replay/watch) para el mantenedor. |
 

@@ -28,6 +28,9 @@
 
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
 extern "C" void unload_overlay_by_id(uint32_t id);
 
@@ -87,6 +90,9 @@ void announce_load(uint32_t id, uint32_t dest) {
     }
     load_overlay_by_id(static_cast<uint32_t>(index), file.vram);
     g_loaded_at[index] = file.vram;
+    // A2: al cargar (o recargar) un modulo, su seccion vuelve a escribir func_map y borra los
+    // overrides del menu PC si caen en su rango. Re-registrarlos aqui los mantiene vigentes.
+    // hh_pc_menu_register();  // DESACTIVADO: reemplazado por overlay propio
 
     if (env_set("HH_DEBUG_LOADS") || dest != file.vram) {
         std::fprintf(stderr, "[hh-load] file %3u (idx %d) -> 0x%08X (0x%06X bytes, %zu evicted)\n",
@@ -137,6 +143,36 @@ void hh::register_overlays() {
     }
 }
 
+// Diagnostico A2 (gateado por HH_MENU_TRACE): envuelve el handler del menú de opciones del módulo
+// 23 (func_801C1DB8) delegando en el original, y registra el índice seleccionado (0x801CC8C4) y
+// el estado. Sirve para mapear índice->acción empíricamente sin romper el menú.
+extern "C" void hh_menu_trace(uint8_t* rdram, recomp_context* ctx) {
+    static uint64_t calls = 0;
+    if ((calls++ % 30) == 0) {
+        auto guest_byte = [&](uint32_t addr) -> unsigned {
+            return rdram[(addr - 0x80000000u) ^ 3u];
+        };
+        std::fprintf(stderr, "[menu] a0=%08X a1=%08X sel=%u g1=%u g2=%u\n",
+                     static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
+                     guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
+        hh::log("[menu] a0=%08X a1=%08X sel=%u g1=%u g2=%u\n",
+                static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
+                guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
+    }
+    func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original
+}
+
+// Diagnostico A2: envuelve func_800058DC (programar pantalla siguiente). Logea qué función se
+// programa y desde qué dirección, para mapear botón/entrada -> pantalla sin adivinar.
+extern "C" void hh_goto_trace(uint8_t* rdram, recomp_context* ctx) {
+    hh::log("[menu] goto pantalla=%08X (obj=%08X)\n", static_cast<uint32_t>(ctx->r5),
+            static_cast<uint32_t>(ctx->r4));
+    func_800058DC_64DC(rdram, ctx);
+}
+
+// A2: la entrada SOUND (inutil en PC) pasa a ser AJUSTES; dentro viven IDIOMA y SONIDO.
+// (Implementacion en src/hooks/hh_menu.cpp; aqui solo se registran los overrides.)
+
 // Debe correr en on_init, DESPUES de init_overlays(): init_overlays hace func_map.clear() y
 // borraria los hooks si se registraran antes (register_overlays() si va antes, para las tablas).
 void hh::register_runtime_functions() {
@@ -150,6 +186,14 @@ void hh::register_runtime_functions() {
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadAddress), file_load_hook);
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadStreamedAddress),
                                           file_load_streamed_hook);
+    // Diagnostico A2 (opcional): instrumenta el menú de opciones del módulo 23.
+    if (env_set("HH_MENU_TRACE")) {
+        recomp::overlays::add_loaded_function(0x801C1DB8, hh_menu_trace);
+        recomp::overlays::add_loaded_function(0x800058DC, hh_goto_trace);
+        std::fprintf(stderr, "[hh] HH_MENU_TRACE: handler de menú y goto instrumentados\n");
+    }
+    // A2: SOUND -> AJUSTES (pantalla propia con IDIOMA y SONIDO).
+    // hh_pc_menu_register();  // DESACTIVADO: reemplazado por overlay propio
     std::fprintf(stderr, "[hh] %zu code files; loaders envueltos en 0x%08X y 0x%08X\n",
                  kFileCount, kFileLoadAddress, kFileLoadStreamedAddress);
     std::fflush(stderr);

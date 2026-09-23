@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ultramodern/ultramodern.hpp"
 #include "ultramodern/renderer_context.hpp"
@@ -94,7 +95,32 @@ namespace hh {
     // Widescreen: trace temporal de identidades 2D (HH_HUD_TRACE=1); ver RETOMAR.md §3.1.
     bool hud_trace_enabled();
     void hud_trace(uint8_t* rdram, uint32_t list_address);
+    // Diagnostico (HH_MENUTRACE=1): vuelca la DL del menú (hh_menudl.log) para localizar el text-emit.
+    void menu_trace(uint8_t* rdram, uint32_t list_address);
+
+    // Traduccion en runtime (spike textos; HH_LANG=es). Ver src/subsystems/text.cpp.
+    bool text_enabled();
+    // Gestion de idioma (base del selector, ADR 0008). El idioma se persiste en config.ini [lang].
+    std::vector<std::string> text_available_languages();
+    const std::string& text_current_language();
+    void text_set_language(const std::string& code);
+    void text_cycle_language();
+    // Diagnostico: HH_LANG_CYCLE_AT=<seg> cicla una vez el idioma tras N segundos (validar el
+    // cambio en vivo sin input). Llamar por frame. Ver src/subsystems/text.cpp.
+    void text_debug_tick();
 }
+
+// Traduce in-place un buffer en orden guest (antes de escribirlo a RDRAM). Devuelve n.º de
+// sustituciones. Definido en src/subsystems/text.cpp.
+extern "C" int hh_text_translate_guest(uint8_t* buf, size_t len);
+
+// Re-aplica el idioma activo a los modulos ya cargados (cambio en vivo). Definido en
+// src/subsystems/trans_cache.cpp.
+extern "C" void hh_trans_reapply_language(void);
+
+// Base RAM cargada de un modulo por (src, size) de ROM; 0 si no esta cargado. Definido en
+// src/subsystems/trans_cache.cpp.
+extern "C" uint32_t hh_trans_dst_for(uint32_t src, uint32_t size);
 
 // Defined in RecompiledFuncs/lookup.cpp (C++ linkage).
 gpr get_entrypoint_address();

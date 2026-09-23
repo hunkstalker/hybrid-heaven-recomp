@@ -1,0 +1,4 @@
+# Francais (de serie). Meme format que es.txt : ORIGINAL=TRADUCTION
+# Le texte du jeu est ASCII dans des champs de longueur fixe ; les accents (é è à ê ç...) utilisent
+# des glyphes de la fonte (gaiji PAL). Voir notes/2026-09-23-texto-euc-jp-y-glifos-pal.md.
+# TODO: remplir les traductions francaises (la ROM PAL peut servir de reference).
