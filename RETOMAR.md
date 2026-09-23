@@ -2,10 +2,47 @@
 
 > Handoff para **sesión nueva**. **Última sesión: 2026-09-23.**
 
-## Tarea de ESTA sesión: spike de traducción — empezar por los textos del menú
+## Terminología clave (LEER — evita malinterpretaciones)
 
-Objetivo: probar que podemos **traducir en runtime** y ver cambiar textos del **menú** en pantalla
-(base del selector de idioma del ADR 0008). Sería la **primera traducción al español** del juego.
+Hay que distinguir **dos cosas muy distintas**, porque los nombres se solapan:
+
+1. **Motor de TEXTO del juego** = la rutina que dibuja caracteres (fuente, glifos, color, layout).
+   - **SÍ se reutiliza** (se quiere estilo idéntico). Es el "backend_game" de `hh_font`.
+   - Es lo que hay que entender: `0x8001BC04` (colocar texto) ← `0x8001B204` (set entrada de menú).
+2. **Menú del JUEGO** = las pantallas de opciones del propio juego (título/sonido/resolución) y su
+   navegación/estado en el módulo 23.
+   - **NO se reutiliza ni se parchea.** Ya se intentó y **falló** (ver abajo): el módulo 23 está
+     **empaquetado** (no hay offsets de texto libres) y los *overrides* corrompían el menú
+     principal. **Esos overrides quedan DESACTIVADOS** en `src/hooks/sections.cpp`.
+   - El **menú (entradas, cursor, acciones) lo construye el PORT** (`hh_menu`), sobre su propia
+     pantalla, usando el motor de texto del juego para dibujar.
+
+Frase-resumen: **"reutilizar el motor de TEXTO del juego, NO el menú del juego"**.
+
+## ORDEN acordado: B ANTES que A2 (no confundir)
+
+El mantenedor decidió **atacar B (fuentes/acentos) ANTES de implementar A2 (el menú)**:
+
+- **Por qué**: B hay que hacerlo **sí o sí** (el ROM USA no trae acentos; el motor EUC-JP necesita
+  gaiji). Si se hace el menú primero, los rótulos tendrían que ir en **ASCII provisional**
+  (`ESPANOL`, `CATALA`, `FRANCAIS`) y habría que **rehacerlos** al llegar los acentos. Haciendo B
+  primero, los rótulos salen bien (`ESPAÑOL`, `CATALÀ`, `FRANÇAIS`) a la primera.
+- **Consecuencia**: **A2 queda EN PAUSA** hasta que B esté resuelto. El siguiente trabajo real es **B**
+  (localizar la textura de fuente + mapear/meter los glifos con acento), no A2.
+- Lo único de A2 ya hecho es la **decisión de arquitectura** (`hh_menu → hh_font → backend_game`) y los
+  intentos descartados; **no** hay que seguir por ahí todavía.
+- Matiz: el "motor de texto del juego" (backend_game) y B comparten trabajo (la fuente), por eso
+  hacer B primero también prepara el camino para A2.
+
+**Siguiente paso real: B.** Ver `notes/2026-09-23-b-motor-texto-localizado.md` y
+`notes/2026-09-23-b-fuente-localizacion.md` y `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
+
+## Tarea de ESTA sesión: spike de traducción (menús) → base del selector de idioma
+
+Objetivo original: probar que podemos **traducir en runtime** y ver cambiar textos **del menú del
+juego** en pantalla (base del selector de idioma del ADR 0008). Sería la **primera traducción al
+español** del juego. (Ojo: "textos del menú" = los rótulos del menú *del juego*; eso NO implica
+reutilizar el menú del juego, ver Terminología.)
 
 **PROGRESO (2026-09-23)** — detalle en `notes/2026-09-23-*.md`:
 1. [x] **Charset**: resuelto. El texto USA es **ASCII** en **campos de ancho fijo terminados en NUL**;
@@ -19,15 +56,18 @@ Objetivo: probar que podemos **traducir en runtime** y ver cambiar textos del **
    `hh::text_set_language`/`text_cycle_language`, persistencia en `config.ini [lang]`, atajo **F5**,
    re-aplicación a módulos cargados (cambio en vivo). Detalle:
    `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`.
-4. [•] **A2 — menú in-game AJUSTES → IDIOMA / SONIDO** (requisito del mantenedor). **Decisión**:
-   reutilizar el **motor de texto del juego** (estilo idéntico), con arquitectura
-   `hh_menu → hh_font → backend_game` (+ `backend_modern` futuro para fuentes HD). **Motor de texto
-   localizado**: `0x8001B204` (set entrada) → `0x8001BC04` (colocar texto; color `0x8009E48..E4F`).
-   Diagnóstico `HH_MENUTRACE=1`. **Importante**: los *overrides* del menú del juego quedan
-   **DESACTIVADOS** (`src/hooks/sections.cpp`) porque el módulo 23 está **empaquetado** (sin offsets
-   libres) y corrompían el menú principal. Detalle: `notes/2026-09-23-b-motor-texto-localizado.md` y
-   `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
-   **Siguiente**: entender `0x8001BC04` (firma de colocar texto) → montar `hh_font`/`backend_game`.
+4. [•] **A2 — menú PC in-game (AJUSTES → IDIOMA / SONIDO)** (requisito del mantenedor). **El port
+   construye el menú**; se reutiliza solo el **motor de texto del juego** para el estilo. Arquitectura
+   `hh_menu → hh_font → backend_game` (+ `backend_modern` futuro para fuentes HD).
+   **Motor de texto localizado**: `0x8001B204` (set entrada) → `0x8001BC04` (colocar texto; color
+   `0x8009E48..E4F`). Diagnóstico `HH_MENUTRACE=1`.
+   **Cronología de errores a NO repetir** (ver `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`):
+   - *Overrides* de las funciones de menú del juego (`0x801C4960/0x801C4AA8/0x801C5108/0x801C5378`) y
+     reutilización de offsets de texto del módulo 23 → **corrompían el menú** (idioma con sonido,
+     entradas movidas, menú roto). **Descartado.** Overrides **desactivados** en `sections.cpp`.
+   - Texto nuevo fuera del módulo (buffers propios) → posible, PERO el mantenedor eligió el camino 1
+     (motor del juego) por estilo idéntico y porque **B (fuente/acentos) hay que hacerlo sí o sí**.
+   **Siguiente**: entender `0x8001BC04` (firma de colocar texto) → `hh_font`/`backend_game`.
 5. [ ] **B — glifos/acentos**: la PAL trae los acentos como gaiji (bloque JIS `B0A1..B0CA`); el ROM
    USA **no** los trae. Vía elegida: reutilizar fuente del juego (camino 1). Detalle:
    `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
@@ -64,11 +104,17 @@ versionar la ROM. Herramientas: `tools/text/extract_strings.py`, `tools/lzkn64/l
 
 ## Qué toca después
 
-**Prioridad**: **A2/B** — entender `0x8001BC04` (rutina de "colocar texto" del motor del juego) para
-envolverla en `hh_font`/`backend_game` y montar el menú **AJUSTES → IDIOMA / SONIDO** con el estilo
-del juego. De paso, localizar la **textura de fuente** del módulo 23 (resuelve los acentos de B).
-Todo el contexto en `notes/2026-09-23-b-motor-texto-localizado.md` y
-`notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+**Prioridad: B (fuentes/acentos)** — el mantenedor decidió hacer B **antes** que A2 (ver "ORDEN
+acordado"). Pasos:
+1. Localizar la **textura de fuente** del módulo 23 y la rutina que mapea `código EUC → tile`
+   (arrancando de `0x8001BC04`, la de "colocar texto").
+2. Determinar qué glifos con acento hay (¿`á í ó ú ñ ¿ ¡`?) y añadir los que falten (o transplantar
+   los gaiji de la PAL). Ver `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
+3. Con B resuelto, retomar **A2**: menú **AJUSTES → IDIOMA / SONIDO** dibujado por el port con el
+   motor de texto del juego (`hh_font`/`backend_game`). **NO reutilizar el menú del juego.**
+
+Contexto: `notes/2026-09-23-b-motor-texto-localizado.md`, `-b-fuente-localizacion.md`,
+`-texto-euc-jp-y-glifos-pal.md`, `-a2-plan-menu-ajustes-idioma.md`.
 
 Ver también **`TODO.md`** §Ahora (otros pendientes: smoke de arranque, ADR 0009).
 
