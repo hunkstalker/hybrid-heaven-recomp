@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "hh.h"
+#include "hh/accent_glyphs.h"
 
 namespace {
 
@@ -51,8 +52,8 @@ constexpr Pair kEsDefaults[] = {
     {"NEW GAME", "NUEVA PARTIDA"},
     {"CONTINUE", "CONTINUAR"},
     {"BATTLE MODE", "MODO LUCHA"},
-    {"SOUND", "IDIOMA"},
-    {"RESOLUTION", "RESOLUCION"},
+    {"SOUND", "AJUSTES"},
+    {"RESOLUTION", "RESOLUCIÓN"},
     {"DEBUG MODE", "MODO DEBUG"},
     {"OPTION", "AJUSTES"},
     {"DIFFICULTY", "DIFICULTAD"},
@@ -350,13 +351,46 @@ bool core_of(const uint8_t* seg, size_t len, std::string& prefix, std::string& c
 // relleno). Los datos USA usan registros de tamano fijo con relleno de NUL (evidencia: tablas de
 // 12/16 bytes; la version PAL guardaba 3 idiomas) -> el relleno es holgura deliberada. Se reserva
 // 1 byte para el NUL terminador.
+// Convierte UTF-8 a los codigos EUC propios de 2 bytes de los glifos acentuados (B); el ASCII pasa
+// tal cual. Ver include/hh/accent_glyphs.h (generado) y notes/2026-09-23-b-fuente-formato-y-gaiji.md.
+std::string utf8_to_game(const std::string& in) {
+    std::string out;
+    for (size_t i = 0; i < in.size();) {
+        const unsigned char c = static_cast<unsigned char>(in[i]);
+        if (c < 0x80) {
+            out.push_back(static_cast<char>(c));
+            ++i;
+            continue;
+        }
+        uint32_t cp = 0;
+        size_t n = 0;
+        if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; n = 1; }
+        else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; n = 2; }
+        else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; n = 3; }
+        if (n == 0 || i + n >= in.size()) { out.push_back(static_cast<char>(c)); ++i; continue; }
+        for (size_t k = 1; k <= n; ++k) cp = (cp << 6) | (static_cast<unsigned char>(in[i + k]) & 0x3F);
+        i += n + 1;
+        uint16_t code = 0;
+        for (unsigned g = 0; g < hh::kAccentGlyphCount; ++g) {
+            if (hh::kAccentGlyphs[g].cp == cp) { code = hh::kAccentGlyphs[g].code; break; }
+        }
+        if (code != 0) {
+            out.push_back(static_cast<char>(code >> 8));
+            out.push_back(static_cast<char>(code & 0xFF));
+        } else {
+            out.push_back('?');
+        }
+    }
+    return out;
+}
+
 bool translate_segment(uint8_t* seg, size_t content_len, size_t slot, const State& s) {
     std::string prefix, core;
     if (!core_of(seg, content_len, prefix, core) || core.empty()) return false;
 
     for (const Key& k : s.keys) {
         if (k.text != core) continue;
-        std::string out = prefix + k.repl;
+        std::string out = prefix + utf8_to_game(k.repl);
         if (out.size() + 1 > slot) {
             if (s.trace) {
                 hh::log("[text] no cabe: |%s| -> |%s| (registro %zu, resultado %zu + NUL)\n",

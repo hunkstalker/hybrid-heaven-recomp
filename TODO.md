@@ -40,18 +40,31 @@
      Importante: los bytes no-ASCII alrededor de las anclas eran **LZKN64**, no glifos.
   3. [•] **Reinsertar**: sustitución en runtime preservando longitud (vía loader `trans`); falta
      control de longitud variable y validación en Windows.
-  4. [•] **A2 — menú in-game (AJUSTES con IDIOMA y SONIDO)**. Camino elegido: **reutilizar el motor
-     de texto del juego** (estilo idéntico), con arquitectura `hh_menu → hh_font → backend_game`
-     (y `backend_modern` para fuentes HD en el futuro). **Motor de texto localizado**:
-     `0x8001B204` (set entrada) → `0x8001BC04` (colocar texto; color en `0x8009E48..E4F`).
-     Diagnóstico `HH_MENUTRACE=1`. **Descartados** los overrides de menú del juego (el módulo está
-     empaquetado, no hay offsets libres; corrompían el menú principal). Detalle:
-     `notes/2026-09-23-b-motor-texto-localizado.md` y `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
-     Siguiente: entender `0x8001BC04` y montar `hh_font`/`backend_game`.
-  5. [ ] **Glifos (bloqueante de acentos ES/CA/FR/DE)**: la **PAL** trae los acentos como gaiji
-     (bloque JIS `B0A1..B0CA`, tabla @`0x01EA30`, p. ej. `B0B2`=ä, `B0B9`=é, `B0BF`=ö, `B0CA`=ß);
-     el **ROM USA no trae esa tabla ni esos glifos**. Vías: (A) fuente propia en la UI del port y/o
-     (B) **transplantar la fuente/gaiji de PAL** en runtime.
+  4. [•] **A2 — OVERLAY MODERNO imitando al juego (2026-09-23; vía = RENDER HOOK de RT64)**. Menú
+     propio del port, **solo en el menú inicial** (no el de pausa). Arquitectura `hh_menu → hh_font →
+     backend_game` (atlas de la **fuente del juego**, hoy) / `backend_modern` (TTF, futuro,
+     **seleccionable desde el propio menú**). **El intento por GBI (`hud_rewrite`/`send_dl`) FALLÓ**
+     (RT64 compone el framebuffer del juego; los draws GBI no llegan al swapchain presentado) y **se
+     retiró del árbol**. Vía nueva: **`RT64::SetRenderHooks(init, draw, deinit)` + plume** (como
+     Goemon/recompui) → dibujo directo en el swapchain.
+     **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 + paneles/texto HECHO y validado
+     headless** (quad sobre el frame del juego; texto del atlas legible). **(c) `hh_menu` del título:
+     hook `0x801C1DB8` hecho y VALIDADO en Windows** (delega en el original + lee etiquetas/selección
+     reales; reacciona al cursor del juego; F6 muestra/oculta; offset `HH_OVERLAY_X/Y`, default ya
+     ajustado a lo medido). **Falta pulir alineación y suprimir el texto del juego**.
+     (d) pulido pendiente. Detalle: **`notes/2026-09-23-a2-render-hook-y-atlas.md`** (implementación +
+     validación), `notes/2026-09-23-a2-overlay-primer-paso.md` (fallos GBI + decisión) y **`RETOMAR.md`**.
+     Contexto previo (motor/menú nativo, descartado): `notes/2026-09-23-b-motor-texto-localizado.md`,
+     `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+  5. [x] **B — fuente del juego descodificada + inyección de acentos (2026-09-23)**: **no es una
+     textura**, son **6 ficheros de bitmap por glifo** (Nisitenma US 106-111 / EU 115-120), uno por
+     color/estilo; **formato 2bpp con DOS glifos empaquetados por bloque** (valor par→bits 2-3,
+     impar→bits 0-1). El menú usa **color0 → fichero 107 (8×8)**. **5 de 6 ficheros byte-idénticos
+     US↔EU**; la PAL solo añade 32 glifos acentuados al color4. Herramientas
+     `tools/text/font_dump.py`, `tools/text/gen_accent_glyphs.py`; traza `HH_FONT_TRACE=1`;
+     inyección en `src/hooks/text_glyphs.cpp` (`HH_ACCENTS=0` la desactiva) + `text.cpp` (UTF-8→EUC
+     propio). **Falta validar visualmente** (headless intermitente sin input). Detalle:
+     `notes/2026-09-23-b-fuente-formato-y-gaiji.md` (sustituye la hipótesis de "transplantar PAL").
   6. [ ] **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
      necesarios tipo `ñ/¿/¡` en la fuente). La PAL (FR/DE) sirve de **referencia de estilo**.
   Ver `PROYECTO.md §4` y `notes/2026-09-05_asset-map.md`.
@@ -90,6 +103,10 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **Input ratón vs panel de RT64 (2026-09-23)**: con el Inspector abierto (`HH_DEVELOPER=1`+F1) el
+  clic se colaba al juego (L→A). `hh::dev_panel_open()` (publicado en `update_screen`) desactiva el
+  mapeo ratón→A/B **solo mientras el panel está abierto**. Pendiente validar en Windows.
+  `notes/2026-09-23-input-raton-y-panel-rt64.md`.
 - [x] **High frame rate por defecto (v0.4.0, 2026-09-23)**: `PresentEarly` + `Refresh Rate = Display`
   → presenta al refresco del monitor (~109 fps validado con RTSS), lógica a 30 Hz. Diagnóstico
   `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1`+F1; `HH_GRAPHICS_API`; atajos **F2** aspecto /

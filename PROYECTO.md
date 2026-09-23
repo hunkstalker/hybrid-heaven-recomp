@@ -50,6 +50,10 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   `ITEM...WEAPON` @`0x06C33AF`; módulo título/menú = Nisitenma idx 23. Detalle:
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
+  **A2 (overlay, 2026-09-23)**: el intento por **GBI** (inyectar `G_EX_TEXRECT_V1` en la DL del juego,
+  patrón `hud_rewrite`) **falló** (RT64 compone el framebuffer del juego; el overlay no llega al
+  swapchain presentado) y **se retiró**. Vía nueva: **render hook de RT64** (`SetRenderHooks`) +
+  **plume** (como Goemon/recompui), dibujando encima del frame. `notes/2026-09-23-a2-overlay-primer-paso.md`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 

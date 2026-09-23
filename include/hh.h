@@ -113,6 +113,18 @@ namespace hh {
     // Diagnostico: HH_LANG_CYCLE_AT=<seg> cicla una vez el idioma tras N segundos (validar el
     // cambio en vivo sin input). Llamar por frame. Ver src/subsystems/text.cpp.
     void text_debug_tick();
+
+    // Overlay A2 (render hook de RT64): el handler del menú de título publica el frame del overlay
+    // (game thread); `tick` (render thread) lo oculta si el menú deja de actualizarlo. Ver
+    // src/hooks/menu_overlay.cpp e include/hh/overlay.h.
+    namespace menu_overlay {
+        void title_update(uint8_t* rdram);   // desde el handler del menú de título
+        void tick();                          // por frame desde update_screen
+        bool visible();
+        void toggle();                        // F6
+        // Calibración en vivo (Ctrl+flechas/etc.): suma a offset/escala y lo escribe en hh.log.
+        void adjust(float dx, float dy, float dsx, float dsy);
+    }
 }
 
 // Traduce in-place un buffer en orden guest (antes de escribirlo a RDRAM). Devuelve n.º de

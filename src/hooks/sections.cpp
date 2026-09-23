@@ -30,15 +30,26 @@ extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // carga bitmap de glifo
+extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
+extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
 extern "C" void unload_overlay_by_id(uint32_t id);
+extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 
 namespace {
 
 constexpr uint32_t kFileLoadAddress = 0x8000469C;          // file_load(id, dest)
 constexpr uint32_t kFileLoadStreamedAddress = 0x80004838;  // streamed(id, dest), pieza a pieza
 constexpr size_t kFileCount = sizeof(hh::kCodeFiles) / sizeof(hh::kCodeFiles[0]);
+
+// Overlay A2: (re)registra el handler del menú de título. El loader de un módulo reescribe func_map
+// y borra los overrides de su rango, así que hay que re-aplicarlo tras cada carga (además del
+// registro inicial en register_runtime_functions).
+void register_title_menu_hook() {
+    recomp::overlays::add_loaded_function(0x801C1DB8, hh_title_menu_hook);
+}
 
 bool env_set(const char* name) {
     const char* v = std::getenv(name);
@@ -93,6 +104,7 @@ void announce_load(uint32_t id, uint32_t dest) {
     // A2: al cargar (o recargar) un modulo, su seccion vuelve a escribir func_map y borra los
     // overrides del menu PC si caen en su rango. Re-registrarlos aqui los mantiene vigentes.
     // hh_pc_menu_register();  // DESACTIVADO: reemplazado por overlay propio
+    register_title_menu_hook();
 
     if (env_set("HH_DEBUG_LOADS") || dest != file.vram) {
         std::fprintf(stderr, "[hh-load] file %3u (idx %d) -> 0x%08X (0x%06X bytes, %zu evicted)\n",
@@ -143,23 +155,78 @@ void hh::register_overlays() {
     }
 }
 
-// Diagnostico A2 (gateado por HH_MENU_TRACE): envuelve el handler del menú de opciones del módulo
-// 23 (func_801C1DB8) delegando en el original, y registra el índice seleccionado (0x801CC8C4) y
-// el estado. Sirve para mapear índice->acción empíricamente sin romper el menú.
-extern "C" void hh_menu_trace(uint8_t* rdram, recomp_context* ctx) {
+// Overlay A2: envuelve el handler del menú de título del módulo 23 (func_801C1DB8). Delega en el
+// ORIGINAL (el menú del juego sigue funcionando y su texto queda visible) y publica el frame del
+// overlay del port a partir del estado real (etiquetas + selección). Con HH_MENU_TRACE=1 registra
+// además el índice seleccionado (0x801CC8C4).
+extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
+    static const bool trace = env_set("HH_MENU_TRACE");
     static uint64_t calls = 0;
-    if ((calls++ % 30) == 0) {
+    if (trace && (calls++ % 30) == 0) {
         auto guest_byte = [&](uint32_t addr) -> unsigned {
             return rdram[(addr - 0x80000000u) ^ 3u];
         };
-        std::fprintf(stderr, "[menu] a0=%08X a1=%08X sel=%u g1=%u g2=%u\n",
-                     static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
-                     guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
         hh::log("[menu] a0=%08X a1=%08X sel=%u g1=%u g2=%u\n",
                 static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
                 guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
     }
     func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original
+    hh::menu_overlay::title_update(rdram);
+}
+
+// Diagnostico B (fuente), gateado por HH_FONT_TRACE: envuelve el motor de texto residente para
+// registrar EMPIRICAMENTE (sin adivinar) la tabla código EUC -> slot y el color/estilo activo.
+// `func_8001D394(a0=código)->v0` da el valor que `func_8001BFE4` convierte en slot `v0>>1`;
+// el color (índice de estilo/fuente) va en `func_8001BFE4(a0)`.
+namespace {
+inline uint16_t guest_u16(uint8_t* rdram, uint32_t addr) {
+    return static_cast<uint16_t>((rdram[(addr - 0x80000000u) ^ 3u] << 8) |
+                                 rdram[((addr + 1u) - 0x80000000u) ^ 3u]);
+}
+}  // namespace
+
+extern "C" void hh_font_trace_d394(uint8_t* rdram, recomp_context* ctx) {
+    const unsigned color = static_cast<uint32_t>(ctx->r4) & 0xFFu;
+    const unsigned in = static_cast<uint32_t>(ctx->r5) & 0xFFFFu;  // a1 = código EUC
+    func_8001D394_1DF94(rdram, ctx);
+    const unsigned out = static_cast<uint32_t>(ctx->r2) & 0xFFFFu;
+    static unsigned seen_key[1024];
+    static size_t seen = 0;
+    const unsigned key = (color << 16) | in;
+    bool dup = false;
+    for (size_t i = 0; i < seen; ++i) {
+        if (seen_key[i] == key) {
+            dup = true;
+            break;
+        }
+    }
+    if (!dup && seen < 1024) {
+        seen_key[seen++] = key;
+        hh::log("[font] d394 color=%u code=%04X -> %u (slot %u)\n", color, in, out, out >> 1);
+    }
+}
+
+extern "C" void hh_font_trace_bfe4(uint8_t* rdram, recomp_context* ctx) {
+    const unsigned color = static_cast<uint32_t>(ctx->r4) & 0xFFu;
+    const unsigned code = static_cast<uint32_t>(ctx->r5) & 0xFFFFu;
+    const unsigned stride = rdram[(0x80044624u + color - 0x80000000u) ^ 3u];
+    const unsigned fileidx = guest_u16(rdram, 0x8004462Cu + color * 2u);
+    static unsigned seen_key[1024];
+    static size_t seen = 0;
+    const unsigned key = (color << 16) | code;
+    bool dup = false;
+    for (size_t i = 0; i < seen; ++i) {
+        if (seen_key[i] == key) {
+            dup = true;
+            break;
+        }
+    }
+    if (!dup && seen < 1024) {
+        seen_key[seen++] = key;
+        hh::log("[font] bfe4 color=%u code=%04X slot=%u stride=%u fileidx=%u\n", color, code,
+                code >> 1, stride, fileidx);
+    }
+    func_8001BFE4_1CBE4(rdram, ctx);
 }
 
 // Diagnostico A2: envuelve func_800058DC (programar pantalla siguiente). Logea qué función se
@@ -186,11 +253,24 @@ void hh::register_runtime_functions() {
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadAddress), file_load_hook);
     recomp::overlays::add_loaded_function(static_cast<int32_t>(kFileLoadStreamedAddress),
                                           file_load_streamed_hook);
-    // Diagnostico A2 (opcional): instrumenta el menú de opciones del módulo 23.
+    // Overlay A2: handler del menú de título (delega en el original + publica el overlay).
+    register_title_menu_hook();
+    // Diagnostico A2 (opcional): instrumenta el goto entre pantallas del módulo 23.
     if (env_set("HH_MENU_TRACE")) {
-        recomp::overlays::add_loaded_function(0x801C1DB8, hh_menu_trace);
         recomp::overlays::add_loaded_function(0x800058DC, hh_goto_trace);
-        std::fprintf(stderr, "[hh] HH_MENU_TRACE: handler de menú y goto instrumentados\n");
+        std::fprintf(stderr, "[hh] HH_MENU_TRACE: goto de menú instrumentado\n");
+    }
+    // Diagnostico B (opcional): mapea código->slot y color/estilo del motor de texto.
+    if (env_set("HH_FONT_TRACE")) {
+        recomp::overlays::add_loaded_function(0x8001D394, hh_font_trace_d394);
+        recomp::overlays::add_loaded_function(0x8001BFE4, hh_font_trace_bfe4);
+        std::fprintf(stderr, "[hh] HH_FONT_TRACE: función de mapeo y loader de glifo instrumentados\n");
+    } else {
+        // B: inyeccion de glifos acentuados (activa por defecto; HH_ACCENTS=0 la desactiva).
+        const char* acc = std::getenv("HH_ACCENTS");
+        if (acc == nullptr || (*acc != '\0' && *acc != '0')) {
+            hh_accent_register();
+        }
     }
     // A2: SOUND -> AJUSTES (pantalla propia con IDIOMA y SONIDO).
     // hh_pc_menu_register();  // DESACTIVADO: reemplazado por overlay propio

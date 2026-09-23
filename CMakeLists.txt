@@ -32,6 +32,25 @@ endif()
 set(RT64_SDL_WINDOW_VULKAN ON)
 add_subdirectory(lib/rt64)
 
+# Shaders del port (overlay A2). Las funciones build_vertex_shader/build_pixel_shader viven en el
+# scope de lib/rt64 y no son visibles desde el scope padre: hay que re-declarar aqui las variables
+# DXC* (mismo patron que Goemon) y usar el mismo DXC. Ver lib/rt64/CMakeLists.txt.
+set(DXC_COMMON_OPTS "-I${PROJECT_SOURCE_DIR}/src")
+set(DXC_SPV_OPTS "-spirv" "-fspv-target-env=vulkan1.0" "-fvk-use-dx-layout")
+set(DXC_VS_OPTS "${DXC_COMMON_OPTS}" "-E" "VSMain" "-T" "vs_6_3" "-fvk-invert-y")
+set(DXC_PS_OPTS "${DXC_COMMON_OPTS}" "-E" "PSMain" "-T" "ps_6_3")
+if(WIN32)
+    set(DXC "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/bin/x64/dxc.exe")
+elseif(APPLE)
+    set(DXC "DYLD_LIBRARY_PATH=${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/lib/arm64" "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/bin/arm64/dxc-macos")
+else()
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|amd64|AMD64")
+        set(DXC "LD_LIBRARY_PATH=${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/lib/x64" "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/bin/x64/dxc-linux")
+    else()
+        set(DXC "LD_LIBRARY_PATH=${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/lib/arm64" "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/dxc/bin/arm64/dxc-linux")
+    endif()
+endif()
+
 if(WIN32)
     # Use the vendored SDL2 that RT64 is already built against.
     set(SDL2_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/lib/rt64/src/contrib/mupen64plus-win32-deps/SDL2-2.26.3/include")
@@ -95,15 +114,19 @@ add_executable(HybridHeavenRecomp
     src/platform/rt64_render_context.cpp
     src/platform/spin_yield.cpp
     src/platform/support.cpp
+    src/platform/overlay.cpp
     # hooks: capa de interceptacion (loaders, registro por direccion)
     src/hooks/sections.cpp
     src/hooks/dl_snap.cpp
     src/hooks/hud_rewrite.cpp
     src/hooks/hh_menu.cpp
+    src/hooks/text_glyphs.cpp
+    src/hooks/menu_overlay.cpp
     # subsystems: piezas del juego portadas (input, trans, firmware)
     src/subsystems/input.cpp
     src/subsystems/trans_cache.cpp
     src/subsystems/text.cpp
+    src/subsystems/font.cpp
     src/subsystems/firmware.c
 
     # Recompiled functions.
@@ -113,6 +136,11 @@ add_executable(HybridHeavenRecomp
     # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
     build/recomp/rsp/hh_aspMain.cpp
 )
+
+# Shaders del overlay (A2): se compilan a SPIRV (y DXIL/MSL segun plataforma) y se embeben como
+# blobs. Los .spirv.h/.dxil.h se generan en ${CMAKE_BINARY_DIR}/shaders (ver target_include_directories).
+build_vertex_shader(HybridHeavenRecomp "shaders/OverlayVS.hlsl" "shaders/OverlayVS.hlsl")
+build_pixel_shader(HybridHeavenRecomp "shaders/OverlayPS.hlsl" "shaders/OverlayPS.hlsl")
 
 if(MSVC)
     # Subsistema Windows: consola solo en Debug (terminal para depurar); en el resto de configs
@@ -128,6 +156,7 @@ endif()
 target_include_directories(HybridHeavenRecomp PRIVATE
     include
     build/recomp/RecompiledFuncs
+    ${CMAKE_BINARY_DIR}
     lib/rt64/include
     lib/rt64/src
     lib/rt64/src/contrib

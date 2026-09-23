@@ -525,6 +525,28 @@ void hh::poll_input() {
                     // en vivo a lo ya cargado. Se persiste en config.ini [lang].
                     hh::text_cycle_language();
                 }
+                else if (k.sym == SDLK_F6) {
+                    // A2: muestra/oculta el overlay del menú de título (para alinear con el texto
+                    // del juego, que permanece visible).
+                    hh::menu_overlay::toggle();
+                }
+                else if ((k.mod & KMOD_CTRL) && hh::menu_overlay::visible()) {
+                    // A2 calibración en vivo del overlay (con el overlay visible):
+                    //   Ctrl+←/→  mueve X       Ctrl+↑/↓  mueve Y
+                    //   Ctrl+RePág/AvPág  escala Y   Ctrl+Inicio/Fin  escala X
+                    float dx = 0.0f, dy = 0.0f, dsx = 0.0f, dsy = 0.0f;
+                    if (k.sym == SDLK_LEFT)          dx  = -1.0f;
+                    else if (k.sym == SDLK_RIGHT)    dx  =  1.0f;
+                    else if (k.sym == SDLK_UP)       dy  = -1.0f;
+                    else if (k.sym == SDLK_DOWN)     dy  =  1.0f;
+                    else if (k.sym == SDLK_PAGEUP)   dsy =  0.01f;
+                    else if (k.sym == SDLK_PAGEDOWN) dsy = -0.01f;
+                    else if (k.sym == SDLK_HOME)     dsx = -0.01f;
+                    else if (k.sym == SDLK_END)      dsx =  0.01f;
+                    if (dx != 0.0f || dy != 0.0f || dsx != 0.0f || dsy != 0.0f) {
+                        hh::menu_overlay::adjust(dx, dy, dsx, dsy);
+                    }
+                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);

@@ -24,6 +24,7 @@
 #include "hh_render.h"
 #include "hh.h"
 #include "hh/hudrewrite.h"
+#include "hh/overlay.h"
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
@@ -227,6 +228,10 @@ static bool configs_equivalent(const ultramodern::renderer::GraphicsConfig& lhs,
 }
 
 hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle window_handle, bool developer_mode) {
+    // Overlay A2: registrar los render hooks ANTES de app->setup(), porque el hook `init` se invoca
+    // DENTRO de setup (rt64_application.cpp:307). Ver hh/overlay.h.
+    hh::overlay::register_hooks();
+
     // Set up the RT64 application core fields.
     RT64::Application::Core appCore{};
 #if defined(_WIN32)
@@ -381,6 +386,7 @@ void hh::RT64Context::update_screen() {
     }
 
     hh::text_debug_tick();  // diagnostico HH_LANG_CYCLE_AT (cambio de idioma en vivo)
+    hh::menu_overlay::tick();  // overlay A2: oculta el frame si el menu dejo de publicarlo
 
     // Diagnostico HH_DUMP_RDRAM_AT=<seg>: vuelca 8 MB de RDRAM una vez (para cazar assets, p. ej.
     // la fuente de texto). El dump queda word-swapped (bswap32 al analizar).

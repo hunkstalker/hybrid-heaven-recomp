@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 123 | 2026-09-23 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 127 | 2026-09-23 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 69 | 2026-09-22 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 152 | 2026-09-23 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 169 | 2026-09-23 |
 
 ## Técnico y guías (vivos)
 
@@ -20,7 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 77 | 2026-09-21 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 364 | 2026-09-22 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 257 | 2026-09-21 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 276 | 2026-09-21 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
@@ -50,9 +50,13 @@
 |---|---|---|---|
 | [Texto EUC-JP, gaiji europeos de la PAL y por qué USA no trae acentos](../notes/2026-09-23-texto-euc-jp-y-glifos-pal.md) | Sesión 2026-09-23. Investigación para traducir ES/CA/FR/DE con acentos. Complementa | 76 | 2026-09-23 |
 | [Spike de traducción — charset USA resuelto y sustitución en runtime (módulo 23)](../notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md) | Sesión 2026-09-23 (continuación del handoff `RETOMAR.md` §Tarea de ESTA sesión). | 105 | 2026-09-23 |
+| [Input: desactivar ratón→botones mientras el Inspector de RT64 está abierto](../notes/2026-09-23-input-raton-y-panel-rt64.md) | Sesión 2026-09-23. Fix de usabilidad: al abrir el panel de desarrollador de RT64 | 39 | 2026-09-23 |
 | [B / A2-camino1 — Motor de texto del juego localizado (rutina de dibujo)](../notes/2026-09-23-b-motor-texto-localizado.md) | Sesión 2026-09-23. Camino elegido por el mantenedor: **reutilizar el motor de texto del juego** | 43 | 2026-09-23 |
 | [B — Localización de la fuente (en curso)](../notes/2026-09-23-b-fuente-localizacion.md) | Sesión 2026-09-23. Objetivo: poner acentos (ñ, tildes, ¿ ¡) al texto del juego, que en USA no | 44 | 2026-09-23 |
+| [B — Formato de la fuente del juego, ficheros y gaiji PAL (hallazgos)](../notes/2026-09-23-b-fuente-formato-y-gaiji.md) | Sesión 2026-09-23. Continúa `notes/2026-09-23-b-fuente-localizacion.md` y | 145 | 2026-09-23 |
+| [A2 — overlay por render hook de RT64: infra + atlas (Fase A)](../notes/2026-09-23-a2-render-hook-y-atlas.md) | Sesión 2026-09-23 (2.ª del día). Implementa la vía decidida en | 145 | 2026-09-23 |
 | [A2 — Plan: sección "Idioma" en el menú de AJUSTES in-game](../notes/2026-09-23-a2-plan-menu-ajustes-idioma.md) | Sesión 2026-09-23. Continuación de A1. Objetivo (del mantenedor): el selector de idioma debe ser un | 109 | 2026-09-23 |
+| [A2 — Overlay propio: intento por GBI (fallido) y cambio de vía al render hook](../notes/2026-09-23-a2-overlay-primer-paso.md) | Sesión 2026-09-23. Primer paso de A2 (overlay moderno imitando al juego). Se intentó dibujar el | 75 | 2026-09-23 |
 | [A1 — Sistema de idiomas + cambio en vivo (base del selector, ADR 0008)](../notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md) | Sesión 2026-09-23. Primera parte de la vía **A** (UI/selector propio). Funcional; falta la parte | 55 | 2026-09-23 |
 | [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 90 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |

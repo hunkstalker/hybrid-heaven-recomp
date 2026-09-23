@@ -243,7 +243,26 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
   fallthroughs.
 - Regla: **nunca editar a mano el C generado**; se regenera desde la config de splat/símbolos.
 
-## 7. Preguntas abiertas
+## 7. Texto del juego (fuente y render)
+
+El motor de texto **no usa una textura de fuente**: carga el bitmap de cada glifo desde **6 ficheros**
+de la tabla Nisitenma (uno por color/estilo) y lo compone en RDRAM. El menú de título usa **color0**
+(fichero Nisitenma 107): 8×8, **2bpp con DOS glifos empaquetados por bloque** (valor PAR → bits 2-3 de
+cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel 1 = tinta principal** y
+**nivel ≥2 = sombra** (copia desplazada abajo-derecha que el motor pinta en negro).
+
+- Decode correcto: `src/subsystems/font.cpp` (`bake_atlas`) → atlas RGBA8 en memoria host
+  (`include/hh/font.h`). **No** usar la vista 4bpp de `tools/text/font_dump.py`: es la unión de los dos
+  glifos empaquetados, no el formato real (sirve de inventario visual).
+- Render del overlay del menú PC (ADR 0008): `RT64::SetRenderHooks` + plume
+  (`src/platform/overlay.cpp`), con **proyección uniforme (píxel cuadrado, área 4:3 centrada)**, porque
+  el texto 2D del juego **no** va estirado a 16:9 (el widescreen solo expande el 3D).
+- Direcciones del menú de título: handler `0x801C1DB8`, etiquetas `base(0x801BF1A0)+0xFA14+16·idx`,
+  selección `0x801CC8C4`.
+- Detalle y calibración: `../notes/2026-09-23-a2-render-hook-y-atlas.md`,
+  `../notes/2026-09-23-b-fuente-formato-y-gaiji.md`.
+
+## 8. Preguntas abiertas
 
 1. ✅ Bases RAM de los módulos de boot **deterministas** (idx 7/23/54, 3 runs). Pendiente: inventario
    automático de módulos posteriores (fuera del boot).
