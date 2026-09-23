@@ -52,27 +52,90 @@ del nibble, IMPAR → bits 0-1). Dentro del glifo: **nivel 1 = tinta (texto)**, 
   `src/subsystems/input.cpp`); escribe `[overlay] calib x=.. y=.. sx=.. sy=..` en `hh.log`.
   Entorno: `HH_OVERLAY_X/Y/SX/SY`. **F6** muestra/oculta el overlay.
 
-## Menú (`hh_menu`) — INTENTADO Y REVERTIDO
+## Menú (`hh_menu`) — diseño ACORDADO (2026-09-23)
 
-Se empezó `hh_menu` (modelo de entradas/cursor + dibujo) en el commit `c2ce652`, **pero se revirtió**
-porque añadía un **panel de fondo negro** y una **barra de cursor** que el mantenedor **no había
-pedido** (el acuerdo es que el menú se vea **como el nativo**). El estado actual (`b95c6a4`) **no**
-tiene `hh_menu`; el overlay dibuja solo las entradas, como se validó.
+> Se intentó antes (`c2ce652`) y **se revirtió**: añadí un **panel de fondo** y una **barra de cursor**
+> que **nadie pidió**. Regla: **imitar el original 1:1, sin elementos extra**.
 
-**Lección**: no inventar elementos visuales. Cuando se retome `hh_menu`, **definir con el mantenedor**
-qué es "panel" y "cursor" (probablemente: el menú tal cual el nativo, con la flecha del juego).
+**Principios (confirmados por el mantenedor):**
+1. **Imitar el diseño original 1:1** (posiciones, tipografía y **flecha nativa**), **incluyendo menús
+   nuevos** (p. ej. `SONIDO` → `AJUSTES`, y dentro `IDIOMA` + `SONIDO`). **Ni panel ni cursor
+   inventados**.
+2. **Ocultar el menú nativo** (por defecto). El port ya añade menús que no existían; no tiene sentido
+   seguir viendo el original debajo.
+3. **Navegación**: arriba/abajo mueve la selección; **A** entra/confirma; **B** vuelve atrás. En los
+   **selectores**, izquierda/derecha cambian el valor (`< 30 >`, con **flechas amarillas** a los lados).
 
-## SIGUIENTE TAREA (sesión nueva)
+**Árbol de menús** (orden de arriba a abajo; `->` = con A se entra a esa pantalla; `A / B / C` = las
+entradas de esa pantalla):
 
-1. **Retomar `hh_menu` CON el mantenedor**, confirmando antes el diseño visual (nativo). Objetivos:
-   navegación/acciones propias, etiquetas propias (quitar el límite de 15 caracteres de los campos del
-   juego) y **suprimir el texto nativo** (que ya no se dibuje debajo).
-2. **Migrar el SFX** a los eventos del modelo (`hh_menu`), retirando el puente actual. Hoy el SFX solo
-   suena en el **menú de título** (move/accept); **`back` no suena** en el título (es la raíz) y
-   **tampoco en submenús** (se intentó engancharlos y se revirtió con `c2ce652`/`3aede33`).
-   El mantenedor prefiere **integrar el audio en 1 solo commit** al migrar a `hh_menu`.
-3. **Validar B (acentos) en Windows**: la inyección compila ("25 glifos inyectados") pero **no se ha
-   visto en pantalla**.
+```
+CONTINUAR                                  (arriba del todo: retomar partida directo)
+NUEVA PARTIDA ->
+      AJUSTES EXPERIENCIA MODERNA -> (selectores + ACEPTAR; al aceptar vuelve atrás guardando)
+      EMPEZAR PARTIDA              (inicia el juego con la config elegida)
+      DIFICULTAD -> SUPREMO / DIFÍCIL / NORMAL / ACEPTAR (vuelve atrás guardando)
+MODO COMBATE -> (por definir)
+AJUSTES ->
+      IDIOMA ->
+            INGLÉS / ESPAÑOL / CATALÁN / FRANCÉS / ALEMÁN / JAPONÉS
+            (los rótulos cambian según el idioma elegido; por defecto, el del sistema)
+      GRÁFICOS ->
+            RESOLUCIÓN   (por definir; quizá izq/der recorre resoluciones)
+            ANTIALIASING (x0 / x2 / x4 / x8; desactivar las que RT64 inhabilite por resolución)
+            VSYNC        (SÍ / NO)
+            LÍMITE DE FPS (0 / 30 / 60 / 120 / 144 / 160 …?)
+            MOSTRAR FPS  (SÍ / NO)
+      SONIDO ->
+            ESTÉREO / MONO
+```
+
+- **AJUSTES EXPERIENCIA MODERNA**: pensado para futuras mejoras jugables que se salen del original
+  (p. ej. cámara libre, apuntado libre). El usuario las configura **antes** de empezar; luego pulsa
+  `EMPEZAR PARTIDA` en la pantalla de NUEVA PARTIDA y el flujo del juego continúa normal.
+- **MODO COMBATE**: por definir.
+
+## SIGUIENTE TAREA (sesión nueva): implementar `hh_menu` según el diseño de arriba
+
+> **NO inventar nada visual.** Si algo no está en el árbol/diseño, **preguntar**. Confirmar el diseño
+> de cada pantalla antes de dibujarla. **1 tema = 1 commit.**
+
+Pasos sugeridos (acordar con el mantenedor antes de cada uno):
+1. **Modelo `hh_menu`** (solo estado): entradas `{label, enabled, acción}`, cursor, navegación
+   (arriba/abajo/izq-der/confirmar/atrás) y layout. Sin dibujo aún.
+2. **Dibujo 1:1 con el original**: entradas con la fuente del juego en las posiciones nativas;
+   **flecha nativa** como cursor. **Sin panel ni rectángulos.**
+3. **Ocultar el menú nativo**: override del constructor `func_801C18FC` con etiquetas vacías (o
+   supresión selectiva del draw de texto), para que el juego no dibuje su menú.
+4. **Etiquetas propias**: tabla del port (quita el límite de 15 caracteres de los campos del juego),
+   integrada con el sistema de idiomas (A1/B).
+5. **Navegación propia**: leer el input y mover el cursor; confirmar/atrás. (Pendiente de decidir de
+   dónde se lee: ver §Input abajo.)
+6. **Acciones**: mapear cada entrada a la función del juego (nueva partida, continuar, modo combate,
+   ajustes, resolución…). Ir pantalla a pantalla.
+7. **SFX** desde los eventos del modelo (move/accept/back), retirando el puente actual. **1 commit.**
+8. **Validar en Windows.**
+
+### Input (aclaración de la duda 4)
+
+Por "input" me refería a **de dónde lee nuestro menú las pulsaciones del jugador** (arriba/abajo/
+izquierda/derecha/A/B) para navegar. Opciones:
+- **(a)** Reutilizar las funciones del juego que leen botones (`func_801C1340` direcciones,
+  `func_801C1334` A/START) — lo que ya usa el puente de SFX.
+- **(b)** Leer el input propio del port (teclado/mando vía `hh::get_input`).
+Como el menú nativo se va a **ocultar**, hay que decidir si seguimos dejando correr el handler del
+juego (y leemos sus botones) o tomamos el control total. **A confirmar con el mantenedor.**
+
+### Estado del SFX (puente)
+
+Hoy el SFX suena **solo en el menú de título** (move/accept), por cambio real (cursor/transición). En
+el título **`back` no aplica** (raíz) y los submenús **no están enganchados**. Al implementar `hh_menu`
+se disparará desde **sus eventos** (y ahí `back` sonará donde toque), en **un solo commit**.
+
+### Pendiente adicional
+
+- **Validar B (acentos) en Windows**: la inyección compila ("25 glifos inyectados") pero **no se ha
+  visto en pantalla**. Afecta a los rótulos de idioma (ESPAÑOL, CATALÁN, FRANÇAIS…).
 
 ## Método
 
