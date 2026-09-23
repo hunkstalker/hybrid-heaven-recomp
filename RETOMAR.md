@@ -65,6 +65,12 @@ del nibble, IMPAR → bits 0-1). Dentro del glifo: **nivel 1 = tinta (texto)**, 
    seguir viendo el original debajo.
 3. **Navegación**: arriba/abajo mueve la selección; **A** entra/confirma; **B** vuelve atrás. En los
    **selectores**, izquierda/derecha cambian el valor (`< 30 >`, con **flechas amarillas** a los lados).
+4. **Control TOTAL del menú** (no reutilizar el del juego): el overlay moderno **desacopla** el menú
+   inicial del juego para tener todo el control. Ver §Input.
+5. **Guía de botones** (propuesta, a confirmar): en vez de entradas `ACEPTAR`, mostrar abajo
+   **sprites de los botones X/A/B** con su función (`X`=Aplicar, `A`=Seleccionar, `B`=Atrás). Casa con
+   la guía que el juego ya muestra en la pausa. Aplica sobre todo al selector de resolución (listas
+   largas, donde un `ACEPTAR` al final quedaría lejísimos).
 
 **Árbol de menús** (orden de arriba a abajo; `->` = con A se entra a esa pantalla; `A / B / C` = las
 entradas de esa pantalla):
@@ -81,7 +87,8 @@ AJUSTES ->
             INGLÉS / ESPAÑOL / CATALÁN / FRANCÉS / ALEMÁN / JAPONÉS
             (los rótulos cambian según el idioma elegido; por defecto, el del sistema)
       GRÁFICOS ->
-            RESOLUCIÓN   (por definir; quizá izq/der recorre resoluciones)
+            RESOLUCIÓN -> lista de TODAS las resoluciones (puede ser larga);
+                          A marca la resaltada, X la aplica, B atrás (guía de botones abajo, sin ACEPTAR)
             ANTIALIASING (x0 / x2 / x4 / x8; desactivar las que RT64 inhabilite por resolución)
             VSYNC        (SÍ / NO)
             LÍMITE DE FPS (0 / 30 / 60 / 120 / 144 / 160 …?)
@@ -116,21 +123,29 @@ Pasos sugeridos (acordar con el mantenedor antes de cada uno):
 7. **SFX** desde los eventos del modelo (move/accept/back), retirando el puente actual. **1 commit.**
 8. **Validar en Windows.**
 
-### Input (aclaración de la duda 4)
+### Input — DECIDIDO: control total
 
-Por "input" me refería a **de dónde lee nuestro menú las pulsaciones del jugador** (arriba/abajo/
-izquierda/derecha/A/B) para navegar. Opciones:
-- **(a)** Reutilizar las funciones del juego que leen botones (`func_801C1340` direcciones,
-  `func_801C1334` A/START) — lo que ya usa el puente de SFX.
-- **(b)** Leer el input propio del port (teclado/mando vía `hh::get_input`).
-Como el menú nativo se va a **ocultar**, hay que decidir si seguimos dejando correr el handler del
-juego (y leemos sus botones) o tomamos el control total. **A confirmar con el mantenedor.**
+El mantenedor quiere **control total**: el overlay moderno **desacopla** el menú inicial del juego.
+Nuestro menú lee el input (arriba/abajo/izq-der/A/B/X) y gestiona su **propia pila de pantallas**; el
+menú nativo se **oculta** (no se deja correr su handler, o se neutraliza su dibujo).
+
+Fuente concreta de los botones (a decidir en implementación): leer los botones del juego
+(`func_801C1340` direcciones, `func_801C1334` A/START) o el input propio del port (`hh::get_input`).
+Como es control total, lo natural es **no depender del handler del juego**.
 
 ### Estado del SFX (puente)
 
 Hoy el SFX suena **solo en el menú de título** (move/accept), por cambio real (cursor/transición). En
 el título **`back` no aplica** (raíz) y los submenús **no están enganchados**. Al implementar `hh_menu`
 se disparará desde **sus eventos** (y ahí `back` sonará donde toque), en **un solo commit**.
+
+### Assets de sonido
+
+`assets/sounds/`: `.mp3` (origen) + `.wav` 48 kHz/S16. El build **solo copia los `.wav`** a `sounds/`
+junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → hay que reconvertir con `ffmpeg`
+(`-ar 48000 -ac 2 -sample_fmt s16`) y commitear el `.wav`. Nombres cargados por `menu_sfx.cpp`:
+`menu-move.wav`, `menu-accept.wav`, `menu-back.wav`. `test_sounds/` = sonidos antiguos (backup).
+*(Si se quiere, se puede añadir un paso de build que convierta mp3→wav, pero requiere ffmpeg.)*
 
 ### Pendiente adicional
 
