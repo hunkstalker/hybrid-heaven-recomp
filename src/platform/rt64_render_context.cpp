@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
 #include <string>
 
 #define HLSL_CPU
@@ -43,6 +44,12 @@ static void dummy_check_interrupts() {}
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
+// Inspector de RT64 abierto (lo publica el hilo de render; lo lee el input).
+std::atomic<bool> g_dev_panel_open{ false };
+}
+
+bool hh::dev_panel_open() {
+    return g_dev_panel_open.load(std::memory_order_relaxed);
 }
 
 static ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult setup_result) {
@@ -358,6 +365,21 @@ void hh::RT64Context::send_dummy_workload(uint32_t fb_address) {
 }
 
 void hh::RT64Context::update_screen() {
+    // Publica si el Inspector de RT64 esta abierto (el input lo consulta para no mapear el raton a
+    // botones N64 mientras se usa el panel). RT64 lo protege con `inspectorMutex`.
+    {
+        bool open = false;
+        if (app != nullptr && app->presentQueue != nullptr) {
+            const std::lock_guard<std::recursive_mutex> lock(app->presentQueue->inspectorMutex);
+            open = (app->presentQueue->inspector != nullptr);
+        }
+        const bool prev = g_dev_panel_open.exchange(open, std::memory_order_relaxed);
+        if (prev != open) {
+            hh::log("[hh] panel de desarrollo %s; input de raton %s\n", open ? "ABIERTO" : "cerrado",
+                    open ? "desactivado" : "activo");
+        }
+    }
+
     hh::text_debug_tick();  // diagnostico HH_LANG_CYCLE_AT (cambio de idioma en vivo)
 
     // Diagnostico HH_DUMP_RDRAM_AT=<seg>: vuelca 8 MB de RDRAM una vez (para cazar assets, p. ej.

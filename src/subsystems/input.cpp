@@ -448,8 +448,12 @@ static n64_button read_input_button() {
     if (keyboard_state[SDL_SCANCODE_P]) input |= R_BUTTON;
     if (keyboard_state[SDL_SCANCODE_RETURN]) input |= START_BUTTON;
 
-    if (mouse_state & SDL_BUTTON_LMASK) input |= A_BUTTON;
-    if (mouse_state & SDL_BUTTON_RMASK) input |= B_BUTTON;
+    // Raton -> botones N64. Se desactiva SOLO mientras el Inspector de RT64 esta abierto, para que
+    // los clics en su panel no entren al juego. (En el futuro, control teclado+raton: revisar.)
+    if (!hh::dev_panel_open()) {
+        if (mouse_state & SDL_BUTTON_LMASK) input |= A_BUTTON;
+        if (mouse_state & SDL_BUTTON_RMASK) input |= B_BUTTON;
+    }
 
     input |= hh_injected_buttons();
 

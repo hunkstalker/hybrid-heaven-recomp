@@ -88,6 +88,11 @@ namespace hh {
     void video_cycle_aspect();           // F2
     void video_cycle_msaa();             // F4
 
+    // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El
+    // input del port no mapea el raton a botones N64 mientras lo esta, para no meter clics en el
+    // juego al usar el panel. Se publica desde el hilo de render (ver rt64_render_context.cpp).
+    bool dev_panel_open();
+
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();
     void snap_overscan(uint8_t* rdram, uint32_t list_address);
