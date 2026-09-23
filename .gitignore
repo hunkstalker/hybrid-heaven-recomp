@@ -17,6 +17,9 @@ assets/HybridHeaven.png
 assets/icon_bmp.inc
 notes/reference/screenshots/
 
+# Sonidos del menú: se versionan SOLO los .wav (los .mp3 son fuente local para reconvertir).
+assets/sounds/**/*.mp3
+
 # Capturas de test (imagenes del juego)
 muestra-menu-hybrid-heaven.png
 # tests/ ignorado salvo los replays de input (texto: tiempos+botones, sin datos del juego)
