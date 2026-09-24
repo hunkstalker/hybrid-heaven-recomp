@@ -134,10 +134,13 @@ manda el overlay (`feed_menu_navigation`).
 
 ## SFX
 
-El SFX del menú se dispara desde los **eventos del modelo** (`move`/`accept`/`back`), no por pulsación
-de botón. Hoy hay un **puente** que suena solo en el menú de título (move/accept, por cambio real de
-cursor/transición); al completar la navegación propia se retira el puente y `back` sonará donde toque
-(la raíz no tiene atrás). Un solo commit.
+El SFX del menú se dispara desde los **eventos del modelo** (`Move`/`Accept`/`Back`), no por pulsación
+de botón: en `feed_menu_navigation` se traduce `Event::Move/Accept/Back` a
+`hh::menu_sfx::play(Move/Accept/Back)`. Al sonar por evento **no suena si la pulsación no hace nada**
+(arriba en la 1.ª entrada, `B` en la raíz, opción gris, o izquierda/derecha donde no hay selector). El
+antiguo **puente** (que deducía move/accept del cursor/transición nativos) está **retirado**: con el
+input nativo muteado quedaba en silencio y nunca disparaba `back`. Solo suena con el overlay activo
+(`HH_OVERLAY=0` deja el menú nativo, que trae su propio sonido).
 
 ## Assets de sonido
 
@@ -156,7 +159,7 @@ junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con
 | 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
 | 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
-| 7. SFX desde eventos del modelo (retirar el puente) | pendiente |
+| 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 
 **Orden acordado (2026-09-24):** completar el menú **antes** de los acentos → **5 → 6 → 7 → 4 → 8**.

@@ -282,6 +282,18 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
+    // SFX del menu desde los EVENTOS del modelo (paso 7): move/accept/back. Al sonar por el evento,
+    // no suena si la pulsacion no hace nada (arriba en la 1.a entrada, B en la raiz, opcion gris, o
+    // izquierda/derecha donde no hay selector). Solo cuando el overlay controla el menu: con
+    // HH_OVERLAY=0 manda el nativo, que ya trae su propio sonido.
+    if (ev != hh::menu::Event::None && hh::overlay::enabled()) {
+        switch (ev) {
+            case hh::menu::Event::Move:   hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);   break;
+            case hh::menu::Event::Accept: hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept); break;
+            case hh::menu::Event::Back:   hh::menu_sfx::play(hh::menu_sfx::Sfx::Back);   break;
+            default: break;
+        }
+    }
     if (env_set("HH_MENU_TRACE") && ev != hh::menu::Event::None) {
         hh::log("[menu-nav] btn=0x%04X ev=%d depth=%d\n%s", btn, static_cast<int>(ev),
                 hh::menu::depth(), hh::menu::describe_current().c_str());
@@ -337,18 +349,11 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     // ¿El handler nativo cambió de pantalla este frame? (p. ej. al seleccionar una opción). En ese
     // caso NO publicamos el frame del overlay (seguiría mostrando la raíz durante la transición).
     bool screen_changed = false;
-    // SFX del menú por CAMBIO REAL (no por pulsación de botón):
-    //   - cursor movido (selección 0x801CC8C4 cambia) -> move
-    //   - pantalla cambiada (goto) -> accept/back según el botón que lo provocó
-    // Así no suena si el botón no hace nada (p. ej. arriba en la primera entrada, o B sin "atrás").
     {
-        auto guest_byte = [&](uint32_t addr) -> unsigned {
-            return rdram[(addr - 0x80000000u) ^ 3u];
-        };
         const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
-        const uint32_t sel_before = guest_byte(0x801CC8C4u);
 
-        // A2 (paso 5, terreno): mueve nuestro cursor con el input del juego.
+        // A2 (paso 5, terreno): mueve nuestro cursor con el input del juego. Los SFX del menú suenan
+        // dentro, desde los EVENTOS del modelo (paso 7); ver feed_menu_navigation.
         feed_menu_navigation(rdram, ctx);
 
         // A2: la COMPOSICIÓN del texto nativo se filtra en hh_entry_register_hook, así que el menú
@@ -382,26 +387,7 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
             MEM_H(0x3C, obj) = 0x384;
         }
         const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
-        const uint32_t sel_after = guest_byte(0x801CC8C4u);
         screen_changed = (goto_after != goto_before);
-
-        if (sel_after != sel_before) {
-            hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
-        } else if (screen_changed) {
-            recomp_context ta = *ctx;
-            func_801C1334_11BAE04(rdram, &ta);   // A/START
-            recomp_context td = *ctx;
-            func_801C1340_11BAE10(rdram, &td);   // direcciones
-            const uint32_t btn = static_cast<uint32_t>(ta.r2) | static_cast<uint32_t>(td.r2);
-            if (env_set("HH_MENU_TRACE")) {
-                hh::log("[sfx] pantalla cambiada: btn=0x%04X\n", btn);
-            }
-            if (btn & 0xB000u) {
-                hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
-            } else if (btn & 0x4000u) {
-                hh::menu_sfx::play(hh::menu_sfx::Sfx::Back);
-            }
-        }
     }
     // Si la pantalla cambió (salimos de la raíz), no publicamos: `hide_now` ya la ocultó y el
     // siguiente frame lo decidirá el nuevo handler. Si seguimos en la raíz, publicamos normal.

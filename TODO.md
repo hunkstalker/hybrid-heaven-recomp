@@ -76,9 +76,13 @@
      **VENTANA DEBUG/F1**: en Windows RT64 instala su hook solo al arrancar; si se activa en caliente,
      F1 lo maneja el port (`hh::toggle_inspector`). Ver VSYNC con `HH_FPS=1` (log incluye
      `vsync=0|1` real).
+     **SFX HECHO (2026-09-25)**: el SFX del menú suena desde los **eventos del modelo**
+     (`Move`/`Accept`/`Back`) en `feed_menu_navigation`; **puente retirado** (quedaba en silencio con
+     el input muteado y nunca disparaba `back`). Validado: modelo (eventos incl. `Back`). Pendiente
+     Windows.
      **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
      ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
-     juego), `CONTINUAR`; SFX y **después** acentos e idiomas (6→7→4). Extras de audio (widening/EQ)
+     juego), `CONTINUAR`; **después** acentos e idiomas (4/8). Extras de audio (widening/EQ)
      evaluables más adelante. Detalle:
      `notes/2026-09-24-a2-selectores-y-arbol.md`,
      `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,

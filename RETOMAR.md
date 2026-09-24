@@ -45,9 +45,9 @@ Orden acordado con el mantenedor:
    (`ESTÉREO`/`MONO`/`AURICULARES` = crossfeed), persistido en `[audio]`. Ver VSYNC con `HH_FPS=1`.
    **Pendiente acordado**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; de momento
    NO), `DIFICULTAD` + `EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del juego),
-   `CONTINUAR`; SFX y después acentos/idiomas.
-7. **SFX** desde los eventos del modelo, retirando el puente actual (con el input muteado, el puente por
-   cursor nativo queda en silencio).
+   `CONTINUAR`; después acentos/idiomas.
+7. **SFX** — **HECHO (2026-09-25)**: `Move`/`Accept`/`Back` desde los eventos del modelo
+   (`feed_menu_navigation`); puente retirado (`back` ya suena). Falta validar en Windows.
 4. **Etiquetas propias + acentos del overlay**: reusar `include/hh/accent_glyphs.h` para ampliar el
    atlas y dejar de plegar en `to_ascii`. Validable con `HH_MENU_SCREEN=5` (IDIOMA) o navegando.
 8. **Validar en Windows** (paso 5 + dibujo + DEBUG + fix ROM + GRÁFICOS/geometría de ventana).
