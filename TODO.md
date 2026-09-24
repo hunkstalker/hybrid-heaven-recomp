@@ -5,11 +5,9 @@
 
 ## Ahora (priorizado)
 
-- [x] **Bugs del menú overlay A2 (2026-09-24) — resueltos (headless; falta validar en Windows)**:
-  (1) "MODO COMBATE" 1 px a la izquierda → era el *bearing* del glifo 'M'; se compensa el primer
-  glifo (nota `2026-09-24-a2-overlay-alineacion-y-cierre.md`); (2) al volver atrás reaparecía el
-  nativo → **set C** de etiquetas (nota `2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`);
-  (3) el overlay tardaba ~1 s en cerrar → umbral por tiempo (150 ms), misma nota de alineación.
+- [x] **Bugs del menú overlay A2 (2026-09-24) — resueltos (headless; falta Windows)**: bearing de
+  "MODO COMBATE", **tercer set** de etiquetas al volver atrás, y cierre del overlay por tiempo. Ver
+  `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-a2-ocultar-menu-nativo-dos-tablas.md`.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
@@ -52,16 +50,13 @@
      (RT64 compone el framebuffer del juego; los draws GBI no llegan al swapchain presentado) y **se
      retiró del árbol**. Vía nueva: **`RT64::SetRenderHooks(init, draw, deinit)` + plume** (como
      Goemon/recompui) → dibujo directo en el swapchain.
-     **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 + paneles/texto HECHO y validado
-     headless** (quad sobre el frame del juego; texto del atlas legible). **(c) `hh_menu` del título:
-      hook `0x801C1DB8` hecho y VALIDADO en Windows** (delega en el original + lee etiquetas/selección
-      reales; reacciona al cursor del juego; F6 muestra/oculta; offset `HH_OVERLAY_X/Y`, default ya
-      ajustado a lo medido). **`hh_menu` (modelo + dibujo 1:1 + navegación) y la supresión del menú
-      nativo HECHOS** (2026-09-24; eran **dos** tablas de etiquetas, ver nota). **Falta**: acentos,
-      selectores y acciones (pasos 4/6). Detalle: **`notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`**,
-      **`notes/2026-09-23-a2-render-hook-y-atlas.md`** y `notes/2026-09-23-a2-overlay-primer-paso.md`.
-     Contexto previo (motor/menú nativo, descartado): `notes/2026-09-23-b-motor-texto-localizado.md`,
-     `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
+     **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 HECHO** (validado headless);
+     **(c) `hh_menu` del título HECHO (2026-09-24)**: hook `0x801C1DB8`, modelo + dibujo 1:1 +
+     navegación, **menú nativo oculto por defecto** (F6 alterna; cubre los **tres** sets de etiquetas)
+     y bugs del overlay resueltos. **Falta**: acentos, selectores y acciones (pasos 4/6). Detalle:
+     `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
+     `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.
+     Contexto (descartado): `notes/2026-09-23-b-motor-texto-localizado.md`, `...-a2-plan-menu-ajustes-idioma.md`.
   5. [x] **B — fuente del juego descodificada + inyección de acentos (2026-09-23)**: **no es una
      textura**, son **6 ficheros de bitmap por glifo** (Nisitenma US 106-111 / EU 115-120), uno por
      color/estilo; **formato 2bpp con DOS glifos empaquetados por bloque** (valor par→bits 2-3,
