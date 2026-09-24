@@ -5,9 +5,9 @@
 
 ## Ahora (priorizado)
 
-- [x] **Bugs del menú overlay A2 (2026-09-24) — resueltos (headless; falta Windows)**: bearing de
-  "MODO COMBATE", **tercer set** de etiquetas al volver atrás, y cierre del overlay por tiempo. Ver
-  `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-a2-ocultar-menu-nativo-dos-tablas.md`.
+- [x] **Bugs del menú overlay A2 (2026-09-24) — VALIDADOS en Windows**: bearing de "MODO COMBATE",
+  **tercer set** de etiquetas al volver atrás, y cierre del overlay (instantáneo al cambiar de
+  pantalla). Ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-dos-tablas.md`.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
