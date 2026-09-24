@@ -70,9 +70,11 @@
      Validado headless: modelo, arranque, geometría, re-aplicado en vivo (`mult 4→8`) y capturas de
      ratio. Pendiente Windows.
      **AUDIO HECHO (2026-09-25)**: `SONIDO` = `VOLUMEN` (0-100 %, pasos de 10; afecta a todo) +
-     `SALIDA` (`ESTÉREO`/`MONO`/`AURICULARES`). `MONO` = downmix `(L+R)/2`; `AURICULARES` =
-     **crossfeed** (canal opuesto filtrado). Procesado en `hh::queue_samples`
-     (`hh_apply_audio_processing`); persiste en `[audio]`. El `%` se dibuja (no está en la fuente).
+     `SALIDA` (`MONO`/`ESTÉREO`/`AURICULARES`) + `MENÚ SFX` (`NO/SÍ`). `MONO` = downmix `(L+R)/2`;
+     `AURICULARES` = **crossfeed** (canal opuesto filtrado); `MENÚ SFX=NO` silencia los sonidos del
+     menú. Procesado en `hh::queue_samples` (`hh_apply_audio_processing`); persiste en `[audio]`. El
+     `%` se dibuja (no está en la fuente). Los `.wav` de `sounds/` son personalizables (mismos
+     nombres, 48 kHz/S16/estéreo).
      **VENTANA DEBUG/F1**: en Windows RT64 instala su hook solo al arrancar; si se activa en caliente,
      F1 lo maneja el port (`hh::toggle_inspector`). Ver VSYNC con `HH_FPS=1` (log incluye
      `vsync=0|1` real).

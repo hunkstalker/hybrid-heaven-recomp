@@ -42,7 +42,8 @@ Orden acordado con el mantenedor:
    → `res` concreta → nativa. `MOSTRAR FPS` mide presents reales. `VENTANA DEBUG` persiste; F1 en
    caliente lo maneja el port (`hh::toggle_inspector`) porque el hook Win32 de RT64 solo se instala al
    arrancar. **AUDIO HECHO**: `SONIDO` = `VOLUMEN` (0-100 %, afecta a todo) + `SALIDA`
-   (`ESTÉREO`/`MONO`/`AURICULARES` = crossfeed), persistido en `[audio]`. Ver VSYNC con `HH_FPS=1`.
+   (`MONO`/`ESTÉREO`/`AURICULARES` = crossfeed) + `MENÚ SFX` (`NO/SÍ`), persistido en `[audio]`.
+   Ver VSYNC con `HH_FPS=1`.
    **Pendiente acordado**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; de momento
    NO), `DIFICULTAD` + `EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del juego),
    `CONTINUAR`; después acentos/idiomas.

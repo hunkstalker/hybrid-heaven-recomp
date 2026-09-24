@@ -260,6 +260,8 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 static const char* kOut[] = { "mono", "estereo", "auriculares" };
                 const int n = static_cast<int>(sizeof(kOut) / sizeof(kOut[0]));
                 hh::audio_set_output(kOut[(cur.value >= 0 && cur.value < n) ? cur.value : 1]);
+            } else if (cur.action == hh::menu::Action::MenuSfxToggle) {
+                hh::audio_set_menu_sfx(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ResolutionSelect) {
                 if (cur.value >= 0 && cur.value < static_cast<int>(cur.options.size())) {
                     hh::video_set_resolution(cur.options[cur.value]);

@@ -77,6 +77,7 @@ int output_default() {
     if (o == "auriculares" || o == "headphones" || o == "crossfeed") return 2;
     return 1;  // estereo (default)
 }
+int menu_sfx_default() { return hh::audio_config().menusfx == "no" ? 0 : 1; }
 // RATIO: índice en {"AUTO","ORIGINAL","4:3","16:9","16:10","21:9"} según `[video].aspect`.
 int ratio_default() {
     const std::string a = hh::video_config().aspect;
@@ -238,6 +239,8 @@ void build_tree() {
                                   Action::VolumeSelect, volume_default()),
         make_selector_with_action("SALIDA", {"MONO", "ESTÉREO", "AURICULARES"}, Action::OutputSelect,
                                   output_default()),
+        make_selector_with_action("MENÚ SFX", {"NO", "SÍ"}, Action::MenuSfxToggle,
+                                  menu_sfx_default()),
     }));
 }
 

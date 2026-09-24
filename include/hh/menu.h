@@ -56,7 +56,8 @@ enum class Action {
     ToggleShowFps,   // MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda)
     MsaaSelect,      // ANTIALIASING: MSAA de RT64 (x0/x2/x4/x8)
     VolumeSelect,    // VOLUMEN: volumen general (0-100 %)
-    OutputSelect,    // SALIDA: ESTÉREO / MONO / AURICULARES (crossfeed)
+    OutputSelect,    // SALIDA: MONO / ESTÉREO / AURICULARES (crossfeed)
+    MenuSfxToggle,   // MENÚ SFX: activa/desactiva los sonidos del menú
     RatioSelect,     // selector RATIO: filtra las resoluciones y ajusta su valor
     ResolutionSelect,// selector RESOLUCIÓN (lista dependiente del ratio)
 };

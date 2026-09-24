@@ -49,6 +49,7 @@ AJUSTES ->
       SONIDO ->
             VOLUMEN      < 0% … 100% > (pasos de 10; 100% = sin atenuar)
             SALIDA       < MONO / ESTÉREO / AURICULARES > (AURICULARES = crossfeed)
+            MENÚ SFX     NO/SÍ (activa/desactiva los sonidos del menú)
       DEBUG ->
             VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
             MOSTRAR FPS    NO/SÍ
@@ -109,7 +110,8 @@ AJUSTES ->
   **todo**: juego, música y SFX) y `SALIDA` (`MONO` / `ESTÉREO` / `AURICULARES`). `MONO` hace downmix
   `(L+R)/2`; `AURICULARES` aplica **crossfeed** (un poco del canal opuesto filtrado en paso-bajo, para
   auriculares). Aplican en vivo en `hh::queue_samples` (`hh_apply_audio_processing`) y persisten en
-  `[audio]`. El `%` no está en la fuente: se dibuja con rectángulos (como `:`/`.`).
+  `[audio]`. El `%` no está en la fuente: se dibuja con rectángulos (como `:`/`.`). `MENÚ SFX` (`NO/SÍ`)
+  silencia/activa los sonidos del menú (`hh::menu_sfx::play` respeta `[audio].menusfx`).
 - **Selectores laterales** (CÁMARA LIBRE, APUNTADO LIBRE, RATIO, RESOLUCIÓN, P. COMPLETA, ANTIALIASING,
   VSYNC, LÍMITE DE FPS, VENTANA DEBUG, MOSTRAR FPS): **el activo en verde** y el resto en gris;
   izquierda/derecha cambian el valor. Todos los **valores empiezan en la misma columna** (los chevrons
@@ -148,6 +150,8 @@ input nativo muteado quedaba en silencio y nunca disparaba `back`. Solo suena co
 junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con `ffmpeg`
 (`-ar 48000 -ac 2 -sample_fmt s16`) y commitear el `.wav`. Nombres que carga `src/platform/menu_sfx.cpp`:
 `menu-move.wav`, `menu-accept.wav`, `menu-back.wav`. `test_sounds/` = sonidos antiguos (backup).
+**Personalización**: el usuario puede reemplazar los `.wav` de `sounds/` (mismos nombres, **48 kHz /
+S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `MENÚ SFX = NO` los silencia.
 
 ## Estado de implementación
 

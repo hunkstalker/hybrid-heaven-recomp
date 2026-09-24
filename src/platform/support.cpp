@@ -332,6 +332,7 @@ hh::AudioConfig& hh::audio_config_mutable() {
             const std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
             if (k == "volumen" || k == "volume") c.volume = std::clamp(std::atoi(v.c_str()), 0, 100);
             else if (k == "salida" || k == "output") c.output = v;
+            else if (k == "menusfx") c.menusfx = v;
         }
         fclose(f);
         return c;
@@ -469,9 +470,18 @@ void hh::audio_set_output(const std::string& output) {
     fprintf(stderr, "[AUDIO] SALIDA -> %s\n", output.c_str());
 }
 
+// Menu SONIDO -> MENÚ SFX: activa/desactiva los sonidos del menú.
+void hh::audio_set_menu_sfx(bool enabled) {
+    hh::audio_config_mutable().menusfx = enabled ? "si" : "no";
+    hh::audio_config_save();
+    fprintf(stderr, "[AUDIO] MENÚ SFX -> %s\n", hh::audio_config().menusfx.c_str());
+}
+
 void hh::audio_config_save() {
     const hh::AudioConfig& a = hh::audio_config();
-    hh::config_ini_set("audio", {{"volumen", std::to_string(a.volume)}, {"salida", a.output}});
+    hh::config_ini_set("audio", {{"volumen", std::to_string(a.volume)},
+                                 {"salida", a.output},
+                                 {"menusfx", a.menusfx}});
 }
 
 // Menu GRÁFICOS -> RESOLUCIÓN: resolución INTERNA de render (RT64). No vive en GraphicsConfig, así

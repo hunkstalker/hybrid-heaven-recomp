@@ -121,11 +121,13 @@ namespace hh {
     struct AudioConfig {
         int volume = 100;            // 0..100 % (100 = como estaba, sin atenuar)
         std::string output = "estereo";  // estereo | mono | auriculares
+        std::string menusfx = "si";      // si | no (sonidos del menú)
     };
     const AudioConfig& audio_config();
     AudioConfig& audio_config_mutable();
     void audio_set_volume(int percent);       // menu SONIDO -> VOLUMEN
     void audio_set_output(const std::string& output);  // menu SONIDO -> SALIDA
+    void audio_set_menu_sfx(bool enabled);    // menu SONIDO -> MENÚ SFX
     void audio_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El

@@ -341,6 +341,7 @@ win_y   = -1
 [audio]
 volumen = 100     ; 0-100 (pasos de 10 en el menú); 100 = sin atenuar
 salida  = estereo ; mono | estereo | auriculares (orden del selector)
+menusfx = si      ; si | no (sonidos del menú)
 ```
 
 - `volumen` afecta a **todo** (juego, música y SFX del menú). `salida=mono` hace downmix `(L+R)/2`;

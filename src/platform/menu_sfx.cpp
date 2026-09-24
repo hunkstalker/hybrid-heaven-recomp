@@ -68,6 +68,9 @@ void init_once() {
 void init() { init_once(); }
 
 void play(Sfx s) {
+    if (hh::audio_config().menusfx != "si") {
+        return;   // MENÚ SFX desactivado
+    }
     init_once();
     const int i = static_cast<int>(s);
     if (i < 0 || i >= kNumSfx || g_data[i].empty()) return;
