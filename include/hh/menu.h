@@ -10,9 +10,9 @@
 // Reglas del diseño (RETOMAR.md):
 //   - Arriba/abajo mueve el cursor; en los selectores laterales, izquierda/derecha cambian el valor.
 //   - A  = marca/selecciona la opción resaltada (entra si es submenú).
-//   - X  = aplica y vuelve atrás (en las pantallas de configuración; NO se persiste todavía).
-//   - B  = atrás (descarta).
-//   - Listas (IDIOMA / DIFICULTAD / SONIDO / RESOLUCIÓN): la opción activa se resalta en verde.
+//   - B  = atrás. (No hay "aplicar": los cambios son en memoria y se ven al momento.)
+//   - Listas (IDIOMA / DIFICULTAD / SONIDO): la opción **aplicada** se resalta en verde y el resto
+//     sale en gris (deshabilitado); el cursor lo marca la flecha nativa.
 //   - Sin entradas "ACEPTAR".
 //
 // Las acciones (`Action`) son solo descriptivas: la ejecución real (llamar a funciones del juego)
@@ -26,15 +26,14 @@ namespace hh::menu {
 // Identidad de cada pantalla del árbol.
 enum class ScreenId {
     Root,          // título (CONTINUAR / NUEVA PARTIDA / MODO COMBATE / AJUSTES)
-    NewGame,       // NUEVA PARTIDA
-    Experience,    // AJUSTES EXPERIENCIA MODERNA (selectores laterales)
+    NewGame,       // NUEVA PARTIDA (EMPEZAR PARTIDA / DIFICULTAD / selectores)
     Difficulty,    // DIFICULTAD (lista)
     BattleMode,    // MODO COMBATE (por definir; de momento deshabilitado)
     Settings,      // AJUSTES
     Language,      // IDIOMA (lista)
-    Graphics,      // GRÁFICOS
+    Graphics,      // GRÁFICOS (RATIO / RESOLUCIÓN / P. COMPLETA / ANTIALIASING / VSYNC / FPS)
     Sound,         // SONIDO (lista)
-    Resolution,    // RESOLUCIÓN (lista larga; se rellena en el paso 6)
+    Debug,         // DEBUG (VENTANA DEBUG + MOSTRAR FPS)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -44,13 +43,15 @@ enum class Action {
     StartGame,       // EMPEZAR PARTIDA
     BattleMode,      // MODO COMBATE (deshabilitado)
     OpenNewGame,     // submenú NUEVA PARTIDA
-    OpenExperience,  // submenú AJUSTES EXPERIENCIA MODERNA
     OpenDifficulty,  // submenú DIFICULTAD
     OpenSettings,    // submenú AJUSTES
     OpenLanguage,    // submenú IDIOMA
     OpenGraphics,    // submenú GRÁFICOS
     OpenSound,       // submenú SONIDO
-    OpenResolution,  // submenú RESOLUCIÓN
+    OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
+    ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
+    RatioSelect,     // selector RATIO: filtra las resoluciones y ajusta su valor
+    ResolutionSelect,// selector RESOLUCIÓN (lista dependiente del ratio)
 };
 
 // Tipo de entrada dentro de una pantalla.
@@ -64,7 +65,7 @@ enum class Kind {
 // Tipo de pantalla.
 enum class ScreenKind {
     Menu,  // entradas de menú (Item/Submenu/Selector)
-    List,  // lista de opciones (IDIOMA/DIFICULTAD/SONIDO/RESOLUCIÓN)
+    List,  // lista de opciones (IDIOMA/DIFICULTAD/SONIDO)
 };
 
 // Evento producido por una navegación (lo consumirá el SFX del paso 7).
@@ -73,7 +74,6 @@ enum class Event {
     Move,     // el cursor o un valor ha cambiado
     Accept,   // A: marca/selecciona o entra
     Back,     // B: vuelve atrás
-    Applied,  // X: aplica y vuelve atrás
 };
 
 struct Entry {
@@ -89,8 +89,6 @@ struct Entry {
 struct Screen {
     ScreenId id = ScreenId::Root;
     ScreenKind kind = ScreenKind::Menu;
-    // true en las pantallas de configuración: X aplica y vuelve atrás.
-    bool applies = false;
     std::vector<Entry> entries;
     int cursor = 0;
 };
@@ -118,7 +116,6 @@ Event move_down();
 Event move_left();   // solo selectores
 Event move_right();  // solo selectores
 Event confirm();     // A
-Event apply();       // X
 Event back();        // B
 
 // Serialización para diagnóstico/tests (no dibuja). `describe_tree` vuelca todo el árbol;

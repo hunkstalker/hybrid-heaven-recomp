@@ -95,6 +95,7 @@ unsigned char_height() { return kGlyphH; }
 
 bool glyph_value(unsigned char c, unsigned& value) {
     if (c == ' ') { value = 0; return true; }
+    if (c >= '0' && c <= '9') { value = 1u + (c - '0'); return true; }   // '0' -> 1 ... '9' -> 10
     if (c >= 'A' && c <= 'Z') { value = 37u + (c - 'A'); return true; }
     if (c >= 'a' && c <= 'z') { value = 11u + (c - 'a'); return true; }
     return false;

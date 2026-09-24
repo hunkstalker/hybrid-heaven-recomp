@@ -12,60 +12,81 @@
    inventados**: nada de elementos extra que no existan en el original.
 2. **Ocultar el menú nativo** por defecto (el port ya añade menús que no existían). Mecanismo:
    `architecture.md` §7 (supresión por tablas de etiquetas).
-3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A** marca/selecciona la
-   opción resaltada, **X** aplica (guarda y vuelve atrás), **B** atrás (descarta). En los
-   **selectores laterales**, izquierda/derecha cambian el valor (`< 30 >`, con **flechas amarillas** a
-   los lados). La **selección resaltada se pinta en verde**.
+3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A** marca/selecciona (entra
+   en submenús y fija la opción de una lista); **B** atrás. En los **selectores laterales**,
+   izquierda/derecha cambian el valor. **No hay "aplicar" con X**: los cambios son en vivo. Colores:
+   las **etiquetas** del menú van en **blanco** (amarillo la del cursor); en las **opciones a
+   configurar** (elementos de lista y valores de selector), la activa/aplicada en **verde** y el resto
+   en **gris**.
 4. **Control TOTAL del menú** (no reutilizar el del juego): el overlay moderno **desacopla** el menú
    inicial del juego para tener todo el control (ver §Input).
-5. **Sin entradas `ACEPTAR`**: el patrón **A/X/B** (punto 3) es común a **todas** las pantallas de
-   selección. La **guía de botones** (sprites X/A/B abajo: `X`=Aplicar, `A`=Seleccionar, `B`=Atrás,
-   como la que el juego ya muestra en la pausa) **se implementa más adelante**.
+5. **Sin entradas `ACEPTAR`**: el patrón **A/B** (punto 3) es común a **todas** las pantallas de
+   selección. La **guía de botones** (sprites A/B abajo) **se implementa más adelante**.
 
 ## Árbol de menús
 
-Orden de arriba a abajo; `->` = con A se entra a esa pantalla. En todas rige **A/X/B** (A marca, X
-aplica y vuelve, B atrás):
+Orden de arriba a abajo; `->` = con A se entra a esa pantalla. En todas rige **A/B** (A marca/entra,
+B atrás):
 
 ```
 CONTINUAR                                  (arriba del todo: retomar partida directo)
 NUEVA PARTIDA ->
-      AJUSTES EXPERIENCIA MODERNA -> (selectores laterales; A marca, X aplica y vuelve, B atrás)
-            CÁMARA LIBRE   < SÍ / NO >      (propuesta; por decidir)
-            APUNTADO LIBRE < SÍ / NO >      (propuesta; por decidir)
       EMPEZAR PARTIDA              (inicia el juego con la config elegida)
-      DIFICULTAD -> lista SUPREMO / DIFÍCIL / NORMAL (selección en verde; A/X/B)
+      DIFICULTAD -> lista SUPREMO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
+      CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
+      APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
 MODO COMBATE -> (por definir; de momento sale DESHABILITADO, en gris)
 AJUSTES ->
-      IDIOMA -> lista INGLÉS (arriba) … JAPONÉS (abajo)
+      IDIOMA -> lista INGLÉS (arriba) … JAPONÉS (abajo); activa en verde, resto gris
             (los rótulos cambian según el idioma elegido; por defecto, el del sistema)
       GRÁFICOS ->
-            RESOLUCIÓN -> lista de TODAS las resoluciones (puede ser larga); A/X/B
-            ANTIALIASING (x0 / x2 / x4 / x8; desactivar las que RT64 inhabilite por resolución)
-            VSYNC        (SÍ / NO)
-            LÍMITE DE FPS < 0 / 30 / 60 / 120 / 144 / 160 … >  (selector lateral)
-            MOSTRAR FPS  (SÍ / NO)
-      SONIDO -> lista ESTÉREO / MONO (selección en verde)
+            RATIO        < AUTO / ORIGINAL / 4:3 / 16:9 / 16:10 / 21:9 >
+            RESOLUCIÓN   < AUTO … >    (filtrada por RATIO; AUTO/ORIGINAL + las del ratio)
+            P. COMPLETA  NO/SÍ         (pantalla completa)
+            ANTIALIASING < x0 / x2 / x4 / x8 >
+            VSYNC        NO/SÍ         (por defecto SÍ)
+            LÍMITE DE FPS < NATIVO / 30 / 60 / 120 / 144 / 160 >  (NATIVO = refresco del monitor)
+      SONIDO -> lista ESTÉREO / MONO (activo en verde, resto gris)
+      DEBUG ->
+            VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
+            MOSTRAR FPS    NO/SÍ
 ```
 
 - **`RESOLUCIÓN` sale de la raíz**: el menú raíz queda en **CONTINUAR / NUEVA PARTIDA / MODO COMBATE /
   AJUSTES** (el `RESOLUTION` nativo se mueve a **GRÁFICOS**).
-- **Listas** (IDIOMA, DIFICULTAD, SONIDO, RESOLUCIÓN): como en el vanilla, la opción activa se
-  **resalta en verde**; **A** la marca, **X** aplica y vuelve, **B** atrás.
-- **Selectores laterales** (CÁMARA LIBRE, APUNTADO LIBRE, LÍMITE DE FPS): `< valor >` con flechas
-  amarillas; izquierda/derecha cambian el valor. El de **LÍMITE DE FPS** aún no tiene lista cerrada.
-- **AJUSTES EXPERIENCIA MODERNA**: para mejoras jugables que se salen del original. Por ahora
-  **CÁMARA LIBRE** y **APUNTADO LIBRE** son propuestas por decidir. El usuario las configura **antes**
-  de empezar; luego pulsa `EMPEZAR PARTIDA` y el flujo del juego continúa normal.
+- **`RATIO` + `RESOLUCIÓN`**: `RATIO` (aspecto) filtra la lista de `RESOLUCIÓN` (las adecuadas a ese
+  ratio); la fuente no tiene `:`, así que los ratios se rotulan `4:3`, `16:9`… con el `:` **dibujado
+  con rectángulos** (como el chevron). Reglas: `RATIO=ORIGINAL → RESOLUCIÓN=ORIGINAL`,
+  `RATIO=AUTO → RESOLUCIÓN=AUTO` y los **ratios concretos → la resolución mínima** de su lista. Por
+  defecto `RATIO=AUTO` y `RESOLUCIÓN=AUTO` (la nativa del SO → `[video] res = auto`).
+- **`P. COMPLETA`** (pantalla completa, `NO/SÍ`): `NO` = ventana (`wm = windowed`), `SÍ` = completa
+  (`wm = borderless`). El `.` también se dibuja (la fuente no lo tiene).
+- **`VSYNC`** por defecto **SÍ**. **`LÍMITE DE FPS`** por defecto **`NATIVO`** = refresco del monitor.
+- **`DEBUG`** (submenú): **`VENTANA DEBUG`** (`NO/SÍ`) habilita el modo desarrollador de RT64
+  (Inspector con **F1**); **`MOSTRAR FPS`** (`NO/SÍ`). Se sacó de `GRÁFICOS` para no alargarlo.
+- **Listas** (IDIOMA, DIFICULTAD, SONIDO): la opción **aplicada** va en **verde** y el resto en **gris**
+  (deshabilitado), como en el original; **A** la marca y **B** atrás. El cursor lo marca la flecha nativa.
+- **Selectores laterales** (CÁMARA LIBRE, APUNTADO LIBRE, RATIO, RESOLUCIÓN, P. COMPLETA, ANTIALIASING,
+  VSYNC, LÍMITE DE FPS, VENTANA DEBUG, MOSTRAR FPS): **el activo en verde** y el resto en gris;
+  izquierda/derecha cambian el valor. Todos los **valores empiezan en la misma columna** (los chevrons
+  quedan fuera de esa alineación). Los de **pocos valores** se ven juntos (`NO / SÍ`, con **2 px** a
+  cada lado de la barra); los **largos** (RESOLUCIÓN, LÍMITE DE FPS) muestran solo el activo entre
+  **flechas `<` `>` a 4 px** (`< 800x600 >`). La fuente del menú no tiene `<>/:.`, así que la barra, las
+  flechas y los signos `:` `.` se dibujan con rectángulos (como la flecha nativa). Los **dígitos**
+  (resoluciones, FPS) se mapean en el atlas (`hh::font::game::glyph_value`).
+- **Experiencia moderna**: CÁMARA LIBRE y APUNTADO LIBRE (mejoras jugables fuera del original) viven
+  **dentro de NUEVA PARTIDA**, debajo de DIFICULTAD (antes eran un submenú `AJUSTES EXPERIENCIA
+  MODERNA`, cuya etiqueta larga se solapaba con los valores). El usuario las configura **antes** de
+  pulsar `EMPEZAR PARTIDA`.
 - **MODO COMBATE**: por definir; de momento aparece **deshabilitado en gris**.
 
 ## Input — DECIDIDO: control total
 
 El overlay moderno **desacopla** el menú inicial del juego: nuestro menú lee el input
-(arriba/abajo/izq-der/A/B/X) y gestiona su **propia pila de pantallas**; el menú nativo se **oculta**
-(no se deja correr su handler o se neutraliza su dibujo). Como es control total, lo natural es **no
-depender del handler del juego**; la fuente concreta de botones (los del juego `func_801C1340`
-direcciones / `func_801C1334` A/START, o el input propio `hh::get_input`) se decide en implementación.
+(arriba/abajo/izq-der/A/B) y gestiona su **propia pila de pantallas**; el menú nativo se **oculta** y su
+input se **neutraliza** (ver `architecture.md` §7). Los botones se leen con los lectores del propio
+juego (`func_801C1340` direcciones / `func_801C1334` A/B/START), que el handler nativo ve a 0 mientras
+manda el overlay (`feed_menu_navigation`).
 
 ## SFX
 
@@ -86,17 +107,17 @@ junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con
 | paso | estado |
 |---|---|
 | 1. Modelo `hh::menu` (estado) | **HECHO** (`include/hh/menu.h` + `src/subsystems/menu.cpp`) |
-| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Falta: acentos reales, valores de selectores |
+| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Listas con la aplicada en verde y el resto en gris; selectores (valores juntos o `< valor >` con flechas dibujadas); dígitos mapeados (2026-09-24). Falta: acentos reales |
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
-| 5. Navegación propia (A/B/X + selectores, control total) | terreno hecho: `feed_menu_navigation` (arriba/abajo). Falta neutralizar el input nativo y A/B/X |
-| 6. Acciones (mapear cada entrada a la función del juego) | pendiente (pantalla a pantalla) |
+| 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` ya engancha el modo desarrollador de RT64. Falta el resto (pantalla a pantalla) |
 | 7. SFX desde eventos del modelo (retirar el puente) | pendiente |
 | 8. Validar en Windows | pendiente |
 
 **Orden acordado (2026-09-24):** completar el menú **antes** de los acentos → **5 → 6 → 7 → 4 → 8**.
 Así, al integrar los acentos los submenús ya son navegables y se pueden validar (o forzarlos con
-`HH_MENU_SCREEN=7`/`=6`).
+`HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA).
 
 Alcance de la tanda actual: **solo el árbol de menús** (estructura, navegación y dibujo). **NO**
 persistir la configuración todavía (los selectores cambian en memoria; el guardado en `config.ini`

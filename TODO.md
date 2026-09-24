@@ -53,7 +53,17 @@
      **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 HECHO** (validado headless);
      **(c) `hh_menu` del título HECHO (2026-09-24)**: hook `0x801C1DB8`, modelo + dibujo 1:1 +
      navegación, **menú nativo oculto por defecto** (F6 alterna; cubre los **tres** sets) y bugs del
-     overlay resueltos. **Falta**: control total, acciones, SFX y **después** acentos (5→6→7→4). Detalle:
+     overlay resueltos. **Paso 5 HECHO (2026-09-24, validado headless)**: navegación propia completa
+     (arriba/abajo/izq-der, **A/B sin X**) y **control total** (input del handler nativo muteado).
+     **Dibujo HECHO**: listas con la aplicada en verde y el resto en gris; selectores con el activo en
+     verde (`NO/SÍ` o `< valor >` con flechas dibujadas); dígitos y `:` dibujados. NUEVA PARTIDA =
+     `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE / APUNTADO LIBRE`; GRÁFICOS con `RATIO` (filtra
+     `RESOLUCIÓN`), `P. COMPLETA`, `VSYNC` (SÍ) y `LÍMITE DE FPS` (`NATIVO`); **`DEBUG`** es submenú
+     en AJUSTES (`VENTANA DEBUG`→F1 + `MOSTRAR FPS`). Falta validar en Windows.
+     **Ajuste pendiente**: `P. COMPLETA` debe salir por defecto **SÍ** (la realidad del port es
+     `wm = borderless`, pantalla completa).
+     **Falta**: acciones, SFX y **después** acentos (6→7→4). Detalle:
+     `notes/2026-09-24-a2-selectores-y-arbol.md`,
      `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
      `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.
      Contexto (descartado): `notes/2026-09-23-b-motor-texto-localizado.md`, `...-a2-plan-menu-ajustes-idioma.md`.

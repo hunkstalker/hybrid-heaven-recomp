@@ -38,6 +38,15 @@ Entry make_selector(const char* label, std::vector<std::string> options, int val
     return e;
 }
 
+// Selector con acción (p. ej. DEBUG -> ToggleDebug): el valor cambia con izq/der y el enganche lee
+// `action` para aplicar el efecto (ver feed_menu_navigation).
+Entry make_selector_with_action(const char* label, std::vector<std::string> options, Action action,
+                                int value = 0) {
+    Entry e = make_selector(label, std::move(options), value);
+    e.action = action;
+    return e;
+}
+
 Entry make_option(const char* label, bool marked = false) {
     Entry e;
     e.label = label;
@@ -46,58 +55,81 @@ Entry make_option(const char* label, bool marked = false) {
     return e;
 }
 
-Screen make_screen(ScreenId id, ScreenKind kind, bool applies, std::vector<Entry> entries) {
+Screen make_screen(ScreenId id, ScreenKind kind, std::vector<Entry> entries) {
     Screen s;
     s.id = id;
     s.kind = kind;
-    s.applies = applies;
     s.entries = std::move(entries);
     return s;
 }
+
+// Resoluciones (sin AUTO/ORIGINAL) adecuadas a cada RATIO: AUTO/ORIGINAL(4:3)/4X3/16X9/16X10/21X9.
+std::vector<std::string> ratio_resolutions(int ratio) {
+    switch (ratio) {
+        case 3:   // 16X9
+            return {"1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440", "3840x2160"};
+        case 4:   // 16X10
+            return {"1280x800", "1440x900", "1680x1050", "1920x1200", "2560x1600"};
+        case 5:   // 21X9
+            return {"2560x1080", "3440x1440", "3840x1600"};
+        case 1:   // ORIGINAL (4:3 nativo)
+        case 2:   // 4X3
+            return {"640x480", "800x600", "1024x768", "1280x960", "1600x1200", "2048x1536"};
+        default:  // AUTO: sin filtro -> unión
+            return {"640x480", "800x600", "1024x768", "1280x960", "1600x1200", "2048x1536",
+                    "1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440", "3840x2160",
+                    "1280x800", "1440x900", "1680x1050", "1920x1200", "2560x1600",
+                    "2560x1080", "3440x1440", "3840x1600"};
+    }
+}
+
+// Ajusta las opciones/valor de RESOLUCIÓN según el RATIO: AUTO -> AUTO, ORIGINAL -> ORIGINAL, y los
+// ratios concretos dejan AUTO. Definida tras `find_screen`.
+void sync_resolution();
 
 // Rellena g_screens con el árbol acordado (orden de arriba a abajo).
 void build_tree() {
     g_screens.clear();
 
-    g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, false, {
+    g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, {
         make_item("CONTINUAR", Action::Continue),
         make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
         make_submenu("MODO COMBATE", Action::BattleMode, /*enabled=*/false),
         make_submenu("AJUSTES", Action::OpenSettings),
     }));
 
-    g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, false, {
-        make_submenu("AJUSTES EXPERIENCIA MODERNA", Action::OpenExperience),
+    // NUEVA PARTIDA: iniciar, dificultad y los selectores de "experiencia moderna" (integrados aquí
+    // en vez de un submenú: la etiqueta larga no cabía y se solapaba con los valores). El valor de
+    // los selectores se cambia con izq/der y el real se enganchará en el paso 6.
+    g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
         make_item("EMPEZAR PARTIDA", Action::StartGame),
         make_submenu("DIFICULTAD", Action::OpenDifficulty),
-    }));
-
-    // AJUSTES EXPERIENCIA MODERNA: selectores laterales (propuestas por decidir; el valor real se
-    // enganchará en el paso 6).
-    g_screens.push_back(make_screen(ScreenId::Experience, ScreenKind::Menu, true, {
         make_selector("CÁMARA LIBRE", {"NO", "SÍ"}),
         make_selector("APUNTADO LIBRE", {"NO", "SÍ"}),
     }));
 
-    // DIFICULTAD: lista (A marca, X aplica). El valor activo vendrá de la config (paso 6).
-    g_screens.push_back(make_screen(ScreenId::Difficulty, ScreenKind::List, true, {
+    // DIFICULTAD: lista (A marca la aplicada; el resto sale en gris). La opción marcada es el valor
+    // en memoria; vendrá de la config en el paso 6.
+    g_screens.push_back(make_screen(ScreenId::Difficulty, ScreenKind::List, {
         make_option("SUPREMO"),
         make_option("DIFÍCIL"),
-        make_option("NORMAL"),
+        make_option("NORMAL", /*marked=*/true),
     }));
 
     // MODO COMBATE: por definir; la entrada de la raíz sale deshabilitada.
-    g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, false, {}));
+    g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {}));
 
-    g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, false, {
+    // AJUSTES: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
+    g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {
         make_submenu("IDIOMA", Action::OpenLanguage),
         make_submenu("GRÁFICOS", Action::OpenGraphics),
         make_submenu("SONIDO", Action::OpenSound),
+        make_submenu("DEBUG", Action::OpenDebug),
     }));
 
     // IDIOMA: lista, de INGLÉS (arriba) a JAPONÉS (abajo). El activo vendrá del idioma actual (A1).
-    g_screens.push_back(make_screen(ScreenId::Language, ScreenKind::List, true, {
-        make_option("INGLÉS"),
+    g_screens.push_back(make_screen(ScreenId::Language, ScreenKind::List, {
+        make_option("INGLÉS", /*marked=*/true),
         make_option("ESPAÑOL"),
         make_option("CATALÁN"),
         make_option("FRANCÉS"),
@@ -105,22 +137,32 @@ void build_tree() {
         make_option("JAPONÉS"),
     }));
 
-    g_screens.push_back(make_screen(ScreenId::Graphics, ScreenKind::Menu, true, {
-        make_submenu("RESOLUCIÓN", Action::OpenResolution),
+    // GRÁFICOS: RATIO filtra las resoluciones de RESOLUCIÓN (ambos con AUTO/ORIGINAL). El paso 6
+    // aplicará los valores a RT64. Por defecto RATIO=AUTO y RESOLUCIÓN=AUTO.
+    g_screens.push_back(make_screen(ScreenId::Graphics, ScreenKind::Menu, {
+        make_selector_with_action("RATIO", {"AUTO", "ORIGINAL", "4:3", "16:9", "16:10", "21:9"},
+                                  Action::RatioSelect),
+        make_selector_with_action("RESOLUCIÓN", {"AUTO", "ORIGINAL"}, Action::ResolutionSelect),
+        make_selector("P. COMPLETA", {"NO", "SÍ"}),   // pantalla completa
         make_selector("ANTIALIASING", {"x0", "x2", "x4", "x8"}),
-        make_selector("VSYNC", {"NO", "SÍ"}),
-        make_selector("LÍMITE DE FPS", {"0", "30", "60", "120", "144", "160"}),
+        make_selector("VSYNC", {"NO", "SÍ"}, /*value=*/1),
+        // NATIVO = refresco del monitor (por defecto); el paso 6 lo aplica.
+        make_selector("LÍMITE DE FPS", {"NATIVO", "30", "60", "120", "144", "160"}),
+    }));
+
+    // DEBUG: opciones de depuración (fuera de GRÁFICOS para no alargarlo).
+    g_screens.push_back(make_screen(ScreenId::Debug, ScreenKind::Menu, {
+        make_selector_with_action("VENTANA DEBUG", {"NO", "SÍ"}, Action::ToggleDebug),
         make_selector("MOSTRAR FPS", {"NO", "SÍ"}),
     }));
 
+    sync_resolution();
+
     // SONIDO: lista (ya era así en el vanilla).
-    g_screens.push_back(make_screen(ScreenId::Sound, ScreenKind::List, true, {
-        make_option("ESTÉREO"),
+    g_screens.push_back(make_screen(ScreenId::Sound, ScreenKind::List, {
+        make_option("ESTÉREO", /*marked=*/true),
         make_option("MONO"),
     }));
-
-    // RESOLUCIÓN: lista larga. Se rellenará con las resoluciones reales de RT64 en el paso 6.
-    g_screens.push_back(make_screen(ScreenId::Resolution, ScreenKind::List, true, {}));
 }
 
 Screen* find_screen(ScreenId id) {
@@ -130,6 +172,35 @@ Screen* find_screen(ScreenId id) {
         }
     }
     return nullptr;
+}
+
+// Ajusta las opciones/valor de RESOLUCIÓN al RATIO: AUTO -> AUTO, ORIGINAL -> ORIGINAL, y los ratios
+// concretos dejan las resoluciones de ese ratio con AUTO seleccionado.
+void sync_resolution() {
+    Screen* g = find_screen(ScreenId::Graphics);
+    if (g == nullptr) {
+        return;
+    }
+    Entry* ratio = nullptr;
+    Entry* res = nullptr;
+    for (Entry& e : g->entries) {
+        if (e.action == Action::RatioSelect) {
+            ratio = &e;
+        }
+        else if (e.action == Action::ResolutionSelect) {
+            res = &e;
+        }
+    }
+    if (ratio == nullptr || res == nullptr) {
+        return;
+    }
+    std::vector<std::string> opts = {"AUTO", "ORIGINAL"};
+    for (const std::string& v : ratio_resolutions(ratio->value)) {
+        opts.push_back(v);
+    }
+    res->options = std::move(opts);
+    // ORIGINAL -> ORIGINAL; AUTO -> AUTO; ratio concreto -> la resolución MÍNIMA de su lista (índice 2).
+    res->value = (ratio->value == 1) ? 1 : (ratio->value == 0 ? 0 : 2);
 }
 
 Screen* top() {
@@ -148,13 +219,12 @@ void ensure() {
 bool screen_for(Action action, ScreenId& out) {
     switch (action) {
         case Action::OpenNewGame:    out = ScreenId::NewGame;    return true;
-        case Action::OpenExperience: out = ScreenId::Experience; return true;
         case Action::OpenDifficulty: out = ScreenId::Difficulty; return true;
         case Action::OpenSettings:   out = ScreenId::Settings;   return true;
         case Action::OpenLanguage:   out = ScreenId::Language;   return true;
         case Action::OpenGraphics:   out = ScreenId::Graphics;   return true;
         case Action::OpenSound:      out = ScreenId::Sound;      return true;
-        case Action::OpenResolution: out = ScreenId::Resolution; return true;
+        case Action::OpenDebug:      out = ScreenId::Debug;      return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -232,6 +302,9 @@ Event move_left() {
         return Event::None;
     }
     e.value = v;
+    if (e.action == Action::RatioSelect) {
+        sync_resolution();
+    }
     return Event::Move;
 }
 
@@ -251,6 +324,9 @@ Event move_right() {
         return Event::None;
     }
     e.value = v;
+    if (e.action == Action::RatioSelect) {
+        sync_resolution();
+    }
     return Event::Move;
 }
 
@@ -288,16 +364,6 @@ Event confirm() {
     return Event::None;
 }
 
-Event apply() {
-    ensure();
-    Screen* s = top();
-    if (s == nullptr || !s->applies || g_stack.size() <= 1) {
-        return Event::None;
-    }
-    g_stack.pop_back();
-    return Event::Applied;
-}
-
 Event back() {
     ensure();
     if (g_stack.size() <= 1) {
@@ -309,7 +375,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Resolution)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Debug)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);
@@ -332,8 +398,7 @@ std::string describe_current() {
     static const char* kKindName[] = {"Menu", "List"};
     std::string out = "screen=" + std::to_string(static_cast<int>(s->id)) +
                       " kind=" + kKindName[static_cast<int>(s->kind)] +
-                      " cursor=" + std::to_string(s->cursor) +
-                      " applies=" + (s->applies ? "1" : "0") + "\n";
+                      " cursor=" + std::to_string(s->cursor) + "\n";
     for (size_t i = 0; i < s->entries.size(); ++i) {
         const Entry& e = s->entries[i];
         out += (static_cast<int>(i) == s->cursor) ? "> " : "  ";

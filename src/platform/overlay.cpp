@@ -283,6 +283,27 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     for (const Panel& p : frame.panels) {
         append_quad(vertices, indices, p.x, p.y, p.w, p.h, p.color, 0.5f, 0.5f, 0.5f, 0.5f);
     }
+    // Puntuación que la fuente del juego no incluye (`:`, `.`): se dibuja con rectángulos del color
+    // del texto (rango de paneles, textura blanca). El avance es monospace (8 px/char).
+    {
+        const float cw = static_cast<float>(hh::font::game::char_width());
+        for (const Text& t : frame.texts) {
+            float pen_x = t.x;
+            for (unsigned char c : t.text) {
+                if (c == ':') {
+                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 1.0f * t.scale_y,
+                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 4.0f * t.scale_y,
+                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                }
+                else if (c == '.') {
+                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 5.0f * t.scale_y,
+                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                }
+                pen_x += cw * t.scale_x;
+            }
+        }
+    }
     const uint32_t panel_index_count = static_cast<uint32_t>(indices.size());
 
     if (g_atlas_set != nullptr && g_atlas_w > 0.0f) {
@@ -366,6 +387,8 @@ void deinit_hook() {
 }
 
 }  // namespace
+
+bool enabled() { return g_enabled; }
 
 void publish(Frame frame) {
     const std::lock_guard<std::mutex> lock(g_frame_mutex);

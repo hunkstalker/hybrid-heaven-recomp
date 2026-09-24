@@ -47,10 +47,16 @@ namespace {
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
 // Inspector de RT64 abierto (lo publica el hilo de render; lo lee el input).
 std::atomic<bool> g_dev_panel_open{ false };
+// Peticion de modo desarrollador (menu DEBUG). -1 = sin cambio; 0/1 = deshabilitar/habilitar.
+std::atomic<int> g_developer_mode_req{ -1 };
 }
 
 bool hh::dev_panel_open() {
     return g_dev_panel_open.load(std::memory_order_relaxed);
+}
+
+void hh::set_developer_mode(bool enabled) {
+    g_developer_mode_req.store(enabled ? 1 : 0, std::memory_order_relaxed);
 }
 
 static ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult setup_result) {
@@ -370,6 +376,15 @@ void hh::RT64Context::send_dummy_workload(uint32_t fb_address) {
 }
 
 void hh::RT64Context::update_screen() {
+    // Menu DEBUG: aplica el modo desarrollador pedido (RT64 instala el filtro de eventos en el
+    // siguiente `sdlCheckFilterInstallation`, dentro de updateScreen, y F1 abre el Inspector).
+    {
+        const int req = g_developer_mode_req.exchange(-1, std::memory_order_relaxed);
+        if (req >= 0 && app != nullptr) {
+            app->userConfig.developerMode = (req != 0);
+            hh::log("[hh] developerMode=%d (menu DEBUG)\n", req);
+        }
+    }
     // Publica si el Inspector de RT64 esta abierto (el input lo consulta para no mapear el raton a
     // botones N64 mientras se usa el panel). RT64 lo protege con `inspectorMutex`.
     {

@@ -254,6 +254,10 @@ cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel
 - Decode correcto: `src/subsystems/font.cpp` (`bake_atlas`) → atlas RGBA8 en memoria host
   (`include/hh/font.h`). **No** usar la vista 4bpp de `tools/text/font_dump.py`: es la unión de los dos
   glifos empaquetados, no el formato real (sirve de inventario visual).
+- **Mapa de glifos** (`glyph_value`): espacio + **dígitos `0-9`** (valores 1-10) + `a-z` + `A-Z`. La
+  fuente color0 **no tiene puntuación**: el separador `/` y las flechas `<` `>` de los selectores se
+  **dibujan con rectángulos** (`append_slash`/`append_chevron` en `menu_overlay.cpp`), igual que la
+  flecha del cursor.
 - Render del overlay del menú PC (ADR 0008): `RT64::SetRenderHooks` + plume
   (`src/platform/overlay.cpp`), con **proyección uniforme (píxel cuadrado, área 4:3 centrada)**, porque
   el texto 2D del juego **no** va estirado a 16:9 (el widescreen solo expande el 3D).
@@ -273,6 +277,12 @@ cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel
   (`hh_entry_register_hook` → `filter_native_text`) y blankea el texto de los sets A/B/C + la flecha
   **antes** de que el original lo lea, más `suppress_native` (backup/restore). Oculto por defecto;
   **F6** lo alterna. Diseño del menú propio: `menu.md`.
+- **Control total (paso 5)**: el handler nativo sigue corriendo (mantiene el estado del juego) pero
+  con su input **muteado**: los lectores de botones `0x801C1340`/`0x801C1334` se envuelven
+  (`hh_native_dir_input`/`hh_native_ab_input`) y devuelven 0 mientras el overlay manda. Su
+  temporizador de inactividad (`obj+0x3C`, 900) se reescribe cada frame para que no cierre la
+  pantalla solo. La navegación la alimenta `feed_menu_navigation` (mismos botones → modelo `hh::menu`).
+  Solo con el overlay activo (`hh::overlay::enabled()`); con `HH_OVERLAY=0` el menú nativo responde.
 - Detalle y calibración: `../notes/2026-09-23-a2-render-hook-y-atlas.md`,
   `../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`,
   `../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,

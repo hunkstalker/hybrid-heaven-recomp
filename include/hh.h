@@ -94,6 +94,11 @@ namespace hh {
     // juego al usar el panel. Se publica desde el hilo de render (ver rt64_render_context.cpp).
     bool dev_panel_open();
 
+    // Habilita/deshabilita el modo desarrollador de RT64 en caliente (menu DEBUG -> Inspector con
+    // F1). La peticion se aplica en el hilo de render (update_screen). Definido en
+    // src/platform/rt64_render_context.cpp.
+    void set_developer_mode(bool enabled);
+
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();
     void snap_overscan(uint8_t* rdram, uint32_t list_address);

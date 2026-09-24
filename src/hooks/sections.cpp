@@ -27,6 +27,7 @@
 #include "hh.h"
 #include "hh/file_table.h"
 #include "hh/menu.h"
+#include "hh/overlay.h"
 
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
@@ -52,6 +53,28 @@ constexpr uint32_t kFileLoadAddress = 0x8000469C;          // file_load(id, dest
 constexpr uint32_t kFileLoadStreamedAddress = 0x80004838;  // streamed(id, dest), pieza a pieza
 constexpr size_t kFileCount = sizeof(hh::kCodeFiles) / sizeof(hh::kCodeFiles[0]);
 
+// A2 (paso 5, control total): con nuestro overlay como UI del menú de título, el handler NATIVO se
+// sigue ejecutando (mantiene el estado del juego) pero con su input NEUTRALIZADO: las dos funciones
+// con las que lee los botones devuelven 0, así su cursor/pantalla no se mueven y no compiten con
+// nuestra navegación. La bandera solo está activa durante esa llamada (ver hh_title_menu_hook).
+bool g_mute_native_input = false;
+
+extern "C" void hh_native_dir_input(uint8_t* rdram, recomp_context* ctx) {
+    if (g_mute_native_input) {
+        ctx->r2 = 0;
+        return;
+    }
+    func_801C1340_11BAE10(rdram, ctx);
+}
+
+extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
+    if (g_mute_native_input) {
+        ctx->r2 = 0;
+        return;
+    }
+    func_801C1334_11BAE04(rdram, ctx);
+}
+
 // Overlay A2: (re)registra el handler del menú de título. El loader de un módulo reescribe func_map
 // y borra los overrides de su rango, así que hay que re-aplicarlo tras cada carga (además del
 // registro inicial en register_runtime_functions).
@@ -63,6 +86,9 @@ void register_title_menu_hook() {
     // Composición de texto (residente): blankea el texto del menú nativo justo antes de leerlo, de
     // modo que sale en blanco ya desde el primer frame (sin ventana visible).
     recomp::overlays::add_loaded_function(0x8001B204, hh_entry_register_hook);
+    // Paso 5: lectores de botones del handler nativo (direcciones y A/B/START), muteables.
+    recomp::overlays::add_loaded_function(0x801C1340, hh_native_dir_input);
+    recomp::overlays::add_loaded_function(0x801C1334, hh_native_ab_input);
 }
 
 bool env_set(const char* name) {
@@ -180,20 +206,42 @@ void hh::register_overlays() {
 // cursor movido -> move; pantalla cambiada -> aceptar/atrás. Así no suena si el botón no hace nada.
 static std::atomic<uint32_t> g_goto_count{ 0 };
 
-// A2 (paso 5, terreno): mueve el cursor de NUESTRO menú con el input del juego (los mismos botones
-// que lee el handler nativo). De momento solo arriba/abajo; confirmar/atrás/selectores y las acciones
-// propias llegan con el control total (paso 6).
+// A2 (paso 5, control total): alimenta NUESTRO menú con el input del juego (los mismos botones que
+// lee el handler nativo, que queda muteado). Arriba/abajo mueven el cursor; izq/der cambian el valor
+// de un selector lateral; A marca/selecciona (entra en submenús) y B atrás. Los cambios son en vivo
+// (sin X/"aplicar"); las ACCIONES llegan en el paso 6 (de momento, solo DEBUG engancha el modo
+// desarrollador). La raíz no tiene "atrás" (el modelo lo ignora).
 static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     recomp_context td = *ctx;
     func_801C1340_11BAE10(rdram, &td);   // direcciones
     recomp_context ta = *ctx;
-    func_801C1334_11BAE04(rdram, &ta);   // A/START
+    func_801C1334_11BAE04(rdram, &ta);   // A/B/START
     const uint32_t btn = static_cast<uint32_t>(td.r2) | static_cast<uint32_t>(ta.r2);
     static uint32_t prev = 0;
     const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
     prev = btn;
-    if (pressed & 0x800u) hh::menu::move_up();
-    if (pressed & 0x400u) hh::menu::move_down();
+    hh::menu::Event ev = hh::menu::Event::None;
+    if (pressed & 0x800u) ev = hh::menu::move_up();
+    if (pressed & 0x400u) ev = hh::menu::move_down();
+    if (pressed & 0x200u) ev = hh::menu::move_left();
+    if (pressed & 0x100u) ev = hh::menu::move_right();
+    if (pressed & 0x8000u) ev = hh::menu::confirm();   // A: entra / marca
+    if (pressed & 0x4000u) ev = hh::menu::back();      // B: atrás. (Sin X: los cambios son en vivo.)
+    // Selectores con acción (DEBUG -> modo desarrollador de RT64, Inspector con F1). Solo al cambiar
+    // el valor (izq/der) o al confirmar con A, no al pasar el cursor por encima.
+    if (ev != hh::menu::Event::None && (pressed & (0x100u | 0x200u | 0x8000u))) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (cur.action == hh::menu::Action::ToggleDebug) {
+                hh::set_developer_mode(cur.value != 0);
+            }
+        }
+    }
+    if (env_set("HH_MENU_TRACE") && ev != hh::menu::Event::None) {
+        hh::log("[menu-nav] btn=0x%04X ev=%d depth=%d\n%s", btn, static_cast<int>(ev),
+                hh::menu::depth(), hh::menu::describe_current().c_str());
+    }
 }
 
 // Overlay A2: envuelve el update del menú de título (func_801C18FC), que registra/compone las
@@ -272,7 +320,23 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
             hh_title_ctor_hook(rdram, &t);
         }
         hh::menu_overlay::suppress_native(rdram);
-        func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original (puede mover cursor/cambiar pantalla)
+        // Control total: el original corre con el input muteado (no mueve su cursor ni cambia de
+        // pantalla). Sin overlay activo no se mutea, para no bloquear el menú nativo (diagnóstico).
+        const bool controlling = hh::overlay::enabled();
+        if (controlling) {
+            // El handler nativo decrementa su temporizador de inactividad (obj+0x3C) y, al llegar a
+            // 0, abandona el menú (goto 0x801C2050). Con el input muteado nunca se reinicia, así que
+            // lo mantenemos a tope (antes y después de la llamada) mientras NUESTRO menú tiene el
+            // control; si no, la pantalla se cerraría sola a los ~8-30 s. El valor 0x384 es el que
+            // usa el propio handler al resetear.
+            MEM_H(0x3C, obj) = 0x384;
+        }
+        g_mute_native_input = controlling;
+        func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original con input neutralizado
+        g_mute_native_input = false;
+        if (controlling) {
+            MEM_H(0x3C, obj) = 0x384;
+        }
         const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
         const uint32_t sel_after = guest_byte(0x801CC8C4u);
         screen_changed = (goto_after != goto_before);

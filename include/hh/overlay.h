@@ -47,6 +47,11 @@ struct Frame {
 // Publica el frame a dibujar. Thread-safe (copia bajo mutex). Llamar cada frame desde el menú.
 void publish(Frame frame);
 
+// true si el overlay está activo (HH_OVERLAY!=0). El menú PC lo usa para decidir si toma el control
+// total del menú de título (neutralizando el input del handler nativo); con el overlay desactivado,
+// el menú nativo sigue respondiendo a los botones.
+bool enabled();
+
 // Registra los render hooks de RT64 (init/draw/deinit). OJO: el hook `init` se invoca DENTRO de
 // `Application::setup()`, asi que hay que llamar a esto ANTES de crear/configurar la aplicacion
 // RT64 (ver RT64Context, como en Goemon). Idempotente.

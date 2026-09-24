@@ -84,9 +84,17 @@ bool g_offsets_loaded = false;
 // overlay con el menú real: ver notes/2026-09-23-a2-render-hook-y-atlas.md §6).
 constexpr float kTextTopOffset = 5.0f;
 
+// Columna (en caracteres, desde el inicio de la etiqueta) donde empiezan los valores de los
+// selectores laterales. Fija para que queden alineados; la etiqueta más larga ("APUNTADO LIBRE",
+// con su espacio inicial) ocupa 15, así que 16 deja 1 de margen y, además, deja sitio al valor más
+// largo (`3840x2160`, 9) con su chevron derecho.
+constexpr float kSelectorValueCol = 16.0f;
+
 constexpr uint32_t kWhite = hh::overlay::rgba(255, 255, 255, 255);
 constexpr uint32_t kYellow = hh::overlay::rgba(255, 220, 64, 255);
 constexpr uint32_t kGreen = hh::overlay::rgba(96, 255, 96, 255);
+// Gris de opción no seleccionada/deshabilitada (el original "sombrea" lo que no está activo).
+constexpr uint32_t kGray = hh::overlay::rgba(130, 130, 130, 255);
 
 // El handler del menú de título se ejecuta en el hilo del juego; `tick` en el de render. El contador
 // permite ocultar el overlay cuando el menú deja de publicarlo (p. ej. al salir del título).
@@ -158,6 +166,25 @@ void append_native_cursor(hh::overlay::Frame& frame, float x, float y, uint32_t 
     for (int row = 0; row < 5; ++row) {
         frame.panels.push_back(
             { x, y + static_cast<float>(row), static_cast<float>(kWidths[row]), 1.0f, color });
+    }
+}
+
+// Separador "/" de los selectores (5x5) compuesto con rectángulos de 1 px: la fuente del menú
+// (color0) no tiene puntuación (solo dígitos, letras y espacio). Se dibuja entre los valores.
+void append_slash(hh::overlay::Frame& frame, float x, float y, uint32_t color) {
+    for (int row = 0; row < 5; ++row) {
+        frame.panels.push_back(
+            { x + static_cast<float>(4 - row), y + static_cast<float>(row), 1.0f, 1.0f, color });
+    }
+}
+
+// Flecha "<" / ">" (chevron 5x5) de los selectores largos, con rectángulos de 2 px. `left` elige la
+// orientación; la punta cae en la fila central.
+void append_chevron(hh::overlay::Frame& frame, float x, float y, bool left, uint32_t color) {
+    static const uint8_t kOff[5] = { 2, 1, 0, 1, 2 };   // distancia a la punta (fila central)
+    for (int row = 0; row < 5; ++row) {
+        const float ox = left ? static_cast<float>(kOff[row]) : static_cast<float>(2 - kOff[row]);
+        frame.panels.push_back({ x + ox, y + static_cast<float>(row), 2.0f, 1.0f, color });
     }
 }
 
@@ -286,13 +313,12 @@ void title_update(uint8_t* rdram) {
         const float y = layout.y0 + kTextTopOffset + layout.dy * static_cast<float>(i) + g_calib_y;
         const bool selected = (static_cast<int>(i) == screen.cursor);
 
-        // Listas: la opción activa (marcada con A) se resalta en verde; el cursor también, para que
-        // se vea la selección. Menús: la entrada del cursor va en amarillo + flecha nativa.
+        // Las ETIQUETAS del menú van en blanco (amarillo la del cursor + flecha nativa). La regla
+        // gris/verde es SOLO para las opciones a configurar: en una lista, la aplicada en verde y el
+        // resto en gris; en un selector, el valor activo en verde y el resto en gris (abajo).
         uint32_t color = kWhite;
         if (screen.kind == hh::menu::ScreenKind::List) {
-            if (e.marked || selected) {
-                color = kGreen;
-            }
+            color = e.marked ? kGreen : kGray;
         } else if (selected) {
             color = kYellow;
         }
@@ -312,6 +338,48 @@ void title_update(uint8_t* rdram) {
             break;
         }
         frame.texts.push_back({ x_text, y, g_scale_x, g_scale_y, color, text });
+
+        // Selector lateral: el valor ACTIVO en verde y el resto en gris; izq/der lo cambia.
+        //   - Pocas opciones (SÍ/NO, ...): todos los valores juntos en columna fija (NO/SI).
+        //   - Muchas (RESOLUCIÓN, LÍMITE DE FPS): solo el activo, con flechas < > dibujadas.
+        if (e.kind == hh::menu::Kind::Selector && !e.options.empty()) {
+            const float step = 8.0f * g_scale_x;
+            // Todos los valores empiezan en la MISMA columna (`kSelectorValueCol`); los chevrons < >
+            // quedan a la izquierda/derecha (fuera de la alineación).
+            const float value_x = x + kSelectorValueCol * step;
+            constexpr float kSlashSep = 2.0f;   // hueco a cada lado de la barra
+            constexpr float kSlashW = 5.0f;
+            constexpr float kChevW = 2.0f;
+            constexpr float kChevGap = 4.0f;
+            float width = 0.0f;
+            for (size_t oi = 0; oi < e.options.size(); ++oi) {
+                width += static_cast<float>(to_ascii(e.options[oi]).size()) * step;
+                if (oi + 1 < e.options.size()) width += 2.0f * kSlashSep + kSlashW;
+            }
+            const bool fits = value_x + width <= hh::overlay::kVirtualWidth - 4.0f;
+            if (fits) {
+                float ox = value_x;
+                for (size_t oi = 0; oi < e.options.size(); ++oi) {
+                    if (oi != 0) {
+                        ox += kSlashSep;
+                        append_slash(frame, ox, y + 1.0f, kGray);
+                        ox += kSlashW + kSlashSep;
+                    }
+                    const std::string opt = to_ascii(e.options[oi]);
+                    const uint32_t oc = (static_cast<int>(oi) == e.value) ? kGreen : kGray;
+                    frame.texts.push_back({ ox, y, g_scale_x, g_scale_y, oc, opt });
+                    ox += static_cast<float>(opt.size()) * step;
+                }
+            } else {
+                // Selector largo: solo el activo, alineado en la misma columna; el chevron izquierdo
+                // va a su izquierda y el derecho a 4 px del valor.
+                const std::string opt = to_ascii(e.options[static_cast<size_t>(e.value)]);
+                append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, kWhite);
+                frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, kGreen, opt });
+                append_chevron(frame, value_x + static_cast<float>(opt.size()) * step + kChevGap,
+                               y + 1.0f, false, kWhite);
+            }
+        }
 
         if (selected) {
             append_native_cursor(frame, x + 1.0f, y + 1.0f, kWhite);
