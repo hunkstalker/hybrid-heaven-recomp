@@ -60,9 +60,19 @@
      `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE / APUNTADO LIBRE`; GRÁFICOS con `RATIO` (filtra
      `RESOLUCIÓN`), `P. COMPLETA`, `VSYNC` (SÍ) y `LÍMITE DE FPS` (`NATIVO`); **`DEBUG`** es submenú
      en AJUSTES (`VENTANA DEBUG`→F1 + `MOSTRAR FPS`). Falta validar en Windows.
-     **Ajuste pendiente**: `P. COMPLETA` debe salir por defecto **SÍ** (la realidad del port es
-     `wm = borderless`, pantalla completa).
-     **Falta**: acciones, SFX y **después** acentos (6→7→4). Detalle:
+     **P. COMPLETA / VSYNC / LÍMITE DE FPS / MOSTRAR FPS HECHOS (2026-09-24)**: aplican en vivo
+     (`hh::video_set_fullscreen` / `video_set_vsync` / `video_set_fps_limit` / `video_set_show_fps`)
+     y **persisten en `config.ini` `[video]`** (`wm`/`vsync`/`fps`/`showfps`, escritor compartido
+     `hh::config_ini_set`); el menú se inicializa con esos valores. `MOSTRAR FPS` dibuja el indicador
+     (solo números, arriba-izquierda) como capa del overlay, también en gameplay. Validado: modelo
+     (defaults), parseo/aplicación al arrancar (headless), persistencia (test determinista) e
+     indicador FPS (captura headless: "60" vs vacío). P. COMPLETA validado en Windows; VSYNC/FPS
+     pendiente Windows.
+     **Al persistir la RESOLUCIÓN** (siguiente): mapear también el **tamaño de ventana** en
+     `windowed` a partir de `res` (`WxH` concreta; `auto` = nativa del monitor) y **recordar
+     tamaño/posición** al redimensionar; hoy la ventana `windowed` es fija 1280x720 (el parser de
+     `res` no entiende `WxH` todavía).
+     **Falta**: el resto de acciones, SFX y **después** acentos (6→7→4). Detalle:
      `notes/2026-09-24-a2-selectores-y-arbol.md`,
      `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
      `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.

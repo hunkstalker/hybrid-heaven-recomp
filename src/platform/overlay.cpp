@@ -6,6 +6,7 @@
 //
 // Diagnostico: HH_OVERLAY=0 desactiva el overlay.
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -80,6 +81,11 @@ struct PushConstants {
 bool g_enabled = true;
 std::mutex g_frame_mutex;
 Frame g_frame;
+// Indicador de FPS (capa independiente del frame del menú). Lo publica el hilo de render.
+std::atomic<bool> g_fps_on{ false };
+std::atomic<int> g_fps_value{ 0 };
+// Frames realmente presentados (se incrementa una vez por draw del render hook).
+std::atomic<uint64_t> g_presented_frames{ 0 };
 
 RenderDevice* g_device = nullptr;
 std::unique_ptr<RenderShader> g_vs;
@@ -256,13 +262,19 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     if (!g_enabled || g_pipeline == nullptr) {
         return;
     }
+    // Cada draw del hook equivale a un frame presentado (incluidos los interpolados). Es la tasa
+    // real de presentación, la que muestra el indicador de FPS.
+    g_presented_frames.fetch_add(1, std::memory_order_relaxed);
 
+    // Indicador de FPS: capa aparte, activa también sin menú (gameplay). Solo números, arriba-izq.
+    const bool fps_on = g_fps_on.load(std::memory_order_relaxed);
+    const int fps_value = g_fps_value.load(std::memory_order_relaxed);
     Frame frame;
     {
         const std::lock_guard<std::mutex> lock(g_frame_mutex);
         frame = g_frame;
     }
-    if (!frame.visible) {
+    if (!frame.visible && !fps_on) {
         return;
     }
 
@@ -325,6 +337,32 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         }
     }
     const uint32_t text_index_count = static_cast<uint32_t>(indices.size()) - panel_index_count;
+    const uint32_t menu_text_end = static_cast<uint32_t>(indices.size());
+
+    // Indicador de FPS: se ancla a la esquina REAL del framebuffer del swapchain (no al area 4:3
+    // centrada donde va el texto del juego), por lo que se dibuja con su propia proyeccion en
+    // pixeles (origen arriba-izquierda). Mismo tamano aparente que el texto del menu.
+    uint32_t fps_index_count = 0;
+    if (fps_on && g_atlas_set != nullptr && g_atlas_w > 0.0f) {
+        const float cw = static_cast<float>(hh::font::game::char_width());
+        const float ch = static_cast<float>(hh::font::game::char_height());
+        const float fscale = static_cast<float>(height) / kVirtualHeight;
+        const std::string fps_text = std::to_string(fps_value);
+        float pen_x = 2.0f;   // margen de 2 px desde el borde
+        for (char c : fps_text) {
+            unsigned gx = 0, gy = 0;
+            if (hh::font::game::glyph_uv(static_cast<unsigned char>(c), gx, gy)) {
+                const float u0 = static_cast<float>(gx) / g_atlas_w;
+                const float v0 = static_cast<float>(gy) / g_atlas_h;
+                const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                append_quad(vertices, indices, pen_x, 2.0f, cw * fscale, ch * fscale, 0xFFFFFFFFu,
+                            u0, v0, u1, v1);
+            }
+            pen_x += cw * fscale;
+        }
+        fps_index_count = static_cast<uint32_t>(indices.size()) - menu_text_end;
+    }
 
     if (indices.empty()) {
         return;
@@ -359,6 +397,18 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // Paneles solidos (textura 1x1 blanca) y luego texto (atlas de la fuente del juego).
     draw_range(list, g_white_set.get(), 0, panel_index_count);
     draw_range(list, g_atlas_set.get(), panel_index_count, text_index_count);
+
+    // Indicador de FPS con proyeccion en PIXELES (1 unidad = 1 px, origen arriba-izquierda).
+    if (fps_index_count > 0) {
+        const PushConstants pc_fps{
+            .scale_x = 2.0f / static_cast<float>(width),
+            .scale_y = -2.0f / static_cast<float>(height),
+            .offset_x = -1.0f,
+            .offset_y = 1.0f,
+        };
+        list->setGraphicsPushConstants(0, &pc_fps);
+        draw_range(list, g_atlas_set.get(), menu_text_end, fps_index_count);
+    }
 }
 
 void deinit_hook() {
@@ -389,6 +439,15 @@ void deinit_hook() {
 }  // namespace
 
 bool enabled() { return g_enabled; }
+
+void set_fps_indicator(bool enabled, int fps) {
+    g_fps_on.store(enabled, std::memory_order_relaxed);
+    g_fps_value.store(fps, std::memory_order_relaxed);
+}
+
+uint64_t presented_frames() {
+    return g_presented_frames.load(std::memory_order_relaxed);
+}
 
 void publish(Frame frame) {
     const std::lock_guard<std::mutex> lock(g_frame_mutex);

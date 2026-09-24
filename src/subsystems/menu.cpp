@@ -6,6 +6,9 @@
 #include "hh/menu.h"
 
 #include <cstdio>
+#include <cstdlib>
+
+#include "hh.h"   // VideoConfig: valores iniciales de los selectores de GRÁFICOS
 
 namespace hh::menu {
 namespace {
@@ -46,6 +49,23 @@ Entry make_selector_with_action(const char* label, std::vector<std::string> opti
     e.action = action;
     return e;
 }
+
+// Valores iniciales de GRÁFICOS desde config.ini [video] (persistidos por las acciones del menú).
+int fullscreen_default() { return hh::video_config().wm == "windowed" ? 0 : 1; }
+int vsync_default() { return hh::video_config().vsync == "no" ? 0 : 1; }
+int fps_limit_default() {
+    const std::string& f = hh::video_config().fps;
+    if (f.empty() || f == "nativo" || f == "native") return 0;
+    switch (std::atoi(f.c_str())) {
+        case 30:  return 1;
+        case 60:  return 2;
+        case 120: return 3;
+        case 144: return 4;
+        case 160: return 5;
+        default:  return 0;
+    }
+}
+int show_fps_default() { return hh::video_config().showfps == "si" ? 1 : 0; }
 
 Entry make_option(const char* label, bool marked = false) {
     Entry e;
@@ -143,17 +163,23 @@ void build_tree() {
         make_selector_with_action("RATIO", {"AUTO", "ORIGINAL", "4:3", "16:9", "16:10", "21:9"},
                                   Action::RatioSelect),
         make_selector_with_action("RESOLUCIÓN", {"AUTO", "ORIGINAL"}, Action::ResolutionSelect),
-        make_selector("P. COMPLETA", {"NO", "SÍ"}),   // pantalla completa
+        // Los tres siguientes persisten en config.ini [video] y aplican en vivo (ver
+        // feed_menu_navigation). El valor inicial sale de la config (default: borderless/SÍ/NATIVO).
+        make_selector_with_action("P. COMPLETA", {"NO", "SÍ"}, Action::ToggleFullscreen,
+                                  fullscreen_default()),
         make_selector("ANTIALIASING", {"x0", "x2", "x4", "x8"}),
-        make_selector("VSYNC", {"NO", "SÍ"}, /*value=*/1),
-        // NATIVO = refresco del monitor (por defecto); el paso 6 lo aplica.
-        make_selector("LÍMITE DE FPS", {"NATIVO", "30", "60", "120", "144", "160"}),
+        make_selector_with_action("VSYNC", {"NO", "SÍ"}, Action::ToggleVsync, vsync_default()),
+        // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate).
+        make_selector_with_action("LÍMITE DE FPS", {"NATIVO", "30", "60", "120", "144", "160"},
+                                  Action::FpsLimit, fps_limit_default()),
     }));
 
     // DEBUG: opciones de depuración (fuera de GRÁFICOS para no alargarlo).
     g_screens.push_back(make_screen(ScreenId::Debug, ScreenKind::Menu, {
         make_selector_with_action("VENTANA DEBUG", {"NO", "SÍ"}, Action::ToggleDebug),
-        make_selector("MOSTRAR FPS", {"NO", "SÍ"}),
+        // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
+        make_selector_with_action("MOSTRAR FPS", {"NO", "SÍ"}, Action::ToggleShowFps,
+                                  show_fps_default()),
     }));
 
     sync_resolution();

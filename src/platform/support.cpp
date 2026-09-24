@@ -32,6 +32,7 @@
 #include "librecomp/rsp.hpp"
 
 #include "hh.h"
+#include "hh/config_ini.h"
 
 static FILE* g_log_file = nullptr;
 static std::filesystem::path g_log_path;
@@ -267,6 +268,9 @@ hh::VideoConfig& hh::video_config_mutable() {
             else if (k == "res") c.res = v;
             else if (k == "aspect") c.aspect = v;
             else if (k == "msaa") c.msaa = v;
+            else if (k == "vsync") c.vsync = v;
+            else if (k == "fps") c.fps = v;
+            else if (k == "showfps") c.showfps = v;
         }
         fclose(f);
         return c;
@@ -299,16 +303,29 @@ static ultramodern::renderer::Antialiasing hh_video_msaa_mode() {
     if (m == "4x") return ultramodern::renderer::Antialiasing::MSAA4X;
     return ultramodern::renderer::Antialiasing::MSAA8X;
 }
+// LÍMITE DE FPS: "nativo" = refresco del monitor (Display); un número = tasa fija (Manual:<hz>).
+static ultramodern::renderer::RefreshRate hh_video_refresh_mode(int& manual_hz) {
+    const std::string& f = hh::video_config().fps;
+    if (f.empty() || f == "nativo" || f == "native") return ultramodern::renderer::RefreshRate::Display;
+    const int hz = std::atoi(f.c_str());
+    if (hz <= 0) return ultramodern::renderer::RefreshRate::Display;
+    manual_hz = hz;
+    return ultramodern::renderer::RefreshRate::Manual;
+}
 
 void hh::video_apply_config() {
     ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
     cfg.wm_option = hh_video_window_mode();
     cfg.ar_option = hh_video_aspect_mode();
     cfg.msaa_option = hh_video_msaa_mode();
+    int manual_hz = 0;
+    cfg.rr_option = hh_video_refresh_mode(manual_hz);
+    cfg.rr_manual_value = manual_hz;
     ultramodern::renderer::set_graphics_config(cfg);
-    fprintf(stderr, "[VIDEO] wm=%s res=%s aspect=%s msaa=%s\n",
+    fprintf(stderr, "[VIDEO] wm=%s res=%s aspect=%s msaa=%s vsync=%s fps=%s\n",
             hh::video_config().wm.c_str(), hh::video_config().res.c_str(),
-            hh::video_config().aspect.c_str(), hh::video_config().msaa.c_str());
+            hh::video_config().aspect.c_str(), hh::video_config().msaa.c_str(),
+            hh::video_config().vsync.c_str(), hh::video_config().fps.c_str());
 }
 
 void hh::video_toggle_fullscreen() {
@@ -320,6 +337,44 @@ void hh::video_toggle_fullscreen() {
                                         ? "borderless" : "windowed";
     ultramodern::renderer::set_graphics_config(cfg);
     fprintf(stderr, "[VIDEO] F3 -> wm=%s\n", hh::video_config().wm.c_str());
+}
+
+void hh::video_config_save() {
+    const hh::VideoConfig& v = hh::video_config();
+    hh::config_ini_set("video",
+                       {{"wm", v.wm}, {"vsync", v.vsync}, {"fps", v.fps}, {"showfps", v.showfps}});
+}
+
+// Menu DEBUG -> MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda). El
+// render hook lo lee de la config por frame (update_screen), así que solo hace falta persistir.
+void hh::video_set_show_fps(bool enabled) {
+    hh::video_config_mutable().showfps = enabled ? "si" : "no";
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] MOSTRAR FPS -> %s\n", hh::video_config().showfps.c_str());
+}
+
+// Menu GRÁFICOS -> P. COMPLETA: fija el modo de ventana (borderless/windowed). El cambio se aplica
+// en el hilo de render (set_graphics_config -> update_config), igual que los atajos F2/F3/F4.
+void hh::video_set_fullscreen(bool enabled) {
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.wm_option = enabled ? ultramodern::renderer::WindowMode::Fullscreen
+                            : ultramodern::renderer::WindowMode::Windowed;
+    hh::video_config_mutable().wm = enabled ? "borderless" : "windowed";
+    ultramodern::renderer::set_graphics_config(cfg);
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] P. COMPLETA -> wm=%s\n", hh::video_config().wm.c_str());
+}
+
+// Menu GRÁFICOS -> LÍMITE DE FPS: fija el refresh rate de RT64 ("nativo" = monitor; número = tasa).
+void hh::video_set_fps_limit(int hz) {
+    hh::video_config_mutable().fps = (hz > 0) ? std::to_string(hz) : std::string("nativo");
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    int manual_hz = 0;
+    cfg.rr_option = hh_video_refresh_mode(manual_hz);
+    cfg.rr_manual_value = manual_hz;
+    ultramodern::renderer::set_graphics_config(cfg);
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] LÍMITE DE FPS -> %s\n", hh::video_config().fps.c_str());
 }
 
 void hh::video_cycle_aspect() {
@@ -379,15 +434,19 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
 #endif
 
     hh::log("create_window: creating SDL window\n");
-    // HH: tamano = resolucion nativa del monitor; el modo (borderless/windowed) lo aplica RT64
-    // (`app->setFullScreen` en el constructor) segun [video].wm.
+    // HH: `wm=borderless` abre la ventana a tamano de escritorio y RT64 la pasa a fullscreen en el
+    // constructor (`app->setFullScreen`); `wm=windowed` deja una ventana normal (no se puede pasar
+    // a fullscreen porque el estado inicial de RT64 ya es "no fullscreen"). Antes se creaba SIEMPRE
+    // a tamano de escritorio, asi que `windowed` parecia pantalla completa al arrancar.
     int win_w = 1280, win_h = 720;
     SDL_DisplayMode dm{};
     if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0) {
-        win_w = dm.w;
-        win_h = dm.h;
         // Diagnostico de present rate: refresco del escritorio segun SDL (comparar con swapChainRate).
         hh::log("Video: desktop %dx%d @ %d Hz\n", dm.w, dm.h, dm.refresh_rate);
+        if (hh::video_config().wm != "windowed") {
+            win_w = dm.w;
+            win_h = dm.h;
+        }
     }
     window = SDL_CreateWindow("Hybrid Heaven", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w, win_h, flags);
 

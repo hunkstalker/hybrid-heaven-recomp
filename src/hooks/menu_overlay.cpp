@@ -315,9 +315,12 @@ void title_update(uint8_t* rdram) {
 
         // Las ETIQUETAS del menú van en blanco (amarillo la del cursor + flecha nativa). La regla
         // gris/verde es SOLO para las opciones a configurar: en una lista, la aplicada en verde y el
-        // resto en gris; en un selector, el valor activo en verde y el resto en gris (abajo).
+        // resto en gris; en un selector, el valor activo en verde y el resto en gris (abajo). Las
+        // entradas deshabilitadas (p. ej. MODO COMBATE, por definir) van siempre en gris.
         uint32_t color = kWhite;
-        if (screen.kind == hh::menu::ScreenKind::List) {
+        if (!e.enabled) {
+            color = kGray;
+        } else if (screen.kind == hh::menu::ScreenKind::List) {
             color = e.marked ? kGreen : kGray;
         } else if (selected) {
             color = kYellow;

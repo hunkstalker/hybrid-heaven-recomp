@@ -50,6 +50,10 @@ enum class Action {
     OpenSound,       // submenú SONIDO
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
+    ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
+    ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
+    FpsLimit,        // LÍMITE DE FPS: NATIVO o una tasa fija (RT64 refreshRate)
+    ToggleShowFps,   // MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda)
     RatioSelect,     // selector RATIO: filtra las resoluciones y ajusta su valor
     ResolutionSelect,// selector RESOLUCIÓN (lista dependiente del ratio)
 };

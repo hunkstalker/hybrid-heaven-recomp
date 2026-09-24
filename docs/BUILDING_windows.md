@@ -288,9 +288,15 @@ wm     = borderless   ; borderless | windowed
 res    = auto         ; auto (nativa) | original | 2x | <n> | 4k | 8k
 aspect = auto         ; auto|original|expand|4:3|16:9|<float>
 msaa   = 8x           ; off | 2x | 4x | 8x
+vsync   = si          ; si | no
+fps     = nativo      ; nativo (refresco del monitor) | 30 | 60 | 120 | 144 | 160
+showfps = no          ; si | no (indicador de FPS, solo números, arriba-izquierda)
 ```
 
 - **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` la abre en ventana.
+- **VSYNC / LÍMITE DE FPS / MOSTRAR FPS**: `vsync` (por defecto `si`) y `fps` (`nativo` = refresco del
+  monitor); `showfps` dibuja el indicador de FPS. El menú **GRÁFICOS/DEBUG** los aplica en vivo y
+  **los persiste aquí** (junto con `wm`).
 - **Atajos en caliente**: **F2** = cicla aspecto (widescreen/4:3); **F3** = borderless ↔ windowed;
   **F4** = cicla MSAA; **F11** = cierra la aplicación (cómodo a pantalla completa, sin Alt+F4) (consola:
   líneas `[VIDEO] ...`). **F1** = Inspector de RT64, solo con `HH_DEVELOPER=1`.

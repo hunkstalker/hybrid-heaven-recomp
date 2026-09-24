@@ -52,6 +52,16 @@ void publish(Frame frame);
 // el menú nativo sigue respondiendo a los botones.
 bool enabled();
 
+// Indicador de FPS (menú DEBUG -> MOSTRAR FPS): texto de SOLO NÚMEROS en la esquina superior
+// izquierda. Es una capa independiente del frame del menú (lo dibuja el render hook siempre que
+// esté activo, también en gameplay). Se llama por frame desde el hilo de render.
+void set_fps_indicator(bool enabled, int fps);
+
+// Nº de frames realmente PRESENTADOS (una vez por draw del render hook, es decir, por frame que
+// llega al swapchain, incluidos los interpolados). Lo usa el indicador de FPS para medir la tasa
+// real de presentación (no la de update_screen, que corre a la tasa VI).
+uint64_t presented_frames();
+
 // Registra los render hooks de RT64 (init/draw/deinit). OJO: el hook `init` se invoca DENTRO de
 // `Application::setup()`, asi que hay que llamar a esto ANTES de crear/configurar la aplicacion
 // RT64 (ver RT64Context, como en Goemon). Idempotente.

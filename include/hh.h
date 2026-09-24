@@ -81,14 +81,23 @@ namespace hh {
         std::string aspect = "auto";     // auto | original | expand | 4:3 | 16:9 | <float>
         std::string msaa = "8x";         // off | 2x | 4x | 8x
         double aspect_target = 0.0;      // ratio para aspect manual
+        std::string vsync = "si";        // si | no
+        std::string fps = "nativo";      // nativo | 30 | 60 | 120 | 144 | 160
+        std::string showfps = "no";      // si | no (indicador de FPS del overlay)
     };
     const VideoConfig& video_config();
     VideoConfig& video_config_mutable();
     int desktop_height();                // alto del monitor principal (para res=auto)
     void video_apply_config();           // fija GraphicsConfig desde [video] (antes de crear el contexto)
     void video_toggle_fullscreen();      // F3
+    void video_set_fullscreen(bool enabled);  // menu GRÁFICOS -> P. COMPLETA
+    void video_set_vsync(bool enabled);       // menu GRÁFICOS -> VSYNC
+    void video_set_fps_limit(int hz);         // menu GRÁFICOS -> LÍMITE DE FPS (<=0 = nativo)
+    void video_set_show_fps(bool enabled);    // menu DEBUG -> MOSTRAR FPS (indicador del overlay)
     void video_cycle_aspect();           // F2
     void video_cycle_msaa();             // F4
+    // Persiste [video] (wm/vsync/fps) en config.ini preservando el resto del fichero.
+    void video_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El
     // input del port no mapea el raton a botones N64 mientras lo esta, para no meter clics en el

@@ -227,14 +227,27 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     if (pressed & 0x100u) ev = hh::menu::move_right();
     if (pressed & 0x8000u) ev = hh::menu::confirm();   // A: entra / marca
     if (pressed & 0x4000u) ev = hh::menu::back();      // B: atrás. (Sin X: los cambios son en vivo.)
-    // Selectores con acción (DEBUG -> modo desarrollador de RT64, Inspector con F1). Solo al cambiar
-    // el valor (izq/der) o al confirmar con A, no al pasar el cursor por encima.
+    // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
+    // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
+    // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
+    // cursor por encima.
     if (ev != hh::menu::Event::None && (pressed & (0x100u | 0x200u | 0x8000u))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
             if (cur.action == hh::menu::Action::ToggleDebug) {
                 hh::set_developer_mode(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleFullscreen) {
+                hh::video_set_fullscreen(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleVsync) {
+                hh::video_set_vsync(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::FpsLimit) {
+                const int hz = (cur.value > 0 && cur.value < static_cast<int>(cur.options.size()))
+                                   ? std::atoi(cur.options[cur.value].c_str())
+                                   : 0;
+                hh::video_set_fps_limit(hz);
+            } else if (cur.action == hh::menu::Action::ToggleShowFps) {
+                hh::video_set_show_fps(cur.value != 0);
             }
         }
     }

@@ -17,7 +17,7 @@
    izquierda/derecha cambian el valor. **No hay "aplicar" con X**: los cambios son en vivo. Colores:
    las **etiquetas** del menú van en **blanco** (amarillo la del cursor); en las **opciones a
    configurar** (elementos de lista y valores de selector), la activa/aplicada en **verde** y el resto
-   en **gris**.
+   en **gris**; las entradas **deshabilitadas** (p. ej. `MODO COMBATE`, por definir) van en **gris**.
 4. **Control TOTAL del menú** (no reutilizar el del juego): el overlay moderno **desacopla** el menú
    inicial del juego para tener todo el control (ver §Input).
 5. **Sin entradas `ACEPTAR`**: el patrón **A/B** (punto 3) es común a **todas** las pantallas de
@@ -59,9 +59,24 @@ AJUSTES ->
   con rectángulos** (como el chevron). Reglas: `RATIO=ORIGINAL → RESOLUCIÓN=ORIGINAL`,
   `RATIO=AUTO → RESOLUCIÓN=AUTO` y los **ratios concretos → la resolución mínima** de su lista. Por
   defecto `RATIO=AUTO` y `RESOLUCIÓN=AUTO` (la nativa del SO → `[video] res = auto`).
-- **`P. COMPLETA`** (pantalla completa, `NO/SÍ`): `NO` = ventana (`wm = windowed`), `SÍ` = completa
-  (`wm = borderless`). El `.` también se dibuja (la fuente no lo tiene).
-- **`VSYNC`** por defecto **SÍ**. **`LÍMITE DE FPS`** por defecto **`NATIVO`** = refresco del monitor.
+- **`P. COMPLETA`** (pantalla completa, `NO/SÍ`): **por defecto `SÍ`** (la realidad del port es
+  `wm = borderless`). `NO` = ventana (`wm = windowed`), `SÍ` = completa (`wm = borderless`). Al cambiar
+  el valor se aplica en vivo (`hh::video_set_fullscreen` → `set_graphics_config`), como el atajo F3.
+  El `.` también se dibuja (la fuente no lo tiene).
+- **`VSYNC`** por defecto **SÍ** (`hh::video_set_vsync` → `swapChain->setVsyncEnabled`, aplicado en el
+  hilo de render). **`LÍMITE DE FPS`** por defecto **`NATIVO`** = refresco del monitor (`RefreshRate::
+  Display`); un número = tasa fija (`RefreshRate::Manual`, `hh::video_set_fps_limit`). Es el
+  `refreshRate` de RT64: interpola hacia la tasa objetivo y la **recorta al refresco del monitor**
+  (`swapChainRate`); con `viOriginalRate`=30 del juego, `30` = sin interpolación y `60` = interpolado.
+- **Persistencia**: las acciones de `P. COMPLETA` / `VSYNC` / `LÍMITE DE FPS` / `MOSTRAR FPS`
+  persisten en `config.ini` `[video]` (`wm` / `vsync` / `fps` / `showfps`) y el menú se inicializa con
+  esos valores. El escritor compartido es `hh::config_ini_set` (`include/hh/config_ini.h`), que
+  preserva el resto del fichero.
+- **`MOSTRAR FPS`**: indicador de **solo números** en la **esquina superior izquierda REAL** de la
+  ventana, dibujado por el overlay (`hh::overlay::set_fps_indicator`) como **capa independiente** del
+  frame del menú → se ve también en gameplay. Se ancla al framebuffer del swapchain con su propia
+  proyección en píxeles (no al área 4:3 centrada del juego). La tasa es la **real de presentación**
+  (frames que llegan al swapchain, `hh::overlay::presented_frames`), no la de `update_screen` (tasa VI).
 - **`DEBUG`** (submenú): **`VENTANA DEBUG`** (`NO/SÍ`) habilita el modo desarrollador de RT64
   (Inspector con **F1**); **`MOSTRAR FPS`** (`NO/SÍ`). Se sacó de `GRÁFICOS` para no alargarlo.
 - **Listas** (IDIOMA, DIFICULTAD, SONIDO): la opción **aplicada** va en **verde** y el resto en **gris**
@@ -111,7 +126,7 @@ junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` ya engancha el modo desarrollador de RT64. Falta el resto (pantalla a pantalla) |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`P. COMPLETA` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config. Falta el resto (pantalla a pantalla) |
 | 7. SFX desde eventos del modelo (retirar el puente) | pendiente |
 | 8. Validar en Windows | pendiente |
 

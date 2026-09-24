@@ -114,6 +114,7 @@ add_executable(HybridHeavenRecomp
     src/platform/rt64_render_context.cpp
     src/platform/spin_yield.cpp
     src/platform/support.cpp
+    src/platform/config_ini.cpp
     src/platform/overlay.cpp
     src/platform/menu_sfx.cpp
     # hooks: capa de interceptacion (loaders, registro por direccion)

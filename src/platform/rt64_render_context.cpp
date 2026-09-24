@@ -49,6 +49,9 @@ std::atomic<uint64_t> g_hh_dl_count{ 0 };
 std::atomic<bool> g_dev_panel_open{ false };
 // Peticion de modo desarrollador (menu DEBUG). -1 = sin cambio; 0/1 = deshabilitar/habilitar.
 std::atomic<int> g_developer_mode_req{ -1 };
+// Peticion de VSYNC (menu GRÁFICOS). -1 = sin cambio; 0/1 = desactivar/activar. Se aplica en el
+// hilo de render (update_screen) sobre el swapchain.
+std::atomic<int> g_vsync_req{ -1 };
 }
 
 bool hh::dev_panel_open() {
@@ -57,6 +60,15 @@ bool hh::dev_panel_open() {
 
 void hh::set_developer_mode(bool enabled) {
     g_developer_mode_req.store(enabled ? 1 : 0, std::memory_order_relaxed);
+}
+
+// Menu GRÁFICOS -> VSYNC: persiste la preferencia y pide aplicarla en el hilo de render (el
+// swapchain solo se toca desde ahí).
+void hh::video_set_vsync(bool enabled) {
+    hh::video_config_mutable().vsync = enabled ? "si" : "no";
+    hh::video_config_save();
+    g_vsync_req.store(enabled ? 1 : 0, std::memory_order_relaxed);
+    fprintf(stderr, "[VIDEO] VSYNC -> %s\n", hh::video_config().vsync.c_str());
 }
 
 static ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult setup_result) {
@@ -193,25 +205,47 @@ static void set_application_user_config(RT64::Application* application, const ul
             application->userConfig.antialiasing = RT64::UserConfiguration::Antialiasing::MSAA8X; break;
     }
 
-    // Refresh Rate (RT64): Original = ritmo del juego (30 Hz); Display = al refresco del monitor
-    // (RT64 interpola y presenta a esa tasa -> movimiento suave). Manual:<hz> = tasa fija.
-    // Env: HH_REFRESH_RATE=original|display|manual:<hz>. Default: display (high frame rate).
+    // Refresh Rate / LÍMITE DE FPS (RT64): Original = ritmo del juego (30 Hz); Display = al refresco
+    // del monitor (RT64 interpola y presenta a esa tasa -> NATIVO); Manual+target = tasa fija.
+    // El valor del menú viene en config.rr_option/rr_manual_value; HH_REFRESH_RATE=original|display|
+    // manual:<hz> lo sobreescribe (diagnóstico).
     {
         const char* rr = getenv("HH_REFRESH_RATE");
-        const std::string s = (rr != nullptr && *rr != '\0') ? rr : "display";
-        if (s == "display") {
-            application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Display;
-        }
-        else if (s.rfind("manual", 0) == 0) {
-            const auto colon = s.find(':');
-            const int hz = (colon != std::string::npos) ? atoi(s.c_str() + colon + 1) : 0;
-            application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Manual;
-            application->userConfig.refreshRateTarget = (hz > 0) ? hz : 60;
+        if (rr != nullptr && *rr != '\0') {
+            const std::string s = rr;
+            if (s == "display") {
+                application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Display;
+            }
+            else if (s.rfind("manual", 0) == 0) {
+                const auto colon = s.find(':');
+                const int hz = (colon != std::string::npos) ? atoi(s.c_str() + colon + 1) : 0;
+                application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Manual;
+                application->userConfig.refreshRateTarget = (hz > 0) ? hz : 60;
+            }
+            else {
+                application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Original;
+            }
+            hh::log("RT64: refresh rate mode = %s (env)\n", s.c_str());
         }
         else {
-            application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Original;
+            switch (config.rr_option) {
+                case ultramodern::renderer::RefreshRate::Manual:
+                    application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Manual;
+                    application->userConfig.refreshRateTarget =
+                        (config.rr_manual_value > 0) ? config.rr_manual_value : 60;
+                    break;
+                case ultramodern::renderer::RefreshRate::Original:
+                    application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Original;
+                    break;
+                case ultramodern::renderer::RefreshRate::Display:
+                default:
+                    application->userConfig.refreshRate = RT64::UserConfiguration::RefreshRate::Display;
+                    break;
+            }
+            hh::log("RT64: refresh rate mode = %d target=%d\n",
+                    static_cast<int>(application->userConfig.refreshRate),
+                    application->userConfig.refreshRateTarget);
         }
-        hh::log("RT64: refresh rate mode = %s\n", s.c_str());
     }
 
     // Diagnostico: valores REALES que quedan en RT64 (no solo la intencion).
@@ -336,6 +370,14 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
 
     // Set the application's fullscreen state.
     app->setFullScreen(cur_config.wm_option == ultramodern::renderer::WindowMode::Fullscreen);
+
+    // VSYNC ([video].vsync): por defecto SI (swapchain FIFO). Desactivarlo usa present sin
+    // sincronia (IMMEDIATE/ALLOW_TEARING) si el dispositivo lo soporta.
+    if (app->swapChain != nullptr) {
+        const bool vsync = hh::video_config().vsync != "no";
+        app->swapChain->setVsyncEnabled(vsync);
+        hh::log("RT64: vsync=%d (%s)\n", vsync ? 1 : 0, vsync ? "si" : "no");
+    }
 }
 
 hh::RT64Context::~RT64Context() = default;
@@ -385,6 +427,31 @@ void hh::RT64Context::update_screen() {
             hh::log("[hh] developerMode=%d (menu DEBUG)\n", req);
         }
     }
+    // Menu GRÁFICOS -> VSYNC: aplica la peticion pendiente sobre el swapchain (solo hilo de render).
+    {
+        const int req = g_vsync_req.exchange(-1, std::memory_order_relaxed);
+        if (req >= 0 && app != nullptr && app->swapChain != nullptr) {
+            app->swapChain->setVsyncEnabled(req != 0);
+            hh::log("[hh] vsync=%d (menu GRÁFICOS)\n", req);
+        }
+    }
+    // Menu DEBUG -> MOSTRAR FPS: mide la tasa REAL de presentación (frames que llegan al swapchain,
+    // ver hh::overlay::presented_frames) y publica el indicador (solo números, arriba-izquierda).
+    // Se actualiza ~2 veces/s para que el número sea legible.
+    {
+        static uint64_t fps_frames_last = 0;
+        static auto fps_t0 = std::chrono::steady_clock::now();
+        static int fps_display = 0;
+        const auto now = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(now - fps_t0).count();
+        const uint64_t frames = hh::overlay::presented_frames();
+        if (secs >= 0.5) {
+            fps_display = static_cast<int>((frames - fps_frames_last) / secs + 0.5);
+            fps_frames_last = frames;
+            fps_t0 = now;
+        }
+        hh::overlay::set_fps_indicator(hh::video_config().showfps == "si", fps_display);
+    }
     // Publica si el Inspector de RT64 esta abierto (el input lo consulta para no mapear el raton a
     // botones N64 mientras se usa el panel). RT64 lo protege con `inspectorMutex`.
     {
@@ -430,24 +497,33 @@ void hh::RT64Context::update_screen() {
         }
     }
 
-    // HH_FPS=1: registra 1 vez por segundo la tasa real de present (llamadas a update_screen) y
-    // cuantas display lists se enviaron en ese intervalo. Sirve para medir sin overlay ni dev-mode.
+    // HH_FPS=1: registra 1 vez por segundo la tasa real de present (frames que llegan al swapchain,
+    // = draw hook), la de update_screen (tasa VI) y la config de RT64 (target/vi/swapChain). Sirve
+    // para medir sin overlay ni dev-mode.
     static const bool fps_log = [] {
         const char* e = std::getenv("HH_FPS");
         return e != nullptr && *e != '\0' && *e != '0';
     }();
     if (fps_log) {
-        static uint64_t frames = 0, dl_last = 0;
+        static uint64_t us_last = 0, pr_last = 0, dl_last = 0;
         static auto t0 = std::chrono::steady_clock::now();
-        ++frames;
+        ++us_last;
         const auto now = std::chrono::steady_clock::now();
         const double secs = std::chrono::duration<double>(now - t0).count();
         if (secs >= 1.0) {
             const uint64_t dl = g_hh_dl_count.load(std::memory_order_relaxed);
-            hh::log("[hh-fps] %.1f fps | %llu display lists | swapChainRate=%u refresh=%d (%.2fs)\n",
-                    frames / secs, static_cast<unsigned long long>(dl - dl_last),
-                    get_display_framerate(), static_cast<int>(app->userConfig.refreshRate), secs);
-            frames = 0;
+            const uint64_t pr = hh::overlay::presented_frames();
+            const uint32_t target = (app->sharedQueueResources != nullptr)
+                                        ? app->sharedQueueResources->targetRate : 0;
+            const uint32_t vi_rate = (app->sharedQueueResources != nullptr)
+                                         ? app->sharedQueueResources->viOriginalRate : 0;
+            hh::log("[hh-fps] update=%.1f present=%.1f (target=%u vi=%u swapChain=%u refresh=%d)"
+                    " | %llu display lists (%.2fs)\n",
+                    us_last / secs, (pr - pr_last) / secs, target, vi_rate, get_display_framerate(),
+                    static_cast<int>(app->userConfig.refreshRate),
+                    static_cast<unsigned long long>(dl - dl_last), secs);
+            us_last = 0;
+            pr_last = pr;
             dl_last = dl;
             t0 = now;
         }
