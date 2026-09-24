@@ -749,16 +749,43 @@ int main(int argc, char** argv) {
     game_entry.has_compressed_code = false;
     recomp::register_game(game_entry);
 
+    // ROM: cualquier *.z64 en <exe>/rom/ o <exe>/; se valida por hash y se usa la primera valida.
     std::u8string game_id = u8"hh.us";
-    hh::log("rom path candidate: %s\n", hh::get_rom_path().string().c_str());
-    recomp::RomValidationError err = recomp::select_rom(hh::get_rom_path(), game_id);
-    hh::log("select_rom result: %d (0=Good)\n", static_cast<int>(err));
+    const std::vector<std::filesystem::path> rom_paths = hh::get_rom_paths();
+    hh::log("rom candidates: %zu\n", rom_paths.size());
+    recomp::RomValidationError err = recomp::RomValidationError::FailedToOpen;
+    std::filesystem::path used_rom;
+    for (const std::filesystem::path& path : rom_paths) {
+        hh::log("probando ROM: %s\n", path.string().c_str());
+        err = recomp::select_rom(path, game_id);
+        hh::log("  select_rom -> %d (0=Good)\n", static_cast<int>(err));
+        if (err == recomp::RomValidationError::Good) {
+            used_rom = path;
+            break;
+        }
+    }
     if (err != recomp::RomValidationError::Good) {
-        hh::error_box("Couldn't find a valid ROM.\nMake sure to place the Hybrid Heaven (USA) N64 ROM (baserom.us.z64) in the application folder or in the working directory.");
+        char expected[32];
+        std::snprintf(expected, sizeof(expected), "0x%016llX",
+                      static_cast<unsigned long long>(game_entry.rom_hash));
+        std::string msg = "No se encontro una ROM valida de Hybrid Heaven (USA).\n\n";
+        msg += "Coloca el archivo .z64 (version USA retail, 16 MB) en la carpeta del juego\n";
+        msg += std::string("o en la subcarpeta rom\\. El nombre da igual.\n\nHash requerido (XXH3-64): ")
+               + expected + "\n";
+        if (rom_paths.empty()) {
+            msg += "\nNo se encontro ningun archivo .z64.";
+        }
+        else {
+            msg += "\nArchivos .z64 encontrados (ninguno valido):";
+            for (const std::filesystem::path& path : rom_paths) {
+                msg += "\n  - " + path.filename().string();
+            }
+        }
+        hh::error_box(msg.c_str());
         hh::log("ROM validation FAILED\n");
         return 1;
     }
-    hh::log("ROM validated OK\n");
+    hh::log("ROM validated OK: %s\n", used_rom.string().c_str());
 
     hh::register_overlays();
     hh::log("overlays registered\n");
