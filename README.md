@@ -39,8 +39,19 @@ audio atado al tick de 30 Hz, extracción/traducción de textos, y validación d
 ## Jugar (recomendado)
 
 Descarga el `.zip` (Windows) o `.tar.gz` (Linux) de **Releases**, descomprime y **coloca tu ROM** en
-la carpeta `rom/` junto al ejecutable: `rom/baserom.us.z64` (Hybrid Heaven **USA**, `NHVE`, 16 MB).
-La ROM **no se distribuye** (© Konami): la aporta cada usuario.
+la carpeta `rom/` junto al ejecutable (o en la propia carpeta del `.exe`). Vale **cualquier `.z64`**:
+el port los detecta **por formato**, el nombre da igual (si hay varios, usa la primera válida).
+
+Debe ser la versión **USA** de Hybrid Heaven (`NHVE`, 16 MB, ROM big-endian, sin byteswap). Para
+comprobar que es la correcta, su **SHA-1** es:
+
+```
+16dbc21620b52deab5c5abf8a309ac60adfbee85
+```
+
+En Windows puedes verificarlo con `certutil -hashfile TU_ROM.z64 SHA1`. Si el ROM no es válido, el
+port lo avisa al arrancar indicando el hash esperado. La ROM **no se distribuye** (© Konami): la
+aporta cada usuario.
 
 ## Compilar (rápido)
 
