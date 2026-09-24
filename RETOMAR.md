@@ -255,19 +255,15 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Git (estado al cerrar esta sesión)
 
-- **`main` local** (SIN push): `HEAD = 8265b9d`. Sesiones previas: `5867de5` (overlay A2), `d6f4afb`
+- **`main` local** (SIN push): `HEAD = 2181fab` (2026-09-24). El trabajo de `hh_menu` (modelo +
+  dibujo 1:1 + navegación + **menú nativo oculto**, fix de las **dos tablas**) va en **un solo commit**
+  `2181fab`; el árbol queda limpio. Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb`
   · `de99550` · `b95c6a4` (SFX). `c2ce652` (hh_menu) y `3aede33` (SFX submenús):
   **REVERTIDOS/eliminados** (no están en el árbol).
-- ⚠️ **La sesión 2026-09-24 NO commitó nada** (el mantenedor lo pidió así). El trabajo de `hh_menu`
-  está **en el working tree, sin commit**:
-  - Modificados: `CMakeLists.txt`, `include/hh.h`, `src/hooks/menu_overlay.cpp`,
-    `src/hooks/sections.cpp`, `src/subsystems/input.cpp`, `RETOMAR.md`.
-  - Nuevos: `include/hh/menu.h`, `src/subsystems/menu.cpp`.
-  - `work/debug/hh_replay_title_hold.txt` (replay auxiliar, **gitignored**).
-  - **Sesión de continuación (mismo día):** el fix de las **dos tablas** vive en
-    `src/hooks/menu_overlay.cpp` (ya modificado); no añade ficheros. Validado headless, **sin commit**
-    (pendiente validar en Windows). Al reanudar: revisar el diff antes de commitear (un solo commit
-    para `hh_menu`, cuando proceda).
+- `work/debug/hh_replay_title_hold.txt` (replay auxiliar, **gitignored**). El replay que **sí** llega
+  al menú en headless es temporal (pulsos de START desde ~t=60 s); no está versionado.
+- **Pendiente inmediato**: **validar en Windows** el commit `2181fab` (menú nativo oculto por defecto
+  + F6). Si sale bien, push normal de `main`.
 - **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push previos: `ac4a89f` (traducción/idiomas),
   el arreglo del pin de rt64, `22e3eed` (ratón).
 - **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70` (gitlink correcto). **`N64ModernRuntime` /
