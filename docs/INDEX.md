@@ -21,7 +21,7 @@
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 364 | 2026-09-22 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 292 | 2026-09-24 |
-| [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-18 |
+| [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 103 | 2026-09-24 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
@@ -49,6 +49,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Docs: RETOMAR corto, presupuesto de contexto de arranque y aclaración de acentos](../notes/2026-09-24-docs-presupuesto-y-acentos.md) | Sesión 2026-09-24 (continuación). Cierra la reorganización de documentación (RETOMAR dejó de hacer | 56 | 2026-09-24 |
 | [A2 — Bugs del overlay: alineación de "MODO COMBATE" y cierre al salir del menú](../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md) | Sesión 2026-09-24 (continuación). Arregla los bugs 1 y 3 reportados por el mantenedor. El bug 2 | 70 | 2026-09-24 |
 | [A2 — Ocultar el menú NATIVO: el juego tiene VARIAS tablas de etiquetas idénticas](../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md) | Sesión 2026-09-24 (continuación). Resuelve el bloqueante de `RETOMAR.md` §PROBLEMA ABIERTO | 74 | 2026-09-24 |
 | [Texto EUC-JP, gaiji europeos de la PAL y por qué USA no trae acentos](../notes/2026-09-23-texto-euc-jp-y-glifos-pal.md) | Sesión 2026-09-23. Investigación para traducir ES/CA/FR/DE con acentos. Complementa | 76 | 2026-09-23 |

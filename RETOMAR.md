@@ -10,7 +10,8 @@
 - **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 (fuente + flecha nativa) + navegación
   arriba/abajo; **menú nativo oculto por defecto** (F6 lo alterna). Los **3 bugs del overlay** están
   **VALIDADOS en Windows** (bearing de "MODO COMBATE", nativo al volver atrás, cierre instantáneo).
-  Commit de código `82df034`. Ver `notes/2026-09-24-a2-*`.
+  Commit de código `82df034`. Ver `notes/2026-09-24-a2-*` (bugs) y
+  `notes/2026-09-24-docs-presupuesto-y-acentos.md` (RETOMAR corto + presupuesto de contexto).
 - **El overlay aún NO renderiza acentos** (los pliega a ASCII); ver §Acentos.
 - Diseño del menú: **`docs/menu.md`**. Técnica (overlay/fuente/alineación/supresión del nativo):
   **`docs/architecture.md` §7**.
@@ -58,9 +59,10 @@ todavía (los selectores cambian en memoria; el guardado en `config.ini` queda p
 
 ## Git (estado al cerrar esta sesión)
 
-- **`main` local** (SIN push): `HEAD = 550d5ed`; **árbol limpio**. Commits de código de la sesión:
-  `2181fab` (hh_menu: modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B), `4e4cf1e` (bugs 1 y
-  2 del overlay: bearing + set C) y `82df034` (bug 3: cierre instantáneo). El resto son docs.
+- **`main` local** (SIN push), **árbol limpio**. Commits de **código** de la sesión: `2181fab` (hh_menu:
+  modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B), `4e4cf1e` (bugs 1 y 2 del overlay:
+  bearing + set C) y `82df034` (bug 3: cierre instantáneo). El resto son **docs** (RETOMAR corto +
+  `docs/menu.md`, presupuesto de contexto de arranque). HEAD exacto: **`git log`**.
 - Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX).
   `c2ce652` (hh_menu) y `3aede33` (SFX submenús): **REVERTIDOS/eliminados**.
 - **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push: `ac4a89f` (traducción/idiomas), arreglo del
