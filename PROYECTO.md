@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-23**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-24**.
 
 ## 1. Objetivo
 
@@ -54,12 +54,16 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   patrón `hud_rewrite`) **falló** (RT64 compone el framebuffer del juego; el overlay no llega al
   swapchain presentado) y **se retiró**. Vía nueva: **render hook de RT64** (`SetRenderHooks`) +
   **plume** (como Goemon/recompui), dibujando encima del frame. `notes/2026-09-23-a2-overlay-primer-paso.md`.
+  **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 con la fuente del juego + navegación
+  básica, y **menú nativo oculto por defecto** (el juego tiene **dos tablas de etiquetas idénticas**;
+  el filtro cubría solo una). `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-23)**: **high frame rate por defecto** — el port presenta hasta el refresco
+**Estado actual (2026-09-24)**: **`hh_menu` del título en curso** (modelo + dibujo 1:1 + menú nativo
+oculto por defecto; pendiente acciones/selectores). **High frame rate por defecto** — el port presenta hasta el refresco
 del monitor (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a
 30 Hz). Antes: **mapa widescreen (fase 07b) validado** (HUD/minimapa anclados) y **migración ELF
 (ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y

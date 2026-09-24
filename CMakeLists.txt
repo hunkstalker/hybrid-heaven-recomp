@@ -128,6 +128,7 @@ add_executable(HybridHeavenRecomp
     src/subsystems/trans_cache.cpp
     src/subsystems/text.cpp
     src/subsystems/font.cpp
+    src/subsystems/menu.cpp
     src/subsystems/firmware.c
 
     # Recompiled functions.

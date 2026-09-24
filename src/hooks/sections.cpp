@@ -26,10 +26,15 @@
 #include "librecomp/overlays.hpp"
 #include "hh.h"
 #include "hh/file_table.h"
+#include "hh/menu.h"
 
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_801C18FC_11BB3CC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8001B204_1BE04(uint8_t* rdram, recomp_context* ctx);  // compone texto de menú
+extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // carga bitmap de glifo
 extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
@@ -52,6 +57,12 @@ constexpr size_t kFileCount = sizeof(hh::kCodeFiles) / sizeof(hh::kCodeFiles[0])
 // registro inicial en register_runtime_functions).
 void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x801C1DB8, hh_title_menu_hook);
+    // Update del menú: registra/compone las etiquetas nativas (una vez por entrada). Se envuelve
+    // para ocultarlas por defecto y poder restaurarlas con F6.
+    recomp::overlays::add_loaded_function(0x801C18FC, hh_title_ctor_hook);
+    // Composición de texto (residente): blankea el texto del menú nativo justo antes de leerlo, de
+    // modo que sale en blanco ya desde el primer frame (sin ventana visible).
+    recomp::overlays::add_loaded_function(0x8001B204, hh_entry_register_hook);
 }
 
 bool env_set(const char* name) {
@@ -117,11 +128,17 @@ void announce_load(uint32_t id, uint32_t dest) {
 }
 
 // Loader normal: registra el fichero y luego ejecuta el original (que descomprime en RDRAM).
+// A2: tras la carga se oculta el menú nativo del título (si es ese módulo) ANTES de que el juego lo
+// componga; de lo contrario se vería durante un frame. Es idempotente y barato.
 void file_load_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t id = static_cast<uint32_t>(ctx->r4);
     const uint32_t dest = static_cast<uint32_t>(ctx->r5);
     announce_load(id, dest);
     func_8000469C_529C(rdram, ctx);
+    if (env_set("HH_MENU_TRACE") && (id == 23 || id == 24)) {
+        hh::log("[load] modulo titulo id=%u dest=%08X\n", id, dest);
+    }
+    hh::menu_overlay::suppress_native(rdram);
 }
 
 // Loader streamed: el fichero no esta completo hasta que r2 != 0; se anuncia en esa llamada.
@@ -131,6 +148,7 @@ void file_load_streamed_hook(uint8_t* rdram, recomp_context* ctx) {
     func_80004838_5438(rdram, ctx);
     if (ctx->r2 != 0) {
         announce_load(id, dest);
+        hh::menu_overlay::suppress_native(rdram);
     }
 }
 
@@ -162,10 +180,48 @@ void hh::register_overlays() {
 // cursor movido -> move; pantalla cambiada -> aceptar/atrás. Así no suena si el botón no hace nada.
 static std::atomic<uint32_t> g_goto_count{ 0 };
 
+// A2 (paso 5, terreno): mueve el cursor de NUESTRO menú con el input del juego (los mismos botones
+// que lee el handler nativo). De momento solo arriba/abajo; confirmar/atrás/selectores y las acciones
+// propias llegan con el control total (paso 6).
+static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
+    recomp_context td = *ctx;
+    func_801C1340_11BAE10(rdram, &td);   // direcciones
+    recomp_context ta = *ctx;
+    func_801C1334_11BAE04(rdram, &ta);   // A/START
+    const uint32_t btn = static_cast<uint32_t>(td.r2) | static_cast<uint32_t>(ta.r2);
+    static uint32_t prev = 0;
+    const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
+    prev = btn;
+    if (pressed & 0x800u) hh::menu::move_up();
+    if (pressed & 0x400u) hh::menu::move_down();
+}
+
+// Overlay A2: envuelve el update del menú de título (func_801C18FC), que registra/compone las
+// etiquetas nativas. Se ocultan (por defecto) reescribiéndolas antes de delegar en el original.
+extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx) {
+    hh::menu_overlay::suppress_native(rdram);
+    func_801C18FC_11BB3CC(rdram, ctx);
+}
+
+// Overlay A2: envuelve la composición de texto (0x8001B204). Si el texto es del menú nativo y éste
+// está oculto, lo blankea justo antes de que el original lo lea. Es la pieza que elimina el flash:
+// cubre la PRIMERA composición (fase de fade-in), en la que el handler del menú aún no corre.
+extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (env_set("HH_MENU_TRACE")) {
+        static uint64_t n = 0;
+        if ((n % 300) == 0) {
+            hh::log("[entry] 0x8001B204 #%llu a3=%08X\n", static_cast<unsigned long long>(n),
+                    static_cast<uint32_t>(ctx->r7));
+        }
+        ++n;
+    }
+    hh::menu_overlay::filter_native_text(rdram, static_cast<uint32_t>(ctx->r7));
+    func_8001B204_1BE04(rdram, ctx);
+}
+
 // Overlay A2: envuelve el handler del menú de título del módulo 23 (func_801C1DB8). Delega en el
-// ORIGINAL (el menú del juego sigue funcionando y su texto queda visible) y publica el frame del
-// overlay del port a partir del estado real (etiquetas + selección). Con HH_MENU_TRACE=1 registra
-// además el índice seleccionado (0x801CC8C4).
+// ORIGINAL (la lógica del juego sigue funcionando, pero su menú nativo queda oculto por defecto) y
+// publica el frame del overlay del port. Con HH_MENU_TRACE=1 registra además la selección (0x801CC8C4).
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     static const bool trace = env_set("HH_MENU_TRACE");
     static uint64_t calls = 0;
@@ -187,9 +243,26 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
         };
         const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
         const uint32_t sel_before = guest_byte(0x801CC8C4u);
+
+        // A2 (paso 5, terreno): mueve nuestro cursor con el input del juego.
+        feed_menu_navigation(rdram, ctx);
+
+        // A2: la COMPOSICIÓN del texto nativo se filtra en hh_entry_register_hook, así que el menú
+        // sale en blanco desde el primer frame sin depender del handler. F6 solo necesita forzar un
+        // re-registro inmediato (el texto ya compuesto no se relee por sí solo).
+        const uint32_t obj = static_cast<uint32_t>(ctx->r4);   // el handler nativo clobbea ctx
+        const uint32_t arg = static_cast<uint32_t>(ctx->r5);
+        if (hh::menu_overlay::native_toggle_pending()) {
+            recomp_context t = *ctx;
+            MEM_H(0x3C, obj) = 0;          // fuerza el registro en func_801C18FC
+            t.r4 = obj;
+            t.r5 = arg;
+            hh_title_ctor_hook(rdram, &t);
+        }
+        hh::menu_overlay::suppress_native(rdram);
         func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original (puede mover cursor/cambiar pantalla)
-        const uint32_t sel_after = guest_byte(0x801CC8C4u);
         const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
+        const uint32_t sel_after = guest_byte(0x801CC8C4u);
 
         if (sel_after != sel_before) {
             hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);

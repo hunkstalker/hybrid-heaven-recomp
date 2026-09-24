@@ -49,11 +49,12 @@
      Goemon/recompui) → dibujo directo en el swapchain.
      **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 + paneles/texto HECHO y validado
      headless** (quad sobre el frame del juego; texto del atlas legible). **(c) `hh_menu` del título:
-     hook `0x801C1DB8` hecho y VALIDADO en Windows** (delega en el original + lee etiquetas/selección
-     reales; reacciona al cursor del juego; F6 muestra/oculta; offset `HH_OVERLAY_X/Y`, default ya
-     ajustado a lo medido). **Falta pulir alineación y suprimir el texto del juego**.
-     (d) pulido pendiente. Detalle: **`notes/2026-09-23-a2-render-hook-y-atlas.md`** (implementación +
-     validación), `notes/2026-09-23-a2-overlay-primer-paso.md` (fallos GBI + decisión) y **`RETOMAR.md`**.
+      hook `0x801C1DB8` hecho y VALIDADO en Windows** (delega en el original + lee etiquetas/selección
+      reales; reacciona al cursor del juego; F6 muestra/oculta; offset `HH_OVERLAY_X/Y`, default ya
+      ajustado a lo medido). **`hh_menu` (modelo + dibujo 1:1 + navegación) y la supresión del menú
+      nativo HECHOS** (2026-09-24; eran **dos** tablas de etiquetas, ver nota). **Falta**: acentos,
+      selectores y acciones (pasos 4/6). Detalle: **`notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`**,
+      **`notes/2026-09-23-a2-render-hook-y-atlas.md`** y `notes/2026-09-23-a2-overlay-primer-paso.md`.
      Contexto previo (motor/menú nativo, descartado): `notes/2026-09-23-b-motor-texto-localizado.md`,
      `notes/2026-09-23-a2-plan-menu-ajustes-idioma.md`.
   5. [x] **B — fuente del juego descodificada + inyección de acentos (2026-09-23)**: **no es una

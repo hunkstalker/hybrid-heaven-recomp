@@ -526,9 +526,9 @@ void hh::poll_input() {
                     hh::text_cycle_language();
                 }
                 else if (k.sym == SDLK_F6) {
-                    // A2: muestra/oculta el overlay del menú de título (para alinear con el texto
-                    // del juego, que permanece visible).
-                    hh::menu_overlay::toggle();
+                    // A2: muestra/oculta el menú NATIVO del juego (oculto por defecto; se muestra
+                    // para comparar con nuestro overlay). El overlay del port queda siempre visible.
+                    hh::menu_overlay::native_toggle();
                 }
                 else if ((k.mod & KMOD_CTRL) && hh::menu_overlay::visible()) {
                     // A2 calibración en vivo del overlay (con el overlay visible):
