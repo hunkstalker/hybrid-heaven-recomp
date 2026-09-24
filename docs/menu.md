@@ -86,13 +86,17 @@ junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con
 | paso | estado |
 |---|---|
 | 1. Modelo `hh::menu` (estado) | **HECHO** (`include/hh/menu.h` + `src/subsystems/menu.cpp`) |
-| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** (headless; falta validar en Windows). Falta: acentos reales, valores de selectores |
-| 3. Ocultar el menú nativo | **HECHO** (headless; falta Windows). Ver `architecture.md` §7 |
-| 4. Etiquetas propias (tabla del port, integrada con idiomas A1/B) | pendiente |
+| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Falta: acentos reales, valores de selectores |
+| 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
+| 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
 | 5. Navegación propia (A/B/X + selectores, control total) | terreno hecho: `feed_menu_navigation` (arriba/abajo). Falta neutralizar el input nativo y A/B/X |
 | 6. Acciones (mapear cada entrada a la función del juego) | pendiente (pantalla a pantalla) |
 | 7. SFX desde eventos del modelo (retirar el puente) | pendiente |
 | 8. Validar en Windows | pendiente |
+
+**Orden acordado (2026-09-24):** completar el menú **antes** de los acentos → **5 → 6 → 7 → 4 → 8**.
+Así, al integrar los acentos los submenús ya son navegables y se pueden validar (o forzarlos con
+`HH_MENU_SCREEN=7`/`=6`).
 
 Alcance de la tanda actual: **solo el árbol de menús** (estructura, navegación y dibujo). **NO**
 persistir la configuración todavía (los selectores cambian en memoria; el guardado en `config.ini`

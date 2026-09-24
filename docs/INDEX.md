@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 292 | 2026-09-24 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 85 | 2026-09-18 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 99 | 2026-09-24 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 103 | 2026-09-24 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |

@@ -52,8 +52,8 @@
      Goemon/recompui) → dibujo directo en el swapchain.
      **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 HECHO** (validado headless);
      **(c) `hh_menu` del título HECHO (2026-09-24)**: hook `0x801C1DB8`, modelo + dibujo 1:1 +
-     navegación, **menú nativo oculto por defecto** (F6 alterna; cubre los **tres** sets de etiquetas)
-     y bugs del overlay resueltos. **Falta**: acentos, selectores y acciones (pasos 4/6). Detalle:
+     navegación, **menú nativo oculto por defecto** (F6 alterna; cubre los **tres** sets) y bugs del
+     overlay resueltos. **Falta**: control total, acciones, SFX y **después** acentos (5→6→7→4). Detalle:
      `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
      `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.
      Contexto (descartado): `notes/2026-09-23-b-motor-texto-localizado.md`, `...-a2-plan-menu-ajustes-idioma.md`.
@@ -64,8 +64,8 @@
      US↔EU**; la PAL solo añade 32 glifos acentuados al color4. Herramientas
      `tools/text/font_dump.py`, `tools/text/gen_accent_glyphs.py`; traza `HH_FONT_TRACE=1`;
      inyección en `src/hooks/text_glyphs.cpp` (`HH_ACCENTS=0` la desactiva) + `text.cpp` (UTF-8→EUC
-     propio). **Falta validar visualmente** (headless intermitente sin input). Detalle:
-     `notes/2026-09-23-b-fuente-formato-y-gaiji.md` (sustituye la hipótesis de "transplantar PAL").
+     propio). **NO validable hoy** (la cadena con tilde vivía en el menú vanilla, ya oculto): **aparcado**.
+     Detalle: `notes/2026-09-23-b-fuente-formato-y-gaiji.md` (sustituye la hipótesis de "transplantar PAL").
   6. [ ] **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
      necesarios tipo `ñ/¿/¡` en la fuente). La PAL (FR/DE) sirve de **referencia de estilo**.
   Ver `PROYECTO.md §4` y `notes/2026-09-05_asset-map.md`.
