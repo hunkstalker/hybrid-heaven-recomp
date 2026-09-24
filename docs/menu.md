@@ -45,7 +45,8 @@ AJUSTES ->
             P. COMPLETA  NO/SÍ         (pantalla completa)
             ANTIALIASING < x0 / x2 / x4 / x8 >
             VSYNC        NO/SÍ         (por defecto SÍ)
-            LÍMITE DE FPS < NATIVO / 30 / 60 / 120 / 144 / 160 >  (NATIVO = refresco del monitor)
+            LÍMITE DE FPS < NATIVO / 30 / 40 / 60 / 75 / 90 / 120 / 144 / 165 / 240 >
+                          (NATIVO = refresco del monitor)
       SONIDO ->
             VOLUMEN      < 0% … 100% > (pasos de 10; 100% = sin atenuar)
             SALIDA       < MONO / ESTÉREO / AURICULARES > (AURICULARES = crossfeed)
@@ -85,6 +86,8 @@ AJUSTES ->
   Display`); un número = tasa fija (`RefreshRate::Manual`, `hh::video_set_fps_limit`). Es el
   `refreshRate` de RT64: interpola hacia la tasa objetivo y la **recorta al refresco del monitor**
   (`swapChainRate`); con `viOriginalRate`=30 del juego, `30` = sin interpolación y `60` = interpolado.
+  Lista: `NATIVO/30/40/60/75/90/120/144/165/240` (40 = Steam Deck; 75 = monitores antiguos). Los
+  objetivos que **no** son múltiplos de 30 (40/75/144/165) pueden dar algo de *judder*.
   **Verificar VSYNC**: con `HH_FPS=1` la línea `[hh-fps]` incluye `vsync=<0|1>` (estado real del
   swapchain, `isVsyncEnabled`); al cambiarlo, el log muestra `[hh] vsync=... real=...`.
 - **Persistencia**: las acciones de `RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` /

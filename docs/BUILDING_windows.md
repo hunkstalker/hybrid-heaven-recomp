@@ -289,7 +289,7 @@ res    = auto         ; auto (nativa) | original | 2x | <n> | 4k | 8k | ANCHOxAL
 aspect = auto         ; auto|original|expand|4:3|16:9|16:10|21:9|<float>
 msaa   = 8x           ; off | 2x | 4x | 8x
 vsync   = si          ; si | no
-fps     = nativo      ; nativo (refresco del monitor) | 30 | 60 | 120 | 144 | 160
+fps     = nativo      ; nativo (refresco del monitor) | 30 | 40 | 60 | 75 | 90 | 120 | 144 | 165 | 240
 showfps = no          ; si | no (indicador de FPS, solo números, arriba-izquierda)
 developer = no        ; si | no (Inspector de RT64; equivale a HH_DEVELOPER=1 + F1)
 ; Geometría de la ventana en `wm=windowed`: se guarda al cerrar (0/-1 = auto).

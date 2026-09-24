@@ -59,10 +59,14 @@ int fps_limit_default() {
     if (f.empty() || f == "nativo" || f == "native") return 0;
     switch (std::atoi(f.c_str())) {
         case 30:  return 1;
-        case 60:  return 2;
-        case 120: return 3;
-        case 144: return 4;
-        case 160: return 5;
+        case 40:  return 2;
+        case 60:  return 3;
+        case 75:  return 4;
+        case 90:  return 5;
+        case 120: return 6;
+        case 144: return 7;
+        case 165: return 8;
+        case 240: return 9;
         default:  return 0;
     }
 }
@@ -200,8 +204,10 @@ void build_tree() {
         make_selector_with_action("ANTIALIASING", {"x0", "x2", "x4", "x8"}, Action::MsaaSelect,
                                   msaa_default()),
         make_selector_with_action("VSYNC", {"NO", "SÍ"}, Action::ToggleVsync, vsync_default()),
-        // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate).
-        make_selector_with_action("LÍMITE DE FPS", {"NATIVO", "30", "60", "120", "144", "160"},
+        // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate). Orden ascendente;
+        // incluye 40 (Steam Deck), 90 (Deck/VR) y 75 (monitores antiguos). Se recorta al monitor.
+        make_selector_with_action("LÍMITE DE FPS",
+                                  {"NATIVO", "30", "40", "60", "75", "90", "120", "144", "165", "240"},
                                   Action::FpsLimit, fps_limit_default()),
     }));
 
