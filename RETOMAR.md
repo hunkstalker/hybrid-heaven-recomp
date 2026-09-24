@@ -11,7 +11,7 @@
 - **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 (fuente + flecha nativa) + navegación
   arriba/abajo; **menú nativo oculto por defecto** (F6 lo alterna); bugs del overlay resueltos
   (bearing de "MODO COMBATE", **tercer set** de etiquetas al volver atrás, cierre por tiempo).
-  **Todo validado en headless; falta validar en Windows** (commit `4e4cf1e`).
+  **Todo validado en headless; falta validar en Windows** (código de `4e4cf1e`; HEAD actual `b80a684`).
 - Diseño del menú: **`docs/menu.md`**. Técnica (overlay/fuente/alineación/supresión del nativo):
   **`docs/architecture.md` §7**. Evidencia: `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`,
   `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`.
@@ -34,8 +34,8 @@ todavía (los selectores cambian en memoria).
 
 ## Pendiente inmediato
 
-- **Validar en Windows** el commit `4e4cf1e`: nativo oculto por defecto, F6, **atrás desde submenú**,
-  alineación de "MODO COMBATE" y cierre rápido del overlay.
+- **Validar en Windows** el código de `4e4cf1e`: nativo oculto por defecto, F6, **atrás desde
+  submenú**, alineación de "MODO COMBATE" y cierre rápido del overlay.
 - **Validar B (acentos)** en Windows: la inyección compila ("25 glifos inyectados") pero no se ha visto
   en pantalla (afecta a los rótulos de idioma: ESPAÑOL, CATALÁN, FRANÇAIS…).
 - Si sale bien, **push** de `main` (orden y `--force-with-lease`: `AGENTS.md` §Push).
@@ -53,9 +53,9 @@ todavía (los selectores cambian en memoria).
 
 ## Git (estado al cerrar esta sesión)
 
-- **`main` local** (SIN push): `HEAD = 4e4cf1e`. Commits de la sesión: `2181fab` (hh_menu: modelo +
-  dibujo 1:1 + navegación + nativo oculto, sets A/B), `4e4cf1e` (bugs del overlay: bearing, set C,
-  cierre), `44631e3`/`fb5c416`/`8afc047`/`01b6ebc` (docs). Árbol limpio. Sesiones previas: `8265b9d`,
+- **`main` local** (SIN push): `HEAD = b80a684`. Commits de código de la sesión: `2181fab` (hh_menu:
+  modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B) y `4e4cf1e` (bugs del overlay: bearing,
+  set C, cierre). El resto (`44631e3`…`b80a684`) son docs. Árbol limpio. Sesiones previas: `8265b9d`,
   `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX). `c2ce652` (hh_menu) y `3aede33`
   (SFX submenús): **REVERTIDOS/eliminados**.
 - **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push: `ac4a89f` (traducción/idiomas), arreglo del
