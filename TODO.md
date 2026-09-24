@@ -60,19 +60,26 @@
      `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE / APUNTADO LIBRE`; GRÁFICOS con `RATIO` (filtra
      `RESOLUCIÓN`), `P. COMPLETA`, `VSYNC` (SÍ) y `LÍMITE DE FPS` (`NATIVO`); **`DEBUG`** es submenú
      en AJUSTES (`VENTANA DEBUG`→F1 + `MOSTRAR FPS`). Falta validar en Windows.
-     **P. COMPLETA / VSYNC / LÍMITE DE FPS / MOSTRAR FPS HECHOS (2026-09-24)**: aplican en vivo
-     (`hh::video_set_fullscreen` / `video_set_vsync` / `video_set_fps_limit` / `video_set_show_fps`)
-     y **persisten en `config.ini` `[video]`** (`wm`/`vsync`/`fps`/`showfps`, escritor compartido
-     `hh::config_ini_set`); el menú se inicializa con esos valores. `MOSTRAR FPS` dibuja el indicador
-     (solo números, arriba-izquierda) como capa del overlay, también en gameplay. Validado: modelo
-     (defaults), parseo/aplicación al arrancar (headless), persistencia (test determinista) e
-     indicador FPS (captura headless: "60" vs vacío). P. COMPLETA validado en Windows; VSYNC/FPS
-     pendiente Windows.
-     **Al persistir la RESOLUCIÓN** (siguiente): mapear también el **tamaño de ventana** en
-     `windowed` a partir de `res` (`WxH` concreta; `auto` = nativa del monitor) y **recordar
-     tamaño/posición** al redimensionar; hoy la ventana `windowed` es fija 1280x720 (el parser de
-     `res` no entiende `WxH` todavía).
-     **Falta**: el resto de acciones, SFX y **después** acentos (6→7→4). Detalle:
+     **GRÁFICOS/DEBUG/VENTANA DEBUG HECHOS (2026-09-25)**: `RATIO`, `RESOLUCIÓN`, `P. COMPLETA`,
+     `ANTIALIASING`, `VSYNC`, `LÍMITE DE FPS`, `MOSTRAR FPS` y `VENTANA DEBUG` aplican en vivo y
+     **persisten en `config.ini` `[video]`** (`aspect`/`res`/`wm`/`msaa`/`vsync`/`fps`/`showfps`/
+     `developer`, escritor `hh::config_ini_set`). `res=ANCHOxALTO` usa max(ancho/320, alto/240) para
+     que cada opción cambie de escala; el widescreen (`snap_overscan`) se aplica a aspectos > 4:3
+     (arregla la "caja pequeña" de `21:9`). Ventana `windowed`: geometría recordada (`win_*`) → `res`
+     concreta → nativa, guarda tamaño/posición al cerrar. `MOSTRAR FPS` mide presents reales.
+     Validado headless: modelo, arranque, geometría, re-aplicado en vivo (`mult 4→8`) y capturas de
+     ratio. Pendiente Windows.
+     **AUDIO HECHO (2026-09-25)**: `SONIDO` = `VOLUMEN` (0-100 %, pasos de 10; afecta a todo) +
+     `SALIDA` (`ESTÉREO`/`MONO`/`AURICULARES`). `MONO` = downmix `(L+R)/2`; `AURICULARES` =
+     **crossfeed** (canal opuesto filtrado). Procesado en `hh::queue_samples`
+     (`hh_apply_audio_processing`); persiste en `[audio]`. El `%` se dibuja (no está en la fuente).
+     **VENTANA DEBUG/F1**: en Windows RT64 instala su hook solo al arrancar; si se activa en caliente,
+     F1 lo maneja el port (`hh::toggle_inspector`). Ver VSYNC con `HH_FPS=1` (log incluye
+     `vsync=0|1` real).
+     **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
+     ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
+     juego), `CONTINUAR`; SFX y **después** acentos e idiomas (6→7→4). Extras de audio (widening/EQ)
+     evaluables más adelante. Detalle:
      `notes/2026-09-24-a2-selectores-y-arbol.md`,
      `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
      `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.

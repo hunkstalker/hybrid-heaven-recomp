@@ -472,6 +472,7 @@ void hh::poll_input() {
         Uint32 limite = (Uint32)std::atoi(autquit) * 1000u;
         if (SDL_GetTicks() - t0 >= limite) {
             std::fprintf(stderr, "[HH] HH_AUTOQUIT=%s -> ultramodern::quit()\n", autquit);
+            hh::video_remember_window();  // recordar tamano/posicion en [video]
             ultramodern::quit();
         }
     }
@@ -482,6 +483,7 @@ void hh::poll_input() {
                 // Cierre ordenado: NO usar std::exit (destruiría std::threads joinable al
                 // ejecutar destructores estáticos -> std::terminate). quit() activa la salida
                 // limpia de recomp::start, que hace join de todos los hilos.
+                hh::video_remember_window();  // recordar tamano/posicion en [video]
                 ultramodern::quit();
                 break;
             case SDL_WINDOWEVENT:
@@ -507,8 +509,15 @@ void hh::poll_input() {
             case SDL_KEYDOWN: {
                 // Atajos de video en caliente (hasta que exista el menu in-game).
                 const SDL_Keysym& k = event.key.keysym;
-                // F1 queda libre: con `HH_DEVELOPER=1` RT64 abre su Inspector (FPS/frametimes) con F1.
-                if (k.sym == SDLK_F2) {
+                // F1: Inspector de RT64. Lo gestiona RT64 si su hook estaba activo al arrancar
+                // (`HH_DEVELOPER=1`/`[video] developer=si`); si VENTANA DEBUG se activó en caliente,
+                // RT64 no instaló el hook y lo abre el port (hh::toggle_inspector).
+                if (k.sym == SDLK_F1) {
+                    if (hh::video_config().developer == "si" && !hh::rt64_handles_dev_keys()) {
+                        hh::toggle_inspector();
+                    }
+                }
+                else if (k.sym == SDLK_F2) {
                     // Widescreen: cicla el aspecto (expand / original / 4:3 ...).
                     hh::video_cycle_aspect();
                 }
@@ -557,6 +566,7 @@ void hh::poll_input() {
                 else if (k.sym == SDLK_F11) {
                     // Cierre rapido (comodo a pantalla completa, sin Alt+F4).
                     std::fprintf(stderr, "[HH] F11 -> ultramodern::quit()\n");
+                    hh::video_remember_window();  // recordar tamano/posicion en [video]
                     ultramodern::quit();
                 }
             } break;

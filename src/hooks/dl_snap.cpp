@@ -232,8 +232,12 @@ bool full_frame_enabled() {
 void snap_overscan(uint8_t* rdram, uint32_t list_address) {
     // Con aspect=expand (o auto, que mapea a Expand): widescreen. El HUD no se re-ancla (queda en la
     // zona 4:3), pero tampoco se desmonta; ver docs/BUILDING_windows.md.
+    // El snap (expansion del scissor) es lo que hace el widescreen del port; se aplica a los
+    // aspectos MAS ANCHOS que el nativo 4:3 (auto/expand y los ratios fijos 16:9/16:10/21:9). Para
+    // `original`/`4:3` no (se deja el 4:3 nativo). Sin esto, un ratio fijo (p. ej. 21:9) hacia que
+    // RT64 escalara el contenido 4:3 al target -> caja pequena centrada (bug 2026-09-25).
     const std::string& a = video_config().aspect;
-    const bool expand = (a == "expand" || a == "auto");
+    const bool expand = (a == "expand" || a == "auto" || a == "16:9" || a == "16:10" || a == "21:9");
     if (!expand || !full_frame_enabled() || rdram == nullptr) {
         return;
     }

@@ -285,18 +285,28 @@ Sección en `config.ini` (defaults: borderless, resolución nativa, aspecto auto
 ```ini
 [video]
 wm     = borderless   ; borderless | windowed
-res    = auto         ; auto (nativa) | original | 2x | <n> | 4k | 8k
-aspect = auto         ; auto|original|expand|4:3|16:9|<float>
+res    = auto         ; auto (nativa) | original | 2x | <n> | 4k | 8k | ANCHOxALTO
+aspect = auto         ; auto|original|expand|4:3|16:9|16:10|21:9|<float>
 msaa   = 8x           ; off | 2x | 4x | 8x
 vsync   = si          ; si | no
 fps     = nativo      ; nativo (refresco del monitor) | 30 | 60 | 120 | 144 | 160
 showfps = no          ; si | no (indicador de FPS, solo números, arriba-izquierda)
+developer = no        ; si | no (Inspector de RT64; equivale a HH_DEVELOPER=1 + F1)
+; Geometría de la ventana en `wm=windowed`: se guarda al cerrar (0/-1 = auto).
+win_w   = 0
+win_h   = 0
+win_x   = -1
+win_y   = -1
 ```
 
-- **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` la abre en ventana.
+- **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` abre una
+  ventana con el tamaño recordado (`win_*`), si no una `res` concreta `ANCHOxALTO`, y si no la
+  resolución nativa del monitor; el tamaño/posición se guarda al cerrar.
 - **VSYNC / LÍMITE DE FPS / MOSTRAR FPS**: `vsync` (por defecto `si`) y `fps` (`nativo` = refresco del
   monitor); `showfps` dibuja el indicador de FPS. El menú **GRÁFICOS/DEBUG** los aplica en vivo y
   **los persiste aquí** (junto con `wm`).
+- **RATIO / RESOLUCIÓN / ANTIALIASING**: `aspect`/`res`/`msaa`, aplicados en vivo por **GRÁFICOS** y
+  persistidos aquí. `res` es la resolución **interna** de render (independiente de la ventana).
 - **Atajos en caliente**: **F2** = cicla aspecto (widescreen/4:3); **F3** = borderless ↔ windowed;
   **F4** = cicla MSAA; **F11** = cierra la aplicación (cómodo a pantalla completa, sin Alt+F4) (consola:
   líneas `[VIDEO] ...`). **F1** = Inspector de RT64, solo con `HH_DEVELOPER=1`.
@@ -314,13 +324,29 @@ showfps = no          ; si | no (indicador de FPS, solo números, arriba-izquier
 - **Si vuelve a crashear** (abort/assert): junto al `.exe` se escribe **`hh_missing.log`** con las
   direcciones `Failed to find function at 0x...`; pásalas y se añaden.
 - Env útiles: `HH_RES=original|2x|<n>` (resolución), `HH_INVERT_Y=1` (eje), `HH_INPUTLOG`/`HH_PRESS*`
-  y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` la tasa real de
-  present (`[hh-fps] N fps | M display lists`) una vez por segundo. **High frame rate (default ON)**:
-  presenta al refresco del monitor; `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=0`
-  lo ajustan/revienen (ver `notes/2026-09-22-fps-y-present-early.md`). API gráfica:
+  y `HH_STICK=x,y` (input sintético para pruebas). `HH_FPS=1`: registra en `hh.log` una vez por
+  segundo la tasa real de present, la de `update_screen`, `target/vi/swapChain/refresh` y el estado
+  **real** de `vsync` (`[hh-fps] update=… present=… (target=… vi=… swapChain=… refresh=… vsync=…)`).
+  **High frame rate (default ON)**: presenta al refresco del monitor;
+  `HH_REFRESH_RATE=original|display|manual:<hz>` y `HH_PRESENT_EARLY=0` lo ajustan/revienen (ver
+  `notes/2026-09-22-fps-y-present-early.md`). API gráfica:
   `HH_GRAPHICS_API=d3d12|vulkan|metal|auto` (útil para probar overlays tipo RTSS o fallos por API).
-  FPS en pantalla: `HH_DEVELOPER=1` habilita el Inspector de RT64 (abrir/cerrar con **F1**; ojo: con
-  dev-mode RT64 consume F1-F4 y el F2/F3/F4 del port deja de actuar).
+  Inspector de RT64: `HH_DEVELOPER=1` (o menú `DEBUG → VENTANA DEBUG`, persistente) y **F1** para
+  abrir/cerrar. Ojo: con dev-mode activo al arrancar, RT64 consume F1-F4 y el F2/F3/F4 del port deja
+  de actuar; si se activa en caliente, F1 lo gestiona el port.
+
+### [audio] (sonido)
+
+```ini
+[audio]
+volumen = 100     ; 0-100 (pasos de 10 en el menú); 100 = sin atenuar
+salida  = estereo ; mono | estereo | auriculares (orden del selector)
+```
+
+- `volumen` afecta a **todo** (juego, música y SFX del menú). `salida=mono` hace downmix `(L+R)/2`;
+  `salida=auriculares` aplica **crossfeed** (un poco del canal opuesto con paso-bajo; pensado para
+  auriculares). Lo aplica el port al vuelo (`hh::queue_samples` → `hh_apply_audio_processing`).
+- El menú **SONIDO** (VOLUMEN + SALIDA) los aplica en vivo y **los persiste aquí**.
 
 ### Grabar y reproducir una partida (depuración determinista)
 

@@ -222,6 +222,7 @@ std::string hh::get_game_thread_name(const OSThread* t) {
 // HH: inicializa SOLO el subsistema de audio. Debe llamarse ANTES de hh::reset_audio(), que en
 // main corre antes de recomp::start (y create_gfx se ejecuta dentro de recomp::start).
 void hh::init_audio() {
+    hh::audio_config();   // carga [audio] (volumen/salida) y fija los atomics antes del primer buffer
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "Aviso: audio SDL no inicializado (%s); el juego correra sin sonido\n",
                 SDL_GetError());
@@ -245,6 +246,20 @@ static std::string hh_video_lower(std::string s) {
     for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return s;
 }
+// "ANCHOxALTO" (p. ej. 1920x1080) -> w,h. false si no encaja.
+static bool hh_video_parse_size(const std::string& s, int& w, int& h) {
+    return std::sscanf(s.c_str(), "%dx%d", &w, &h) == 2 && w > 0 && h > 0;
+}
+// Target de aspecto derivado del string (`[video].aspect`): 4:3, 16:9, 16:10, 21:9 o float.
+static double hh_video_aspect_target(const std::string& a) {
+    if (a == "4:3") return 4.0 / 3.0;
+    if (a == "16:9") return 16.0 / 9.0;
+    if (a == "16:10") return 16.0 / 10.0;
+    if (a == "21:9") return 21.0 / 9.0;
+    char* end = nullptr;
+    const double d = std::strtod(a.c_str(), &end);
+    return (end != a.c_str() && *end == '\0' && d > 0.0) ? d : 0.0;
+}
 
 hh::VideoConfig& hh::video_config_mutable() {
     static hh::VideoConfig cfg = [] {
@@ -266,11 +281,16 @@ hh::VideoConfig& hh::video_config_mutable() {
             std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
             if (k == "wm") c.wm = v;
             else if (k == "res") c.res = v;
-            else if (k == "aspect") c.aspect = v;
+            else if (k == "aspect") { c.aspect = v; c.aspect_target = hh_video_aspect_target(v); }
             else if (k == "msaa") c.msaa = v;
             else if (k == "vsync") c.vsync = v;
             else if (k == "fps") c.fps = v;
             else if (k == "showfps") c.showfps = v;
+            else if (k == "developer") c.developer = v;
+            else if (k == "win_w") c.win_w = std::atoi(v.c_str());
+            else if (k == "win_h") c.win_h = std::atoi(v.c_str());
+            else if (k == "win_x") c.win_x = std::atoi(v.c_str());
+            else if (k == "win_y") c.win_y = std::atoi(v.c_str());
         }
         fclose(f);
         return c;
@@ -278,6 +298,87 @@ hh::VideoConfig& hh::video_config_mutable() {
     return cfg;
 }
 const hh::VideoConfig& hh::video_config() { return hh::video_config_mutable(); }
+
+// ===== Config de audio (config.ini [audio]) =====
+// Volumen general (0-100 %) y salida (estereo | mono | auriculares). Los atomics los lee el hilo de
+// audio (queue_samples) sin volver a parsear el fichero.
+namespace {
+std::atomic<int> g_audio_volume{ 100 };
+std::atomic<int> g_audio_output{ 0 };   // 0 estereo, 1 mono, 2 auriculares (crossfeed)
+int audio_output_id(const std::string& s) {
+    if (s == "mono") return 1;
+    if (s == "auriculares" || s == "headphones" || s == "crossfeed") return 2;
+    return 0;
+}
+}  // namespace
+
+hh::AudioConfig& hh::audio_config_mutable() {
+    static hh::AudioConfig cfg = [] {
+        hh::AudioConfig c;
+        const char* env = getenv("HH_PAD_CONFIG");
+        std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
+        FILE* f = fopen(path.c_str(), "rb");
+        if (f == nullptr) return c;
+        char line[512];
+        bool in_audio = false;
+        while (fgets(line, sizeof line, f) != nullptr) {
+            std::string s = hh_video_trim(line);
+            if (s.empty() || s[0] == '#' || s[0] == ';') continue;
+            if (s[0] == '[') { in_audio = (s.rfind("[audio]", 0) == 0); continue; }
+            if (!in_audio) continue;
+            const size_t eq = s.find('=');
+            if (eq == std::string::npos) continue;
+            const std::string k = hh_video_lower(hh_video_trim(s.substr(0, eq)));
+            const std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
+            if (k == "volumen" || k == "volume") c.volume = std::clamp(std::atoi(v.c_str()), 0, 100);
+            else if (k == "salida" || k == "output") c.output = v;
+        }
+        fclose(f);
+        return c;
+    }();
+    g_audio_volume.store(cfg.volume, std::memory_order_relaxed);
+    g_audio_output.store(audio_output_id(cfg.output), std::memory_order_relaxed);
+    fprintf(stderr, "[AUDIO] volumen=%d%% salida=%s\n", cfg.volume, cfg.output.c_str());
+    return cfg;
+}
+const hh::AudioConfig& hh::audio_config() { return hh::audio_config_mutable(); }
+
+namespace {
+// Procesado de audio en la trama de salida: volumen general (0-100 %), salida mono (downmix) y
+// auriculares (crossfeed con paso-bajo: mezcla un poco del canal opuesto para simular altavoces).
+// `s` es PCM estereo entrelazado S16; se modifica in-place.
+void hh_apply_audio_processing(int16_t* s, size_t count) {
+    const int vol = g_audio_volume.load(std::memory_order_relaxed);
+    const int out = g_audio_output.load(std::memory_order_relaxed);
+    if (vol == 100 && out == 0) {
+        return;
+    }
+    const size_t frames = count / 2;
+    static float cf_l = 0.0f, cf_r = 0.0f;   // estado del crossfeed (uno por canal de entrada)
+    const float gain = static_cast<float>(vol) / 100.0f;
+    constexpr float kCf = 0.35f;   // cantidad de señal cruzada
+    constexpr float kA = 0.12f;    // coef. del paso-bajo (~700 Hz a 48 kHz)
+    for (size_t f = 0; f < frames; ++f) {
+        float l = static_cast<float>(s[f * 2 + 0]);
+        float r = static_cast<float>(s[f * 2 + 1]);
+        if (out == 2) {
+            cf_l += kA * (r - cf_l);
+            cf_r += kA * (l - cf_r);
+            l += kCf * cf_l;
+            r += kCf * cf_r;
+        }
+        else if (out == 1) {
+            const float m = 0.5f * (l + r);
+            l = m;
+            r = m;
+        }
+        l *= gain;
+        r *= gain;
+        s[f * 2 + 0] = static_cast<int16_t>(std::clamp(l, -32768.0f, 32767.0f));
+        s[f * 2 + 1] = static_cast<int16_t>(std::clamp(r, -32768.0f, 32767.0f));
+    }
+}
+}  // namespace
 
 int hh::desktop_height() {
     SDL_DisplayMode dm{};
@@ -321,6 +422,8 @@ void hh::video_apply_config() {
     int manual_hz = 0;
     cfg.rr_option = hh_video_refresh_mode(manual_hz);
     cfg.rr_manual_value = manual_hz;
+    // VENTANA DEBUG ([video].developer, o HH_DEVELOPER=1): habilita el Inspector de RT64 con F1.
+    cfg.developer_mode = (hh::video_config().developer == "si");
     ultramodern::renderer::set_graphics_config(cfg);
     fprintf(stderr, "[VIDEO] wm=%s res=%s aspect=%s msaa=%s vsync=%s fps=%s\n",
             hh::video_config().wm.c_str(), hh::video_config().res.c_str(),
@@ -342,7 +445,97 @@ void hh::video_toggle_fullscreen() {
 void hh::video_config_save() {
     const hh::VideoConfig& v = hh::video_config();
     hh::config_ini_set("video",
-                       {{"wm", v.wm}, {"vsync", v.vsync}, {"fps", v.fps}, {"showfps", v.showfps}});
+                       {{"wm", v.wm}, {"res", v.res}, {"aspect", v.aspect}, {"msaa", v.msaa},
+                        {"vsync", v.vsync}, {"fps", v.fps}, {"showfps", v.showfps},
+                        {"developer", v.developer},
+                        {"win_w", std::to_string(v.win_w)}, {"win_h", std::to_string(v.win_h)},
+                        {"win_x", std::to_string(v.win_x)}, {"win_y", std::to_string(v.win_y)}});
+}
+
+// Menu SONIDO -> VOLUMEN: volumen general (0-100 %). Afecta a todo (juego, música y SFX).
+void hh::audio_set_volume(int percent) {
+    const int p = std::clamp(percent, 0, 100);
+    hh::audio_config_mutable().volume = p;
+    g_audio_volume.store(p, std::memory_order_relaxed);
+    hh::audio_config_save();
+    fprintf(stderr, "[AUDIO] VOLUMEN -> %d%%\n", p);
+}
+
+// Menu SONIDO -> SALIDA: estereo | mono | auriculares (crossfeed).
+void hh::audio_set_output(const std::string& output) {
+    hh::audio_config_mutable().output = output;
+    g_audio_output.store(audio_output_id(output), std::memory_order_relaxed);
+    hh::audio_config_save();
+    fprintf(stderr, "[AUDIO] SALIDA -> %s\n", output.c_str());
+}
+
+void hh::audio_config_save() {
+    const hh::AudioConfig& a = hh::audio_config();
+    hh::config_ini_set("audio", {{"volumen", std::to_string(a.volume)}, {"salida", a.output}});
+}
+
+// Menu GRÁFICOS -> RESOLUCIÓN: resolución INTERNA de render (RT64). No vive en GraphicsConfig, así
+// que se re-aplica a mano en el hilo de render.
+void hh::video_set_resolution(const std::string& res) {
+    hh::video_config_mutable().res = res;
+    hh::video_reapply();
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] RESOLUCIÓN -> %s\n", res.c_str());
+}
+
+// Menu GRÁFICOS -> RATIO: aspecto (Original/Expand/Manual+target). `target` solo se usa en Manual.
+void hh::video_set_aspect(const std::string& aspect, double target) {
+    hh::VideoConfig& v = hh::video_config_mutable();
+    v.aspect = aspect;
+    v.aspect_target = target;
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.ar_option = hh_video_aspect_mode();
+    ultramodern::renderer::set_graphics_config(cfg);
+    hh::video_reapply();
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] RATIO -> aspect=%s target=%.3f\n", v.aspect.c_str(), target);
+}
+
+// Menu GRÁFICOS -> ANTIALIASING: MSAA de RT64. Via GraphicsConfig (update_config hace updateMultisampling).
+void hh::video_set_msaa(const std::string& msaa) {
+    hh::video_config_mutable().msaa = msaa;
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.msaa_option = hh_video_msaa_mode();
+    ultramodern::renderer::set_graphics_config(cfg);
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] ANTIALIASING -> %s\n", msaa.c_str());
+}
+
+// Menu DEBUG -> VENTANA DEBUG: persistencia + modo desarrollador de RT64 (Inspector con F1).
+void hh::video_set_developer_mode(bool enabled) {
+    hh::video_config_mutable().developer = enabled ? "si" : "no";
+    hh::set_developer_mode(enabled);
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] VENTANA DEBUG -> %s\n", hh::video_config().developer.c_str());
+}
+
+// Guarda la geometria de la ventana actual (solo en `windowed`; en fullscreen se ignora para no
+// pisar la ultima geometria de ventana). Se llama al cerrar.
+void hh::video_remember_window() {
+    if (window == nullptr || hh::video_config().wm != "windowed") {
+        return;
+    }
+    int w = 0, h = 0, x = 0, y = 0;
+    SDL_GetWindowSize(window, &w, &h);
+    SDL_GetWindowPosition(window, &x, &y);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    hh::VideoConfig& v = hh::video_config_mutable();
+    if (v.win_w == w && v.win_h == h && v.win_x == x && v.win_y == y) {
+        return;
+    }
+    v.win_w = w;
+    v.win_h = h;
+    v.win_x = x;
+    v.win_y = y;
+    hh::video_config_save();
+    hh::log("[VIDEO] geometria de ventana recordada: %dx%d @ (%d,%d)\n", w, h, x, y);
 }
 
 // Menu DEBUG -> MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda). El
@@ -391,6 +584,7 @@ void hh::video_cycle_aspect() {
                   : (idx == 1) ? ultramodern::renderer::AspectRatio::Expand
                                : ultramodern::renderer::AspectRatio::Manual;
     ultramodern::renderer::set_graphics_config(cfg);
+    hh::video_reapply();   // Manual -> Manual cambia solo el target: forzar re-aplicacion
     fprintf(stderr, "[VIDEO] F1 -> aspect=%s\n", vc.aspect.c_str());
 }
 
@@ -435,20 +629,42 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
 
     hh::log("create_window: creating SDL window\n");
     // HH: `wm=borderless` abre la ventana a tamano de escritorio y RT64 la pasa a fullscreen en el
-    // constructor (`app->setFullScreen`); `wm=windowed` deja una ventana normal (no se puede pasar
-    // a fullscreen porque el estado inicial de RT64 ya es "no fullscreen"). Antes se creaba SIEMPRE
-    // a tamano de escritorio, asi que `windowed` parecia pantalla completa al arrancar.
+    // constructor (`app->setFullScreen`). `wm=windowed` deja una ventana normal: tamano recordado
+    // (`win_w/h`), si no una `res` concreta `ANCHOxALTO`, y si no la resolucion nativa del monitor.
+    const hh::VideoConfig& vc = hh::video_config();
     int win_w = 1280, win_h = 720;
+    int win_x = SDL_WINDOWPOS_CENTERED, win_y = SDL_WINDOWPOS_CENTERED;
     SDL_DisplayMode dm{};
-    if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0) {
+    const bool have_dm = (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0);
+    if (have_dm) {
         // Diagnostico de present rate: refresco del escritorio segun SDL (comparar con swapChainRate).
         hh::log("Video: desktop %dx%d @ %d Hz\n", dm.w, dm.h, dm.refresh_rate);
-        if (hh::video_config().wm != "windowed") {
+    }
+    if (vc.wm == "windowed") {
+        int rw = 0, rh = 0;
+        if (vc.win_w > 0 && vc.win_h > 0) {
+            win_w = vc.win_w;
+            win_h = vc.win_h;
+            if (vc.win_x >= 0 && vc.win_y >= 0) {
+                win_x = vc.win_x;
+                win_y = vc.win_y;
+            }
+        }
+        else if (hh_video_parse_size(vc.res, rw, rh)) {
+            win_w = rw;
+            win_h = rh;
+        }
+        else if (have_dm) {
             win_w = dm.w;
             win_h = dm.h;
         }
+        hh::log("Video: ventana windowed %dx%d @ (%d,%d)\n", win_w, win_h, win_x, win_y);
     }
-    window = SDL_CreateWindow("Hybrid Heaven", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, win_w, win_h, flags);
+    else if (have_dm) {
+        win_w = dm.w;
+        win_h = dm.h;
+    }
+    window = SDL_CreateWindow("Hybrid Heaven", win_x, win_y, win_w, win_h, flags);
 
     if (window == nullptr) {
         error_box(("Failed to create window: " + std::string(SDL_GetError())).c_str());
@@ -685,6 +901,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     static std::vector<int16_t> hh_mixed;
     hh_mixed.assign(hh_pcm, hh_pcm + sample_count);
     hh::menu_sfx::mix(hh_mixed.data(), sample_count);
+    hh_apply_audio_processing(hh_mixed.data(), sample_count);
     hh_pcm = hh_mixed.data();
 
     // Dump de audio OPT-IN: con HH_AUDIODUMP=<f> escribe hasta 4 MB de PCM en ese fichero (o

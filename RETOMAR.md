@@ -33,17 +33,24 @@
 Orden acordado con el mantenedor:
 
 6. **Acciones** (pantalla a pantalla): mapear cada entrada a la función del juego. **Parcial**:
-   `VENTANA DEBUG` engancha el modo desarrollador de RT64 (F1); `P. COMPLETA`, `VSYNC`,
-   `LÍMITE DE FPS` y `MOSTRAR FPS` aplican en vivo (`hh::video_set_fullscreen` / `video_set_vsync` /
-   `video_set_fps_limit` / `video_set_show_fps`) y **persisten en `config.ini` `[video]`** (el menú se
-   inicializa con esos valores); `MOSTRAR FPS` dibuja el indicador de números arriba-izquierda como
-   capa del overlay (también en gameplay). El resto (`CÁMARA LIBRE`, `APUNTADO LIBRE`, `RATIO`,
-   `RESOLUCIÓN`, `ANTIALIASING`) sigue **solo en memoria**.
+   `RATIO`, `RESOLUCIÓN`, `P. COMPLETA`, `ANTIALIASING`, `VSYNC`, `LÍMITE DE FPS`, `MOSTRAR FPS` y
+   `VENTANA DEBUG` aplican en vivo y **persisten en `config.ini` `[video]`** (`hh::video_set_aspect` /
+   `video_set_resolution` / `video_set_fullscreen` / `video_set_msaa` / `video_set_vsync` /
+   `video_set_fps_limit` / `video_set_show_fps` / `video_set_developer_mode`); el menú se inicializa
+   con esos valores. `res=ANCHOxALTO` con max(ancho/320, alto/240) y widescreen (`snap_overscan`) para
+   aspectos > 4:3 (arregla el `21:9` "caja pequeña"). Ventana `windowed`: geometría recordada (`win_*`)
+   → `res` concreta → nativa. `MOSTRAR FPS` mide presents reales. `VENTANA DEBUG` persiste; F1 en
+   caliente lo maneja el port (`hh::toggle_inspector`) porque el hook Win32 de RT64 solo se instala al
+   arrancar. **AUDIO HECHO**: `SONIDO` = `VOLUMEN` (0-100 %, afecta a todo) + `SALIDA`
+   (`ESTÉREO`/`MONO`/`AURICULARES` = crossfeed), persistido en `[audio]`. Ver VSYNC con `HH_FPS=1`.
+   **Pendiente acordado**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; de momento
+   NO), `DIFICULTAD` + `EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del juego),
+   `CONTINUAR`; SFX y después acentos/idiomas.
 7. **SFX** desde los eventos del modelo, retirando el puente actual (con el input muteado, el puente por
    cursor nativo queda en silencio).
 4. **Etiquetas propias + acentos del overlay**: reusar `include/hh/accent_glyphs.h` para ampliar el
    atlas y dejar de plegar en `to_ascii`. Validable con `HH_MENU_SCREEN=5` (IDIOMA) o navegando.
-8. **Validar en Windows** (paso 5 + dibujo + DEBUG + fix ROM + VSYNC/FPS).
+8. **Validar en Windows** (paso 5 + dibujo + DEBUG + fix ROM + GRÁFICOS/geometría de ventana).
 
 Alcance: **solo el árbol de menús** (estructura, navegación, dibujo, acciones y **persistencia** de
 las acciones conectadas en `config.ini`).

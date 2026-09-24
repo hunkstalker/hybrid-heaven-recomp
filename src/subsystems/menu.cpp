@@ -5,10 +5,11 @@
 
 #include "hh/menu.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 
-#include "hh.h"   // VideoConfig: valores iniciales de los selectores de GRÁFICOS
+#include "hh.h"   // VideoConfig/AudioConfig: valores iniciales de los selectores
 
 namespace hh::menu {
 namespace {
@@ -66,6 +67,34 @@ int fps_limit_default() {
     }
 }
 int show_fps_default() { return hh::video_config().showfps == "si" ? 1 : 0; }
+int developer_default() { return hh::video_config().developer == "si" ? 1 : 0; }
+// VOLUMEN: indice 0..10 (pasos de 10 %) según `[audio].volumen`.
+int volume_default() { return std::clamp((hh::audio_config().volume + 5) / 10, 0, 10); }
+// SALIDA: 0 MONO, 1 ESTÉREO, 2 AURICULARES según `[audio].salida` (orden MONO/ESTÉREO/AURICULARES).
+int output_default() {
+    const std::string& o = hh::audio_config().output;
+    if (o == "mono") return 0;
+    if (o == "auriculares" || o == "headphones" || o == "crossfeed") return 2;
+    return 1;  // estereo (default)
+}
+// RATIO: índice en {"AUTO","ORIGINAL","4:3","16:9","16:10","21:9"} según `[video].aspect`.
+int ratio_default() {
+    const std::string a = hh::video_config().aspect;
+    if (a == "original") return 1;
+    if (a == "4:3") return 2;
+    if (a == "16:9") return 3;
+    if (a == "16:10") return 4;
+    if (a == "21:9") return 5;
+    return 0;  // auto / expand
+}
+// ANTIALIASING: x0/x2/x4/x8 según `[video].msaa`.
+int msaa_default() {
+    const std::string& m = hh::video_config().msaa;
+    if (m == "off" || m == "none" || m == "0") return 0;
+    if (m == "2x") return 1;
+    if (m == "4x") return 2;
+    return 3;  // 8x (default)
+}
 
 Entry make_option(const char* label, bool marked = false) {
     Entry e;
@@ -161,13 +190,14 @@ void build_tree() {
     // aplicará los valores a RT64. Por defecto RATIO=AUTO y RESOLUCIÓN=AUTO.
     g_screens.push_back(make_screen(ScreenId::Graphics, ScreenKind::Menu, {
         make_selector_with_action("RATIO", {"AUTO", "ORIGINAL", "4:3", "16:9", "16:10", "21:9"},
-                                  Action::RatioSelect),
+                                  Action::RatioSelect, ratio_default()),
         make_selector_with_action("RESOLUCIÓN", {"AUTO", "ORIGINAL"}, Action::ResolutionSelect),
         // Los tres siguientes persisten en config.ini [video] y aplican en vivo (ver
         // feed_menu_navigation). El valor inicial sale de la config (default: borderless/SÍ/NATIVO).
         make_selector_with_action("P. COMPLETA", {"NO", "SÍ"}, Action::ToggleFullscreen,
                                   fullscreen_default()),
-        make_selector("ANTIALIASING", {"x0", "x2", "x4", "x8"}),
+        make_selector_with_action("ANTIALIASING", {"x0", "x2", "x4", "x8"}, Action::MsaaSelect,
+                                  msaa_default()),
         make_selector_with_action("VSYNC", {"NO", "SÍ"}, Action::ToggleVsync, vsync_default()),
         // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate).
         make_selector_with_action("LÍMITE DE FPS", {"NATIVO", "30", "60", "120", "144", "160"},
@@ -176,7 +206,8 @@ void build_tree() {
 
     // DEBUG: opciones de depuración (fuera de GRÁFICOS para no alargarlo).
     g_screens.push_back(make_screen(ScreenId::Debug, ScreenKind::Menu, {
-        make_selector_with_action("VENTANA DEBUG", {"NO", "SÍ"}, Action::ToggleDebug),
+        make_selector_with_action("VENTANA DEBUG", {"NO", "SÍ"}, Action::ToggleDebug,
+                                  developer_default()),
         // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
         make_selector_with_action("MOSTRAR FPS", {"NO", "SÍ"}, Action::ToggleShowFps,
                                   show_fps_default()),
@@ -184,10 +215,29 @@ void build_tree() {
 
     sync_resolution();
 
-    // SONIDO: lista (ya era así en el vanilla).
-    g_screens.push_back(make_screen(ScreenId::Sound, ScreenKind::List, {
-        make_option("ESTÉREO", /*marked=*/true),
-        make_option("MONO"),
+    // RESOLUCIÓN: fijar el valor persistido ([video].res) si está entre las opciones del ratio.
+    {
+        const std::string want = hh::video_config().res;
+        for (Screen& s : g_screens) {
+            if (s.id != ScreenId::Graphics) continue;
+            for (Entry& e : s.entries) {
+                if (e.action != Action::ResolutionSelect) continue;
+                for (size_t i = 0; i < e.options.size(); ++i) {
+                    if (e.options[i] == want) { e.value = static_cast<int>(i); break; }
+                }
+            }
+        }
+    }
+
+    // SONIDO: VOLUMEN general (0-100 % en pasos de 10) y SALIDA (ESTÉREO/MONO/AURICULARES). Antes
+    // era la lista vanilla ESTÉREO/MONO; ahora es un menu de selectores. Ambos persisten en [audio].
+    g_screens.push_back(make_screen(ScreenId::Sound, ScreenKind::Menu, {
+        make_selector_with_action("VOLUMEN",
+                                  {"0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%",
+                                   "90%", "100%"},
+                                  Action::VolumeSelect, volume_default()),
+        make_selector_with_action("SALIDA", {"MONO", "ESTÉREO", "AURICULARES"}, Action::OutputSelect,
+                                  output_default()),
     }));
 }
 

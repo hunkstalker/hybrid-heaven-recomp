@@ -84,6 +84,10 @@ namespace hh {
         std::string vsync = "si";        // si | no
         std::string fps = "nativo";      // nativo | 30 | 60 | 120 | 144 | 160
         std::string showfps = "no";      // si | no (indicador de FPS del overlay)
+        std::string developer = "no";    // si | no (VENTANA DEBUG: Inspector de RT64 con F1)
+        // Geometria de la ventana en modo `windowed` (recordada al cerrar). 0/-1 = sin definir.
+        int win_w = 0, win_h = 0;
+        int win_x = -1, win_y = -1;
     };
     const VideoConfig& video_config();
     VideoConfig& video_config_mutable();
@@ -94,10 +98,35 @@ namespace hh {
     void video_set_vsync(bool enabled);       // menu GRÁFICOS -> VSYNC
     void video_set_fps_limit(int hz);         // menu GRÁFICOS -> LÍMITE DE FPS (<=0 = nativo)
     void video_set_show_fps(bool enabled);    // menu DEBUG -> MOSTRAR FPS (indicador del overlay)
+    void video_set_developer_mode(bool enabled);  // menu DEBUG -> VENTANA DEBUG (Inspector F1)
+    void video_set_resolution(const std::string& res);          // menu GRÁFICOS -> RESOLUCIÓN
+    void video_set_aspect(const std::string& aspect, double target);  // menu GRÁFICOS -> RATIO
+    void video_set_msaa(const std::string& msaa);               // menu GRÁFICOS -> ANTIALIASING
+    // Fuerza re-aplicar [video] al userConfig de RT64 (res/aspecto no viven en GraphicsConfig).
+    void video_reapply();
+    // Persiste la geometria de la ventana actual (solo si esta en `windowed`).
+    void video_remember_window();
     void video_cycle_aspect();           // F2
     void video_cycle_msaa();             // F4
     // Persiste [video] (wm/vsync/fps) en config.ini preservando el resto del fichero.
     void video_config_save();
+
+    // VENTANA DEBUG: en Windows RT64 instala su hook de teclado solo al arrancar (si el modo
+    // desarrollador ya estaba activo), así que activarlo en caliente no habilita F1. El port lo
+    // detecta con `rt64_handles_dev_keys()` y, si no, abre/cierra el Inspector él mismo con F1.
+    bool rt64_handles_dev_keys();
+    void toggle_inspector();
+
+    // Config de audio ([audio] en config.ini): volumen general (0-100 %) y salida.
+    struct AudioConfig {
+        int volume = 100;            // 0..100 % (100 = como estaba, sin atenuar)
+        std::string output = "estereo";  // estereo | mono | auriculares
+    };
+    const AudioConfig& audio_config();
+    AudioConfig& audio_config_mutable();
+    void audio_set_volume(int percent);       // menu SONIDO -> VOLUMEN
+    void audio_set_output(const std::string& output);  // menu SONIDO -> SALIDA
+    void audio_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El
     // input del port no mapea el raton a botones N64 mientras lo esta, para no meter clics en el

@@ -13,6 +13,7 @@
 //
 // Sustituye a `module_sources.inc` / `load_module_by_source` (registro por offset de ROM retail).
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -236,7 +237,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
             if (cur.action == hh::menu::Action::ToggleDebug) {
-                hh::set_developer_mode(cur.value != 0);
+                hh::video_set_developer_mode(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleFullscreen) {
                 hh::video_set_fullscreen(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleVsync) {
@@ -248,6 +249,36 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::video_set_fps_limit(hz);
             } else if (cur.action == hh::menu::Action::ToggleShowFps) {
                 hh::video_set_show_fps(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::MsaaSelect) {
+                static const char* kMsaa[] = { "off", "2x", "4x", "8x" };
+                const int n = static_cast<int>(sizeof(kMsaa) / sizeof(kMsaa[0]));
+                hh::video_set_msaa(kMsaa[(cur.value >= 0 && cur.value < n) ? cur.value : 3]);
+            } else if (cur.action == hh::menu::Action::VolumeSelect) {
+                hh::audio_set_volume(std::clamp(cur.value, 0, 10) * 10);
+            } else if (cur.action == hh::menu::Action::OutputSelect) {
+                // Orden del selector: MONO, ESTÉREO, AURICULARES.
+                static const char* kOut[] = { "mono", "estereo", "auriculares" };
+                const int n = static_cast<int>(sizeof(kOut) / sizeof(kOut[0]));
+                hh::audio_set_output(kOut[(cur.value >= 0 && cur.value < n) ? cur.value : 1]);
+            } else if (cur.action == hh::menu::Action::ResolutionSelect) {
+                if (cur.value >= 0 && cur.value < static_cast<int>(cur.options.size())) {
+                    hh::video_set_resolution(cur.options[cur.value]);
+                }
+            } else if (cur.action == hh::menu::Action::RatioSelect) {
+                static const char* kAspect[] = { "auto", "original", "4:3", "16:9", "16:10", "21:9" };
+                static const double kTarget[] = { 0.0, 0.0, 4.0 / 3.0, 16.0 / 9.0, 16.0 / 10.0,
+                                                  21.0 / 9.0 };
+                const int n = static_cast<int>(sizeof(kAspect) / sizeof(kAspect[0]));
+                const int idx = (cur.value >= 0 && cur.value < n) ? cur.value : 0;
+                hh::video_set_aspect(kAspect[idx], kTarget[idx]);
+                // RATIO filtra RESOLUCIÓN: aplicar tambien la resolucion resultante del nuevo ratio.
+                for (const hh::menu::Entry& e : s.entries) {
+                    if (e.action == hh::menu::Action::ResolutionSelect && !e.options.empty() &&
+                        e.value >= 0 && e.value < static_cast<int>(e.options.size())) {
+                        hh::video_set_resolution(e.options[e.value]);
+                        break;
+                    }
+                }
             }
         }
     }

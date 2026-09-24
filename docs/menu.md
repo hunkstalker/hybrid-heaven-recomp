@@ -46,7 +46,9 @@ AJUSTES ->
             ANTIALIASING < x0 / x2 / x4 / x8 >
             VSYNC        NO/SÍ         (por defecto SÍ)
             LÍMITE DE FPS < NATIVO / 30 / 60 / 120 / 144 / 160 >  (NATIVO = refresco del monitor)
-      SONIDO -> lista ESTÉREO / MONO (activo en verde, resto gris)
+      SONIDO ->
+            VOLUMEN      < 0% … 100% > (pasos de 10; 100% = sin atenuar)
+            SALIDA       < MONO / ESTÉREO / AURICULARES > (AURICULARES = crossfeed)
       DEBUG ->
             VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
             MOSTRAR FPS    NO/SÍ
@@ -58,7 +60,21 @@ AJUSTES ->
   ratio); la fuente no tiene `:`, así que los ratios se rotulan `4:3`, `16:9`… con el `:` **dibujado
   con rectángulos** (como el chevron). Reglas: `RATIO=ORIGINAL → RESOLUCIÓN=ORIGINAL`,
   `RATIO=AUTO → RESOLUCIÓN=AUTO` y los **ratios concretos → la resolución mínima** de su lista. Por
-  defecto `RATIO=AUTO` y `RESOLUCIÓN=AUTO` (la nativa del SO → `[video] res = auto`).
+  defecto `RATIO=AUTO` y `RESOLUCIÓN=AUTO` (la nativa del SO → `[video] res = auto`). Aplican en vivo
+  (`hh::video_set_aspect` / `video_set_resolution`) y persisten (`aspect`/`res`); al cambiar `RATIO`
+  se re-aplica la `RESOLUCIÓN` resultante del filtro. `res` acepta `auto`/`original`/`2x`/`<n>`/`4k`/
+  `8k`/`ANCHOxALTO`.
+- **`ANTIALIASING`** (`x0/x2/x4/x8`): MSAA de RT64; por defecto `x8` (el de `[video].msaa`). Aplica en
+  vivo (`hh::video_set_msaa` → `set_graphics_config` → `updateMultisampling`) y persiste (`msaa`).
+  `res=ANCHOxALTO` usa como multiplicador el mayor de ancho/320 y alto/240, para que cada opción dé un
+  paso de escala distinto (antes varias colapsaban al mismo → parecía que "no cambiaba").
+- **Widescreen y ratios fijos**: el *snap* de overscan del port (`hh::snap_overscan`) se aplica a los
+  aspectos **más anchos que 4:3** (`auto`/`expand` y `16:9`/`16:10`/`21:9`); sin él, `AspectRatio::
+  Manual` escalaba el contenido 4:3 al target y salía una **caja pequeña centrada** (bug 2026-09-25).
+  `original`/`4:3` dejan el 4:3 nativo (288x224).
+- **Ventana `windowed`**: el tamaño inicial sale de la geometría recordada (`win_w/h/x/y`), si no de
+  una `res` concreta `ANCHOxALTO`, y si no de la resolución nativa del monitor. Al cerrar se guarda el
+  tamaño/posición actual (`hh::video_remember_window`). `P. COMPLETA` sigue siendo independiente.
 - **`P. COMPLETA`** (pantalla completa, `NO/SÍ`): **por defecto `SÍ`** (la realidad del port es
   `wm = borderless`). `NO` = ventana (`wm = windowed`), `SÍ` = completa (`wm = borderless`). Al cambiar
   el valor se aplica en vivo (`hh::video_set_fullscreen` → `set_graphics_config`), como el atajo F3.
@@ -68,19 +84,32 @@ AJUSTES ->
   Display`); un número = tasa fija (`RefreshRate::Manual`, `hh::video_set_fps_limit`). Es el
   `refreshRate` de RT64: interpola hacia la tasa objetivo y la **recorta al refresco del monitor**
   (`swapChainRate`); con `viOriginalRate`=30 del juego, `30` = sin interpolación y `60` = interpolado.
-- **Persistencia**: las acciones de `P. COMPLETA` / `VSYNC` / `LÍMITE DE FPS` / `MOSTRAR FPS`
-  persisten en `config.ini` `[video]` (`wm` / `vsync` / `fps` / `showfps`) y el menú se inicializa con
-  esos valores. El escritor compartido es `hh::config_ini_set` (`include/hh/config_ini.h`), que
-  preserva el resto del fichero.
+  **Verificar VSYNC**: con `HH_FPS=1` la línea `[hh-fps]` incluye `vsync=<0|1>` (estado real del
+  swapchain, `isVsyncEnabled`); al cambiarlo, el log muestra `[hh] vsync=... real=...`.
+- **Persistencia**: las acciones de `RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` /
+  `LÍMITE DE FPS` / `MOSTRAR FPS` / `VENTANA DEBUG` persisten en `config.ini` `[video]` (`aspect`/
+  `res`/`wm`/`msaa`/`vsync`/`fps`/`showfps`/`developer`) y el menú se inicializa con esos valores. El
+  escritor compartido es
+  `hh::config_ini_set` (`include/hh/config_ini.h`), que preserva el resto del fichero.
 - **`MOSTRAR FPS`**: indicador de **solo números** en la **esquina superior izquierda REAL** de la
   ventana, dibujado por el overlay (`hh::overlay::set_fps_indicator`) como **capa independiente** del
   frame del menú → se ve también en gameplay. Se ancla al framebuffer del swapchain con su propia
   proyección en píxeles (no al área 4:3 centrada del juego). La tasa es la **real de presentación**
   (frames que llegan al swapchain, `hh::overlay::presented_frames`), no la de `update_screen` (tasa VI).
 - **`DEBUG`** (submenú): **`VENTANA DEBUG`** (`NO/SÍ`) habilita el modo desarrollador de RT64
-  (Inspector con **F1**); **`MOSTRAR FPS`** (`NO/SÍ`). Se sacó de `GRÁFICOS` para no alargarlo.
-- **Listas** (IDIOMA, DIFICULTAD, SONIDO): la opción **aplicada** va en **verde** y el resto en **gris**
+  (Inspector con **F1**), aplica en vivo (`hh::video_set_developer_mode`) y **persiste** (`developer`);
+  **`MOSTRAR FPS`** (`NO/SÍ`), también persistente (`showfps`). Se sacó de `GRÁFICOS` para no alargarlo.
+  **F1 en caliente**: en Windows RT64 instala su *hook* de teclado solo al arrancar (si el modo dev ya
+  estaba activo); si se activa en caliente, el port detecta que RT64 no lo gestiona
+  (`hh::rt64_handles_dev_keys`) y maneja F1 él mismo (`hh::toggle_inspector` →
+  `processDeveloperShortcut(Inspector)`).
+- **Listas** (IDIOMA, DIFICULTAD): la opción **aplicada** va en **verde** y el resto en **gris**
   (deshabilitado), como en el original; **A** la marca y **B** atrás. El cursor lo marca la flecha nativa.
+- **`SONIDO`** (antes lista vanilla ESTÉREO/MONO): ahora `VOLUMEN` (0-100 % en pasos de 10; afecta a
+  **todo**: juego, música y SFX) y `SALIDA` (`MONO` / `ESTÉREO` / `AURICULARES`). `MONO` hace downmix
+  `(L+R)/2`; `AURICULARES` aplica **crossfeed** (un poco del canal opuesto filtrado en paso-bajo, para
+  auriculares). Aplican en vivo en `hh::queue_samples` (`hh_apply_audio_processing`) y persisten en
+  `[audio]`. El `%` no está en la fuente: se dibuja con rectángulos (como `:`/`.`).
 - **Selectores laterales** (CÁMARA LIBRE, APUNTADO LIBRE, RATIO, RESOLUCIÓN, P. COMPLETA, ANTIALIASING,
   VSYNC, LÍMITE DE FPS, VENTANA DEBUG, MOSTRAR FPS): **el activo en verde** y el resto en gris;
   izquierda/derecha cambian el valor. Todos los **valores empiezan en la misma columna** (los chevrons
@@ -126,7 +155,7 @@ junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`P. COMPLETA` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config. Falta el resto (pantalla a pantalla) |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
 | 7. SFX desde eventos del modelo (retirar el puente) | pendiente |
 | 8. Validar en Windows | pendiente |
 

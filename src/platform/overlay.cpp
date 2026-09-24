@@ -312,6 +312,18 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                     append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 5.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                 }
+                else if (c == '%') {
+                    // Porcentaje (la fuente no lo tiene): dos puntos 2x2 y una barra diagonal de 1 px.
+                    append_quad(vertices, indices, pen_x + 1.0f * t.scale_x, t.y + 1.0f * t.scale_y,
+                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                    append_quad(vertices, indices, pen_x + 5.0f * t.scale_x, t.y + 4.0f * t.scale_y,
+                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                    for (int row = 0; row < 5; ++row) {
+                        append_quad(vertices, indices, pen_x + static_cast<float>(5 - row) * t.scale_x,
+                                    t.y + static_cast<float>(1 + row) * t.scale_y, 1.0f * t.scale_x,
+                                    1.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                    }
+                }
                 pen_x += cw * t.scale_x;
             }
         }

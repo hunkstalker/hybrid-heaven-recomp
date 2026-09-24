@@ -52,6 +52,14 @@ std::atomic<int> g_developer_mode_req{ -1 };
 // Peticion de VSYNC (menu GRÁFICOS). -1 = sin cambio; 0/1 = desactivar/activar. Se aplica en el
 // hilo de render (update_screen) sobre el swapchain.
 std::atomic<int> g_vsync_req{ -1 };
+// Re-aplicar [video] al `userConfig` de RT64 (RESOLUCIÓN y RATIO no viven en GraphicsConfig, asi
+// que un cambio suyo no dispara `update_config`). 1 = pendiente.
+std::atomic<int> g_reapply_req{ 0 };
+// Peticion de abrir/cerrar el Inspector con F1 (cuando RT64 no gestiona sus propias teclas).
+std::atomic<int> g_inspector_req{ 0 };
+// true si RT64 instaló su hook de teclado de desarrollo al arrancar (modo dev ya activo). Si no,
+// F1 lo maneja el port (ver hh::toggle_inspector).
+bool g_rt64_dev_hook = false;
 }
 
 bool hh::dev_panel_open() {
@@ -59,7 +67,25 @@ bool hh::dev_panel_open() {
 }
 
 void hh::set_developer_mode(bool enabled) {
+    // Mantener GraphicsConfig.developer_mode en sincronia: set_application_user_config lo re-aplica
+    // (p. ej. al cambiar RESOLUCION/RATIO) y si no, apagaria el Inspector activado por el menu.
+    ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+    cfg.developer_mode = enabled;
+    ultramodern::renderer::set_graphics_config(cfg);
     g_developer_mode_req.store(enabled ? 1 : 0, std::memory_order_relaxed);
+}
+
+// Fuerza re-aplicar [video] (res/aspecto) al userConfig de RT64 en el hilo de render.
+void hh::video_reapply() {
+    g_reapply_req.store(1, std::memory_order_relaxed);
+}
+
+bool hh::rt64_handles_dev_keys() {
+    return g_rt64_dev_hook;
+}
+
+void hh::toggle_inspector() {
+    g_inspector_req.store(1, std::memory_order_relaxed);
 }
 
 // Menu GRÁFICOS -> VSYNC: persiste la preferencia y pide aplicarla en el hilo de render (el
@@ -164,6 +190,14 @@ static void set_application_user_config(RT64::Application* application, const ul
     else if (!res.empty() && res.find_first_not_of("0123456789") == std::string::npos) {
         application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
         application->userConfig.resolutionMultiplier = manual_mult(std::max(atoi(res.c_str()), 1));
+    }
+    else if (int rw = 0, rh = 0; std::sscanf(res.c_str(), "%dx%d", &rw, &rh) == 2 && rw > 0 && rh > 0) {
+        // "ANCHOxALTO" (p. ej. 1920x1080): multiplicador = mayor de ancho/320 y alto/240 (320x240 de
+        // referencia), para que cada resolucion del menu de un paso de escala distinto (antes solo
+        // miraba el alto y varias opciones colapsaban al mismo multiplicador -> "no cambia").
+        application->userConfig.resolution = RT64::UserConfiguration::Resolution::Manual;
+        application->userConfig.resolutionMultiplier =
+            manual_mult(std::max((rw + 160) / 320, (rh + 120) / 240));
     }
     else {
         // auto: resolucion nativa del monitor (alto/240).
@@ -331,6 +365,9 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
     // Set initial user config settings based on the current settings.
     const auto& cur_config = ultramodern::renderer::get_graphics_config();
     set_application_user_config(app.get(), cur_config);
+    // Si el modo dev ya estaba activo al crear la ventana, RT64 instala su hook de teclado (F1 lo
+    // gestiona el). Si se activa en caliente, el port debe manejar F1 (ver hh::toggle_inspector).
+    g_rt64_dev_hook = cur_config.developer_mode;
 
     // Force gbi depth branches to prevent LODs from kicking in.
     app->enhancementConfig.f3dex.forceBranch = true;
@@ -427,13 +464,30 @@ void hh::RT64Context::update_screen() {
             hh::log("[hh] developerMode=%d (menu DEBUG)\n", req);
         }
     }
+    // VENTANA DEBUG: F1 (que el port gestiona si RT64 no instaló su hook) -> abrir/cerrar Inspector.
+    if (g_inspector_req.exchange(0, std::memory_order_relaxed) != 0 && app != nullptr) {
+        if (app->userConfig.developerMode) {
+            app->processDeveloperShortcut(RT64::Application::DeveloperShortcut::Inspector);
+            hh::log("[hh] F1 -> Inspector (port)\n");
+        }
+    }
     // Menu GRÁFICOS -> VSYNC: aplica la peticion pendiente sobre el swapchain (solo hilo de render).
     {
         const int req = g_vsync_req.exchange(-1, std::memory_order_relaxed);
         if (req >= 0 && app != nullptr && app->swapChain != nullptr) {
             app->swapChain->setVsyncEnabled(req != 0);
-            hh::log("[hh] vsync=%d (menu GRÁFICOS)\n", req);
+            hh::log("[hh] vsync=%d (menu GRÁFICOS) real=%d\n", req,
+                    app->swapChain->isVsyncEnabled() ? 1 : 0);
         }
+    }
+    // Menu GRÁFICOS -> RESOLUCIÓN / RATIO: re-aplica [video] al userConfig (no pasan por
+    // GraphicsConfig, asi que update_config no se dispara con sus cambios).
+    if (g_reapply_req.exchange(0, std::memory_order_relaxed) != 0 && app != nullptr) {
+        const ultramodern::renderer::GraphicsConfig cfg = ultramodern::renderer::get_graphics_config();
+        set_application_user_config(app.get(), cfg);
+        app->updateUserConfig(true);
+        hh::log("[hh] re-aplicado [video] (res=%s aspect=%s)\n", hh::video_config().res.c_str(),
+                hh::video_config().aspect.c_str());
     }
     // Menu DEBUG -> MOSTRAR FPS: mide la tasa REAL de presentación (frames que llegan al swapchain,
     // ver hh::overlay::presented_frames) y publica el indicador (solo números, arriba-izquierda).
@@ -517,10 +571,11 @@ void hh::RT64Context::update_screen() {
                                         ? app->sharedQueueResources->targetRate : 0;
             const uint32_t vi_rate = (app->sharedQueueResources != nullptr)
                                          ? app->sharedQueueResources->viOriginalRate : 0;
-            hh::log("[hh-fps] update=%.1f present=%.1f (target=%u vi=%u swapChain=%u refresh=%d)"
-                    " | %llu display lists (%.2fs)\n",
+            const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
+            hh::log("[hh-fps] update=%.1f present=%.1f (target=%u vi=%u swapChain=%u refresh=%d"
+                    " vsync=%d) | %llu display lists (%.2fs)\n",
                     us_last / secs, (pr - pr_last) / secs, target, vi_rate, get_display_framerate(),
-                    static_cast<int>(app->userConfig.refreshRate),
+                    static_cast<int>(app->userConfig.refreshRate), vsync_real,
                     static_cast<unsigned long long>(dl - dl_last), secs);
             us_last = 0;
             pr_last = pr;
