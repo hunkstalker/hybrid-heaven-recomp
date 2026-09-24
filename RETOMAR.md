@@ -94,8 +94,8 @@ el fichero de la sesión anterior pulsaba demasiado pronto y no llegaba). Ver §
   publica el frame desde el **modelo `hh::menu`** (`include/hh/menu.h` + `src/subsystems/menu.cpp`) —
   entradas, cursor, **flecha nativa** (6×5) en posiciones nativas, listas en verde. `DEBUG`:
   `HH_MENU_SCREEN=<id>` dibuja una pantalla concreta. `feed_menu_navigation` mueve **nuestro** cursor
-  con los botones del juego (A/B/X aún van al handler nativo → paso 6). El menú nativo se intenta
-  ocultar (**ver §PROBLEMA ABIERTO**). `src/hooks/menu_overlay.cpp`.
+  con los botones del juego (A/B/X aún van al handler nativo → paso 6). El menú nativo queda **oculto
+  por defecto** (ver §PROBLEMA (resuelto)). `src/hooks/menu_overlay.cpp`.
 - **SFX de menú** (`src/platform/menu_sfx.cpp`): WAV en `assets/sounds/` (solo los `.wav` se copian a
   `sounds/` en la release), mezclados sobre el stream de audio del juego.
 
@@ -118,6 +118,15 @@ del nibble, IMPAR → bits 0-1). Dentro del glifo: **nivel 1 = tinta (texto)**, 
   `src/subsystems/input.cpp`); escribe `[overlay] calib dx=.. dy=.. sx=.. sy=..` en `hh.log`.
   Entorno: `HH_OVERLAY_X/Y/SX/SY` (delta), `HH_OVERLAY=0` desactiva el overlay del port.
   **F6** muestra/oculta el **menú NATIVO del juego** (oculto por defecto), no el overlay del port.
+  `HH_NATIVE=1` lo muestra ya al arrancar (equivale a F6; útil en headless).
+- **Bearing izquierdo de los glifos (no darle más vueltas)**: la fuente **no es uniforme**. Columna de
+  la 1.ª tinta dentro de la celda de 8 px: **0** = `M O V W X Z m w`; **1** = mayoría (incl. `A B C N
+  …`); **2** = `I h j k l r t`; **3** = `i`. El motor dibuja cada glifo en su celda **sin compensar**,
+  así que una línea que empiece por `M` sale **1 px a la izquierda** del resto (era el bug de "MODO
+  COMBATE"). Solo importa para el **primer glifo** de la línea: el overlay lo compensa a la columna 1
+  con `hh::font::game::glyph_left_bearing()` en `title_update` (**no** se compensa a mitad de palabra,
+  sería romper el interletrado). Cualquier ruta futura que dibuje texto (selectores, guía X/A/B,
+  `backend_modern`) debe aplicar la misma regla. Detalle: `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`.
 
 ## Menú (`hh_menu`) — diseño ACORDADO (2026-09-23)
 
