@@ -36,7 +36,8 @@ namespace hh {
     uint8_t* get_game_rdram();
 
     std::filesystem::path get_app_folder_path();
-    std::filesystem::path get_rom_path();
+    std::filesystem::path get_rom_path();                              // primera candidata (log)
+    std::vector<std::filesystem::path> get_rom_paths();                // todas las *.z64 (rom/ y raiz)
 
     void log(const char* fmt, ...);
     void error_box(const char* msg);

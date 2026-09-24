@@ -151,27 +151,43 @@ std::filesystem::path hh::get_app_folder_path() {
     return folder;
 }
 
+static bool has_z64_extension(const std::filesystem::path& path) {
+    std::string ext = path.extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return ext == ".z64";
+}
+
+// ROMs candidatas: cualquier `*.z64` en `<carpeta del .exe>/rom/` (primero) y en la propia carpeta
+// del .exe, ordenadas alfabéticamente. NO se busca en el directorio de lanzamiento (CWD): la carpeta
+// del ejecutable es la referencia portable. El nombre da igual (se valida por hash al cargar).
 static std::vector<std::filesystem::path> get_rom_candidates() {
-    // La ROM la aporta el usuario. Ubicación oficial: <carpeta del .exe>/rom/baserom.us.z64.
-    // Una salvaguarda: <carpeta del .exe>/baserom.us.z64. NO se busca en el directorio de
-    // lanzamiento (CWD): la carpeta del ejecutable es la referencia portable.
     const std::filesystem::path exe_dir = std::filesystem::path(get_executable_path()).parent_path();
     std::vector<std::filesystem::path> candidates;
-    for (const std::string& name : { "baserom.us.z64" }) {
-        candidates.emplace_back(exe_dir / "rom" / name);
-        candidates.emplace_back(exe_dir / name);
+    for (const std::filesystem::path& dir : { exe_dir / "rom", exe_dir }) {
+        std::error_code ec;
+        if (!std::filesystem::is_directory(dir, ec)) {
+            continue;
+        }
+        std::vector<std::filesystem::path> found;
+        for (const auto& entry : std::filesystem::directory_iterator(dir, ec)) {
+            if (entry.is_regular_file(ec) && has_z64_extension(entry.path())) {
+                found.push_back(entry.path());
+            }
+        }
+        std::sort(found.begin(), found.end());
+        candidates.insert(candidates.end(), found.begin(), found.end());
     }
     return candidates;
 }
 
+std::vector<std::filesystem::path> hh::get_rom_paths() {
+    return get_rom_candidates();
+}
+
 std::filesystem::path hh::get_rom_path() {
-    for (const auto& candidate : get_rom_candidates()) {
-        std::error_code ec;
-        if (std::filesystem::exists(candidate, ec)) {
-            return candidate;
-        }
-    }
-    return {};
+    const std::vector<std::filesystem::path> candidates = get_rom_candidates();
+    return candidates.empty() ? std::filesystem::path{} : candidates.front();
 }
 
 SDL_Window* window;
