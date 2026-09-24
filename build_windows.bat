@@ -172,8 +172,8 @@ popd
 echo.
 echo === LISTO ===
 echo Exe: %PORT%\build\windows\bin\%BUILDCFG%\Hybrid Heaven Recomp.exe
-echo Pon la ROM en la carpeta rom junto al .exe: build\windows\bin\%BUILDCFG%\rom\baserom.us.z64
-echo (tambien se acepta baserom.us.z64 junto al .exe como salvaguarda).
+echo Pon la ROM (.z64, Hybrid Heaven USA) en rom\ junto al .exe, o junto al propio .exe.
+echo Vale cualquier nombre *.z64 (se detecta por formato). SHA-1 esperado: 16dbc21620b52deab5c5abf8a309ac60adfbee85
 echo.
 if not defined CI pause
 goto :eof

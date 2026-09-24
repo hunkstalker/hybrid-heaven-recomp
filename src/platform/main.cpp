@@ -765,13 +765,17 @@ int main(int argc, char** argv) {
         }
     }
     if (err != recomp::RomValidationError::Good) {
+        // SHA-1 de la ROM USA retail (16 MB, "NHVE"). El runtime valida por XXH3-64, pero mostramos
+        // tambien el SHA-1 para que el usuario pueda verificarla con herramientas estandar.
+        constexpr const char* kRomSha1 = "16dbc21620b52deab5c5abf8a309ac60adfbee85";
         char expected[32];
         std::snprintf(expected, sizeof(expected), "0x%016llX",
                       static_cast<unsigned long long>(game_entry.rom_hash));
         std::string msg = "No se encontro una ROM valida de Hybrid Heaven (USA).\n\n";
         msg += "Coloca el archivo .z64 (version USA retail, 16 MB) en la carpeta del juego\n";
-        msg += std::string("o en la subcarpeta rom\\. El nombre da igual.\n\nHash requerido (XXH3-64): ")
-               + expected + "\n";
+        msg += "o en la subcarpeta rom\\. El nombre da igual.\n\n";
+        msg += std::string("SHA-1 esperado: ") + kRomSha1 + "\n";
+        msg += std::string("Hash interno (XXH3-64): ") + expected + "\n";
         if (rom_paths.empty()) {
             msg += "\nNo se encontro ningun archivo .z64.";
         }
