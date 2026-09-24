@@ -55,8 +55,9 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   swapchain presentado) y **se retiró**. Vía nueva: **render hook de RT64** (`SetRenderHooks`) +
   **plume** (como Goemon/recompui), dibujando encima del frame. `notes/2026-09-23-a2-overlay-primer-paso.md`.
   **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 con la fuente del juego + navegación
-  básica, y **menú nativo oculto por defecto** (el juego tiene **dos tablas de etiquetas idénticas**;
-  el filtro cubría solo una). `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
+  básica, y **menú nativo oculto por defecto** (el juego tiene **varias copias** de las etiquetas del
+  menú; el filtro cubría solo una). Diseño y estado: **`docs/menu.md`**; técnica:
+  **`docs/architecture.md` §7**. `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 

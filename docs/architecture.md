@@ -257,9 +257,25 @@ cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel
 - Render del overlay del menú PC (ADR 0008): `RT64::SetRenderHooks` + plume
   (`src/platform/overlay.cpp`), con **proyección uniforme (píxel cuadrado, área 4:3 centrada)**, porque
   el texto 2D del juego **no** va estirado a 16:9 (el widescreen solo expande el 3D).
-- Direcciones del menú de título: handler `0x801C1DB8`, etiquetas `base(0x801BF1A0)+0xFA14+16·idx`,
-  selección `0x801CC8C4`.
+- **Alineación / bearing**: el motor dibuja cada glifo en su celda de 8 px **sin compensar**, y la
+  primera tinta no cae en la misma columna en todos: `M O V W X Z m w` en la **0**, `I h j k l r t`
+  en la **2**, `i` en la **3**, el resto en la **1**. Solo importa para el **primer glifo de una
+  línea** (una línea que empiece por `M` sale 1 px a la izquierda del resto); el overlay lo compensa
+  a la columna 1 con `hh::font::game::glyph_left_bearing()` (`title_update`). **No** se compensa a
+  mitad de palabra (rompería el interletrado).
+- **Menú de título** (módulo `id=24`, base de enlace `0x801BF1A0`): handler `0x801C1DB8` (re-registra
+  la flecha `0x801CECFC` cada frame); selección `0x801CC8C4`. Las etiquetas del menú raíz están
+  **duplicadas byte a byte** en varias tablas (una por ruta de entrada/atrás): **set A** `0x801CEBB4`
+  (`func_801C18FC`, al pulsar START), **set B** `0x801CEC6C` (`func_801C1C44`) y **set C**
+  `0x801CF110` (`func_801C56B8`, el "atrás" de los submenús). Estructura: `idx0` flecha (gaiji
+  `A1FC`), `idx1..5` entradas (16 B), `idx6` variante `%p RESOLUTION`.
+- **Supresión del menú nativo**: el texto se compone con `0x8001B204`; el port lo envuelve
+  (`hh_entry_register_hook` → `filter_native_text`) y blankea el texto de los sets A/B/C + la flecha
+  **antes** de que el original lo lea, más `suppress_native` (backup/restore). Oculto por defecto;
+  **F6** lo alterna. Diseño del menú propio: `menu.md`.
 - Detalle y calibración: `../notes/2026-09-23-a2-render-hook-y-atlas.md`,
+  `../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`,
+  `../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
   `../notes/2026-09-23-b-fuente-formato-y-gaiji.md`.
 
 ## 8. Preguntas abiertas

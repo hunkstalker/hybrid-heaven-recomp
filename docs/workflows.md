@@ -87,7 +87,14 @@ cd build/linux
 DISPLAY=:99 SDL_VIDEODRIVER=x11 VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json \
   timeout 60 "./Hybrid Heaven Recomp"
 # Requiere Xvfb :99 (crear si falta) — ver note histórico de sesión.
+# Captura de pantalla puntual: DISPLAY=:99 import -window root out.png
 ```
+
+**Llegar al menú de título en headless** (validado 2026-09-24): un replay que **no toque nada hasta
+~t=60 s** y luego pulse **START** (`0x1000`) cada ~2 s. Los pulsos tempranos desvían a otra ruta.
+Formato `<t> <vis> <btns> <x> <y>` (`HH_REPLAY=<ruta> HH_REPLAY_PACE=1`); el `vis` (contador VI) es
+obligatorio: con 4 campos el parser confunde `vis` con botones. Sirve para medir el menú nativo
+(tablas de etiquetas) y capturar el overlay; ver `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
 
 ## 3. Protocolo de imágenes (visión por lotes)
 

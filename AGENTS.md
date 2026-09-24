@@ -22,17 +22,19 @@ Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}
 - Ejecuta la recomendación sin esperar confirmación salvo que sea destructiva, irreversible o toque
   ROMs/forks/push. El **plan establecido** (`RETOMAR.md`/`TODO.md`/Fases) es la opción por defecto;
   apartarse requiere avisarlo explícitamente.
+- **No inventar UI**: el menú del overlay debe verse **como el nativo** (1:1, sin elementos extra). Si
+  algo no está acordado, **confirmar antes de dibujar** (ver `docs/menu.md`).
+- **Un tema = un commit.** No trocear una tarea en varios commits ni reescribir historia (`squash`)
+  sin petición expresa.
 
 ## Persistencia y entorno (CRÍTICO)
 
-- **Lo importante vive dentro del repo, bien clasificado**: código, herramientas (`tools/`), documentación
-  (`docs/`, `notes/`) y artefactos de desarrollo en sus carpetas. Lo temporal puede quedar fuera, pero
-  **lo que deba conservarse se guarda en el repo**; no dejar logs, trazas, dumps ni scripts en carpetas
-  temporales del sistema (se pierden entre sesiones). Si una herramienta externa escribe fuera del repo,
-  copiar el resultado al proyecto al terminar.
-- Las dependencias de desarrollo son **reinstalables** con el gestor de paquetes; si se recrea el entorno, reinstalar y reconfigurar CMake.
-- Los artefactos ya construidos (`work/`, `toolchain/`, el binario del port) no se versionan y no hace
-  falta regenerarlos salvo cambio.
+- **Lo importante vive dentro del repo, bien clasificado** (código, `tools/`, `docs/`, `notes/`); lo
+  temporal puede quedar fuera, pero **lo que deba conservarse se guarda en el repo** (nada de logs,
+  dumps ni scripts en temporales del sistema). Si una herramienta externa escribe fuera, copiar el
+  resultado al repo.
+- Dependencias de desarrollo **reinstalables** con el gestor de paquetes; los artefactos ya construidos
+  (`work/`, `toolchain/`, el binario) no se versionan ni hace falta regenerarlos salvo cambio.
 
 ## Lee esto (y solo esto) al empezar
 
@@ -40,7 +42,7 @@ Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}
 2. **`PROYECTO.md`** — contexto y estado (corto).
 3. **`TODO.md`** — qué toca ahora.
 4. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
-5. Bajo demanda: `docs/workflows.md` (procedimientos), `docs/adr/`, `notes/` (evidencia), `notes/archive/`.
+5. Bajo demanda: `docs/workflows.md`, `docs/menu.md` (diseño del menú), `docs/adr/`, `notes/` (evidencia).
 6. Índice completo de la documentación (generado): **`docs/INDEX.md`**. Regenerar/validar:
    `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y tamaños sin escribir).
 
@@ -58,22 +60,22 @@ push.
 
 1. **N64Recomp** (fork) — `git -C lib/N64ModernRuntime/N64Recomp push origin hybrid-heaven`
 2. **N64ModernRuntime** (fork) — `git -C lib/N64ModernRuntime push fork hybrid-heaven`
-3. **Main repo** — **requiere `--force`** (el remoto conserva la historia per-file pre-reescritura y
-   diverge de la local): `git fetch origin && git tag backup-per-file origin/main &&
-   git push --force-with-lease origin main` (tag de seguridad opcional: `git push origin backup-per-file`).
+3. **Main repo** — **`--force-with-lease`** (el remoto conserva historia per-file y diverge):
+   `git fetch origin && git push --force-with-lease origin main` (opcional: `git tag backup-per-file`).
 
-Los gitlinks de `lib/` (y el pin `runtime.lock`) solo valen **tras** pushear los forks (si no, un clon
-nuevo no inicializa el submódulo; usa `build_windows.local.bat`).
+Los gitlinks de `lib/` (y `runtime.lock`) solo valen **tras** pushear los forks (usa `build_windows.local.bat`).
 
 ## Calibración crítica
 
 - **No concluir el estado de ejecución (freeze/cuelgue, qué se ve, dónde está el juego) solo desde
   logs headless.** Antes de afirmar "el juego se congela", ofrece al mantenedor que lo **valide
   visualmente** (build Windows/port) y espera su confirmación; el harness sin ventana puede engañar.
-- **Visión disponible** (verificado 2026-09-11; modelo DeepSeek V4.1 Flash): puedo leer imágenes.
-  Aun así el usuario **no ve adjuntos del chat** → los PNG se guardan en archivo y él los abre desde
-  su filesystem. Usar la visión con criterio (cada imagen consume contexto); para análisis masivo de
-  frames preferir representaciones baratas (ASCII/estadísticas). Si cambia el modelo, re-verificar.
+- **Distinguir SIEMPRE "medido" de "inferido"**: no afirmar timing ni comportamiento de ejecución sin
+  evidencia; si es inferencia del código, decirlo. No mezclar cosas distintas (p. ej. componer texto
+  ≠ cargar el módulo).
+- **Visión disponible** (modelo DeepSeek V4.1 Flash): puedo leer imágenes, pero el usuario **no ve
+  adjuntos del chat** → los PNG se guardan a archivo y él los abre. Usar con criterio (contexto);
+  para análisis masivo, representaciones baratas (ASCII/estadísticas). Re-verificar si cambia el modelo.
 - **Imágenes por lotes**: triaje con `tools/analysis/triage_screenshots.py` y lectura en lotes de
   2-3 volcando cada imagen a texto. Ver `docs/workflows.md` §3.
 - Dumps RDRAM del harness Linux vienen **word-swapped** → bswap32. En BizHawk leer CPU BE.
@@ -83,9 +85,8 @@ nuevo no inicializa el submódulo; usa `build_windows.local.bat`).
 - Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
 - Commitear cuando se valide una tarea o cuando haya que commitear documentación. No tocar ROMs ni
   `work/*.so` sin pedirlo.
-- **Higiene**: scripts/bats **puntuales** se eliminan tras usarse (no dejar residuos); los de uso
-  recurrente van en `tools/` (o la raíz para build/run) y se documentan. Borrar builds locales que no se usen (`.vs`, builds
-  obsoletos) antes de dar por cerrada una tanda.
+- **Higiene**: scripts/bats puntuales se eliminan tras usarse; los recurrentes van a `tools/` (o la
+  raíz para build/run) y se documentan. Borrar builds locales obsoletos al cerrar una tanda.
 
 ## Comandos, workflows y oráculo
 
@@ -96,11 +97,10 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
 ## Inventario
 
 - `PROYECTO.md`, `TODO.md`, `AGENTS.md` — docs vivos. · `docs/` (architecture, workflows,
-  documentation) y `docs/adr/` — técnico/decisiones.
+  documentation, menu) y `docs/adr/` — técnico/decisiones.
 - `recomp/` — config del pipeline (versionada): `hybrid-heaven.us.{yaml,toml}`, `overlays.txt`,
-  `macro.inc`, `symbol_addrs.txt`, `auto_funcs.txt`, `code_files.json`+`code_files.overlays.txt`
-  (manifiesto/orden de secciones), `n64recomp_changes/`, `rsp_hh_aspMain.toml` y `recomp/tools/`
-  (pipeline: splat/ELF/N64Recomp).
+  `symbol_addrs.txt`, `auto_funcs.txt`, `code_files.json`+`code_files.overlays.txt`, `n64recomp_changes/`,
+  `rsp_hh_aspMain.toml` y `recomp/tools/` (pipeline splat/ELF/N64Recomp).
 - `./` — port (CMake, `src/{platform,hooks,subsystems}`, `include/`, `assets/`, builds).
   `lib/rt64` y `lib/N64ModernRuntime` son **submódulos git** (fork propio; `.gitmodules`, ADR 0010).
 - `build/` — intermedios y salidas (gitignored): `build/recomp/{asm,build-elf,elf,RecompiledFuncs}`
