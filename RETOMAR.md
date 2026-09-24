@@ -2,53 +2,49 @@
 
 > **Handoff para la próxima sesión** (última: **2026-09-24**). Corto: estado, siguiente tarea y Git.
 > El **diseño** y la **técnica** viven en `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
+> **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
 
 ## Estado
 
 - **A2 (overlay del menú inicial)**: render hook de RT64 + plume + atlas RGBA8 de la fuente del juego.
   Validado en Windows en la fase A (`notes/2026-09-23-a2-render-hook-y-atlas.md`).
-- **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 (fuente + flecha nativa) + navegación
-  arriba/abajo; **menú nativo oculto por defecto** (F6 lo alterna). Los **3 bugs del overlay** están
-  **VALIDADOS en Windows** (bearing de "MODO COMBATE", nativo al volver atrás, cierre instantáneo).
-  Commit de código `82df034`. Ver `notes/2026-09-24-a2-*` (bugs) y
-  `notes/2026-09-24-docs-presupuesto-y-acentos.md` (RETOMAR corto + presupuesto de contexto).
-- **Paso 5 HECHO (2026-09-24, validado headless)**: navegación propia completa (arriba/abajo/izq-der,
+- **`hh_menu`**: modelo del árbol + dibujo 1:1 + **menú nativo oculto** (F6 lo alterna). Los **3 bugs del
+  overlay** están **validados en Windows** (`82df034`). Ver `notes/2026-09-24-a2-*.md`.
+- **Paso 5 HECHO (validado headless; falta Windows)**: navegación propia (arriba/abajo/izq-der,
   **A**=selecciona, **B**=atrás; **sin X**) y **control total**: el input del handler nativo se **mutea**
-  (`hh_native_dir_input`/`hh_native_ab_input`) mientras el overlay manda; su temporizador de
-  inactividad se mantiene a tope para que no cierre la pantalla solo. **Pendiente validar en Windows.**
-- **Dibujo de menú (2026-09-24)**: **listas** con la opción aplicada en **verde** y el resto en **gris**;
-  **selectores** con el activo en verde (valores juntos `NO/SÍ` o `< valor >` con flechas dibujadas);
-  **dígitos y `:` `.` dibujados**. NUEVA PARTIDA = `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE /
-  APUNTADO LIBRE`. GRÁFICOS = `RATIO / RESOLUCIÓN (filtrada por ratio) / P. COMPLETA / ANTIALIASING /
-  VSYNC (SÍ) / LÍMITE DE FPS (NATIVO)`. **DEBUG** es submenú en AJUSTES (`VENTANA DEBUG` → Inspector F1
-  + `MOSTRAR FPS`). IDs: **`HH_MENU_SCREEN=6`=GRÁFICOS, `=5`=IDIOMA, `=8`=DEBUG**.
-  Ver `notes/2026-09-24-a2-selectores-y-arbol.md`.
+  (`hh_native_dir_input`/`hh_native_ab_input`) mientras el overlay manda, y su temporizador de
+  inactividad se mantiene a tope. `feed_menu_navigation`.
+- **Dibujo de menú HECHO (validado headless)**: **listas** (aplicada verde, resto gris); **selectores**
+  (`NO/SÍ` o `< valor >` con flechas dibujadas; activo verde); **dígitos y `:` `.` dibujados**.
+  Árbol: NUEVA PARTIDA = `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE / APUNTADO LIBRE`; GRÁFICOS =
+  `RATIO` (filtra `RESOLUCIÓN`) / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` (SÍ) /
+  `LÍMITE DE FPS` (NATIVO); **DEBUG** submenú de AJUSTES (`VENTANA DEBUG` → Inspector F1 + `MOSTRAR FPS`).
+  `HH_MENU_SCREEN`: `6`=GRÁFICOS, `5`=IDIOMA, `8`=DEBUG. Ver `notes/2026-09-24-a2-selectores-y-arbol.md`.
+- **Fix ROM integrado en esta rama** (cherry-pick de `main`): el `.exe` detecta cualquier `*.z64` en la
+  raíz o en `rom/` (**por formato**, el nombre da igual), valida por hash y usa la primera válida; si
+  ninguna vale, muestra un mensaje con el **SHA-1** esperado.
 - **El overlay aún NO renderiza acentos** (los pliega a ASCII); ver §Acentos.
 - Diseño del menú: **`docs/menu.md`**. Técnica (overlay/fuente/alineación/supresión del nativo):
   **`docs/architecture.md` §7**.
 
 ## Siguiente tarea
 
-**Completar el menú ANTES de integrar los acentos.** Al revés no se pueden validar: la raíz no tiene
-tildes y los submenús (que sí) todavía no son navegables. Orden acordado con el mantenedor:
+**Completar el menú ANTES de los acentos** (los submenús ya son navegables, así se validan las tildes).
+Orden acordado con el mantenedor:
 
-5. **[HECHO 2026-09-24] Navegación propia** (A/B + selectores) y **neutralizar el input del handler
-   nativo** (control total). `feed_menu_navigation` cubre todo; submenús navegables (validado headless;
-   falta Windows).
-6. **Acciones**: mapear cada entrada a la función del juego (continuar, nueva partida, modo combate,
-   ajustes, resolución…), pantalla a pantalla. **Parcial**: `VENTANA DEBUG` ya engancha el modo
-   desarrollador de RT64; `CÁMARA LIBRE`/`APUNTADO LIBRE`/`RATIO`/`RESOLUCIÓN`/`P. COMPLETA`/
-   `ANTIALIASING`/`VSYNC`/`LÍMITE DE FPS`/`MOSTRAR FPS` cambian en memoria pero **no** se aplican a
-   RT64 ni se persisten.
-7. **SFX** desde los eventos del modelo, retirando el puente actual.
-4. **Etiquetas propias + acentos del overlay** (paso 4, **movido a después de completar el menú**):
-   reusar `include/hh/accent_glyphs.h` para ampliar el atlas del overlay y dejar de plegar en
-   `to_ascii`. Validable con `HH_MENU_SCREEN=6` (GRÁFICOS: RESOLUCIÓN, LÍMITE DE FPS) / `=5` (IDIOMA:
-   ESPAÑOL, CATALÁN, FRANCÉS…) o navegando.
-8. **Validar en Windows.**
+6. **Acciones** (pantalla a pantalla): mapear cada entrada a la función del juego. **Parcial**:
+   `VENTANA DEBUG` engancha el modo desarrollador de RT64 (F1); el resto (`CÁMARA LIBRE`,
+   `APUNTADO LIBRE`, `RATIO`, `RESOLUCIÓN`, `P. COMPLETA`, `ANTIALIASING`, `VSYNC`, `LÍMITE DE FPS`,
+   `MOSTRAR FPS`) cambia **solo en memoria**. Pendiente también: `P. COMPLETA` por defecto **SÍ**
+   (el port es `wm = borderless`).
+7. **SFX** desde los eventos del modelo, retirando el puente actual (con el input muteado, el puente por
+   cursor nativo queda en silencio).
+4. **Etiquetas propias + acentos del overlay**: reusar `include/hh/accent_glyphs.h` para ampliar el
+   atlas y dejar de plegar en `to_ascii`. Validable con `HH_MENU_SCREEN=5` (IDIOMA) o navegando.
+8. **Validar en Windows** (paso 5 + dibujo + DEBUG + fix ROM).
 
-Alcance: **solo el árbol de menús** (estructura, navegación y dibujo). **NO** persistir la config
-todavía (los selectores cambian en memoria; el guardado en `config.ini` queda para después).
+Alcance: **solo el árbol de menús** (estructura, navegación, dibujo y acciones). **NO** persistir la
+config todavía (los selectores cambian en memoria; el guardado en `config.ini` queda para después).
 
 ## Acentos — aclaración (dos sistemas distintos)
 
@@ -67,23 +63,19 @@ todavía (los selectores cambian en memoria; el guardado en `config.ini` queda p
 - **Diagnósticos** (`hh.log`): `HH_MENU_TRACE=1`, `HH_NATIVE=1` (muestra el nativo al arrancar;
   equivale a F6), `HH_OVERLAY_X/Y/SX/SY`, `HH_OVERLAY=0`, `HH_MENU_SCREEN=<id>`, `HH_FONT_TRACE=1`,
   `HH_ACCENTS=0`, `HH_LANG=es`. Atajos: F2 aspecto, F3 ventana, F4 MSAA, F5 idioma, **F6 menú nativo**.
-  Inspector de RT64: `HH_DEVELOPER=1` + F1.
+  Inspector de RT64: `HH_DEVELOPER=1` + F1 (o `DEBUG → VENTANA DEBUG = SÍ`).
 - **Regla ROM**: no tocar ROMs/`work/*.so` sin permiso. ROM de análisis: `/app/baserom.us.z64`
-  (Windows: `build\windows\bin\Release\hh.us.z64`).
+  (Windows: `build\windows\bin\Release\hh.us.z64`); el `.exe` acepta **cualquier `*.z64`** (nombre
+  indiferente). SHA-1 USA retail: `16dbc21620b52deab5c5abf8a309ac60adfbee85`.
 
 ## Git (estado al cerrar esta sesión)
 
-- **Paso 5 SIN COMMITEAR** (2026-09-24): `src/hooks/sections.cpp`, `src/platform/overlay.cpp`,
-  `include/hh/overlay.h`, `docs/menu.md`, `RETOMAR.md`, `TODO.md` + nota. No se commitea hasta que se
-  **valide en Windows** (regla: commitear tarea validada).
-- **`main` local** (SIN push), **árbol limpio**. Commits de **código** de la sesión: `2181fab` (hh_menu:
-  modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B), `4e4cf1e` (bugs 1 y 2 del overlay:
-  bearing + set C) y `82df034` (bug 3: cierre instantáneo). El resto son **docs** (RETOMAR corto +
-  `docs/menu.md`, presupuesto de contexto de arranque). HEAD exacto: **`git log`**.
-- Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX).
-  `c2ce652` (hh_menu) y `3aede33` (SFX submenús): **REVERTIDOS/eliminados**.
-- **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push: `ac4a89f` (traducción/idiomas), arreglo del
-  pin de rt64, `22e3eed` (ratón).
-- **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70` (gitlink correcto). **`N64ModernRuntime` /
-  `N64Recomp`**: en sync. Tags: `v0.1.x`…**`v0.4.0`**; próximo `v0.4.1`.
-- Push normal de `main` pendiente (**requiere `--force-with-lease`**; ver `AGENTS.md` §Push).
+- **Rama de trabajo: `menu-nativo`** (WIP del menú). Contiene TODO el trabajo posterior a **v0.4.0**
+  (los 18 commits que llegaron a `main` + el menú A2) **+ el fix ROM** (cherry-pick de `main`).
+  `origin/menu-nativo` = `4a989d5`; el local va **2 commits por delante** (los cherry-picks ROM, sin
+  push).
+- **`main` = release**: `v0.4.0` (`c977bd5`) + fix ROM + `build(version): 0.4.1`; `origin/main` =
+  `59cd15c` (push hecho). **Falta subir `4600fa3`** (SHA-1 + README) y **tag `v0.4.1`** (release.yml).
+- `origin/main` anterior (`8265b9d`: 18 commits A2/SFX/A1) **preservado en `menu-nativo`**.
+- `lib/rt64` (fork) y `N64ModernRuntime`/`N64Recomp`: en sync. Tags hasta **v0.4.0**.
+- Al retomar: `git switch menu-nativo`; si `main` avanzó, `git merge main` en `menu-nativo`.
