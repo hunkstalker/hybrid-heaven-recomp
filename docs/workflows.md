@@ -249,14 +249,17 @@ puntual es ruidoso → el siguiente refinamiento es un **write-trace diff** (tra
 ## 7. Documentación (índice y validación)
 
 `docs/INDEX.md` es **generado** (no editar a mano): agrupa todos los `.md` del proyecto (raíz,
-`docs/`, `notes/`) con título, resumen, líneas y fecha, y valida enlaces relativos y presupuestos de
-tamaño de los docs vivos.
+`docs/`, `notes/`) con título, resumen, líneas y fecha, y valida enlaces relativos y el **presupuesto
+de contexto del set de arranque**.
 
 ```sh
 python3 tools/analysis/docs_index.py          # regenera docs/INDEX.md y valida
 python3 tools/analysis/docs_index.py --check  # solo valida (útil como pre-commit/CI)
 ```
 
-Reglas que aplica: `AGENTS`/`PROYECTO`/`TODO`/`documentation` tienen límite duro (si se supera, el
-checker sale != 0); los `.md` vivos por encima de 250 líneas avisan. Si un doc vivo crece, recortar
-y archivar según `documentation.md` §6.
+Reglas que aplica: **enlaces rotos** y **set de arranque** por encima del presupuesto
+(`STARTUP_BUDGET_TOKENS`, def. 30k tokens ≈ 120 KB; `HH_DOCS_BUDGET_TOKENS` lo ajusta) hacen salir
+!= 0. Los `.md` vivos por encima de 250 líneas **solo avisan**. **No hay topes duros por fichero**: lo
+que se mide es el **total** de los docs que se leen al empezar sesión (`AGENTS`, `RETOMAR`, `PROYECTO`,
+`TODO`, `documentation`, `architecture`). Si un doc vivo crece, recortar y archivar según
+`documentation.md` §6.

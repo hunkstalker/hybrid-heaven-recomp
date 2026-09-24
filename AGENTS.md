@@ -39,12 +39,13 @@ Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}
 ## Lee esto (y solo esto) al empezar
 
 1. **`docs/documentation.md`** — cómo documentar (normativo; leer cada sesión).
-2. **`PROYECTO.md`** — contexto y estado (corto).
-3. **`TODO.md`** — qué toca ahora.
-4. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
-5. Bajo demanda: `docs/workflows.md`, `docs/menu.md` (diseño del menú), `docs/adr/`, `notes/` (evidencia).
-6. Índice completo de la documentación (generado): **`docs/INDEX.md`**. Regenerar/validar:
-   `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y tamaños sin escribir).
+2. **`RETOMAR.md`** — handoff: estado y tarea de la sesión (handoff corto).
+3. **`PROYECTO.md`** — contexto y estado (corto).
+4. **`TODO.md`** — qué toca ahora.
+5. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
+6. Bajo demanda: `docs/workflows.md`, `docs/menu.md` (diseño del menú), `docs/adr/`, `notes/` (evidencia).
+7. Índice completo de la documentación (generado): **`docs/INDEX.md`**. Regenerar/validar:
+   `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y el **presupuesto de arranque**).
 
 ## Al cerrar sesión
 

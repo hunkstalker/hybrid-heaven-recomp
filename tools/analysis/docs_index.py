@@ -4,14 +4,17 @@
 - Escanea los .md del proyecto (raíz, docs/, notes/; excluye terceros en port/, work/,
   toolchain/). Extrae título, resumen (blockquote inicial o primer párrafo) y nº de líneas.
 - Escribe docs/INDEX.md (generado, no editar a mano).
-- Verifica enlaces relativos entre documentos y presupuestos de tamaño.
+- Verifica enlaces relativos entre documentos.
+- Mide el **set de arranque** (los docs que se leen al empezar sesión, ver AGENTS.md §Lee esto) y
+  falla si su tamaño total supera el presupuesto de contexto (objetivo: no volver a consumir un % alto
+  del contexto al ponerse al día). Ver STARTUP_DOCS / STARTUP_BUDGET_TOKENS.
 
 Uso:
     python3 tools/analysis/docs_index.py            # regenera docs/INDEX.md y valida
     python3 tools/analysis/docs_index.py --check    # solo valida (no escribe)
     python3 tools/analysis/docs_index.py --quiet    # solo errores
 
-Salida: 0 si no hay enlaces rotos; 1 si los hay (los avisos de tamaño no fallan).
+Salida: 0 si no hay enlaces rotos ni se supera el presupuesto de arranque; 1 si algo falla.
 """
 from __future__ import annotations
 
@@ -30,13 +33,22 @@ ROOTS = ["AGENTS.md", "PROYECTO.md", "TODO.md", "README.md"]
 GLOBS = ["docs/**/*.md", "notes/**/*.md"]
 EXCLUDE = {"docs/INDEX.md"}
 
-# Presupuestos "duros" (fallan en --check) y avisos (solo informan).
-HARD_LIMITS = {
-    "AGENTS.md": 110,
-    "PROYECTO.md": 140,
-    "TODO.md": 170,
-    "docs/documentation.md": 120,
-}
+# Set que se lee al empezar sesión (ver AGENTS.md §"Lee esto"): lo que importa para el contexto es su
+# TAMAÑO TOTAL, no el de cada fichero por separado. Objetivo: no volver al problema de consumir un %
+# alto de la ventana al ponerse al día (hubo una sesión con ~30%). Se estima tokens ≈ bytes/4; el
+# tope (def. 30k tokens ≈ 120 KB ≈ ~3% de una ventana de 1M) salta MUCHO antes del 30%.
+STARTUP_DOCS = [
+    "AGENTS.md",
+    "RETOMAR.md",
+    "PROYECTO.md",
+    "TODO.md",
+    "docs/documentation.md",
+    "docs/architecture.md",
+]
+STARTUP_BUDGET_TOKENS = int(os.environ.get("HH_DOCS_BUDGET_TOKENS", "30000"))
+CONTEXT_WINDOW_TOKENS = 1_000_000   # referencia (DeepSeek V4.1); solo para el % informativo.
+
+# Aviso suave: docs vivos muy largos (no falla).
 WARN_LINES = 250
 
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
@@ -215,14 +227,26 @@ def main() -> int:
 
     for p in docs:
         n = len(p.read_text(encoding="utf-8", errors="replace").splitlines())
-        hard = HARD_LIMITS.get(rel(p))
-        if hard and n > hard:
-            issues.append(f"líneas: {rel(p)} tiene {n} > {hard} (presupuesto)")
-        elif n > WARN_LINES and not rel(p).startswith("notes/"):
+        if n > WARN_LINES and not rel(p).startswith("notes/"):
             warnings.append(f"líneas: {rel(p)} tiene {n} > {WARN_LINES}")
+
+    # Presupuesto del set de arranque (el objetivo real: no inflar el contexto al empezar sesión).
+    missing = [name for name in STARTUP_DOCS if not (ROOT / name).is_file()]
+    startup_bytes = sum((ROOT / name).stat().st_size for name in STARTUP_DOCS
+                        if (ROOT / name).is_file())
+    startup_tokens = startup_bytes // 4
+    pct = 100.0 * startup_tokens / CONTEXT_WINDOW_TOKENS
+    startup_line = (f"contexto de arranque: {len(STARTUP_DOCS)} docs, "
+                    f"{startup_bytes / 1024:.0f} KB ≈ {startup_tokens / 1000:.1f}k tokens "
+                    f"(~{pct:.1f}% de 1M)")
+    if startup_tokens > STARTUP_BUDGET_TOKENS:
+        issues.append(f"set de arranque supera {STARTUP_BUDGET_TOKENS // 1000}k tokens ({startup_line})")
+    for name in missing:
+        warnings.append(f"falta doc del set de arranque: {name}")
 
     if not args.quiet:
         print(f"documentos escaneados: {len(docs)}")
+        print(f"  {startup_line}")
         for w in warnings:
             print(f"  aviso: {w}")
         for b in broken:

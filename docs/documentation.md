@@ -15,7 +15,7 @@ histórico que no compite con la verdad actual. El objetivo es que una sesión n
 
 | Tema | Documento | Naturaleza |
 |---|---|---|
-| Arranque de sesión (reglas, comandos, orden de lectura) | `../AGENTS.md` | vivo, ≤1 pantalla |
+| Arranque de sesión (reglas, comandos, orden de lectura) | `../AGENTS.md` | vivo, corto |
 | Contexto, estado y roadmap del proyecto | `../PROYECTO.md` | vivo, ≤2 pantallas |
 | Tareas (única lista priorizada) | `../TODO.md` | vivo, corto |
 | Punto de retomada de la sesión actual | `../RETOMAR.md` | vivo, corto (handoff) |
@@ -62,7 +62,13 @@ de runtime). Formato: *Estado · Contexto · Decisión · Consecuencias · Alter
 
 ## 5. Estilo y tamaño
 
-- `../PROYECTO.md` ≤ ~2 pantallas; `../TODO.md` corto y priorizado; ADR ~1 página.
+- `../PROYECTO.md` ≤ ~2 pantallas; `../TODO.md` corto y priorizado; ADR ~1 página (guía editorial, sin
+  verificación automática por fichero).
+- **Presupuesto de arranque (lo único verificado)**: el **total** de los docs que se leen al empezar
+  sesión (`AGENTS`+`RETOMAR`+`PROYECTO`+`TODO`+`documentation`+`architecture`, ver `../AGENTS.md`
+  §Lee esto) no debe superar `STARTUP_BUDGET_TOKENS` (def. 30k tokens ≈ 120 KB) en
+  `tools/analysis/docs_index.py`; si se supera, `--check` falla. Objetivo: no volver a consumir un %
+  alto del contexto al ponerse al día (hubo una época con ~30 %).
 - Preferir tablas y listas; un dato, un sitio.
 - Enlazar con rutas relativas; **no dejar enlaces colgantes** (si borras/mueves un archivo, corrige
   las referencias en los docs vivos).
