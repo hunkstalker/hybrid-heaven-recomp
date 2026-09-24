@@ -49,7 +49,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [A2 — Bugs del overlay: alineación de "MODO COMBATE" y cierre al salir del menú](../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md) | Sesión 2026-09-24 (continuación). Arregla los bugs 1 y 3 reportados por el mantenedor. El bug 2 | 57 | 2026-09-24 |
+| [A2 — Bugs del overlay: alineación de "MODO COMBATE" y cierre al salir del menú](../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md) | Sesión 2026-09-24 (continuación). Arregla los bugs 1 y 3 reportados por el mantenedor. El bug 2 | 70 | 2026-09-24 |
 | [A2 — Ocultar el menú NATIVO: el juego tiene VARIAS tablas de etiquetas idénticas](../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md) | Sesión 2026-09-24 (continuación). Resuelve el bloqueante de `RETOMAR.md` §PROBLEMA ABIERTO | 74 | 2026-09-24 |
 | [Texto EUC-JP, gaiji europeos de la PAL y por qué USA no trae acentos](../notes/2026-09-23-texto-euc-jp-y-glifos-pal.md) | Sesión 2026-09-23. Investigación para traducir ES/CA/FR/DE con acentos. Complementa | 76 | 2026-09-23 |
 | [Spike de traducción — charset USA resuelto y sustitución en runtime (módulo 23)](../notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md) | Sesión 2026-09-23 (continuación del handoff `RETOMAR.md` §Tarea de ESTA sesión). | 105 | 2026-09-23 |

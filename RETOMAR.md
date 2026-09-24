@@ -9,9 +9,10 @@
 - **A2 (overlay del menú inicial)**: render hook de RT64 + plume + atlas RGBA8 de la fuente del juego.
   Validado en Windows en la fase A (`notes/2026-09-23-a2-render-hook-y-atlas.md`).
 - **`hh_menu` (2026-09-24)**: modelo del árbol + dibujo 1:1 (fuente + flecha nativa) + navegación
-  arriba/abajo; **menú nativo oculto por defecto** (F6 lo alterna); bugs del overlay resueltos
-  (bearing de "MODO COMBATE", **tercer set** de etiquetas al volver atrás, cierre por tiempo).
-  **Todo validado en headless; falta validar en Windows** (código de `4e4cf1e`; HEAD actual `b80a684`).
+  arriba/abajo; **menú nativo oculto por defecto** (F6 lo alterna).
+  **Bugs 1 (bearing de "MODO COMBATE") y 2 (tercer set al volver atrás): VALIDADOS en Windows.**
+  **Bug 3 (cierre del overlay): segunda causa encontrada; arreglado en el working tree SIN COMMITEAR**
+  (`hide_now` en el hilo del juego al cambiar de pantalla; ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`).
 - Diseño del menú: **`docs/menu.md`**. Técnica (overlay/fuente/alineación/supresión del nativo):
   **`docs/architecture.md` §7**. Evidencia: `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`,
   `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`.
@@ -34,11 +35,11 @@ todavía (los selectores cambian en memoria).
 
 ## Pendiente inmediato
 
-- **Validar en Windows** el código de `4e4cf1e`: nativo oculto por defecto, F6, **atrás desde
-  submenú**, alineación de "MODO COMBATE" y cierre rápido del overlay.
+- **Validar en Windows el fix del bug 3** (working tree, **sin commitear**): al seleccionar una opción
+  el overlay debe desaparecer **al instante** (no esperar al hilo de render). Si sale bien, commitearlo.
 - **Validar B (acentos)** en Windows: la inyección compila ("25 glifos inyectados") pero no se ha visto
   en pantalla (afecta a los rótulos de idioma: ESPAÑOL, CATALÁN, FRANÇAIS…).
-- Si sale bien, **push** de `main` (orden y `--force-with-lease`: `AGENTS.md` §Push).
+- Si todo sale bien, **push** de `main` (orden y `--force-with-lease`: `AGENTS.md` §Push).
 
 ## Método (rápido)
 
@@ -55,9 +56,12 @@ todavía (los selectores cambian en memoria).
 
 - **`main` local** (SIN push): `HEAD = b80a684`. Commits de código de la sesión: `2181fab` (hh_menu:
   modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B) y `4e4cf1e` (bugs del overlay: bearing,
-  set C, cierre). El resto (`44631e3`…`b80a684`) son docs. Árbol limpio. Sesiones previas: `8265b9d`,
-  `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX). `c2ce652` (hh_menu) y `3aede33`
-  (SFX submenús): **REVERTIDOS/eliminados**.
+  set C, cierre). El resto (`44631e3`…`b80a684`) son docs.
+- ⚠️ **Working tree SIN COMMITEAR**: fix del **bug 3** (`include/hh.h`, `src/hooks/menu_overlay.cpp`,
+  `src/hooks/sections.cpp`) + nota `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`. Committear
+  **tras la validación en Windows**.
+- Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX).
+  `c2ce652` (hh_menu) y `3aede33` (SFX submenús): **REVERTIDOS/eliminados**.
 - **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push: `ac4a89f` (traducción/idiomas), arreglo del
   pin de rt64, `22e3eed` (ratón).
 - **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70` (gitlink correcto). **`N64ModernRuntime` /

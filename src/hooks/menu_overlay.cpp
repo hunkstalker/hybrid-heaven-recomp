@@ -328,6 +328,15 @@ void title_update(uint8_t* rdram) {
     hh::overlay::publish(std::move(frame));
 }
 
+// Hilo del JUEGO: oculta el overlay YA. Se llama desde `hh_goto_hook` (transición de pantalla,
+// func_800058DC): al seleccionar una opción el handler nativo cambia de pantalla pero puede seguir
+// publicando nuestro frame (el de la raíz) durante la transición; ocultarlo aquí lo hace instantáneo
+// en vez de esperar al debounce de `tick`. Si la nueva pantalla sigue siendo la raíz, el handler
+// vuelve a publicar en el frame siguiente y el overlay reaparece.
+void hide_now() {
+    hh::overlay::publish(hh::overlay::Frame{});
+}
+
 // Render thread: si el menú de título dejó de publicar (salimos de él), oculta el overlay. El
 // umbral es de TIEMPO (no de ticks): `tick` corre a una tasa que no controlamos (ScreenUpdateAction,
 // ~30-110 Hz) y contar 30 ticks daba ~1 s de retardo al salir del menú (bug 2026-09-24). Con 150 ms

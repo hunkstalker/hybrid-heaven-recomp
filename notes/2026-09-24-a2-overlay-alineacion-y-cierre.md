@@ -39,19 +39,32 @@ glifo de cada línea a la columna de referencia 1:
 (captura `ours_root.png`). Es un desvío deliberado del render exacto del glifo para que el menú se
 vea como el nativo (uniforme); si se prefiere fidelidad estricta al bearing, se revierte.
 
-## Bug 3 — el overlay tardaba ~1 s en desaparecer al salir del menú
+## Bug 3 — el overlay tardaba en desaparecer al salir del menú
 
-`hh::menu_overlay::tick()` (hilo de render) ocultaba el overlay tras **30 llamadas** sin
-publicaciones. Pero `tick()` corre en cada `ScreenUpdateAction`, a una tasa que no controlamos
-(~30 Hz o más): 30 ticks ≈ **1 s** de retardo (el comentario decía "~0.3 s", incorrecto).
+**Dos causas en cadena** (la primera no bastaba, validado en Windows el 2026-09-24):
 
-**Arreglo:** umbral **por tiempo**, no por ticks: si pasan `HH_MENU_STALE_MS` (def. **150 ms**) sin
-publicaciones, se publica un `Frame{}` vacío (una sola vez). Independiente de la tasa de `tick`.
-`src/hooks/menu_overlay.cpp` (`tick`).
+1. `hh::menu_overlay::tick()` (hilo de render) ocultaba tras 30 llamadas sin publicaciones; a la
+   tasa real de `ScreenUpdateAction` (no fija, ~30–110 Hz) eso daba hasta **~1 s**. Primer arreglo:
+   umbral **por tiempo** (`HH_MENU_STALE_MS`, def. 150 ms) en vez de por ticks.
+2. Pero `hh_title_menu_hook` llama a `title_update` **después** del handler original. Al seleccionar
+   una opción, el handler llama a `func_800058DC` (cambio de pantalla) **y a continuación**
+   re-publicábamos el frame de la raíz en ese mismo frame; el ocultado real dependía luego de
+   `tick()` (hilo de render), que puede tardar. → el overlay seguía viéndose durante la transición.
 
-**Validado** (headless): al entrar en un submenú, `[overlay] ocultar: 150 ms sin publicar` justo
-después de fijarse el handler del submenú (antes ~1 s).
+**Arreglo** (`src/hooks/sections.cpp` + `src/hooks/menu_overlay.cpp`):
+- **`hh_goto_hook`** (envuelve `func_800058DC`, hilo del juego) llama a
+  **`hh::menu_overlay::hide_now()`** → publica un `Frame{}` vacío en el acto. Instantáneo,
+  independiente de `tick`.
+- `hh_title_menu_hook` **no** llama a `title_update` si la pantalla cambió ese frame
+  (`goto_after != goto_before`), para no re-publicar la raíz tras el cambio.
+- Se mantiene el umbral por tiempo de `tick` como red de seguridad.
+
+Si la nueva pantalla sigue siendo la raíz, el handler vuelve a publicar en el frame siguiente y el
+overlay reaparece (no parpadea al entrar).
+
+**Estado**: pendiente de validar en Windows (los bugs 1 y 2 ya validados 2026-09-24: MODO COMBATE
+alineado y el nativo ya no aparece al volver atrás).
 
 ## Pendiente
 
-- Validar los tres bugs en Windows (build release).
+- Validar este bug 3 en Windows (build release).

@@ -121,6 +121,7 @@ namespace hh {
     namespace menu_overlay {
         void title_update(uint8_t* rdram);   // desde el handler del menú de título
         void tick();                          // por frame desde update_screen
+        void hide_now();                      // oculta YA (al cambiar de pantalla; hilo del juego)
         bool visible();                       // overlay del port (HH_OVERLAY=0 lo desactiva)
         // Menú NATIVO del juego: oculto por defecto. F6 alterna su visibilidad. `suppress_native`
         // reescribe/restaura sus etiquetas en RDRAM; se llama desde hh_title_menu_hook.

@@ -242,6 +242,9 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
                 static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
                 guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
     }
+    // ¿El handler nativo cambió de pantalla este frame? (p. ej. al seleccionar una opción). En ese
+    // caso NO publicamos el frame del overlay (seguiría mostrando la raíz durante la transición).
+    bool screen_changed = false;
     // SFX del menú por CAMBIO REAL (no por pulsación de botón):
     //   - cursor movido (selección 0x801CC8C4 cambia) -> move
     //   - pantalla cambiada (goto) -> accept/back según el botón que lo provocó
@@ -272,10 +275,11 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
         func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original (puede mover cursor/cambiar pantalla)
         const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
         const uint32_t sel_after = guest_byte(0x801CC8C4u);
+        screen_changed = (goto_after != goto_before);
 
         if (sel_after != sel_before) {
             hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
-        } else if (goto_after != goto_before) {
+        } else if (screen_changed) {
             recomp_context ta = *ctx;
             func_801C1334_11BAE04(rdram, &ta);   // A/START
             recomp_context td = *ctx;
@@ -291,7 +295,11 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
-    hh::menu_overlay::title_update(rdram);
+    // Si la pantalla cambió (salimos de la raíz), no publicamos: `hide_now` ya la ocultó y el
+    // siguiente frame lo decidirá el nuevo handler. Si seguimos en la raíz, publicamos normal.
+    if (!screen_changed) {
+        hh::menu_overlay::title_update(rdram);
+    }
 }
 
 // Diagnostico B (fuente), gateado por HH_FONT_TRACE: envuelve el motor de texto residente para
@@ -357,6 +365,9 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
         hh::log("[menu] goto pantalla=%08X (obj=%08X)\n", static_cast<uint32_t>(ctx->r5),
                 static_cast<uint32_t>(ctx->r4));
     }
+    // A2: cambio de pantalla -> oculta el overlay al instante (el handler nativo puede seguir
+    // publicando el frame de la raíz durante la transición; ver menu_overlay::hide_now).
+    hh::menu_overlay::hide_now();
     func_800058DC_64DC(rdram, ctx);
 }
 
