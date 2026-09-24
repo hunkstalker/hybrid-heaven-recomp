@@ -37,6 +37,11 @@ unsigned char_height();    // 8
 bool glyph_value(unsigned char c, unsigned& value);
 // Posicion (px) del glifo en el atlas. false si no hay glifo.
 bool glyph_uv(unsigned char c, unsigned& x, unsigned& y);
+// Columna de la primera tinta del glifo dentro de su celda (0..7), o -1 si no hay glifo/esta vacio.
+// La fuente del juego NO es uniforme: M/O/V/W/X/Z empiezan en la columna 0 y el resto (salvo I, en
+// la 2) en la 1. El motor dibuja cada glifo en su celda sin compensar, asi que una linea que empiece
+// por 'M' sale 1 px a la izquierda del resto. Ver notes/2026-09-24-a2-*.md.
+int glyph_left_bearing(unsigned char c);
 
 }  // namespace game
 }  // namespace hh::font

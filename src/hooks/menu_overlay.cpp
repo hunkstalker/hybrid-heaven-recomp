@@ -13,12 +13,14 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 
 #include "hh.h"
+#include "hh/font.h"
 #include "hh/menu.h"
 #include "hh/overlay.h"
 
@@ -29,14 +31,19 @@ namespace {
 // (base 0x801BF1A0): idx0 = flecha de cursor; idx1..5 = entradas (16 B cada una).
 constexpr uint32_t kMod23Src = 0x5F1190;
 constexpr uint32_t kMod23Size = 0xAD36;
-// El juego tiene DOS tablas de etiquetas IDÉNTICAS para el menú de título, una por ruta de entrada:
-//   - set A: la usa el update func_801C18FC (al pulsar START).
-//   - set B: la usa func_801C1C44 (segunda entrada / desde el propio título).
-// Ambas con idx0 = flecha de cursor (gaiji A1FC); idx1..5 = entradas (16 B cada una); idx6 =
-// variante "%p RESOLUTION". El handler func_801C1DB8 re-registra la flecha (0x801CECFC) cada frame.
-// Ocultar solo el set A dejaba visible el menú compuesto por el set B (bug detectado 2026-09-24).
-constexpr uint32_t kNativeLabelAddrA = 0x801CEBB4u;   // set A (func_801C18FC)
-constexpr uint32_t kNativeLabelAddrB = 0x801CEC6Cu;   // set B (func_801C1C44)
+// El juego tiene VARIAS tablas de etiquetas IDÉNTICAS para el menú raíz (una por ruta de entrada y
+// por función de "atrás"), todas con la misma estructura: idx0 = flecha de cursor (gaiji A1FC);
+// idx1..5 = entradas (16 B cada una); idx6 = variante "%p RESOLUTION". Cubrir solo una dejaba ver el
+// menú compuesto por las demás (bug 2026-09-24: al volver atrás de un submenú aparecía el nativo).
+//   - set A 0x801CEBB4: update func_801C18FC (al pulsar START).
+//   - set B 0x801CEC6C: func_801C1C44 (2.ª entrada / desde el propio título).
+//   - set C 0x801CF110: func_801C56B8 ("atrás" desde el submenú NUEVA PARTIDA, y similares).
+// El handler func_801C1DB8 re-registra además la flecha en 0x801CECFC cada frame.
+constexpr uint32_t kNativeLabelAddrs[] = {
+    0x801CEBB4u,   // set A
+    0x801CEC6Cu,   // set B
+    0x801CF110u,   // set C
+};
 constexpr uint32_t kNativeArrowAddr = 0x801CECFCu;    // flecha del handler
 constexpr unsigned kNativeLabelsLen = 7 * 16;         // idx0..6
 
@@ -46,15 +53,20 @@ struct NativeRange {
     unsigned len;
 };
 constexpr NativeRange kNativeRanges[] = {
-    { kNativeLabelAddrA - 0x801BF1A0u, kNativeLabelsLen },   // set A (0xFA14)
-    { kNativeLabelAddrB - 0x801BF1A0u, kNativeLabelsLen },   // set B (0xFACC)
-    { kNativeArrowAddr - 0x801BF1A0u, 16 },                  // flecha del handler (0xFB5C)
+    { kNativeLabelAddrs[0] - 0x801BF1A0u, kNativeLabelsLen },   // set A (0xFA14)
+    { kNativeLabelAddrs[1] - 0x801BF1A0u, kNativeLabelsLen },   // set B (0xFACC)
+    { kNativeLabelAddrs[2] - 0x801BF1A0u, kNativeLabelsLen },   // set C (0xFF70)
+    { kNativeArrowAddr - 0x801BF1A0u, 16 },                     // flecha del handler (0xFB5C)
 };
-constexpr unsigned kNativeBackupSize = 2 * kNativeLabelsLen + 16;
+constexpr unsigned kNativeBackupSize = 3 * kNativeLabelsLen + 16;
 
 bool g_visible = true;
-// Menú nativo del juego: oculto por defecto (F6 lo muestra/oculta para comparar).
-bool g_native_visible = false;
+// Menú nativo del juego: oculto por defecto (F6 lo muestra/oculta para comparar). `HH_NATIVE=1` lo
+// muestra ya al arrancar (diagnóstico headless, equivale a F6).
+bool g_native_visible = [] {
+    const char* e = std::getenv("HH_NATIVE");
+    return e != nullptr && *e != '\0' && *e != '0';
+}();
 bool g_native_last_reported = false;
 // Copia del texto nativo para poder restaurarlo al volver a mostrar el menú (el juego lo compone
 // una sola vez por entrada; ver suppress_native).
@@ -207,9 +219,13 @@ void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
     if (rdram == nullptr || g_native_visible) {
         return;
     }
-    const bool in_labels =
-        (text_addr >= kNativeLabelAddrA && text_addr < kNativeLabelAddrA + kNativeLabelsLen) ||
-        (text_addr >= kNativeLabelAddrB && text_addr < kNativeLabelAddrB + kNativeLabelsLen);
+    bool in_labels = false;
+    for (uint32_t base : kNativeLabelAddrs) {
+        if (text_addr >= base && text_addr < base + kNativeLabelsLen) {
+            in_labels = true;
+            break;
+        }
+    }
     const bool is_arrow = text_addr == kNativeArrowAddr;
     if (!in_labels && !is_arrow) {
         return;
@@ -281,7 +297,21 @@ void title_update(uint8_t* rdram) {
             color = kYellow;
         }
         // Sangría nativa: las etiquetas del motor llevan un espacio inicial (donde va la flecha).
-        frame.texts.push_back({ x, y, g_scale_x, g_scale_y, color, " " + to_ascii(e.label) });
+        const std::string text = " " + to_ascii(e.label);
+        // Alineación del primer glifo: la fuente no es uniforme (M/O/V/W/X/Z empiezan en la columna 0
+        // y el resto en la 1), así que una línea que empiece por 'M' saldría 1 px a la izquierda del
+        // resto (p. ej. "MODO COMBATE"). El menú nativo solo usa inicios de columna 1, por eso se ve
+        // uniforme; compensamos el primer carácter a esa columna de referencia (1) para igualarlo.
+        float x_text = x;
+        for (char c : text) {
+            if (c == ' ') continue;
+            const int bearing = hh::font::game::glyph_left_bearing(static_cast<unsigned char>(c));
+            if (bearing >= 0) {
+                x_text += static_cast<float>(1 - bearing);
+            }
+            break;
+        }
+        frame.texts.push_back({ x_text, y, g_scale_x, g_scale_y, color, text });
 
         if (selected) {
             append_native_cursor(frame, x + 1.0f, y + 1.0f, kWhite);
@@ -298,17 +328,40 @@ void title_update(uint8_t* rdram) {
     hh::overlay::publish(std::move(frame));
 }
 
-// Render thread: si el menú de título dejó de publicar (salimos de él), oculta el overlay.
+// Render thread: si el menú de título dejó de publicar (salimos de él), oculta el overlay. El
+// umbral es de TIEMPO (no de ticks): `tick` corre a una tasa que no controlamos (ScreenUpdateAction,
+// ~30-110 Hz) y contar 30 ticks daba ~1 s de retardo al salir del menú (bug 2026-09-24). Con 150 ms
+// desaparece "al momento" sin parpadear. Ajustable: HH_MENU_STALE_MS=<ms>.
 void tick() {
+    using clock = std::chrono::steady_clock;
+    static const int stale_ms = [] {
+        const char* e = std::getenv("HH_MENU_STALE_MS");
+        return (e != nullptr && *e != '\0') ? std::atoi(e) : 150;
+    }();
     static uint64_t last_counter = 0;
-    static int stale_ticks = 0;
+    static clock::time_point last_publish = clock::now();
+    static bool hidden = false;
     const uint64_t counter = g_publish_counter.load(std::memory_order_relaxed);
+    const clock::time_point now = clock::now();
     if (counter != last_counter) {
         last_counter = counter;
-        stale_ticks = 0;
+        last_publish = now;
+        hidden = false;
         return;
     }
-    if (++stale_ticks == 30) {   // ~0.3 s sin publicaciones
+    if (hidden) {
+        return;
+    }
+    const long elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_publish).count();
+    if (elapsed >= stale_ms) {
+        hidden = true;
+        static const bool trace = [] {
+            const char* e = std::getenv("HH_MENU_TRACE");
+            return e != nullptr && *e != '\0' && *e != '0';
+        }();
+        if (trace) {
+            hh::log("[overlay] ocultar: %ld ms sin publicar (limite %d)\n", elapsed, stale_ms);
+        }
         hh::overlay::publish(hh::overlay::Frame{});
     }
 }

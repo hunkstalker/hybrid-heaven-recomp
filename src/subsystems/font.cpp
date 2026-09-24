@@ -108,4 +108,20 @@ bool glyph_uv(unsigned char c, unsigned& x, unsigned& y) {
     return true;
 }
 
+int glyph_left_bearing(unsigned char c) {
+    unsigned v = 0;
+    if (!glyph_value(c, v) || v >= kMaxValue) return -1;
+    const unsigned gx = (v % kAtlasCols) * kGlyphW;
+    const unsigned gy = (v / kAtlasCols) * kGlyphH;
+    for (unsigned x = 0; x < kGlyphW; ++x) {
+        for (unsigned y = 0; y < kGlyphH; ++y) {
+            const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
+            if (g_atlas[p + 0] != 0) {   // R != 0 => tinta del glifo principal (nivel 1)
+                return static_cast<int>(x);
+            }
+        }
+    }
+    return -1;   // glifo vacio (p. ej. el espacio)
+}
+
 }  // namespace hh::font::game

@@ -5,6 +5,11 @@
 
 ## Ahora (priorizado)
 
+- [x] **Bugs del menú overlay A2 (2026-09-24) — resueltos (headless; falta validar en Windows)**:
+  (1) "MODO COMBATE" 1 px a la izquierda → era el *bearing* del glifo 'M'; se compensa el primer
+  glifo (nota `2026-09-24-a2-overlay-alineacion-y-cierre.md`); (2) al volver atrás reaparecía el
+  nativo → **set C** de etiquetas (nota `2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`);
+  (3) el overlay tardaba ~1 s en cerrar → umbral por tiempo (150 ms), misma nota de alineación.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +

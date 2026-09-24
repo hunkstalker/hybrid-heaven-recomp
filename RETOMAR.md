@@ -67,6 +67,17 @@ arreglo actual; le faltaba el set B.
 **Nota:** el headless **sí** llega al menú con un replay adecuado (pulsos de START desde ~t=60 s;
 el fichero de la sesión anterior pulsaba demasiado pronto y no llegaba). Ver §Método.
 
+## 🐞 Bugs del overlay (2026-09-24) — RESUELTOS (headless; falta validar en Windows)
+
+1. **"MODO COMBATE" 1 px a la izquierda** → **no era posición**: es el *bearing* del glifo 'M'
+   (columna 0; el resto en la 1). Se compensa el primer glifo a la columna 1. Nota
+   `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`.
+2. **Al volver atrás de una opción reaparecía el menú NATIVO** → había un **tercer set** de
+   etiquetas (`0x801CF110`, `func_801C56B8`, el "atrás" de todos los submenús) que el filtro no
+   cubría. Anotado en `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
+3. **El overlay tardaba ~1 s en desaparecer** → el umbral de `tick()` era 30 ticks (~1 s a 30 Hz);
+   ahora es **por tiempo** (150 ms). Nota de alineación (misma que el bug 1).
+
 ## Qué hay hecho (A2 Fase A)
 
 - **Render hook de RT64** (`RT64::SetRenderHooks(init, draw, deinit)`) + **plume**: se dibuja sobre el

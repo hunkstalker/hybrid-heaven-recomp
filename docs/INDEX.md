@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 110 | 2026-09-21 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 131 | 2026-09-24 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 79 | 2026-09-23 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 170 | 2026-09-24 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 175 | 2026-09-24 |
 
 ## Técnico y guías (vivos)
 
@@ -48,7 +48,8 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [A2 — Ocultar el menú NATIVO: el juego tiene DOS tablas de etiquetas idénticas](../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md) | Sesión 2026-09-24 (continuación). Resuelve el bloqueante de `RETOMAR.md` §PROBLEMA ABIERTO: | 63 | 2026-09-24 |
+| [A2 — Bugs del overlay: alineación de "MODO COMBATE" y cierre al salir del menú](../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md) | Sesión 2026-09-24 (continuación). Arregla los bugs 1 y 3 reportados por el mantenedor. El bug 2 | 57 | 2026-09-24 |
+| [A2 — Ocultar el menú NATIVO: el juego tiene VARIAS tablas de etiquetas idénticas](../notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md) | Sesión 2026-09-24 (continuación). Resuelve el bloqueante de `RETOMAR.md` §PROBLEMA ABIERTO | 74 | 2026-09-24 |
 | [Texto EUC-JP, gaiji europeos de la PAL y por qué USA no trae acentos](../notes/2026-09-23-texto-euc-jp-y-glifos-pal.md) | Sesión 2026-09-23. Investigación para traducir ES/CA/FR/DE con acentos. Complementa | 76 | 2026-09-23 |
 | [Spike de traducción — charset USA resuelto y sustitución en runtime (módulo 23)](../notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md) | Sesión 2026-09-23 (continuación del handoff `RETOMAR.md` §Tarea de ESTA sesión). | 105 | 2026-09-23 |
 | [Input: desactivar ratón→botones mientras el Inspector de RT64 está abierto](../notes/2026-09-23-input-raton-y-panel-rt64.md) | Sesión 2026-09-23. Fix de usabilidad: al abrir el panel de desarrollador de RT64 | 39 | 2026-09-23 |

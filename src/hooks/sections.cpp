@@ -208,10 +208,19 @@ extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx) {
 // cubre la PRIMERA composición (fase de fade-in), en la que el handler del menú aún no corre.
 extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
     if (env_set("HH_MENU_TRACE")) {
+        // Cada `a3` (dirección del texto compuesto) distinto, una vez: sirve para mapear QUÉ tablas
+        // de etiquetas pasa cada pantalla (p. ej. al entrar/salir de submenús).
+        static std::vector<uint32_t> seen;
         static uint64_t n = 0;
-        if ((n % 300) == 0) {
-            hh::log("[entry] 0x8001B204 #%llu a3=%08X\n", static_cast<unsigned long long>(n),
-                    static_cast<uint32_t>(ctx->r7));
+        const uint32_t a3 = static_cast<uint32_t>(ctx->r7);
+        bool dup = false;
+        for (uint32_t v : seen) {
+            if (v == a3) { dup = true; break; }
+        }
+        if (!dup && seen.size() < 512) {
+            seen.push_back(a3);
+            hh::log("[entry] 0x8001B204 #%llu a3=%08X (nuevo)\n",
+                    static_cast<unsigned long long>(n), a3);
         }
         ++n;
     }
