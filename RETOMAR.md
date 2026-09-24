@@ -266,15 +266,16 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Git (estado al cerrar esta sesión)
 
-- **`main` local** (SIN push): `HEAD = 2181fab` (2026-09-24). El trabajo de `hh_menu` (modelo +
-  dibujo 1:1 + navegación + **menú nativo oculto**, fix de las **dos tablas**) va en **un solo commit**
-  `2181fab`; el árbol queda limpio. Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb`
-  · `de99550` · `b95c6a4` (SFX). `c2ce652` (hh_menu) y `3aede33` (SFX submenús):
-  **REVERTIDOS/eliminados** (no están en el árbol).
+- **`main` local** (SIN push): `HEAD = 4e4cf1e` (2026-09-24). Commits de la sesión:
+  `2181fab` (hh_menu: modelo + dibujo 1:1 + navegación + menú nativo oculto, set A/B),
+  `4e4cf1e` (bugs del overlay: bearing de "MODO COMBATE", **tercer set** de etiquetas C, cierre del
+  overlay por tiempo), `44631e3` (docs). Árbol limpio. Sesiones previas: `8265b9d`, `5867de5`
+  (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX). `c2ce652` (hh_menu) y `3aede33` (SFX
+  submenús): **REVERTIDOS/eliminados** (no están en el árbol).
 - `work/debug/hh_replay_title_hold.txt` (replay auxiliar, **gitignored**). El replay que **sí** llega
   al menú en headless es temporal (pulsos de START desde ~t=60 s); no está versionado.
-- **Pendiente inmediato**: **validar en Windows** el commit `2181fab` (menú nativo oculto por defecto
-  + F6). Si sale bien, push normal de `main`.
+- **Pendiente inmediato**: **validar en Windows** `4e4cf1e` (nativo oculto por defecto, F6, **atrás
+  desde submenú**, alineación de MODO COMBATE, cierre rápido del overlay). Si sale bien, push de `main`.
 - **`origin/main` = `c977bd5` (v0.4.0)**. Locales sin push previos: `ac4a89f` (traducción/idiomas),
   el arreglo del pin de rt64, `22e3eed` (ratón).
 - **`lib/rt64`** (fork): `hybrid-heaven` = `a8f0a70` (gitlink correcto). **`N64ModernRuntime` /
