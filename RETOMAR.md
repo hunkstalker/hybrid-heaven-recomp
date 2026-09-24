@@ -58,7 +58,7 @@ todavía (los selectores cambian en memoria; el guardado en `config.ini` queda p
 
 ## Git (estado al cerrar esta sesión)
 
-- **`main` local** (SIN push): `HEAD = cfd1daa`; **árbol limpio**. Commits de código de la sesión:
+- **`main` local** (SIN push): `HEAD = 550d5ed`; **árbol limpio**. Commits de código de la sesión:
   `2181fab` (hh_menu: modelo + dibujo 1:1 + navegación + nativo oculto, sets A/B), `4e4cf1e` (bugs 1 y
   2 del overlay: bearing + set C) y `82df034` (bug 3: cierre instantáneo). El resto son docs.
 - Sesiones previas: `8265b9d`, `5867de5` (overlay A2), `d6f4afb` · `de99550` · `b95c6a4` (SFX).
