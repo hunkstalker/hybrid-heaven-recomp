@@ -25,13 +25,22 @@ local DOMAIN = nil
 local count = 0
 local prev = false
 
+-- API correcta de BizHawk: memory.getmemorydomainlist() (devuelve una lista de nombres).
 local function pick_domain()
-  local ok, domains = pcall(memory.getmemorydomains)
-  if not ok or not domains then return false end
-  for _, d in ipairs(domains) do
+  local ok, list = pcall(memory.getmemorydomainlist)
+  if not ok or not list then return false end
+  -- Preferencias de nombre para N64 (BizHawk suele exponer "RDRAM").
+  local pref = { "RDRAM", "N64 RAM", "System Bus" }
+  for _, p in ipairs(pref) do
+    for _, d in ipairs(list) do
+      if d == p or string.find(d, p, 1, true) then DOMAIN = d return true end
+    end
+  end
+  -- Fallback: cualquier dominio que tenga >= 8 MB.
+  for _, d in ipairs(list) do
     local size = nil
     pcall(function() size = memory.getmemorydomainsize(d) end)
-    if size == RDRAM_SIZE then DOMAIN = d return true end
+    if size and size >= RDRAM_SIZE then DOMAIN = d return true end
   end
   return false
 end
@@ -70,6 +79,19 @@ if dbg then
   for k, _ in pairs(jp0) do keys[#keys + 1] = tostring(k) end
   table.sort(keys)
   dbg:write("joypad keys: " .. table.concat(keys, ", ") .. "\n")
+  local ok, list = pcall(memory.getmemorydomainlist)
+  if ok and list then
+    local names = {}
+    for _, d in ipairs(list) do
+      local size = nil
+      pcall(function() size = memory.getmemorydomainsize(d) end)
+      names[#names + 1] = string.format("%s(size=%s)", tostring(d), tostring(size))
+    end
+    dbg:write("domains: " .. table.concat(names, ", ") .. "\n")
+  else
+    dbg:write("getmemorydomainlist NO disponible\n")
+  end
+  if pick_domain() then dbg:write("DOMAIN elegido: " .. tostring(DOMAIN) .. "\n") end
   dbg:flush()
 end
 
