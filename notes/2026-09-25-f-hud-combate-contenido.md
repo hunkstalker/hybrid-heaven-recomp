@@ -1,7 +1,7 @@
 # Issue #3 — HUD de combate: anclaje por identidad de contenido (RESUELTO)
 
-> **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 3 partes. Aquí queda el cómo,
-> la herramienta usada (captura pareada F10) y los errores a no repetir.
+> **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 4 partes. Aquí queda el cómo,
+> la herramienta usada (captura pareada F7) y los errores a no repetir.
 
 ## Resumen de los arreglos (issue #3)
 
@@ -19,7 +19,16 @@ posición) — nunca por color.
 3. **Barra de combo** (validado): son **4 `G_FILLRECT`** en la fila `y=28..30` (x 64..182). Se
    anclan por **posición** (`kLeft`). El color NO sirve (rojo→azul→parpadeo) y la traza lee
    `fill_color=0` porque **RT64 pinta el relleno con el PRIM color**.
-4. **Herramienta F10 — captura pareada** (nueva): ver más abajo.
+4. **STAMINA gastada** (validado, v0.4.3): al atacar, la porción **gastada** de la stamina se dibuja
+   como una barra **más apagada** que debía ocupar el hueco pero salía **a la derecha**. Es un
+   **`G_FILLRECT`** en la fila `y=34..38` (Inspector: `Rect 64,34,92,38`, `Call #3`, 2 triángulos,
+   `Fillcolor`). Se ancla por **posición**, igual que el combo. (La captura del Inspector sale
+   morada por el **realce**, no por el color real.)
+5. **Herramienta F7 — captura pareada** (nueva): ver más abajo.
+
+La regla de fills quedó **generalizada** a las tres filas de barra del HUD de combate:
+`uly>=24 && uly<=38 && lry>=24 && lry<=38 && lrx<=190 → kLeft` (POWER `y24..27`, combo `y28..30`,
+stamina gastada `y34..38`).
 
 (Detalle de cada uno y de los intentos descartados, en el resto de la nota.)
 
@@ -39,7 +48,7 @@ POWER/STAMINA se clasifican por **hash de contenido** (primeros 64 B) en vez de 
   (ulx,uly,lrx,lry en 320x240) y color de entorno para desambiguar hashes compartidos.
 - **Disco del radial** (`a3036828` + `dfde6ac5`): **hash + caja exacta `27,19,59,51`**. Validado.
 - **Traza `rect_begin`**: volcado del scissor vigente por rect clasificado.
-- **F10**: captura pareada (traza + imagen), ver §Captura pareada.
+- **F7**: captura pareada (traza + imagen), ver §Captura pareada.
 - **Intento de combo por `dfde6ac5` 32×32**: **descartado y retirado** (falso positivo: no era la
   barra de combo; con `dfde6ac5` compartido habría over-match). La solución real es el fill por
   posición (§RESUELTO).
@@ -86,7 +95,7 @@ desplazados a la derecha y hay que llevarlos a la izquierda, igual que POWER/STA
 
 1. **No fiarse del color.** Usar solo: hash de contenido + caja + (si hace falta) color como
    pista secundaria, nunca como criterio único.
-2. Medir el **rect real del draw** (no la textura) con la traza F10 → `hh_hud.log`
+2. Medir el **rect real del draw** (no la textura) con la traza F7 → `hh_hud.log`
    (`tex rect ... box ulx,uly,lrx,lry`).
 3. Localizar la barra de combo en una captura con el combo visible analizando **píxeles** (PNG),
    corrigiendo escala (6) y offset (x=320) del área 4:3.
@@ -106,17 +115,17 @@ desplazados a la derecha y hay que llevarlos a la izquierda, igual que POWER/STA
 - **`f619e975`** (9 tramos) → era una **fuente/atlas compartido**: movió el **menú principal**.
 - Conclusión: ni `dfde6ac5` en esa banda ni `f619e975` son la barra de combo; **no identificada aún**.
 
-**Herramienta nueva: captura PAREADA con F10** (para atar `box` del trace a píxeles, de una vez).
-Cada **F10** abre una captura nueva y guarda, en el mismo instante:
+**Herramienta nueva: captura PAREADA con F7** (para atar `box` del trace a píxeles, de una vez).
+Cada **F7** abre una captura nueva y guarda, en el mismo instante:
 1. `hh_cap_<n>.log` — traza de identidades 2D de **un frame** (walker `dl_snap` + reescritor
    `hud_rewrite`), con `box` y `prim`/`env`. Los `seen` de dedup se vacían por **época** de captura
    (`hud_capture_epoch`), así cada captura es completa.
 2. `hh_cap_<n>.bmp` — imagen de la ventana (Windows: `PrintWindow`/`BitBlt`; ver
    `src/platform/rt64_render_context.cpp`).
-Otro **F10** mientras la anterior sigue abierta la cancela. `HH_HUD_TRACE=1` /
+Otro **F7** mientras la anterior sigue abierta la cancela. `HH_HUD_TRACE=1` /
 `HH_HUD_REWRITE_TRACE=1` siguen volcando a `hh_hud.log` (traza continua).
 
-**Próximo paso**: capturar la barra de combo **en rojo**, **en azul** y **parpadeando** (3×F10),
+**Próximo paso**: capturar la barra de combo **en rojo**, **en azul** y **parpadeando** (3×F7),
 analizar el `.bmp` (píxeles) y cruzar con el `.log` del mismo índice. Los elementos vetados
 (menú principal/fuente, menú de acciones) sirven de descarte.
 

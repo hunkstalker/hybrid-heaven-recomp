@@ -126,9 +126,9 @@ struct HudWalker {
     uint32_t image = 0;
     uint32_t fill_colour = 0;
     std::string texture_ident;
-    FILE* report_file = nullptr;   // copia de cada identidad a un fichero aparte (F10 -> hh_hud.log)
+    FILE* report_file = nullptr;   // copia de cada identidad a un fichero aparte (F7 -> hh_cap_N.log)
     // Estaticos: el trace vive en varias llamadas (una por lista enviada) y solo quiere cada
-    // identidad una vez por sesion. `seen_epoch` los vacia cuando empieza una captura nueva (F10),
+    // identidad una vez por sesion. `seen_epoch` los vacia cuando empieza una captura nueva (F7),
     // para que cada `hh_cap_<n>.log` sea completo y no herede lo ya visto en la captura anterior.
     static inline std::vector<std::string> seen_tex, seen_dl, seen_fill;
     static inline int seen_epoch = -1;
@@ -265,13 +265,13 @@ void snap_overscan(uint8_t* rdram, uint32_t list_address) {
     }
 }
 
-// --- Captura pareada a demanda (F10) --------------------------------------------------------
-// Objetivo: que un solo F10 deje, en el MISMO instante, la traza de identidades 2D de un frame
+// --- Captura pareada a demanda (F7) --------------------------------------------------------
+// Objetivo: que un solo F7 deje, en el MISMO instante, la traza de identidades 2D de un frame
 // (`hh_cap_<n>.log`) y una imagen de la ventana (`hh_cap_<n>.bmp`). Sin esto es imposible atar un
 // `box` del trace a lo que se ve (el fallo de la sesion anterior: se confundieron menu y combo).
 //
 // Estados:
-//   0 = idle; 1 = armada (F10 pulsado, aun sin traza); 2 = trazada (esperando el present para la imagen).
+//   0 = idle; 1 = armada (F7 pulsado, aun sin traza); 2 = trazada (esperando el present para la imagen).
 // La imagen la guarda `update_screen` (hilo de render) al ver `hud_capture_pending()`; el log lo
 // escribe el hilo de juego via `hud_trace_file()`. El fichero se protege con un mutex.
 enum { kCapIdle = 0, kCapArmed = 1, kCapTraced = 2 };
@@ -310,12 +310,12 @@ int hud_capture_epoch() {
 void hud_capture_trigger() {
     std::lock_guard<std::mutex> lk(g_cap_mutex);
     if (g_cap_file != nullptr) {
-        // Segundo F10: cancela la captura en curso.
+        // Segundo F7: cancela la captura en curso.
         std::fclose(g_cap_file);
         g_cap_file = nullptr;
         g_cap_state.store(kCapIdle, std::memory_order_relaxed);
-        hh::log("[hh-cap] captura cancelada (F10)\n");
-        std::fprintf(stderr, "[HH] F10: captura cancelada\n");
+        hh::log("[hh-cap] captura cancelada (F7)\n");
+        std::fprintf(stderr, "[HH] F7: captura cancelada\n");
         return;
     }
     const int idx = g_cap_index.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -324,14 +324,14 @@ void hud_capture_trigger() {
     std::snprintf(g_cap_image_path, sizeof g_cap_image_path, "hh_cap_%d.bmp", idx);
     g_cap_file = std::fopen(g_cap_log_path, "w");
     if (g_cap_file == nullptr) {
-        std::fprintf(stderr, "[HH] F10: no se pudo abrir %s\n", g_cap_log_path);
+        std::fprintf(stderr, "[HH] F7: no se pudo abrir %s\n", g_cap_log_path);
         g_cap_state.store(kCapIdle, std::memory_order_relaxed);
         return;
     }
     g_cap_start_ms.store(now_ms(), std::memory_order_relaxed);
     g_cap_state.store(kCapArmed, std::memory_order_relaxed);
-    hh::log("[hh-cap] captura %d armada (F10): %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
-    std::fprintf(stderr, "[HH] F10: captura %d -> %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
+    hh::log("[hh-cap] captura %d armada (F7): %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
+    std::fprintf(stderr, "[HH] F7: captura %d -> %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
 }
 
 bool hud_capture_pending() {
@@ -343,7 +343,7 @@ bool hud_capture_pending() {
         // con la traza (el estado de color del combo es estable durante decenas de ms).
         return (now_ms() - g_cap_traced_ms.load(std::memory_order_relaxed)) > 50;
     }
-    // Armada pero aun sin traza: si pasa el timeout (F10 en un frame sin display lists), se guarda
+    // Armada pero aun sin traza: si pasa el timeout (F7 en un frame sin display lists), se guarda
     // igualmente la imagen para no dejar la captura colgada.
     return (now_ms() - g_cap_start_ms.load(std::memory_order_relaxed)) > 500;
 }

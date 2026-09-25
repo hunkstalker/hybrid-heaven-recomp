@@ -49,6 +49,12 @@ int map_crop_q() {
     return g_map_crop.load(std::memory_order_relaxed) * 4;
 }
 
+// Reescritor activo/desactivado en caliente (F10). Arranca segun `HH_NO_HUD_REWRITE`.
+std::atomic<bool> g_rewrite_off{ [] {
+    const char* v = std::getenv("HH_NO_HUD_REWRITE");
+    return v != nullptr && *v != '\0' && *v != '0';
+}() };
+
 // F3DEX2.
 constexpr uint8_t kMtx = 0xDA, kMoveWord = 0xDB, kMoveMem = 0xDC, kDl = 0xDE, kEndDl = 0xDF;
 constexpr uint8_t kTexRect = 0xE4, kTexRectFlip = 0xE5, kRdpHalf1 = 0xE1, kRdpHalf2 = 0xF1;
@@ -80,13 +86,13 @@ void trace_site(const std::string& identity, const char* what, int ulx, int uly,
     hh::log("[hh-site] %s %s @ %d,%d..%d,%d (320x240)\n", what, identity.c_str(), ulx, uly, lrx, lry);
 }
 
-// HH_HUD_REWRITE_TRACE=1 (o F10, ver hh::hud_trace_toggle): cada identidad que ve el reescritor,
+// HH_HUD_REWRITE_TRACE=1 (o F7, captura pareada): cada identidad que ve el reescritor,
 // una vez, con su clase, donde, y su caja en 320x240 cuando el draw la tiene (rect/fill). La caja
 // es imprescindible cuando dos elementos comparten hash (p. ej. el radial y el disco usan el mismo
 // grafico): la combinacion hash+extension es la que desambigua. Vuelca a `hh_hud.log`.
 bool rewrite_trace_on() {
     return std::getenv("HH_HUD_REWRITE_TRACE") != nullptr ||
-           hh::hud_trace_enabled();   // F10 comparte interruptor
+           hh::hud_trace_enabled();   // F7 (captura) comparte interruptor
 }
 
 void trace_seen(const std::string& identity, const char* where, int cls, int ulx = -1, int uly = -1,
@@ -95,7 +101,7 @@ void trace_seen(const std::string& identity, const char* where, int cls, int ulx
     static std::vector<std::string> seen;
     static int seen_epoch = -1;
     const int ep = hh::hud_capture_epoch();
-    if (ep != seen_epoch) { seen_epoch = ep; seen.clear(); }   // cada captura (F10) es completa
+    if (ep != seen_epoch) { seen_epoch = ep; seen.clear(); }   // cada captura (F7) es completa
     char key[160];
     std::snprintf(key, sizeof key, "%s %d %d,%d,%d,%d", identity.c_str(), cls, ulx, uly, lrx, lry);
     for (const auto& s : seen) {
@@ -347,7 +353,7 @@ struct Writer {
     // `w0`/`w1` van ya en ORDEN DE SCISSOR (w0 = ulx/uly, w1 = lrx/lry): el llamante intercambia
     // las palabras de G_FILLRECT (ul en w1, lr en w0) y deja las de G_TEXRECT tal cual.
     void rect_begin(int cls, uint32_t w0, uint32_t w1) {
-        // Diagnostico (F10/HH_HUD_REWRITE_TRACE): scissor vigente al empezar un rect clasificado.
+        // Diagnostico (F7/HH_HUD_REWRITE_TRACE): scissor vigente al empezar un rect clasificado.
         if (cls != kAuto && rewrite_trace_on()) {
             const int q = 4;
             int su = have_scissor ? static_cast<int>((scissor_w0 >> 12) & 0xFFF) : -1;
@@ -805,15 +811,13 @@ int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t 
     // dinamica -> la identidad `tex:<addr>#<hash>` no casa (issue #3: 1er combate si, del 2o en
     // adelante no; disco y combo igual). La direccion NO es identidad.
     if (std::strncmp(identity, "tex:", 4) != 0) {
-        // Relleno de las barras de valor (el ancho cambia cada frame -> identidad distinta).
-        if (std::strncmp(identity, "fill:0x00000000@64,24,", 22) == 0) return kLeft;
-        // Barra de COMBO: 4 segmentos G_FILLRECT en la fila y=28..30 (x 64..182), debajo de POWER.
-        // El COLOR no sirve como identidad: los segmentos pasan de rojo (255,0,0) a azul (0,0,128)
-        // y parpadean en la transicion; ademas la traza lee `fill_color=0` porque RT64 pinta el
-        // relleno con el PRIM color. Confirmado con el Inspector de RT64 (HH_DEVELOPER=1): el draw
-        // bajo el cursor es `Rect 64,28,92,30`, 2 triangulos, prim rojo. Se clasifica por POSICION
-        // (fila estable), igual que el relleno de POWER/STAMINA. Ver notes/2026-09-25-f-hud-*.
-        if (uly >= 28 && uly <= 30 && lry >= 30 && lry <= 32) return kLeft;
+        // Rellenos del HUD de combate (G_FILLRECT): filas de POWER (y24..27), COMBO (y28..30) y
+        // STAMINA gastada (y34..38), en el tramo x~64..182. El COLOR no sirve como identidad:
+        // cambia (rojo/azul/naranja apagado) y RT64 pinta el relleno con el PRIM color, asi que la
+        // traza lee `fill_color=0`. Se anclan por POSICION (fila estable). Confirmado con el
+        // Inspector de RT64 (HH_DEVELOPER=1, F1): combo = `Rect 64,28,92,30`; stamina gastada =
+        // `Rect 64,34,92,38` (Call #3, 2 triangulos). Ver RETOMAR §Bugs abiertos y la nota.
+        if (uly >= 24 && uly <= 38 && lry >= 24 && lry <= 38 && lrx <= 190) return kLeft;
         return kAuto;
     }
     uint32_t h = 0;
@@ -858,12 +862,19 @@ bool any_classes() {
     return true;
 }
 
+bool enabled() {
+    return !g_rewrite_off.load(std::memory_order_relaxed);
+}
+
+void toggle() {
+    const bool now_on = g_rewrite_off.load(std::memory_order_relaxed);   // si estaba off -> ahora on
+    g_rewrite_off.store(!now_on, std::memory_order_relaxed);
+    hh::log("[hh] reescritor HUD %s (F10)\n", now_on ? "ACTIVADO" : "DESACTIVADO");
+    std::fprintf(stderr, "[HH] F10: reescritor HUD %s\n", now_on ? "ON" : "OFF");
+}
+
 uint32_t rewrite(uint8_t* rdram, uint32_t list_address) {
-    static const bool off = [] {
-        const char* v = std::getenv("HH_NO_HUD_REWRITE");
-        return v != nullptr && *v != '\0' && *v != '0';
-    }();
-    if (off || !any_classes() || rdram == nullptr) return 0;
+    if (g_rewrite_off.load(std::memory_order_relaxed) || !any_classes() || rdram == nullptr) return 0;
 
     g_turn ^= 1;
     Writer w{ rdram, kScratch[g_turn], kScratchSize };

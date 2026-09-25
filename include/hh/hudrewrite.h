@@ -24,8 +24,9 @@ enum Class : int { kAuto = 0, kLeft = 1, kRight = 2, kStretch = 3, kSpill = 4 };
 // criterios extra:
 //   - `box`  extension en px 320x240 (ulx,uly,lrx,lry); -1 si no aplica (dl). El par del
 //            radial/disco (`a3036828`/`dfde6ac5`) solo se ancla en 27,19,59,51.
-//   - Posicion: la barra de COMBO son 4 `G_FILLRECT` en la fila y=28..30 (color rojo/azul por
-//            prim; la traza lee fill_color=0). Se clasifica por fila, no por color.
+//   - Posicion: los rellenos del HUD de combate son `G_FILLRECT` en las filas de POWER (y24..27),
+//            COMBO (y28..30) y STAMINA gastada (y34..38). El color no sirve (cambia; y RT64 pinta
+//            el relleno con el prim, la traza lee fill_color=0). Se clasifican por fila.
 //   - `env`  color de entorno RGBA (G_SETENVCOLOR) del draw (pista secundaria).
 // Ver notes/2026-09-25-f-hud-combate-contenido.md.
 int class_of(const char* identity, int ulx = -1, int uly = -1, int lrx = -1, int lry = -1,
@@ -33,6 +34,11 @@ int class_of(const char* identity, int ulx = -1, int uly = -1, int lrx = -1, int
 
 // Hay alguna identidad clasificada en la tabla fija.
 bool any_classes();
+
+// Reescritor activo (toggle en caliente, tecla F10). `HH_NO_HUD_REWRITE=1` lo arranca desactivado.
+// Desactivado = se envia la display list original, sin anclar nada (A/B de diagnostico).
+bool enabled();
+void toggle();
 
 // Recorte del mapa en px (por lado), ajustable en caliente (teclas +/- del teclado numerico).
 int map_crop();

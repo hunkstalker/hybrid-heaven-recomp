@@ -47,10 +47,11 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-25, v0.4.2)**: **issue #3 CERRADO y validado en Windows** — el HUD de
+**Estado actual (2026-09-25, v0.4.3)**: **issue #3 CERRADO y validado en Windows** — el HUD de
 combate se ancla entero en widescreen también del 2.º combate en adelante: POWER/STAMINA por hash
-de contenido (`d820d8e`), disco plateado del radial por hash+caja `27,19,59,51`, y barra de combo
-(4 `G_FILLRECT` en `y=28..30`) por posición. Herramienta nueva: **F10 = captura pareada** (traza +
+de contenido (`d820d8e`), disco plateado del radial por hash+caja `27,19,59,51`, barra de combo
+(4 `G_FILLRECT` en `y=28..30`) y **stamina gastada** (`G_FILLRECT` en `y=34..38`), ambas por
+posición. Herramienta nueva: **F7 = captura pareada** (traza +
 imagen). `notes/2026-09-25-f-hud-combate-contenido.md`. Antes: **mapa widescreen (fase 07b)
 validado** (`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`); **migración ELF (ADR 0011) hasta M4**
 validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y **M4c** (SEGV

@@ -26,7 +26,7 @@
 #include "hh/hudrewrite.h"
 
 #if defined(_WIN32)
-// Para la captura de imagen (F10): HWND + GDI. Se incluye DESPUES de los headers de RT64 y SIN
+// Para la captura de imagen (F7): HWND + GDI. Se incluye DESPUES de los headers de RT64 y SIN
 // `WIN32_LEAN_AND_MEAN`: ese macro excluye las cabeceras COM (IUnknown/IStream/BSTR) que necesita
 // `dxcapi.h` (que entra por los headers DirectX de RT64) -> errores C2504/C2061. `NOMINMAX` ya lo
 // define el CMake del proyecto.
@@ -53,8 +53,11 @@ namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
 
+// Puntero a la aplicacion RT64 para los toggles de diagnostico en caliente (F8/F9). Ver abajo.
+RT64::Application* g_app = nullptr;
+
 #if defined(_WIN32)
-// Ventana nativa (HWND) para la captura de imagen pareada a la traza HUD (F10). Ver dl_snap.cpp.
+// Ventana nativa (HWND) para la captura de imagen pareada a la traza HUD (F7). Ver dl_snap.cpp.
 void* g_capture_window = nullptr;
 
 // BMP 32bpp sin compresion. `bgra_topdown` es la fila 0 = arriba; el BMP se escribe de abajo arriba.
@@ -319,7 +322,7 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
     RT64::Application::Core appCore{};
 #if defined(_WIN32)
     appCore.window = window_handle.window;
-    g_capture_window = window_handle.window;   // HWND para la captura de imagen (F10)
+    g_capture_window = window_handle.window;   // HWND para la captura de imagen (F7)
 #elif defined(__linux__) || defined(__ANDROID__)
     appCore.window = window_handle;
 #elif defined(__APPLE__)
@@ -371,6 +374,7 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
 
     // Create the RT64 application.
     app = std::make_unique<RT64::Application>(appCore, appConfig);
+    g_app = app.get();
 
     // Set initial user config settings based on the current settings.
     const auto& cur_config = ultramodern::renderer::get_graphics_config();
@@ -476,7 +480,7 @@ void hh::RT64Context::update_screen() {
     }
     app->updateScreen();
 
-    // Captura pareada (F10): en el present que sigue a la traza, guardar la imagen de la ventana.
+    // Captura pareada (F7): en el present que sigue a la traza, guardar la imagen de la ventana.
     // Junto con `hh_cap_<n>.log` (mismo instante) permite atar cada `box` del trace a lo que se ve.
     if (hh::hud_capture_pending()) {
         bool ok = false;
@@ -539,6 +543,27 @@ float hh::RT64Context::get_resolution_scale() const {
         default:
             return 1.0f;
     }
+}
+
+// Toggles de diagnostico en caliente para el A/B del parpadeo de geometria. Ver RETOMAR/nota.
+void hh::video_toggle_present_early() {
+    if (g_app == nullptr) return;
+    using Mode = RT64::EnhancementConfiguration::Presentation::Mode;
+    const bool was = (g_app->enhancementConfig.presentation.mode == Mode::PresentEarly);
+    g_app->enhancementConfig.presentation.mode = was ? Mode::SkipBuffering : Mode::PresentEarly;
+    g_app->updateEnhancementConfig();
+    hh::log("[hh-video] PresentEarly %s (F8)\n", !was ? "ON" : "OFF");
+    std::fprintf(stderr, "[VIDEO] F8: PresentEarly %s\n", !was ? "ON" : "OFF");
+}
+
+void hh::video_toggle_interpolation() {
+    if (g_app == nullptr) return;
+    using RefreshRate = RT64::UserConfiguration::RefreshRate;
+    const bool was_display = (g_app->userConfig.refreshRate == RefreshRate::Display);
+    g_app->userConfig.refreshRate = was_display ? RefreshRate::Original : RefreshRate::Display;
+    g_app->updateUserConfig(true);
+    hh::log("[hh-video] interpolacion %s (F9)\n", !was_display ? "ON (display)" : "OFF (original)");
+    std::fprintf(stderr, "[VIDEO] F9: interpolacion %s\n", !was_display ? "ON" : "OFF");
 }
 
 std::unique_ptr<ultramodern::renderer::RendererContext> hh::create_render_context(
