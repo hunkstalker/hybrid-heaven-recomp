@@ -86,6 +86,21 @@ Herramienta: `tools/analysis/eu_glyphs_find.py --buf 0x80109B60 --render` (PNG d
 **Pendiente**: fijar el **layout exacto del buffer** (tamaño de tile/orden) y el `valor→glifo` real
 para identificar cada acento; luego decidir vía (migrar overlay a la fuente de menú EU, o componer).
 
+## 4c. Fuente EU EXTRAÍDA Y LEGIBLE (2026-09-25) — formato confirmado
+
+**El fichero de fuente "idioma" EU está @ `0x8C3298`** (localizado por el primer bloque del fichero
+US `idx108`). Formato **idéntico al US**:
+- 32 B por **par** de valores (`bloque = v>>1`), paridad `v&1` elige el plano.
+- 8×8 2bpp, 2 px/byte (nibble). **US = 66 valores** (2112 B); **EU = 114 valores** (3648 B).
+- Verificado: `v1`="1", `v2`="2"; los valores altos son los acentos.
+- **El fichero EU NO es US+extra: está reordenado por completo** (solo 1 bloque coincide). El orden
+  de valores difiere, así que el `valor→Unicode` hay que **identificarlo leyendo** la hoja.
+
+Herramienta: `tools/text/extract_eu_font.py --sheet work/fonts/eu_all.png` (hoja etiquetada por valor).
+
+Lectura preliminar (valores altos, acentos): `56=Ü`, `64=Ï`, `65=Ä`, `74=Ö`, `85=À`, `86=Ç`,
+`89=É`, `93=Ê`, `96=Î`, `98=Ì`, `103=Ù`, `104/105=É`, `106=ö`, `107=ü`, `108=ß`, `112/113`… (revisar).
+
 ## 5. Pendiente (paso 4, vía B)
 
 1. **Identificar** cada slot acentuado (leer los 41 gaiji del preview `work/fonts/eu_gaiji.png` /
