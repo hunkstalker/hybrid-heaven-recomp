@@ -27,7 +27,9 @@ US_ROM = os.path.join(REPO, "build", "linux", "baserom.us.z64")
 EU_ROM = os.path.join(REPO, "work", "roms", "eu_dec.z64")
 US_MANIFEST = os.path.join(REPO, "notes", "us_manifest.yaml")
 
-W, H, STRIDE = 8, 12, 48   # color4: 8x12 2bpp
+# OJO: el dump runtime del motor muestra stride=32 (8x8, 32 B/glifo) para el estilo del menu, no 48.
+# Este stride/altura queda como provisional hasta fijarlo con el oraculo del emulador (ROM EU).
+W, H, STRIDE = 8, 12, 48   # PROVISIONAL (ver notes/2026-09-25-c-font-eu-color4-localizada.md)
 N_US, N_EU = 44, 76
 US_COLOR0_IDX = 107        # color0 US (byte-identico al EU) -> ancla de la vecindad
 US_COLOR0_SIZE = 4096
@@ -63,10 +65,9 @@ def locate_eu_color4(eu):
     return cand
 
 
-# El bloque EU (48 B) lleva 12 filas, pero las 2 primeras son "sangrado" del glifo vecino: el glifo
-# real ocupa las filas 2-11 (10 de contenido). Sin este desplazamiento los glifos salen mezclados.
-# Verificado: slot 0x67 = "a"+diéresis (ä), 0x6E = "e"+agudo (é), etc.
-EU_SHIFT_PX = 16
+# Sin desplazamiento. (Se probó un shift de 16 px asumiendo 48 B/12 filas; DESCARTADO: el motor
+# usa stride=32 segun el dump runtime. El layout EU definitivo se fija con el oraculo del emulador.)
+EU_SHIFT_PX = 0
 
 
 def decode_glyph(data, value, w=W, h=H, shift=EU_SHIFT_PX):

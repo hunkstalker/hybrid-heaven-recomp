@@ -28,13 +28,26 @@ Los ficheros de fuente EU se localizan por **vecindad en el residente, junto al 
 El `color4` EU (`0x8C3290`, 48 B/bloque, 8×12) **decodifica limpio** con el esquema 2bpp/paridad:
 `valor 1` = "1", etc. **76 glifos** (US 44).
 
-## 2b. Layout del glifo EU: **shift de 2 filas** (MEDIDO)
+## 2b. CORRECCIÓN — el estilo del menú es `fileidx=108` y `stride=32` (MEDIDO con el dump)
 
-El bloque EU (48 B, "12 filas") tiene las **2 primeras filas de "sangrado"** del glifo vecino: el
-glifo real ocupa las filas **2-11**. Sin desplazar 16 px en la lectura, los glifos salen mezclados
-(por eso el decode naíf parecía ruido). Con el shift, `slot 0x67` = **ä**, `0x6E` = **é**, `0x7F` =
-**ß**… que **coincide exactamente** con el mapeo `B0xx` del texto DE/FR. Implementado en
-`decode_glyph` (`EU_SHIFT_PX=16`).
+El dump runtime (`HH_FONT_DUMP_GLYPH=0` en el port US) muestra que al componer texto el motor llama
+`func_8001BFE4` con **`stride=32` y `fileidx=108`** (`[font] bfe4 color=0 code=... stride=32
+fileidx=108`). Es decir:
+- El estilo que usa el **menú/UI** no es "color0 idx107 con stride 32" sino **el fichero 108 con
+  stride 32** (8×8, 32 B/glifo). La suposición previa de "color4 = 48 B, 8×12" era **incorrecta**.
+- El fichero 108 US (2112 B) tiene por tanto **66 glifos** de 32 B (no 44); el EU (3648 B) tendría
+  **114**. El mapeo `EUC→valor` (`B0xx→0x56…`) es **compartido** por color0/color4 (`func_8001C88C`
+  y `func_8001D2E0` usan las mismas subrutinas `C670/C6E8/C734/...`).
+
+**Pendiente de fijar con evidencia**: el layout exacto del fichero EU (¿8×8/32 B fila a fila? ¿orden
+de bloques?) y la correspondencia `B0xx → glifo`. La deducción offline no basta y hay que hacerlo con
+el **oráculo del emulador** corriendo la ROM EU (volcar RDRAM tras cargar un gaiji) — ver
+`docs/workflows.md` §6.
+
+## 2c. Intento previo (descartado): shift de 2 filas
+
+Se probó asumir 48 B/12 filas con "sangrado" de 2 filas (shift 16 px); **no es el caso**: con el dato
+real (`stride=32`, `fileidx=108`) esa hipótesis queda descartada. `EU_SHIFT_PX` debe ser **0**.
 
 ## 3. Mapeo EUC → slot (MEDIDO)
 
