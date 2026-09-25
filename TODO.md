@@ -82,14 +82,17 @@
      (`Move`/`Accept`/`Back`) en `feed_menu_navigation`; **puente retirado** (quedaba en silencio con
      el input muteado y nunca disparaba `back`). Validado: modelo (eventos incl. `Back`). Pendiente
      Windows.
-     **ACENTOS (paso 4) — vía B (glifos REALES) desbloqueada (2026-09-25)**: el atlas del overlay usa
-     `color0` 8x8; para tildes de todos los idiomas se usarán los **gaiji reales de la ROM EU**
-     (`color4`, 8x12, 76 glifos). **Los offsets del manifiesto EU están mal** (apuntaban a código):
-     la fuente real está por vecindad del `color0` US → **color4 EU @ `0x8C3290`** (decodifica limpio,
-     verificado). Mapeo `B0xx→slot` (`0xA1→0x56` secuencial) en `eu_dec` @`0x1EA30`.
-     Herramienta `tools/text/extract_eu_font.py` (+preview `work/fonts/eu_gaiji.png`). Detalle:
-     `notes/2026-09-25-c-font-eu-color4-localizada.md`. **Falta**: identificar cada slot acentuado,
-     migrar/integrar en el atlas del overlay, quitar `to_ascii` y validar.
+     **ACENTOS (paso 4) — fuente EU EXTRAÍDA Y LEGIBLE (2026-09-25)**: el atlas del overlay usa
+     `color0` 8x8 (compone acentos); se usarán los **glifos REALES de la ROM EU**. **Fuente EU
+     "idioma" @ `eu_dec.z64` `0x8C3298`**: 114 valores, formato idéntico al US (32 B por par `v>>1`,
+     paridad `v&1`, 8x8 2bpp). Validado `v1`="1", `v2`="2"; acentos reales en valores altos (Ü Ä Ö À
+     Ç É Ê Î Ì Ù ü ö ß...). El fichero EU **está reordenado por completo** (no es US+extra). El menú
+     vanilla EU no se tradujo (inglés), pero la fuente con tildes existe (texto in-game). Herramienta:
+     `tools/text/extract_eu_font.py --sheet work/fonts/eu_all.png` (hoja etiquetada por valor).
+     Detalle: `notes/2026-09-25-c-font-eu-color4-localizada.md`. **Falta**: (1) identificar cada valor
+     (0..113) con su Unicode leyendo la hoja; (2) integrar los bloques EU en el atlas del overlay;
+     (3) quitar `to_ascii` y mapear UTF-8→valor; (4) validar (`HH_MENU_SCREEN=5`) y Windows.
+     Para capturas: `tools/analysis/bizhawk_eu_glyph_capture.lua` (v3, botón `L`, sin hooks).
      **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
      ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
      juego), `CONTINUAR`. Extras de audio (widening/EQ) evaluables más adelante. **Steam Deck**
