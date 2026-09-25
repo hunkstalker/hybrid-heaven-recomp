@@ -535,7 +535,9 @@ void text_set_language(const std::string& code) {
     if (code == state().current) return;
     apply_language(code);
     write_config_language(code);
-    hh_trans_reapply_language();  // cambia el texto ya cargado (menus) sin recargar el juego
+    if (env_flag("HH_LANG_REAPPLY", true)) {
+        hh_trans_reapply_language();  // cambia el texto ya cargado (menus) sin recargar el juego
+    }
     hh::log("[text] idioma activo: '%s' (traduciendo=%d)\n", code.c_str(),
             state().enabled ? 1 : 0);
 }

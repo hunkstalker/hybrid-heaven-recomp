@@ -5,10 +5,12 @@
 
 ## Ahora (priorizado)
 
-- [ ] **BUG: cambiar de idioma acelera el juego (2026-09-25)**. Al cambiar idioma (IDIOMA/F5) el juego
-  corre al doble: en `[hh-fps]`, `vi` (RT64 `viOriginalRate`) pasa de **30 → 60** y `present` casi se
-  duplica. Repro headless: `HH_LANG_CYCLE_AT=15 HH_FPS=1`. Sospecha: `hh_trans_reapply_language`
-  (re-escribe módulos en RDRAM en caliente). Detalle en `RETOMAR.md §BUG CONOCIDO`.
+- [x] **BUG resuelto (headless, 2026-09-25): cambiar de idioma aceleraba el juego (30→60)**. Causa:
+  `hh_trans_reapply_language` reescribía el módulo entero y pisaba cambios del juego (relocs de código,
+  buffers de trabajo). Fix: re-aplicar solo los bytes cuyo contenido coincide con el testigo `written`
+  (lo escrito en la carga) + poda de solapes y tope de memoria. Knob A/B `HH_LANG_REAPPLY=0`.
+  Validado headless (`vi=30` estable); **falta confirmar en Windows**.
+  `notes/2026-09-25-e-fix-reapply-idioma.md`.
 - [x] **Bugs del menú overlay A2 (2026-09-24) — VALIDADOS en Windows**: bearing de "MODO COMBATE",
   **tercer set** de etiquetas al volver atrás, y cierre del overlay (instantáneo al cambiar de
   pantalla). Ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-dos-tablas.md`.

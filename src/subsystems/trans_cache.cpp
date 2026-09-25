@@ -25,6 +25,7 @@
 // Ver docs/adr/0007-cache-assets-y-loader-nativo.md y
 // notes/2026-09-18-faseb-cache-trans-implementado.md.
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -172,23 +173,59 @@ void translate_rdram(uint8_t* rdram, uint32_t dst, uint32_t len) {
 }
 
 // Modulos cargados actualmente (para cambiar el idioma en vivo re-aplicando a RDRAM sin recargar).
+//
+// `written` = bytes (orden guest) tal y como los dejo el port en esta carga, con la traduccion ya
+// aplicada. Es el "testigo" para no pisar cambios que el juego haga despues (relocalizaciones de
+// codigo, buffers de trabajo, etc.): en el reapply solo se reescriben las posiciones que aun
+// conservan ese valor. Ver hh_trans_reapply_language.
 struct Loaded {
     uint32_t src;
     uint32_t size;
     uint32_t dst;
     uint32_t len;
+    std::vector<uint8_t> written;
 };
 std::vector<Loaded> g_loaded;
+size_t g_written_bytes = 0;  // suma de los `written` vivos (tope de memoria)
+constexpr size_t kWrittenCap = 32u * 1024u * 1024u;
 
-void remember_loaded(uint32_t src, uint32_t size, uint32_t dst, uint32_t len) {
+// Libera el testigo de los modulos mas antiguos si se pasa del tope. El modulo sigue en g_loaded
+// (para hh_trans_dst_for) pero deja de actualizarse en caliente; es una valvula de seguridad.
+void trim_written() {
+    for (Loaded& e : g_loaded) {
+        if (g_written_bytes <= kWrittenCap) break;
+        if (e.written.empty()) continue;
+        g_written_bytes -= e.written.size();
+        e.written.clear();
+        e.written.shrink_to_fit();
+    }
+}
+
+void remember_loaded(uint32_t src, uint32_t size, uint32_t dst, uint32_t len,
+                     std::vector<uint8_t>&& written) {
     if (len == 0) return;
     for (Loaded& e : g_loaded) {
         if (e.src == src && e.size == size && e.dst == dst) {
             e.len = len;
+            g_written_bytes -= e.written.size();
+            e.written = std::move(written);
+            g_written_bytes += e.written.size();
             return;
         }
     }
-    g_loaded.push_back({src, size, dst, len});
+    // Otra carga que solapa este rango reutiliza la region: el modulo anterior ya no existe.
+    const uint64_t lo = dst, hi = static_cast<uint64_t>(dst) + len;
+    auto overlaps = [&](const Loaded& e) {
+        const uint64_t elo = e.dst, ehi = static_cast<uint64_t>(e.dst) + e.len;
+        return lo < ehi && elo < hi;
+    };
+    for (const Loaded& e : g_loaded) {
+        if (overlaps(e)) g_written_bytes -= e.written.size();
+    }
+    g_loaded.erase(std::remove_if(g_loaded.begin(), g_loaded.end(), overlaps), g_loaded.end());
+    g_written_bytes += written.size();
+    g_loaded.push_back({src, size, dst, len, std::move(written)});
+    trim_written();
 }
 
 // Decodificador LZKN64 identico a tools/lzkn64/lzkn64.py. `in_len` = bytes disponibles (a2 del
@@ -445,21 +482,35 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
         std::fprintf(stderr, "[TRANS] %s src=%08X size=%06X dst=%08X len=%u us=%.0f\n", kind, src,
                      size, dst, out_len, us);
     }
-    if (out_len != 0) remember_loaded(src, size, dst, out_len);
+    if (out_len != 0) {
+        static std::vector<uint8_t> written;
+        written.resize(out_len);
+        read_guest(rdram, dst, written.data(), out_len);
+        remember_loaded(src, size, dst, out_len, std::move(written));
+    }
 }
 
 // Re-aplica el idioma activo a los modulos cargados (cambio en vivo). Mantiene longitudes, asi que
 // los punteros del juego siguen validos. Ver src/subsystems/text.cpp.
-extern "C" void hh_trans_reapply_language(void) {    std::lock_guard<std::recursive_mutex> lock(g_mutex);
+//
+// El juego MODIFICA en caliente las regiones que el loader escribio (relocaliza codigo, usa
+// buffers de trabajo...). Por eso no basta con reescribir el modulo entero desde el cache: hay que
+// tocar SOLO los bytes que el port escribio y que el juego aun no ha cambiado. `e.written` guarda
+// ese testigo (lo escrito en la carga); aqui se reescribe una posicion solo si su contenido actual
+// sigue coincidiendo con el testigo. Asi el texto se actualiza y los cambios del juego se respetan.
+extern "C" void hh_trans_reapply_language(void) {
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     if (g_loaded.empty()) return;
 
     uint8_t* rdram = hh::get_game_rdram();
     if (rdram == nullptr) return;
 
     int count = 0;
-    static std::vector<uint8_t> tmp;
-    for (const Loaded& e : g_loaded) {
-        if ((e.dst & 3u) != 0u) continue;
+    static std::vector<uint8_t> tmp;   // modulo original (idioma base de la ROM)
+    static std::vector<uint8_t> next;  // original traducido al idioma activo
+    static std::vector<uint8_t> cur;   // contenido actual de la region en RDRAM
+    for (Loaded& e : g_loaded) {
+        if ((e.dst & 3u) != 0u || e.written.size() != e.len) continue;
         tmp.clear();
         auto it = g_index.find(key_of(e.src, e.size));
         if (it != g_index.end()) {
@@ -471,8 +522,26 @@ extern "C" void hh_trans_reapply_language(void) {    std::lock_guard<std::recurs
             if (!lzkn64_decode(rom.data() + e.src, e.size, tmp)) continue;
         }
         if (tmp.size() != e.len) continue;
-        store_guest_translated(rdram, e.dst, tmp.data(), e.len);
-        count++;
+
+        next = tmp;
+        hh_text_translate_guest(next.data(), next.size());
+
+        cur.resize(e.len);
+        read_guest(rdram, e.dst, cur.data(), e.len);
+
+        size_t changed = 0;
+        for (size_t k = 0; k < e.len; k++) {
+            if (cur[k] != e.written[k]) continue;  // el juego lo cambio: no pisar
+            if (next[k] != cur[k]) {
+                cur[k] = next[k];
+                changed++;
+            }
+            e.written[k] = next[k];  // el testigo pasa a ser lo ultimo escrito
+        }
+        if (changed != 0) {
+            store_guest(rdram, e.dst, cur.data(), e.len);
+            count++;
+        }
     }
     hh::log("[text] idioma re-aplicado a %d modulos cargados\n", count);
 }

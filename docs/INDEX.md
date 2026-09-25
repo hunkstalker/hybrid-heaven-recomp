@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 111 | 2026-09-24 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 138 | 2026-09-25 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 139 | 2026-09-25 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 90 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 230 | 2026-09-25 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 232 | 2026-09-25 |
 
 ## Técnico y guías (vivos)
 
@@ -50,6 +50,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Fix: cambiar de idioma aceleraba el juego (reapply sobre RDRAM)](../notes/2026-09-25-e-fix-reapply-idioma.md) | Evidencia del bug reportado en `RETOMAR.md §BUG CONOCIDO` (vi 30 → 60 al cambiar idioma). | 57 | 2026-09-25 |
 | [D — Menú multilingüe, acentos por marcas e idiomas (EN/ES/CA/FR/DE)](../notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md) | Sesión 2026-09-25 (4.ª del día). Cierra la **tarea de menú + traducción** iniciada en las notas | 87 | 2026-09-25 |
 | [C — Fuente EU (`color4`) localizada y decodificada: gaiji acentuados reales](../notes/2026-09-25-c-font-eu-color4-localizada.md) | Sesión 2026-09-25. Desbloquea el paso 4 (acentos) del menú A2 y la vía B (glifos **reales**, no | 127 | 2026-09-25 |
 | [Docs: RETOMAR corto, presupuesto de contexto de arranque y aclaración de acentos](../notes/2026-09-24-docs-presupuesto-y-acentos.md) | Sesión 2026-09-24 (continuación). Cierra la reorganización de documentación (RETOMAR dejó de hacer | 56 | 2026-09-24 |

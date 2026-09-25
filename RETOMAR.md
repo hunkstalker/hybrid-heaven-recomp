@@ -23,24 +23,20 @@
 - **Idiomas en las ROMs**: EU = En/Fr/De; JP = ja (añadida a `work/roms/jp.z64`); ES/CA no existen.
 - Diseño: **`docs/menu.md`**; ADRs **0008** y **0012**; técnica del overlay: `architecture.md` §7.
 
-## BUG CONOCIDO (reportado 2026-09-25) — cambio de idioma acelera el juego
+## BUG RESUELTO (2026-09-25, headless) — cambiar de idioma aceleraba el juego
 
-**Síntoma**: al cambiar el idioma (lista `IDIOMA`, o `F5`), el juego **se acelera**: suben los FPS y
-la lógica corre al doble (al menos en el menú).
+**Causa (medida)**: `hh_trans_reapply_language` (`src/subsystems/trans_cache.cpp`) reescribía el módulo
+entero desde el cache/ROM; el juego **modifica en caliente** esas regiones (relocaliza el módulo de
+código `005F1190`@`801BF1A0`: 241 B; buffer de trabajo `0068BF26`@`803837E0`: 33889 B) y el reapply
+las pisaba → `viOriginalRate` 30 → 60.
 
-**Repro headless** (`HH_LANG_CYCLE_AT=15 HH_FPS=1`): en la línea `[hh-fps]`, **antes** del ciclo
-`present≈19.6` y `vi=30` domina; **después** `present≈37.5` (casi x2) y `vi=60` domina. O sea,
-`viOriginalRate` de RT64 pasa de **30 → 60** tras el cambio de idioma.
+**Fix**: re-aplicar **solo** las posiciones cuyo contenido actual coincide con el testigo `written`
+(los bytes que el port escribió en la carga, con traducción); se respetan los cambios del juego.
+Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y knob de A/B
+`HH_LANG_REAPPLY=0`. Detalle y evidencia: `notes/2026-09-25-e-fix-reapply-idioma.md`.
 
-**Sospecha (no confirmada)**: `hh::text_set_language` (`src/subsystems/text.cpp`) →
-`hh_trans_reapply_language` (`src/subsystems/trans_cache.cpp`) **re-escribe módulos ya cargados en
-RDRAM en caliente**; algo de eso hace que el juego re-programe el VI a 60 Hz. `vi` en el log es
-`sharedQueueResources->viOriginalRate` (`src/platform/rt64_render_context.cpp:575`).
-
-**Próximo paso (sesión fresca)**: aislar el culpable — probar (a) solo `apply_language` sin
-`hh_trans_reapply_language`, (b) re-aplicar texto desde la caché sin volver a decodificar LZKN64, (c)
-bloquear el reapply durante el frame; y confirmar en Windows si el VI de verdad cambia o es un
-artefacto de la medición. Afecta a la **experiencia** (el juego al doble de velocidad no es jugable).
+**Validado headless**: con `HH_FPS=1 HH_LANG_CYCLE_AT=15` el `vi` se queda en 30 y `present≈29.5`
+(antes saltaba a 60 / ~54). **Falta confirmar en Windows** (ver tarea siguiente).
 
 ## SIGUIENTE TAREA: validar en Windows (paso 8)
 
@@ -49,7 +45,8 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
 2. **Acentos**: abrir `NUEVA PARTIDA` y `GRÁFICOS` (`CÁMARA`, `GRÁFICOS`, `RESOLUCIÓN`, `LÍMITE`) y
    ver las tildes (letra + marca). Forzar con `HH_MENU_SCREEN=6`/`=5` si hace falta.
 3. **IDIOMA** (debajo de `DIFICULTAD`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
-   texto in-game con F5). Persistencia en `config.ini [lang]`.
+   texto in-game con F5), **sin que el juego se acelere** (fix del reapply; ver §BUG RESUELTO).
+   Persistencia en `config.ini [lang]`.
 4. **Idioma del sistema**: borrar `[lang]` de `config.ini` y arrancar con el SO en otro idioma
    (p. ej. francés) → debe arrancar en ese idioma; un idioma no incluido → inglés.
 5. Rotar el log para revisar `[text] idioma del sistema: ...`.

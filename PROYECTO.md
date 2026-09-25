@@ -68,8 +68,9 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 ## 5. Estado de avance
 
 **Estado actual (2026-09-25)**: **menú inicial + idiomas HECHOS en headless** (árbol, navegación,
-acciones video/audio, SFX, acentos por letra+marca, EN/ES/CA/FR/DE + idioma del sistema); **falta
-validar en Windows** y el **JA del menú**. Pendiente: cablear la fuente in-game 8×12 y las
+acciones video/audio, SFX, acentos por letra+marca, EN/ES/CA/FR/DE + idioma del sistema); **BUG del
+reapply de idioma resuelto** (ya no acelera el juego: `notes/2026-09-25-e-fix-reapply-idioma.md`);
+**falta validar en Windows** y el **JA del menú**. Pendiente: cablear la fuente in-game 8×12 y las
 traducciones in-game (DE/FR/JA de las ROMs; ES/CA propias). **High frame rate por defecto** — el port presenta hasta el refresco
 del monitor (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a
 30 Hz). Antes: **mapa widescreen (fase 07b) validado** (HUD/minimapa anclados) y **migración ELF
