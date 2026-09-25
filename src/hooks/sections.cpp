@@ -435,22 +435,55 @@ extern "C" void hh_font_trace_bfe4(uint8_t* rdram, recomp_context* ctx) {
     const unsigned code = static_cast<uint32_t>(ctx->r5) & 0xFFFFu;
     const unsigned stride = rdram[(0x80044624u + color - 0x80000000u) ^ 3u];
     const unsigned fileidx = guest_u16(rdram, 0x8004462Cu + color * 2u);
+    func_8001BFE4_1CBE4(rdram, ctx);
+    // Dump del BLOQUE cargado en el buffer de trabajo (0x801077E0, `stride` bytes). Fijar el layout
+    // real de un estilo (p. ej. color4 8x12) sin adivinar: HH_FONT_DUMP_GLYPH=<color> vuelca cada
+    // bloque una vez; HH_FONT_DUMP_ONLY=<valor> filtra por el valor del glifo.
+    static const int dump_color = [] {
+        const char* e = std::getenv("HH_FONT_DUMP_GLYPH");
+        return (e != nullptr && *e != '\0') ? std::atoi(e) : -1;
+    }();
+    if (dump_color >= 0 && static_cast<int>(color) == dump_color) {
+        static unsigned dump_seen[512];
+        static size_t dump_n = 0;
+        static const int only = [] {
+            const char* e = std::getenv("HH_FONT_DUMP_ONLY");
+            return (e != nullptr && *e != '\0') ? std::atoi(e) : -1;
+        }();
+        if (only >= 0 && static_cast<int>(code) != only) {
+            goto report;
+        }
+        bool dup = false;
+        for (size_t i = 0; i < dump_n; ++i) {
+            if (dump_seen[i] == code) { dup = true; break; }
+        }
+        if (!dup && dump_n < 512) {
+            dump_seen[dump_n++] = code;
+            char hex[3 * 64 + 1];
+            char* p = hex;
+            for (unsigned i = 0; i < stride && i < 64; ++i) {
+                const unsigned b = rdram[(0x801077E0u + i - 0x80000000u) ^ 3u];
+                p += std::snprintf(p, 4, "%02X ", b);
+            }
+            *p = '\0';
+            hh::log("[fontdump] color=%u code=%04X slot=%u stride=%u block=%s\n", color, code,
+                    code >> 1, stride, hex);
+        }
+    }
+report:
+    // Diagnostico textual (HH_FONT_TRACE): mapeo color/codigo -> slot/stride/file.
     static unsigned seen_key[1024];
     static size_t seen = 0;
     const unsigned key = (color << 16) | code;
     bool dup = false;
     for (size_t i = 0; i < seen; ++i) {
-        if (seen_key[i] == key) {
-            dup = true;
-            break;
-        }
+        if (seen_key[i] == key) { dup = true; break; }
     }
     if (!dup && seen < 1024) {
         seen_key[seen++] = key;
         hh::log("[font] bfe4 color=%u code=%04X slot=%u stride=%u fileidx=%u\n", color, code,
                 code >> 1, stride, fileidx);
     }
-    func_8001BFE4_1CBE4(rdram, ctx);
 }
 
 // A2: contador de transiciones de pantalla (func_800058DC); definido arriba (antes del handler).

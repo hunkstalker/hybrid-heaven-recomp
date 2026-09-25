@@ -82,16 +82,14 @@
      (`Move`/`Accept`/`Back`) en `feed_menu_navigation`; **puente retirado** (quedaba en silencio con
      el input muteado y nunca disparaba `back`). Validado: modelo (eventos incl. `Back`). Pendiente
      Windows.
-     **ACENTOS (paso 4) — investigación 2026-09-25 (bloqueante detectado)**: el atlas del overlay
-     (`src/subsystems/font.cpp`) usa la fuente **color0** (8x8, US idx107) y genera los acentos
-     **componiendo** la letra base + marca (`tools/text/gen_accent_glyphs.py`). Para todas las tildes
-     de todos los idiomas, lo ideal es **reutilizar los gaiji de la ROM EU** (`color4`, EU idx117 =
-     **76 glifos** vs 44 US; solo ese fichero difiere US↔EU; `notes/2026-09-23-b-fuente-formato-y-gaiji.md`).
-     **Bloqueante**: al extraer `color4` (48 B/glifo, 8x12) con el esquema par/paridad de color0 el
-     resultado **no es legible**; la vista 4bpp de `font_dump.py` también sale como unión de glifos.
-     Hay que **fijar el formato real de `color4`** (¿bpp? ¿empaquetado? ¿48 B = 1 glifo o 2?) con
-     `HH_FONT_TRACE`/override temporal o desensamblando `func_8001C0B0` para este estilo. Hasta
-     entonces, los acentos del overlay se quedan en la composición base+marca (o en `to_ascii`).
+     **ACENTOS (paso 4) — vía B (glifos REALES) desbloqueada (2026-09-25)**: el atlas del overlay usa
+     `color0` 8x8; para tildes de todos los idiomas se usarán los **gaiji reales de la ROM EU**
+     (`color4`, 8x12, 76 glifos). **Los offsets del manifiesto EU están mal** (apuntaban a código):
+     la fuente real está por vecindad del `color0` US → **color4 EU @ `0x8C3290`** (decodifica limpio,
+     verificado). Mapeo `B0xx→slot` (`0xA1→0x56` secuencial) en `eu_dec` @`0x1EA30`.
+     Herramienta `tools/text/extract_eu_font.py` (+preview `work/fonts/eu_gaiji.png`). Detalle:
+     `notes/2026-09-25-c-font-eu-color4-localizada.md`. **Falta**: identificar cada slot acentuado,
+     migrar/integrar en el atlas del overlay, quitar `to_ascii` y validar.
      **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
      ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
      juego), `CONTINUAR`. Extras de audio (widening/EQ) evaluables más adelante. **Steam Deck**

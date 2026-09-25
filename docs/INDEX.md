@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 111 | 2026-09-24 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 132 | 2026-09-24 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 90 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 221 | 2026-09-25 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 219 | 2026-09-25 |
 
 ## Técnico y guías (vivos)
 
@@ -49,6 +49,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [C — Fuente EU (`color4`) localizada y decodificada: gaiji acentuados reales](../notes/2026-09-25-c-font-eu-color4-localizada.md) | Sesión 2026-09-25. Desbloquea el paso 4 (acentos) del menú A2 y la vía B (glifos **reales**, no | 61 | 2026-09-25 |
 | [Docs: RETOMAR corto, presupuesto de contexto de arranque y aclaración de acentos](../notes/2026-09-24-docs-presupuesto-y-acentos.md) | Sesión 2026-09-24 (continuación). Cierra la reorganización de documentación (RETOMAR dejó de hacer | 56 | 2026-09-24 |
 | [A2 — Dibujo de selectores y ajuste del árbol de NUEVA PARTIDA](../notes/2026-09-24-a2-selectores-y-arbol.md) | Sesión 2026-09-24 (continuación del paso 5). Tras la validación en Windows del mantenedor: los | 100 | 2026-09-24 |
 | [A2 — Bugs del overlay: alineación de "MODO COMBATE" y cierre al salir del menú](../notes/2026-09-24-a2-overlay-alineacion-y-cierre.md) | Sesión 2026-09-24 (continuación). Arregla los bugs 1 y 3 reportados por el mantenedor. El bug 2 | 70 | 2026-09-24 |
