@@ -49,7 +49,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Issue #3 — HUD de combate: anclaje por identidad de contenido (RESUELTO)](../notes/2026-09-25-f-hud-combate-contenido.md) | **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 4 partes. Aquí queda el cómo, | 150 | 2026-09-25 |
-| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 90 | 2026-09-22 |
+| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 110 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |
 | [2026-09-22 — Cursor, carpeta `rom/` en release y README](../notes/2026-09-22-cursor-release-rom-readme.md) | Sesión de cierre tras validar el fix del mapa (fase 07b). Tres tareas pequeñas + hallazgo del | 33 | 2026-09-22 |
 | [2026-09-22 — Anclaje del HUD/mapa a los bordes (widescreen, fase 07b)](../notes/2026-09-22-anclaje-hud-widescreen-fase07b.md) | Nota de **tarea** (fase 07b). Contexto previo del radar: | 39 | 2026-09-22 |

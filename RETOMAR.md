@@ -23,15 +23,18 @@
   que `class_of` no clasificaba → quedaba en 4:3 → a la derecha. **Fix**: generalizar el anclaje de
   los rellenos del HUD de combate por **posición** (`uly 24..38`, `lrx<=190`). Ver la nota.
 
-**2. Puerta que parpadea (PAUSADO — retomar después).**
-- **Síntoma**: una puerta concreta parpadea entre visible/oculta.
-- **NO ocurre** en **BizHawk** ni **Simple64** → es bug nuestro (RT64/port).
-- **Sospecha nº1**: la **interpolación** de RT64 (v0.4.0: `RefreshRate::Display` + `PresentEarly`).
-- **A/B**: con los toggles en caliente **F8** (PresentEarly), **F9** (interpolación), **F10**
-  (reescritor HUD). Clave: ¿F9 lo arregla?
-- **Opciones si es interpolación**: (a) default `original` (mitigación, pierde high fps); (b) arreglo
-  quirúrgico con *matrix groups* de RT64 (`gEXMatrixGroupNoInterpolate`); (c) largo plazo:
-  **desbloquear los fps del juego** (lógica a 60 Hz), épica aparte.
+**2. Puerta que parpadea (PAUSADO; CAUSA VERIFICADA 2026-09-25).**
+- **Síntoma**: una puerta concreta parpadea entre visible/oculta. **NO** ocurre en **BizHawk** ni
+  **Simple64** → es del render (RT64/port), no del juego.
+- **CAUSA VERIFICADA por el mantenedor** (A/B en caliente con los toggles F8/F9):
+  - `Refresh Rate Mode = Display` (interpolación **ON**) → **parpadea**.
+  - `Refresh Rate Mode = Original` (interpolación **OFF**) → **no parpadea**.
+  - `Presentation Mode = Present Early` en **ambos** casos → **no influye**.
+  - Culpable: la **interpolación** (`RefreshRate::Display`), no el PresentEarly.
+- **Detalle**: ver `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
+- **Opciones de arreglo** (sin decidir): (a) default `original` (mitigación, pierde high fps);
+  (b) arreglo quirúrgico con *matrix groups* de RT64 (`gEXMatrixGroupNoInterpolate`) para los draws
+  afectados; (c) largo plazo: **desbloquear los fps del juego** (lógica a 60 Hz), épica aparte.
 
 ## Tareas siguientes (ver `TODO.md` §Ahora`)
 

@@ -88,3 +88,23 @@ audio, timing y carga de CPU/GPU (no forzar si el equipo no llega).
 - `HH_FPS` validado; high frame rate validado y **activado por defecto** (v0.4.0).
 - (Opcional) overlay on-screen propio sin dev-mode (hoy: `HH_DEVELOPER=1` + F1, o RTSS).
 - (Futuro) mejorar la interpolación (hints IHLE) y desacoplar audio/pacing.
+
+## Regresión conocida (2026-09-25): geometría que parpadea con interpolación
+
+- **Síntoma**: una puerta concreta parpadea entre **visible/oculta**. **No** ocurre en **BizHawk** ni
+  **Simple64** → es del render (RT64/port), no del juego.
+- **Verificado por el mantenedor** (A/B en caliente con los toggles **F8** PresentEarly / **F9**
+  interpolación):
+  - `Refresh Rate Mode = Display` (interpolación **ON**) → **parpadea**.
+  - `Refresh Rate Mode = Original` (interpolación **OFF**) → **no parpadea**.
+  - `Presentation Mode = Present Early` en **ambos** casos → **no influye**.
+  - Conclusión: el culpable es la **interpolación** (`RefreshRate::Display`), **no** el PresentEarly.
+- **Causa**: RT64 empareja los *draw calls* entre el frame actual y el anterior (`GameFrame::match`)
+  y **interpola** sus matrices hacia los frames intermedios. Si un objeto no empareja bien (o su
+  visibilidad/transform salta entre frames), salen frames intermedios incoherentes → parpadeo.
+- **Opciones de arreglo** (sin decidir): (a) default `original` (mitigación; pierde el high fps);
+  (b) arreglo quirúrgico con *matrix groups* de RT64 (`gEXMatrixGroupNoInterpolate`) para los draws
+  afectados; (c) largo plazo: **desbloquear los fps del juego** (lógica a 60 Hz), épica aparte.
+
+Nota: la Captura de pantalla de referencia útil del bug: guardar frames con F7 (captura pareada)
+mientras se alterna F9, para ver el frame interpolado.
