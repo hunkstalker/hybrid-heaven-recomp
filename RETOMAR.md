@@ -13,7 +13,7 @@
   y **ADR 0012**:
   - Menú: **letra base color0 + marca** dibujada por el mantenedor (`tools/text/menu_marks.py` →
     `include/hh/menu_marks.h`; atlas 128×44). `¿ ¡` = `? !` girados.
-  - **`IDIOMA` debajo de `DIFICULTAD`** y **funcional** (cambia menú + texto in-game; persiste en
+  - **`IDIOMA` en `AJUSTES`** y **funcional** (cambia menú + texto in-game; persiste en
     `config.ini [lang]`). Etiquetas localizadas **en/es/ca/fr/de** (`hh::menu::localized`); lista en
     **endónimos**.
   - **Idioma del sistema** si no hay `[lang]` (Windows `GetUserDefaultLocaleName`; Linux `LANG`/`LC_*`),
@@ -44,7 +44,7 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
 1. **Menú 1:1** con el nativo, navegación, listas/selectores, SFX.
 2. **Acentos**: abrir `NUEVA PARTIDA` y `GRÁFICOS` (`CÁMARA`, `GRÁFICOS`, `RESOLUCIÓN`, `LÍMITE`) y
    ver las tildes (letra + marca). Forzar con `HH_MENU_SCREEN=6`/`=5` si hace falta.
-3. **IDIOMA** (debajo de `DIFICULTAD`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
+3. **IDIOMA** (en `AJUSTES`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
    texto in-game con F5), **sin que el juego se acelere** (fix del reapply; ver §BUG RESUELTO).
    Persistencia en `config.ini [lang]`.
 4. **Idioma del sistema**: borrar `[lang]` de `config.ini` y arrancar con el SO en otro idioma

@@ -96,7 +96,7 @@
       arreglado; el menú usa **`color0` 8×8** (engine `fileidx=108` = Nisitenma 107; `stride=32`). (b)
       Acentos del menú = **letra base color0 + marca** (dibujada por el mantenedor;
       `tools/text/menu_marks.py` → `include/hh/menu_marks.h`; atlas 128×44). `¿ ¡` = `? !` girados.
-      (c) **`IDIOMA` debajo de `DIFICULTAD` y funcional** (menú + texto in-game; persiste en `[lang]`);
+      (c) **`IDIOMA` en `AJUSTES` y funcional** (menú + texto in-game; persiste en `[lang]`);
       etiquetas localizadas **en/es/ca/fr/de** (`hh::menu::localized`, endónimos en la lista);
       **idioma del sistema** si no hay `[lang]` (fallback inglés). (d) Fuente in-game **8×12 `color4`**
       preparada (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE) **sin

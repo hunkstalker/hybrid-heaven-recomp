@@ -34,12 +34,12 @@ CONTINUAR                                  (arriba del todo: retomar partida dir
 NUEVA PARTIDA ->
       EMPEZAR PARTIDA              (inicia el juego con la config elegida)
       DIFICULTAD -> lista DEFINITIVO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
-      IDIOMA -> lista ENGLISH/ESPAÑOL/CATALÀ/FRANÇAIS/DEUTSCH/NIHONGO (endónimos; activa en
-            verde, resto gris; A fija). Cambia el idioma del MENÚ y del texto in-game; persiste.
       CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
       APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
 MODO COMBATE -> (por definir; de momento sale DESHABILITADO, en gris)
 AJUSTES ->
+      IDIOMA -> lista ENGLISH/ESPAÑOL/CATALÀ/FRANÇAIS/DEUTSCH/NIHONGO (endónimos; activa en
+            verde, resto gris; A fija). Cambia el idioma del MENÚ y del texto in-game; persiste.
       GRÁFICOS ->
             RATIO        < AUTO / ORIGINAL / 4:3 / 16:9 / 16:10 / 21:9 >
             RESOLUCIÓN   < AUTO … >    (filtrada por RATIO; AUTO/ORIGINAL + las del ratio)

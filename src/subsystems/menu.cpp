@@ -216,8 +216,6 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
         make_item("EMPEZAR PARTIDA", Action::StartGame),
         make_submenu("DIFICULTAD", Action::OpenDifficulty),
-        // IDIOMA va justo debajo de DIFICULTAD (decidido por el mantenedor).
-        make_submenu("IDIOMA", Action::OpenLanguage),
         make_selector("CÁMARA LIBRE", {"NO", "SÍ"}),
         make_selector("APUNTADO LIBRE", {"NO", "SÍ"}),
     }));
@@ -233,9 +231,9 @@ void build_tree() {
     // MODO COMBATE: por definir; la entrada de la raíz sale deshabilitada.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {}));
 
-    // AJUSTES: GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
-    // IDIOMA se movió a NUEVA PARTIDA (debajo de DIFICULTAD).
+    // AJUSTES: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
     g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {
+        make_submenu("IDIOMA", Action::OpenLanguage),
         make_submenu("GRÁFICOS", Action::OpenGraphics),
         make_submenu("SONIDO", Action::OpenSound),
         make_submenu("DEBUG", Action::OpenDebug),
