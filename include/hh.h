@@ -106,6 +106,9 @@ namespace hh {
     void video_reapply();
     // Persiste la geometria de la ventana actual (solo si esta en `windowed`).
     void video_remember_window();
+    // Cierre ordenado del port (menu principal -> SALIR): recuerda la ventana y activa la salida
+    // limpia de recomp::start (join de hilos). NO usar std::exit (std::terminate por hilos vivos).
+    void request_quit();
     void video_cycle_aspect();           // F2
     void video_cycle_msaa();             // F4
     // Persiste [video] (wm/vsync/fps) en config.ini preservando el resto del fichero.

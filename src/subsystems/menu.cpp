@@ -29,6 +29,7 @@ const MenuTr kMenuTr[] = {
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
     {"AJUSTES", "SETTINGS", "AJUSTOS", "OPTIONS", "EINSTELLUNGEN"},
+    {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN"},
     {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
     {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT"},
     {"IDIOMA", "LANGUAGE", "IDIOMA", "LANGUE", "SPRACHE"},
@@ -204,6 +205,9 @@ void build_tree() {
         make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
         make_submenu("MODO COMBATE", Action::BattleMode, /*enabled=*/false),
         make_submenu("AJUSTES", Action::OpenSettings),
+        // SALIR: extra del port (no existe en el nativo); cierra de forma ordenada. Decidido por el
+        // mantenedor (2026-09-25); ver docs/menu.md.
+        make_item("SALIR", Action::Exit),
     }));
 
     // NUEVA PARTIDA: iniciar, dificultad y los selectores de "experiencia moderna" (integrados aquí

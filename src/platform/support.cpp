@@ -548,6 +548,14 @@ void hh::video_remember_window() {
     hh::log("[VIDEO] geometria de ventana recordada: %dx%d @ (%d,%d)\n", w, h, x, y);
 }
 
+// Cierre ordenado (menu principal -> SALIR): recuerda la geometria de la ventana y delega en la
+// salida limpia de recomp::start (join de hilos). Mismo camino que SDL_QUIT/F11 en input.cpp.
+void hh::request_quit() {
+    hh::video_remember_window();
+    hh::log("[hh] cierre solicitado (menu SALIR)\n");
+    ultramodern::quit();
+}
+
 // Menu DEBUG -> MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda). El
 // render hook lo lee de la config por frame (update_screen), así que solo hace falta persistir.
 void hh::video_set_show_fps(bool enabled) {

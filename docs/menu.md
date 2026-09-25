@@ -9,7 +9,8 @@
 
 1. **Imitar el diseño original 1:1** (posiciones, tipografía y **flecha nativa**), **incluyendo menús
    nuevos** (p. ej. `SONIDO` → `AJUSTES`, y dentro `IDIOMA` + `SONIDO`). **Ni panel ni cursor
-   inventados**: nada de elementos extra que no existan en el original.
+   inventados**: nada de elementos extra que no existan en el original. **Única excepción acordada:
+   `SALIR`** en la raíz, debajo de `AJUSTES` (decisión del mantenedor, 2026-09-25; ver §SALIR).
 2. **Ocultar el menú nativo** por defecto (el port ya añade menús que no existían). Mecanismo:
    `architecture.md` §7 (supresión por tablas de etiquetas).
 3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A** marca/selecciona (entra
@@ -54,10 +55,12 @@ AJUSTES ->
       DEBUG ->
             VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
             MOSTRAR FPS    NO/SÍ
+SALIR                                      (extra del port: cierra de forma ordenada; ver §SALIR)
 ```
 
 - **`RESOLUCIÓN` sale de la raíz**: el menú raíz queda en **CONTINUAR / NUEVA PARTIDA / MODO COMBATE /
-  AJUSTES** (el `RESOLUTION` nativo se mueve a **GRÁFICOS**).
+  AJUSTES / SALIR** (el `RESOLUTION` nativo se mueve a **GRÁFICOS**; `SALIR` es el extra del port,
+  ver §SALIR).
 - **`RATIO` + `RESOLUCIÓN`**: `RATIO` (aspecto) filtra la lista de `RESOLUCIÓN` (las adecuadas a ese
   ratio); la fuente no tiene `:`, así que los ratios se rotulan `4:3`, `16:9`… con el `:` **dibujado
   con rectángulos** (como el chevron). Reglas: `RATIO=ORIGINAL → RESOLUCIÓN=ORIGINAL`,
@@ -129,6 +132,19 @@ AJUSTES ->
   pulsar `EMPEZAR PARTIDA`.
 - **MODO COMBATE**: por definir; de momento aparece **deshabilitado en gris**.
 
+### `SALIR`
+
+- **Extra del port** (el original no lo tiene): la **única** entrada fuera del árbol nativo, acordada
+  con el mantenedor (2026-09-25). Va la **última de la raíz**, debajo de `AJUSTES`.
+- **A** cierra el port de forma **ordenada**: `hh::request_quit()` recuerda la geometría de la ventana
+  (`hh::video_remember_window`) y llama a `ultramodern::quit()` (salida limpia de `recomp::start`, con
+  *join* de hilos; **no** `std::exit`, que dispararía `std::terminate`). Mismo camino que `SDL_QUIT`
+  o `F11` en `src/subsystems/input.cpp`. El enganche está en `feed_menu_navigation`
+  (`src/hooks/sections.cpp`): solo actúa con el **overlay controlando** el menú (`HH_OVERLAY=0` deja
+  mandar al nativo).
+- **Etiqueta localizada** (`EXIT` / `SORTIR` / `QUITTER` / `BEENDEN`; JA cae a inglés). El modelo está
+  en `hh::menu` (`Action::Exit`); el dibujo es el genérico (una entrada más).
+
 ## Idiomas y acentos (2026-09-25)
 
 - **Etiquetas localizadas**: las del modelo están en **español (canónico)** y se traducen al idioma
@@ -185,7 +201,7 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25)**: etiquetas localizadas (en/es/ca/fr/de) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. Falta **JA** (kana) y validar en Windows |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 

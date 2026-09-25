@@ -40,6 +40,7 @@ enum class ScreenId {
 enum class Action {
     None,
     Continue,        // CONTINUAR: retomar partida
+    Exit,            // SALIR (raíz): cierra el port de forma ordenada
     StartGame,       // EMPEZAR PARTIDA
     BattleMode,      // MODO COMBATE (deshabilitado)
     OpenNewGame,     // submenú NUEVA PARTIDA
