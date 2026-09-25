@@ -23,6 +23,25 @@
 - **Idiomas en las ROMs**: EU = En/Fr/De; JP = ja (añadida a `work/roms/jp.z64`); ES/CA no existen.
 - Diseño: **`docs/menu.md`**; ADRs **0008** y **0012**; técnica del overlay: `architecture.md` §7.
 
+## BUG CONOCIDO (reportado 2026-09-25) — cambio de idioma acelera el juego
+
+**Síntoma**: al cambiar el idioma (lista `IDIOMA`, o `F5`), el juego **se acelera**: suben los FPS y
+la lógica corre al doble (al menos en el menú).
+
+**Repro headless** (`HH_LANG_CYCLE_AT=15 HH_FPS=1`): en la línea `[hh-fps]`, **antes** del ciclo
+`present≈19.6` y `vi=30` domina; **después** `present≈37.5` (casi x2) y `vi=60` domina. O sea,
+`viOriginalRate` de RT64 pasa de **30 → 60** tras el cambio de idioma.
+
+**Sospecha (no confirmada)**: `hh::text_set_language` (`src/subsystems/text.cpp`) →
+`hh_trans_reapply_language` (`src/subsystems/trans_cache.cpp`) **re-escribe módulos ya cargados en
+RDRAM en caliente**; algo de eso hace que el juego re-programe el VI a 60 Hz. `vi` en el log es
+`sharedQueueResources->viOriginalRate` (`src/platform/rt64_render_context.cpp:575`).
+
+**Próximo paso (sesión fresca)**: aislar el culpable — probar (a) solo `apply_language` sin
+`hh_trans_reapply_language`, (b) re-aplicar texto desde la caché sin volver a decodificar LZKN64, (c)
+bloquear el reapply durante el frame; y confirmar en Windows si el VI de verdad cambia o es un
+artefacto de la medición. Afecta a la **experiencia** (el juego al doble de velocidad no es jugable).
+
 ## SIGUIENTE TAREA: validar en Windows (paso 8)
 
 No hay nada bloqueante de diseño. En Windows (build normal), comprobar:

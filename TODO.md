@@ -5,6 +5,10 @@
 
 ## Ahora (priorizado)
 
+- [ ] **BUG: cambiar de idioma acelera el juego (2026-09-25)**. Al cambiar idioma (IDIOMA/F5) el juego
+  corre al doble: en `[hh-fps]`, `vi` (RT64 `viOriginalRate`) pasa de **30 → 60** y `present` casi se
+  duplica. Repro headless: `HH_LANG_CYCLE_AT=15 HH_FPS=1`. Sospecha: `hh_trans_reapply_language`
+  (re-escribe módulos en RDRAM en caliente). Detalle en `RETOMAR.md §BUG CONOCIDO`.
 - [x] **Bugs del menú overlay A2 (2026-09-24) — VALIDADOS en Windows**: bearing de "MODO COMBATE",
   **tercer set** de etiquetas al volver atrás, y cierre del overlay (instantáneo al cambiar de
   pantalla). Ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-dos-tablas.md`.
