@@ -1,92 +1,74 @@
--- bizhawk_eu_glyph_capture.lua
--- Captura EMPIRICA del buffer de glifos del motor de texto EU, sin conocer su direccion.
+-- bizhawk_eu_glyph_capture.lua  (v2, LIGERO)
+-- Captura EMPIRICA del buffer de glifos EU SIN hook de escritura (que bloqueaba el emulador).
 --
--- Mecanismo: hook de escritura a RDRAM (`event.onmemorywrite`). Cada vez que el motor escribe en
--- RDRAM, guardamos una copia de los 64 B alrededor de la direccion escrita (con PC y A1/A2 si la
--- API de registros esta disponible) en un log de texto. Al navegar por una pantalla con acentos,
--- las escrituras del buffer de glifos quedan registradas con su contenido real.
+-- Mecanismo: no engancha nada. Espera a que el jugador pulse un BOTON del mando (por defecto
+-- "Start") y, en ese instante, hace UN volcado de RDRAM (8 MB) a un fichero. Repite: cada pulsacion
+-- es un snapshot. Offline se localiza el buffer de glifos por diff entre snapshots de pantallas
+-- distintas (tools/analysis/eu_glyphs_find.py).
 --
 -- Uso (BizHawk, ROM EU):
 --   1) DIR = carpeta existente con barra final.
 --   2) Tools -> Lua Console -> Script -> Open -> este fichero.
---   3) Llega a una pantalla con TEXTO y pulsa F12 en el juego unas cuantas veces (cambia de entrada)
---      durante ~10 s, para que se compongan glifos (incluidos acentos).
---   Salida: eu_glyph_writes.log (una linea por escritura relevante, con el hex de 64 B).
+--   3) Llega a una pantalla con TEXTO; pulsa el boton marcador (Start) en 2-3 entradas/idiomas
+--      distintos. Cada pulsacion escribe eu_rdram_<NNN>.bin (8 MB) + eu_rdram_index.txt.
 --
--- Nota: filtra escrituras cuyo bloque de 64 B contiene bytes "tipo glifo" (muchos 0x00/0x33/0xCC),
--- que reduce mucho el ruido. Ajusta FILTER si hace falta.
+-- No bloquea: solo hace I/O en el frame de la pulsacion.
 
 DIR = "E:/dev/docker/hybrid-heaven-pc-port/hybrid-heaven-recomp/work/eu_glyphs/"
 -- Contenedor Linux: /app/hybrid-heaven-recomp/work/eu_glyphs/
 
+MARK_BUTTON = "Start"   -- boton del mando que marca el snapshot (evita depender de teclas de PC)
+RDRAM_SIZE = 0x800000
 RDRAM_BASE = 0x80000000
-RDRAM_END  = 0x807FFFFF
-WINDOW     = 64          -- bytes a volcar alrededor de la escritura
-MIN_GLYPH  = 8           -- min. de bytes en {0x00,0x33,0xCC,0x03,0x0C,0x30,...} para considerarlo glifo
-LOG = DIR .. "eu_glyph_writes.log"
 
-local f = io.open(LOG, "w")
-if not f then
-  console.writeline("ERROR: no puedo escribir " .. LOG .. " (¿existe la carpeta DIR?)")
-  return
-end
+local DOMAIN = nil
+local count = 0
+local prev = false
 
-local function reg(name)
-  local v = nil
-  pcall(function() v = memory.getregister(name) end)
-  if v == nil then pcall(function() v = cpu.getregister(name) end) end
-  return v
-end
-
--- Filtro: cuenta pares "tipo 2bpp" (nibbles repetidos 3/3, C/C) y ceros, que abundan en los glifos.
-local function looks_like_glyph(bytes)
-  local n = 0
-  for i = 1, #bytes do
-    local b = bytes[i]
-    if b == 0x00 or b == 0x33 or b == 0xCC or b == 0x0C or b == 0x30 or b == 0x03 then
-      n = n + 1
-    end
+local function pick_domain()
+  local ok, domains = pcall(memory.getmemorydomains)
+  if not ok or not domains then return false end
+  for _, d in ipairs(domains) do
+    local size = nil
+    pcall(function() size = memory.getmemorydomainsize(d) end)
+    if size == RDRAM_SIZE then DOMAIN = d return true end
   end
-  return n >= MIN_GLYPH
+  return false
 end
 
-local writes = 0
-
-local function on_write(addr, size, value)
-  if addr < RDRAM_BASE or addr > RDRAM_END then return end
-  -- Volcar una ventana alineada a 16 B alrededor de la escritura.
-  local start = (addr - RDRAM_BASE) & 0xFFFFFFF0
-  if start + WINDOW > 0x800000 then start = 0x800000 - WINDOW end
-  local bytes = {}
-  for i = 0, WINDOW - 1 do
-    bytes[#bytes + 1] = memory.read_u8(RDRAM_BASE + start + i)
+local function snapshot()
+  if not DOMAIN then return end
+  local buf = {}
+  for off = 0, RDRAM_SIZE - 1, 4 do
+    local v = memory.read_u32_be(RDRAM_BASE + off, DOMAIN)
+    buf[#buf + 1] = string.char((v >> 24) & 0xFF, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
   end
-  if not looks_like_glyph(bytes) then return end
-  local pc = reg("PC")
-  local a1 = reg("A1")
-  local line = string.format("frame=%d addr=0x%08X size=%d val=0x%02X pc=%s a1=%s | %s\n",
-    emu.framecount(), addr, size or 1, value or 0,
-    pc and string.format("0x%08X", pc) or "?",
-    a1 and string.format("0x%04X", a1) or "?",
-    (function()
-      local t = {}
-      for i = 1, #bytes do t[#t + 1] = string.format("%02X", bytes[i]) end
-      return table.concat(t, " ")
-    end)())
-  f:write(line)
-  writes = writes + 1
-  if writes % 50 == 0 then f:flush() end
+  local name = string.format("%seu_rdram_%03d_%d.bin", DIR, count, emu.framecount())
+  local f = io.open(name, "wb")
+  if not f then
+    console.writeline("ERROR: no puedo escribir en DIR (¿existe la carpeta?): " .. DIR)
+    return
+  end
+  f:write(table.concat(buf))
+  f:close()
+  local idx = io.open(DIR .. "eu_rdram_index.txt", "a")
+  if idx then idx:write(string.format("%d frame=%d %s\n", count, emu.framecount(), name)) idx:close() end
+  count = count + 1
+  console.writeline("snapshot " .. name)
 end
 
-if event and event.onmemorywrite then
-  event.onmemorywrite(on_write)
-  console.writeline("eu_glyph_capture: hook activo. Pulsa F12 en el juego en pantallas con texto.")
-else
-  console.writeline("ERROR: event.onmemorywrite no disponible en este BizHawk.")
-end
+-- Aviso: la carpeta DIR debe existir (BizHawk Lua no crea directorios).
+local probe = io.open(DIR .. "eu_rdram_index.txt", "a")
+if probe then probe:close() else console.writeline("Crea la carpeta: " .. DIR) end
+console.writeline("eu_glyph_capture v2: pulsa '" .. MARK_BUTTON .. "' en el juego para cada snapshot.")
 
--- Mantener el script vivo y hacer flush periodico.
 while true do
-  f:flush()
+  if not DOMAIN then pick_domain() end
+  local jp = joypad.get(1) or {}
+  local down = jp[MARK_BUTTON] == true
+  if down and not prev then
+    snapshot()
+  end
+  prev = down
   emu.frameadvance()
 end

@@ -71,17 +71,67 @@ def show(pix, w, h):
     return "\n".join(out)
 
 
+def find_source_blocks(files):
+    """Busca en cada snapshot los bloques EXACTOS de la fuente EU conocida.
+
+    La fuente EU (color4) esta en la ROM `eu_dec.z64` @0x8C3290 (ver nota C). Si el motor copia el
+    bloque tal cual a RDRAM, sus bytes apareceran en el volcan: eso localiza el buffer de glifos y el
+    valor (bloque -> glifo) sin ambiguedad.
+    """
+    rom_eu = "work/roms/eu_dec.z64"
+    if not os.path.exists(rom_eu):
+        print(f"(fuente EU no encontrada en {rom_eu}; salto busqueda de bloques)")
+        return
+    eu = open(rom_eu, "rb").read()
+    # Localizar la fuente EU por vecindad del color0 US (mismo metodo que extract_eu_font.py).
+    if not os.path.exists("build/linux/baserom.us.z64"):
+        print("(baserom US no disponible; salto busqueda de bloques)")
+        return
+    us = open("build/linux/baserom.us.z64", "rb").read()
+    import re as _re
+    man = open("notes/us_manifest.yaml").read()
+    m = _re.search(r"- index: 107\n  compressed: \w+\n  original_offset: '(0x[0-9A-Fa-f]+)'", man)
+    off = int(m.group(1), 16)
+    c0 = us[off:off + 4096]
+    c0e = eu.find(c0)
+    if c0e < 0:
+        print("(color0 US no encontrado en EU; salto)")
+        return
+    font = eu[c0e + 4096: c0e + 4096 + 3648]   # color4 EU
+    for f in files:
+        d = load(f)
+        hits = []
+        for slot in range(0, 114):
+            blk = font[slot * 32: slot * 32 + 32]
+            if blk == b"\x00" * 32:
+                continue
+            j = d.find(blk)
+            if j >= 0:
+                hits.append((slot, j))
+        if hits:
+            print(f"{os.path.basename(f)}: {len(hits)} bloques de la fuente EU encontrados en RDRAM:")
+            for slot, j in hits[:20]:
+                print(f"    slot {slot} -> RDRAM 0x{j + 0x80000000:08X}")
+        else:
+            print(f"{os.path.basename(f)}: sin bloques exactos de la fuente (¿el motor los transforma?)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dir")
     ap.add_argument("--window", type=lambda x: int(x, 0), default=WIN)
     ap.add_argument("--perpix", type=int, default=10)
+    ap.add_argument("--blocks", action="store_true", help="buscar bloques de la fuente EU en RDRAM")
     args = ap.parse_args()
 
     files = sorted(glob.glob(os.path.join(args.dir, "eu_rdram_*.bin")))
     if len(files) < 2:
         raise SystemExit("Necesito >=2 volcanes eu_rdram_*.bin en " + args.dir)
     print(f"{len(files)} volcanes")
+
+    if args.blocks:
+        find_source_blocks(files)
+        return
 
     base, score = find_changing_window(files)
     print(f"ventana mas cambiante: 0x{base:08X} (0x{base + 0x80000000:08X} vaddr), score={score}")

@@ -6,33 +6,35 @@ el paso 4 (acentos reales) del menú A2. Ver `notes/2026-09-25-c-font-eu-color4-
 ## Por qué
 
 El motor de texto del EU tiene **otro layout** que el US (direcciones y fichero distintos). La
-deducción offline se contradice, así que capturamos **el bloque real** que el motor compone.
+deducción offline se contradice, así que capturamos **lo que el motor pone en RDRAM**.
 
-## Opción A (preferida): captura por hook de escritura
+## Script (ligero, no bloquea): `bizhawk_eu_glyph_capture.lua`
 
-`tools/analysis/bizhawk_eu_glyph_capture.lua` engancha las escrituras a RDRAM (`event.onmemorywrite`)
-y guarda los bloques "tipo glifo" (con PC y A1) en `eu_glyph_writes.log`. Es la vía más directa: al
-componer un acento, el bloque queda registrado tal cual.
+No engancha hooks (el hook global de escritura **bloqueaba** el emulador). Solo espera a que pulses
+un **botón del mando** (por defecto **Start**) y hace **un volcado de RDRAM** (8 MB) en ese frame.
 
-1. Edita `DIR` (carpeta existente, con barra final).
-2. BizHawk + ROM **EU**: `Tools → Lua Console → Script → Open` → el script.
-3. Llega a una pantalla **con texto** (menú de opciones/pausa: ayuda DE/FR) y pulsa **F12** unas
-   cuantas veces durante ~10 s para forzar la composición de glifos (incl. acentos).
-4. Pásame `work/eu_glyphs/eu_glyph_writes.log`.
+1. Crea la carpeta `hybrid-heaven-recomp\work\eu_glyphs\` (o edita `DIR` en el script; **barra final**).
+2. BizHawk + ROM **EU**: `Tools → Lua Console → Script → Open` → `bizhawk_eu_glyph_capture.lua`.
+3. Llega a una pantalla **con texto** y pulsa **Start** en 2-3 entradas/pantallas distintas (para
+   tener snapshots de textos distintos). Cada pulsación = un fichero `eu_rdram_<NNN>.bin`.
+4. Pásame la carpeta `work\eu_glyphs\`.
 
-> **Aviso**: el hook de escritura puede ir lento (se dispara mucho). Si BizHawk se arrastra, usa la
-> Opción B o reduce el tiempo.
-
-## Opción B (respaldo): volcados periódicos de RDRAM
-
-`tools/analysis/bizhawk_eu_glyphs_dump.lua` vuelca RDRAM completa (8 MB) cada ~0.75 s. Offline se
-localiza el buffer por diff:
+## Análisis (offline, en este repo)
 
 ```sh
+# 1) ¿El motor copia tal cual los bloques de la fuente EU a RDRAM? -> localiza el buffer y el valor.
+python3 tools/analysis/eu_glyphs_find.py work/eu_glyphs/ --blocks
+
+# 2) Si no aparecen bloques exactos, heuristica por ventana cambiante + prueba de layouts.
 python3 tools/analysis/eu_glyphs_find.py work/eu_glyphs/
 ```
 
-Salida: `work/eu_glyphs/eu_rdram_*.bin` + `eu_rdram_index.txt`. Repetir en 2-3 pantallas con texto
-distinto.
+- `--blocks` busca en cada snapshot los **32 B exactos** de cada glifo de la fuente EU conocida
+  (`eu_dec.z64` @ vecindad del color0 US). Es lo más fiable: si hay coincidencia, sabemos `slot → RDRAM`.
+- La heuristica por diff (sin `--blocks`) localiza la zona que cambia con el texto y prueba layouts.
 
 > Los `.bin` (8 MB c/u) van en `work/` (gitignored). No versionar.
+
+## Respaldo
+
+`bizhawk_eu_glyphs_dump.lua` (vuelca RDRAM cada ~0.75 s): úsalo solo si el método por botón no basta.
