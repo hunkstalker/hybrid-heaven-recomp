@@ -63,7 +63,13 @@ def locate_eu_color4(eu):
     return cand
 
 
-def decode_glyph(data, value, w=W, h=H):
+# El bloque EU (48 B) lleva 12 filas, pero las 2 primeras son "sangrado" del glifo vecino: el glifo
+# real ocupa las filas 2-11 (10 de contenido). Sin este desplazamiento los glifos salen mezclados.
+# Verificado: slot 0x67 = "a"+diéresis (ä), 0x6E = "e"+agudo (é), etc.
+EU_SHIFT_PX = 16
+
+
+def decode_glyph(data, value, w=W, h=H, shift=EU_SHIFT_PX):
     block = data[(value >> 1) * STRIDE:(value >> 1) * STRIDE + STRIDE]
     parity = value & 1
     pix = []
@@ -72,6 +78,8 @@ def decode_glyph(data, value, w=W, h=H):
         nib = i & 1
         val = (byte >> 4) & 0xF if nib == 0 else byte & 0xF
         pix.append((val >> 2) & 3 if parity == 0 else val & 3)
+    if shift:
+        pix = pix[shift:] + [0] * shift
     return pix
 
 

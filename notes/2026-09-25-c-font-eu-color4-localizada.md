@@ -28,6 +28,14 @@ Los ficheros de fuente EU se localizan por **vecindad en el residente, junto al 
 El `color4` EU (`0x8C3290`, 48 B/bloque, 8×12) **decodifica limpio** con el esquema 2bpp/paridad:
 `valor 1` = "1", etc. **76 glifos** (US 44).
 
+## 2b. Layout del glifo EU: **shift de 2 filas** (MEDIDO)
+
+El bloque EU (48 B, "12 filas") tiene las **2 primeras filas de "sangrado"** del glifo vecino: el
+glifo real ocupa las filas **2-11**. Sin desplazar 16 px en la lectura, los glifos salen mezclados
+(por eso el decode naíf parecía ruido). Con el shift, `slot 0x67` = **ä**, `0x6E` = **é**, `0x7F` =
+**ß**… que **coincide exactamente** con el mapeo `B0xx` del texto DE/FR. Implementado en
+`decode_glyph` (`EU_SHIFT_PX=16`).
+
 ## 3. Mapeo EUC → slot (MEDIDO)
 
 Tabla de gaiji EU en `eu_dec.z64` @ **`0x1EA30`**, entradas de 8 B:
@@ -49,11 +57,23 @@ B0B4=à, B0B7=ê, B0B8=è, B0B9=é, B0BA=ü, B0BF=ö, B0C1=ç, B0CA=ß`) **verif
 
 ## 5. Pendiente (paso 4, vía B)
 
-1. **Identificar** cada slot acentuado (leer los 76 del preview y anotar el Unicode).
+1. **Identificar** cada slot acentuado (leer los 41 gaiji del preview `work/fonts/eu_gaiji.png` /
+   `/tmp` sheet y anotar el Unicode). Confirmados por texto DE/FR: `B0B2=ä, B0B3=â, B0B4=à,
+   B0B7=ê, B0B8=è, B0B9=é, B0BA=ü, B0BF=ö, B0C1=ç, B0CA=ß`. El resto de `B0xx` mezcla símbolos
+   (¡ ? ’ “ ” …) y más acentos (`ï î ì Ä Ö Ü ù`), pendientes de confirmar slot por slot.
 2. **Integrar**: el overlay usa `color0` 8×8; o se migra el atlas del overlay a `color4` 8×12
    (misma fuente que el juego in-game) o se transportan los bitmaps. Decidir y reescalar layout.
 3. Quitar el plegado `to_ascii` y mapear UTF-8 → slot.
 4. Validar con `HH_MENU_SCREEN=5` (IDIOMA) y navegando.
+
+## 5b. Catalán / francés — glifos que podrían faltar
+
+- **Francés**: la PAL **no** incluye `Ò`/`ò` grave (solo `à è`), ni `œ`. Si los necesitamos, la vía
+  acordada es **derivar** (`Ó` girada 180°, o composición base+marca) y añadir el slot.
+- **Catalán**: necesita `à è é í ï ò ó ú ü ç` + `·` (punt volat) y `l·l`. La PAL cubre casi todo
+  salvo quizá `í`/`ó`/`ú` con acento agudo en ciertas posiciones y `ï`/`ò`; revisar contra los 41
+  gaiji. El `·` no está en la fuente y habría que dibujarlo (como `:`/`.`/`%`).
+- Verificar cada caso contra el preview antes de decidir "derivar".
 
 ## 6. Nota de higiene
 
