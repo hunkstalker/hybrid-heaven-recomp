@@ -32,11 +32,28 @@
 - **APLAZADO**: la solución de fondo es **desacoplar la lógica del juego del render** (lógica a 60 Hz)
   → épica aparte. Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
 
-## Tareas siguientes (ver `TODO.md` §Ahora`)
+## PRÓXIMA TAREA: sincronizar `menu-nativo` (no seguir aquí)
 
-- **Menú multilingüe / `SALIR` / `IDIOMA`**: rama **`menu-nativo`** (ahead 25, sin push).
-- **Widescreen**: falta la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar
-  sus identidades con F7 (captura pareada).
+La rama **`menu-nativo`** (menú nativo + multilingüe) está **desincronizada**: salió de v0.4.0 y no
+tiene los fixes de HUD/minimapa ni la v0.4.x. El siguiente trabajo es **allí**:
+
+```
+git switch menu-nativo
+git merge main          # merge, NO rebase (la rama ya está en origin)
+```
+
+El plan detallado (método, ~14 conflictos esperados, qué conservar de cada rama) está en el
+`RETOMAR.md` **de `menu-nativo`**, sección **"LO PRIMERO: sincronizar con `main`"**.
+
+- **No** mergear `menu-nativo` → `main` todavía: es WIP sin validar en Windows. Cuando esté completo
+  (JA + iniciar/continuar/modo combate/dificultad + validación) será la **feature release v0.5.0**.
+- `src/hooks/hud_rewrite.cpp` no conflictúa por fichero → los fixes de HUD llegan limpios; el riesgo
+  del merge está en la **API/teclas** (`input.cpp`, `hh.h`, `support.cpp`, `rt64_render_context.cpp`).
+
+## Otras tareas (ver `TODO.md`)
+
+- **Widescreen** (en `main`): falta la **barra HP** y elementos de la derecha (`right`/`stretch`) —
+  re-derivar sus identidades con F7 (captura pareada).
 - **APLAZADO**: artefacto de interpolación (puerta + jefe) — ver arriba.
 - Resto del backlog de `TODO.md`.
 
