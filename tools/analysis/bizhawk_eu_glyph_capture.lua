@@ -44,6 +44,7 @@ local function reg(name)
   local v = nil
   pcall(function() v = memory.getregister(name) end)
   if v == nil then pcall(function() v = cpu.getregister(name) end) end
+  if v == nil then pcall(function() v = emu.getregister(name) end) end
   return v
 end
 
@@ -67,6 +68,8 @@ local function snapshot()
   end
   f:write(table.concat(buf))
   f:close()
+  -- Captura de pantalla emparejada (facilita saber QUE texto se mostraba).
+  pcall(function() client.screenshot(name:gsub("%.bin$", ".png")) end)
   local idx = io.open(DIR .. "eu_rdram_index.txt", "a")
   if idx then
     idx:write(string.format("%d frame=%d pc=%s a1=%s a2=%s r4=%s r5=%s %s\n", count,
