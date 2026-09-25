@@ -60,15 +60,37 @@ end
 -- Aviso: la carpeta DIR debe existir (BizHawk Lua no crea directorios).
 local probe = io.open(DIR .. "eu_rdram_index.txt", "a")
 if probe then probe:close() else console.writeline("Crea la carpeta: " .. DIR) end
+
+-- Log de diagnostico: nombres de botones que expone joypad.get(1) (una vez).
+local dbg = io.open(DIR .. "eu_glyph_capture_debug.txt", "w")
+if dbg then
+  dbg:write("MARK_BUTTON=" .. MARK_BUTTON .. "\n")
+  local jp0 = joypad.get(1) or {}
+  local keys = {}
+  for k, _ in pairs(jp0) do keys[#keys + 1] = tostring(k) end
+  table.sort(keys)
+  dbg:write("joypad keys: " .. table.concat(keys, ", ") .. "\n")
+  dbg:flush()
+end
+
 console.writeline("eu_glyph_capture v2: pulsa '" .. MARK_BUTTON .. "' en el juego para cada snapshot.")
 
+local frame = 0
 while true do
   if not DOMAIN then pick_domain() end
   local jp = joypad.get(1) or {}
   local down = jp[MARK_BUTTON] == true
   if down and not prev then
+    if dbg then dbg:write(string.format("frame=%d PRESS %s\n", emu.framecount(), MARK_BUTTON)) dbg:flush() end
     snapshot()
   end
   prev = down
+  -- Latido cada ~2 s (diagnostico de que el script corre).
+  frame = frame + 1
+  if dbg and frame % 120 == 0 then
+    dbg:write(string.format("heartbeat frame=%d domain=%s snapshots=%d\n",
+                            emu.framecount(), DOMAIN or "nil", count))
+    dbg:flush()
+  end
   emu.frameadvance()
 end
