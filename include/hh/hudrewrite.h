@@ -18,7 +18,18 @@ namespace hh::hudrewrite {
 enum Class : int { kAuto = 0, kLeft = 1, kRight = 2, kStretch = 3, kSpill = 4 };
 
 // Clase de una identidad (tabla fija, re-derivada con HH_HUD_TRACE=1). kAuto si no esta.
-int class_of(const char* identity);
+//
+// La direccion RDRAM no es identidad; se clasifica por HASH DE CONTENIDO. Cuando un hash se
+// reutiliza (p. ej. la mascara `dfde6ac5` compone radial, minimapa y menus), se desambigua con
+// criterios extra:
+//   - `box`  extension en px 320x240 (ulx,uly,lrx,lry); -1 si no aplica (dl). El par del
+//            radial/disco (`a3036828`/`dfde6ac5`) solo se ancla en 27,19,59,51.
+//   - Posicion: la barra de COMBO son 4 `G_FILLRECT` en la fila y=28..30 (color rojo/azul por
+//            prim; la traza lee fill_color=0). Se clasifica por fila, no por color.
+//   - `env`  color de entorno RGBA (G_SETENVCOLOR) del draw (pista secundaria).
+// Ver notes/2026-09-25-f-hud-combate-contenido.md.
+int class_of(const char* identity, int ulx = -1, int uly = -1, int lrx = -1, int lry = -1,
+             uint32_t env_colour = 0);
 
 // Hay alguna identidad clasificada en la tabla fija.
 bool any_classes();

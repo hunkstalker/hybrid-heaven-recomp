@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 #define HLSL_CPU
@@ -23,6 +24,14 @@
 #include "hh_render.h"
 #include "hh.h"
 #include "hh/hudrewrite.h"
+
+#if defined(_WIN32)
+// Para la captura de imagen (F10): HWND + GDI. Se incluye DESPUES de los headers de RT64 y SIN
+// `WIN32_LEAN_AND_MEAN`: ese macro excluye las cabeceras COM (IUnknown/IStream/BSTR) que necesita
+// `dxcapi.h` (que entra por los headers DirectX de RT64) -> errores C2504/C2061. `NOMINMAX` ya lo
+// define el CMake del proyecto.
+#include <windows.h>
+#endif
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
@@ -43,6 +52,92 @@ static void dummy_check_interrupts() {}
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
+
+#if defined(_WIN32)
+// Ventana nativa (HWND) para la captura de imagen pareada a la traza HUD (F10). Ver dl_snap.cpp.
+void* g_capture_window = nullptr;
+
+// BMP 32bpp sin compresion. `bgra_topdown` es la fila 0 = arriba; el BMP se escribe de abajo arriba.
+bool write_bmp32(const char* path, int w, int h, const uint8_t* bgra_topdown) {
+    if (w <= 0 || h <= 0 || bgra_topdown == nullptr) return false;
+    const uint32_t row = static_cast<uint32_t>(w) * 4u;
+    const uint32_t data = row * static_cast<uint32_t>(h);
+    uint8_t hdr[54] = {0};
+    hdr[0] = 'B'; hdr[1] = 'M';
+    const uint32_t file_size = 54u + data;
+    std::memcpy(hdr + 2, &file_size, 4);
+    const uint32_t off = 54u;
+    std::memcpy(hdr + 10, &off, 4);
+    const uint32_t ih = 40u;
+    std::memcpy(hdr + 14, &ih, 4);
+    const int32_t sw = w, sh = h;
+    std::memcpy(hdr + 18, &sw, 4);
+    std::memcpy(hdr + 22, &sh, 4);
+    const uint16_t planes = 1, bpp = 32;
+    std::memcpy(hdr + 26, &planes, 2);
+    std::memcpy(hdr + 28, &bpp, 2);
+    std::memcpy(hdr + 34, &data, 4);
+    std::FILE* f = std::fopen(path, "wb");
+    if (f == nullptr) return false;
+    std::fwrite(hdr, 1, sizeof hdr, f);
+    for (int y = h - 1; y >= 0; --y) {
+        std::fwrite(bgra_topdown + static_cast<size_t>(y) * row, 1, row, f);
+    }
+    std::fclose(f);
+    return true;
+}
+
+// true si todos los pixeles son exactamente negros (captura fallida de una swapchain).
+bool is_blank(const uint8_t* bgra, int w, int h) {
+    const size_t n = static_cast<size_t>(w) * h;
+    for (size_t i = 0; i < n; ++i) {
+        const uint8_t* p = bgra + i * 4;
+        if (p[0] | p[1] | p[2]) return false;
+    }
+    return true;
+}
+
+// Captura el area cliente de la ventana. Con swapchains D3D12/Vulkan, `PrintWindow` +
+// PW_RENDERFULLCONTENT es lo que funciona; si devuelve negro, se reintenta con `BitBlt`.
+bool capture_window_bmp(const char* path) {
+    HWND hwnd = static_cast<HWND>(g_capture_window);
+    if (hwnd == nullptr) return false;
+    RECT rc{};
+    if (!GetClientRect(hwnd, &rc)) return false;
+    const int w = rc.right - rc.left, h = rc.bottom - rc.top;
+    if (w <= 0 || h <= 0) return false;
+    HDC wdc = GetDC(hwnd);
+    if (wdc == nullptr) return false;
+    HDC mdc = CreateCompatibleDC(wdc);
+    BITMAPINFO bi{};
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = w;
+    bi.bmiHeader.biHeight = -h;   // top-down
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    HBITMAP bmp = CreateDIBSection(wdc, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    bool ok = false;
+    if (bmp != nullptr && mdc != nullptr && bits != nullptr) {
+        HGDIOBJ old = SelectObject(mdc, bmp);
+#ifndef PW_RENDERFULLCONTENT
+#define PW_RENDERFULLCONTENT 0x00000002
+#endif
+        ok = PrintWindow(hwnd, mdc, PW_RENDERFULLCONTENT) != 0;
+        if (!ok || is_blank(static_cast<const uint8_t*>(bits), w, h)) {
+            std::memset(bits, 0, static_cast<size_t>(w) * h * 4u);
+            ok = BitBlt(mdc, 0, 0, w, h, wdc, 0, 0, SRCCOPY) != 0;
+        }
+        SelectObject(mdc, old);
+        if (ok) ok = write_bmp32(path, w, h, static_cast<const uint8_t*>(bits));
+    }
+    if (bmp != nullptr) DeleteObject(bmp);
+    if (mdc != nullptr) DeleteDC(mdc);
+    ReleaseDC(hwnd, wdc);
+    return ok;
+}
+#endif  // _WIN32
 }
 
 static ultramodern::renderer::SetupResult map_setup_result(RT64::Application::SetupResult setup_result) {
@@ -224,6 +319,7 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
     RT64::Application::Core appCore{};
 #if defined(_WIN32)
     appCore.window = window_handle.window;
+    g_capture_window = window_handle.window;   // HWND para la captura de imagen (F10)
 #elif defined(__linux__) || defined(__ANDROID__)
     appCore.window = window_handle;
 #elif defined(__APPLE__)
@@ -379,6 +475,19 @@ void hh::RT64Context::update_screen() {
         }
     }
     app->updateScreen();
+
+    // Captura pareada (F10): en el present que sigue a la traza, guardar la imagen de la ventana.
+    // Junto con `hh_cap_<n>.log` (mismo instante) permite atar cada `box` del trace a lo que se ve.
+    if (hh::hud_capture_pending()) {
+        bool ok = false;
+#if defined(_WIN32)
+        ok = capture_window_bmp(hh::hud_capture_image_path());
+#else
+        (void)ok;
+#endif
+        hh::log("[hh-cap] imagen %s: %s\n", hh::hud_capture_image_path(), ok ? "ok" : "FALLO");
+        hh::hud_capture_finish();
+    }
 }
 
 void hh::RT64Context::shutdown() {

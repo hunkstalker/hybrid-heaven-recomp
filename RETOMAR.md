@@ -1,53 +1,56 @@
 # RETOMAR — handoff
 
-> Handoff para **sesión nueva**. **Última sesión: 2026-09-22.**
+> Handoff para **sesión nueva**. **Última sesión: 2026-09-25.**
+> **Rama de trabajo: `main`.** **Issue #3 (HUD de combate en widescreen) CERRADO y validado.**
 
 ## Estado
 
-- **Mapa widescreen (fase 07b): CERRADO y validado en Windows.** Notas:
-  `notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`,
-  `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`.
-- **Cierre de sesión (2026-09-22)**: cursor oculto sobre la ventana, carpeta `rom/` guía en los
-  artefactos de release, README renovado (features + estado) y **versión `0.3.0`**
-  (`notes/2026-09-22-cursor-release-rom-readme.md`).
-- **Publicado**: `main` y el fork de RT64 ya están en GitHub.
+- **Issue #3 CERRADO (v0.4.2)** — el HUD de combate se ancla entero en widescreen también del 2.º
+  combate en adelante:
+  - **POWER/STAMINA**: hash de contenido (`d820d8e`).
+  - **Disco plateado del radial**: hash + caja exacta `27,19,59,51` (32×32).
+  - **Barra de combo**: 4 `G_FILLRECT` en la fila `y=28..30`, clasificados por **posición**.
+  - Detalle, herramienta y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
+- Herramienta nueva: **F10 = captura pareada** (traza de un frame → `hh_cap_<n>.log` **+ imagen** de
+  la ventana → `hh_cap_<n>.bmp`, mismo instante). Ver §Método HUD.
+- **Pendiente de publicar**: push de `main` (forks primero) y tag **v0.4.2** (ver §Git).
 
-## Pendiente inmediato (mantenedor)
+## Tareas siguientes (ver `TODO.md` §Ahora)
 
-- **Publicar Release `v0.3.0`** cuando CI esté verde en `fc0dda1`:
-  ```powershell
-  git -C hybrid-heaven-recomp tag -a v0.3.0 -m v0.3.0
-  git -C hybrid-heaven-recomp push origin v0.3.0
-  ```
-  (dispara `release.yml`; requiere un run de CI exitoso para ese commit).
+- **Menú multilingüe / `SALIR` / `IDIOMA`**: rama **`menu-nativo`** (ahead 25, sin push). Retomar con
+  `git switch menu-nativo` y validar en Windows.
+- **Widescreen**: falta la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar
+  sus identidades con F10 en las escenas donde aparecen.
+- Resto del backlog de `TODO.md` (menú in-game de opciones PC, textos/traducción, etc.).
 
-## Qué toca ahora
+## Método HUD
 
-Ver **`TODO.md`** §Ahora (priorizado). Foco: **menú IN-GAME de opciones PC (ADR 0008)**, smoke de
-arranque, definir **ADR 0009** (cobertura nativa). Backlog: textos/traducción, barra HP y elementos
-`right`/`stretch` del HUD (POWER/STAMINA ya validados), Steam Deck, `osAiGetStatus`, etc.
-
-## Método (mapa / HUD — seguir si se retoca)
-
-- El mapa **solo se valida en Windows**; Linux headless solo para compilar
-  (`cmake --build build/linux -j`).
-- Release es GUI: trazas a `hh.log` junto al exe (`HH_HUD_*`, `HH_RECT_TRACE=1`).
-- Ajuste en caliente sin recompilar: `+`/`-` (crop del panel/scissor del mapa).
-- **No** retomar el quad del fondo del mapa sin leer la nota de fix.
+- **Lista de validación**: solo Windows (build release GUI). Linux headless solo compila.
+- Trazas a fichero junto al exe: `HH_HUD_TRACE=1`, `HH_HUD_REWRITE_TRACE=1`, `HH_HUD_SCISSOR_TRACE=1`,
+  `HH_FULL_FRAME=0` (off), `HH_NO_HUD_REWRITE=1` (off), `HH_MAP_CROP=<px>`.
+- **F10 = captura pareada**: traza de identidades 2D de UN frame → `hh_cap_<n>.log` **+ imagen** de la
+  ventana → `hh_cap_<n>.bmp`, en el mismo instante. Otro F10 la cancela. Es la forma de atar un `box`
+  del trace a lo que se ve. `HH_HUD_TRACE=1` sigue volcando traza continua a `hh_hud.log`.
+- **Regla**: la **dirección RDRAM no es identidad**; usar **hash de contenido** (+ caja/posición
+  cuando el hash se reutiliza). **No fiarse del color**: la barra de combo pasa rojo→azul y parpadea,
+  y RT64 pinta el relleno con el **PRIM color** (la traza lee `fill_color=0`).
+- El **Inspector de RT64** (`HH_DEVELOPER=1`, F1) fue clave: muestra el `Rect` y el `PrimColor` del
+  draw bajo el cursor.
 
 ## Build Windows
 
 ```
 rmdir /s /q hybrid-heaven-recomp\build\windows
 hybrid-heaven-recomp\build_windows_release.bat
-hybrid-heaven-recomp\run_windows_release.bat
 ```
+(La build **no siempre** refresca el `.exe`: comprobar su fecha; si no cambia, borrar
+`build\windows` y recompilar desde cero. Verificado que sale `=== LISTO ===` pero a veces no
+actualiza el ejecutable.)
 
 ## Git
 
-- **`main`**: pusheado hasta `fc0dda1` (mapa + cursor + release `rom/` + README + `0.3.0`). El
-  commit de **este handoff** queda pendiente de push (junto con el tag `v0.3.0`).
-- **`lib/rt64`** (fork `hunkstalker/rt64`): rama `hybrid-heaven` = `a8f0a70` (parches 2D + misalign
-  Ortopédico). `.gitmodules` apunta al fork.
-- **`N64ModernRuntime` / `N64Recomp`**: en sync (sin cambios).
-- Tags previos: `v0.1.x`, `v0.2.0`. **`v0.3.0` pendiente de tag.**
+- **`main`**: commits del cierre del issue #3 + v0.4.2, **sin pushear**. Publicar: forks primero
+  (N64Recomp, N64ModernRuntime), luego `main` con `--force-with-lease` y tag **v0.4.2**
+  (ver `AGENTS.md` §Push).
+- **`menu-nativo`**: work del menú (`SALIR`, `IDIOMA` en AJUSTES, fix reapply idioma), ahead 25.
+- No commitear sin validación (regla `AGENTS.md`).

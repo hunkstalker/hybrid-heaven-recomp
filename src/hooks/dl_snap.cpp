@@ -13,10 +13,13 @@
 #include "hh.h"
 #include "hh/hudid.h"
 
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -123,9 +126,12 @@ struct HudWalker {
     uint32_t image = 0;
     uint32_t fill_colour = 0;
     std::string texture_ident;
+    FILE* report_file = nullptr;   // copia de cada identidad a un fichero aparte (F10 -> hh_hud.log)
     // Estaticos: el trace vive en varias llamadas (una por lista enviada) y solo quiere cada
-    // identidad una vez por sesion.
+    // identidad una vez por sesion. `seen_epoch` los vacia cuando empieza una captura nueva (F10),
+    // para que cada `hh_cap_<n>.log` sea completo y no herede lo ya visto en la captura anterior.
     static inline std::vector<std::string> seen_tex, seen_dl, seen_fill;
+    static inline int seen_epoch = -1;
 
     uint32_t physical(uint32_t address) const {
         const uint32_t seg = (address >> 24) & 0x0F;
@@ -144,10 +150,20 @@ struct HudWalker {
 
     void report(const std::string& id, float x0, float x1, float y0, float y1) {
         hh::log("[hh-hud] %s x %.0f..%.0f y %.0f..%.0f rect\n", id.c_str(), x0, x1, y0, y1);
+        if (report_file != nullptr) {
+            std::fprintf(report_file, "%s x %.0f..%.0f y %.0f..%.0f rect\n", id.c_str(), x0, x1, y0, y1);
+        }
     }
 
     void walk(uint32_t address, int depth) {
         if (depth > 12) return;
+        const int ep = hh::hud_capture_epoch();
+        if (ep != seen_epoch) {
+            seen_epoch = ep;
+            seen_tex.clear();
+            seen_dl.clear();
+            seen_fill.clear();
+        }
         uint32_t pc = physical(address);
         for (int guard = 0; guard < 200000; ++guard) {
             if (pc >= 0x800000) return;
@@ -249,17 +265,136 @@ void snap_overscan(uint8_t* rdram, uint32_t list_address) {
     }
 }
 
+// --- Captura pareada a demanda (F10) --------------------------------------------------------
+// Objetivo: que un solo F10 deje, en el MISMO instante, la traza de identidades 2D de un frame
+// (`hh_cap_<n>.log`) y una imagen de la ventana (`hh_cap_<n>.bmp`). Sin esto es imposible atar un
+// `box` del trace a lo que se ve (el fallo de la sesion anterior: se confundieron menu y combo).
+//
+// Estados:
+//   0 = idle; 1 = armada (F10 pulsado, aun sin traza); 2 = trazada (esperando el present para la imagen).
+// La imagen la guarda `update_screen` (hilo de render) al ver `hud_capture_pending()`; el log lo
+// escribe el hilo de juego via `hud_trace_file()`. El fichero se protege con un mutex.
+enum { kCapIdle = 0, kCapArmed = 1, kCapTraced = 2 };
+
+std::atomic<int> g_cap_state{ kCapIdle };
+std::atomic<int> g_cap_index{ 0 };
+std::atomic<int> g_cap_epoch{ 0 };
+std::atomic<long long> g_cap_start_ms{ 0 };
+std::atomic<long long> g_cap_traced_ms{ 0 };
+std::mutex g_cap_mutex;
+std::FILE* g_cap_file = nullptr;
+char g_cap_image_path[64] = { 0 };
+char g_cap_log_path[64] = { 0 };
+
+long long now_ms() {
+    using namespace std::chrono;
+    return duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+}
+
 bool hud_trace_enabled() {
     static const bool on = [] {
         const char* e = getenv("HH_HUD_TRACE");
         return e != nullptr && *e != '\0' && strcmp(e, "0") != 0;
     }();
-    return on;
+    return on || g_cap_state.load(std::memory_order_relaxed) != kCapIdle;
+}
+
+bool hud_capture_active() {
+    return g_cap_state.load(std::memory_order_relaxed) != kCapIdle;
+}
+
+int hud_capture_epoch() {
+    return g_cap_epoch.load(std::memory_order_relaxed);
+}
+
+void hud_capture_trigger() {
+    std::lock_guard<std::mutex> lk(g_cap_mutex);
+    if (g_cap_file != nullptr) {
+        // Segundo F10: cancela la captura en curso.
+        std::fclose(g_cap_file);
+        g_cap_file = nullptr;
+        g_cap_state.store(kCapIdle, std::memory_order_relaxed);
+        hh::log("[hh-cap] captura cancelada (F10)\n");
+        std::fprintf(stderr, "[HH] F10: captura cancelada\n");
+        return;
+    }
+    const int idx = g_cap_index.fetch_add(1, std::memory_order_relaxed) + 1;
+    g_cap_epoch.fetch_add(1, std::memory_order_relaxed);   // invalida los dedup `seen` de la anterior
+    std::snprintf(g_cap_log_path, sizeof g_cap_log_path, "hh_cap_%d.log", idx);
+    std::snprintf(g_cap_image_path, sizeof g_cap_image_path, "hh_cap_%d.bmp", idx);
+    g_cap_file = std::fopen(g_cap_log_path, "w");
+    if (g_cap_file == nullptr) {
+        std::fprintf(stderr, "[HH] F10: no se pudo abrir %s\n", g_cap_log_path);
+        g_cap_state.store(kCapIdle, std::memory_order_relaxed);
+        return;
+    }
+    g_cap_start_ms.store(now_ms(), std::memory_order_relaxed);
+    g_cap_state.store(kCapArmed, std::memory_order_relaxed);
+    hh::log("[hh-cap] captura %d armada (F10): %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
+    std::fprintf(stderr, "[HH] F10: captura %d -> %s + %s\n", idx, g_cap_image_path, g_cap_log_path);
+}
+
+bool hud_capture_pending() {
+    const int st = g_cap_state.load(std::memory_order_relaxed);
+    if (st == kCapIdle) return false;
+    if (st == kCapTraced) {
+        // Espera ~50 ms desde la primera escritura: el juego envia 2 display lists por frame y con
+        // PresentEarly puede presentarse a mitad; asi el frame esta completo y la imagen coincide
+        // con la traza (el estado de color del combo es estable durante decenas de ms).
+        return (now_ms() - g_cap_traced_ms.load(std::memory_order_relaxed)) > 50;
+    }
+    // Armada pero aun sin traza: si pasa el timeout (F10 en un frame sin display lists), se guarda
+    // igualmente la imagen para no dejar la captura colgada.
+    return (now_ms() - g_cap_start_ms.load(std::memory_order_relaxed)) > 500;
+}
+
+const char* hud_capture_image_path() {
+    return g_cap_image_path;
+}
+
+void hud_capture_finish() {
+    std::lock_guard<std::mutex> lk(g_cap_mutex);
+    if (g_cap_file != nullptr) {
+        std::fflush(g_cap_file);
+        std::fclose(g_cap_file);
+        g_cap_file = nullptr;
+    }
+    g_cap_state.store(kCapIdle, std::memory_order_relaxed);
+    hh::log("[hh-cap] captura cerrada\n");
+}
+
+std::FILE* hud_trace_file() {
+    // Captura a demanda: el log va al fichero de la captura activa.
+    if (g_cap_state.load(std::memory_order_relaxed) != kCapIdle) {
+        std::lock_guard<std::mutex> lk(g_cap_mutex);
+        if (g_cap_file == nullptr) return nullptr;
+        // Primera escritura -> la traza ya existe; se marca el instante para que `update_screen`
+        // guarde la imagen tras ~50 ms (frame completo).
+        int expected = kCapArmed;
+        if (g_cap_state.compare_exchange_strong(expected, kCapTraced)) {
+            g_cap_traced_ms.store(now_ms(), std::memory_order_relaxed);
+        }
+        return g_cap_file;
+    }
+    // Traza continua (HH_HUD_TRACE=1 / HH_HUD_REWRITE_TRACE=1) a `hh_hud.log`.
+    static std::FILE* f = nullptr;
+    static bool opened = false;
+    if (!opened) {
+        opened = true;
+        f = std::fopen("hh_hud.log", "w");
+        if (f == nullptr) {
+            std::fprintf(stderr, "[HH] no se pudo abrir hh_hud.log; la traza va solo a hh.log\n");
+        }
+    }
+    return f;
 }
 
 void hud_trace(uint8_t* rdram, uint32_t list_address) {
     if (!hud_trace_enabled() || rdram == nullptr) return;
+    std::FILE* f = hud_trace_file();
     HudWalker w{ rdram };
+    w.report_file = f;
     w.walk(list_address, 0);
+    if (f != nullptr) std::fflush(f);
 }
 }  // namespace hh

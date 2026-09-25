@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -18,7 +19,7 @@ namespace hh {
     // derivan el string del log (get_version_string) y el recomp::Version del runtime.
     inline constexpr int kVersionMajor = 0;
     inline constexpr int kVersionMinor = 4;
-    inline constexpr int kVersionPatch = 1;
+    inline constexpr int kVersionPatch = 2;
 
     const char* get_version_string();
 
@@ -95,6 +96,20 @@ namespace hh {
     // Widescreen: trace temporal de identidades 2D (HH_HUD_TRACE=1); ver RETOMAR.md §3.1.
     bool hud_trace_enabled();
     void hud_trace(uint8_t* rdram, uint32_t list_address);
+    // Handle de `hh_hud.log` (se abre la primera vez; null si falla) o, si hay captura en curso, del
+    // fichero de esa captura. Lo comparten el walker (dl_snap.cpp) y el reescritor (hud_rewrite.cpp).
+    std::FILE* hud_trace_file();
+
+    // Captura PAREADA a demanda (tecla F10): vuelca la traza de identidades 2D de UN frame a
+    // `hh_cap_<n>.log` y, en el siguiente present, guarda la imagen de la ventana en `hh_cap_<n>.bmp`.
+    // Asi el log y la imagen son el mismo instante (indispensable para atar un box del trace a lo que
+    // se ve en pantalla). Cada F10 abre una captura nueva (n++). Ver dl_snap.cpp / rt64_render_context.
+    void hud_capture_trigger();          // F10: abre una captura (o cancela la activa)
+    bool hud_capture_active();           // hay una captura en curso (para `hud_trace_enabled`)
+    int  hud_capture_epoch();            // cambia con cada captura: los dedup `seen` se vacian al cambiar
+    bool hud_capture_pending();          // toca guardar la imagen en este present
+    const char* hud_capture_image_path();// ruta del .bmp de la captura activa
+    void hud_capture_finish();           // cierra el log y termina la captura
 }
 
 // Defined in RecompiledFuncs/lookup.cpp (C++ linkage).
