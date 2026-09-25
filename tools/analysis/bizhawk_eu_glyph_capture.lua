@@ -1,23 +1,21 @@
--- bizhawk_eu_glyph_capture.lua  (v2, LIGERO)
--- Captura EMPIRICA del buffer de glifos EU SIN hook de escritura (que bloqueaba el emulador).
---
--- Mecanismo: no engancha nada. Espera a que el jugador pulse un BOTON del mando (por defecto
--- "Start") y, en ese instante, hace UN volcado de RDRAM (8 MB) a un fichero. Repite: cada pulsacion
--- es un snapshot. Offline se localiza el buffer de glifos por diff entre snapshots de pantallas
--- distintas (tools/analysis/eu_glyphs_find.py).
+-- bizhawk_eu_glyph_capture.lua  (v3)
+-- Captura EMPIRICA del buffer de glifos EU sin hooks (no bloquea). Al pulsar el BOTON MARCADOR,
+-- guarda: (a) un volcado de RDRAM (8 MB) y (b) los REGISTROS de CPU (PC/A1/A2/R4/R5) de ese frame,
+-- para correlacionar el valor de glifo compuesto con el buffer.
 --
 -- Uso (BizHawk, ROM EU):
 --   1) DIR = carpeta existente con barra final.
 --   2) Tools -> Lua Console -> Script -> Open -> este fichero.
---   3) Llega a una pantalla con TEXTO; pulsa el boton marcador (Start) en 2-3 entradas/idiomas
---      distintos. Cada pulsacion escribe eu_rdram_<NNN>.bin (8 MB) + eu_rdram_index.txt.
+--   3) Cambia de boton marcador con MARK_BUTTON si quieres (por defecto "L"; "Start" tambien vale).
+--      Llega a una pantalla con TEXTO y pulsa el boton marcador en textos/idiomas distintos.
+--   Salida: eu_rdram_<NNN>_<frame>.bin (8 MB) + eu_rdram_index.txt (incluye PC/A1/A2).
 --
 -- No bloquea: solo hace I/O en el frame de la pulsacion.
 
 DIR = "E:/dev/docker/hybrid-heaven-pc-port/hybrid-heaven-recomp/work/eu_glyphs/"
 -- Contenedor Linux: /app/hybrid-heaven-recomp/work/eu_glyphs/
 
-MARK_BUTTON = "Start"   -- boton del mando que marca el snapshot (evita depender de teclas de PC)
+MARK_BUTTON = "L"       -- boton del mando que marca el snapshot (L/R del N64 = gatillos)
 RDRAM_SIZE = 0x800000
 RDRAM_BASE = 0x80000000
 
@@ -25,18 +23,15 @@ local DOMAIN = nil
 local count = 0
 local prev = false
 
--- API correcta de BizHawk: memory.getmemorydomainlist() (devuelve una lista de nombres).
 local function pick_domain()
   local ok, list = pcall(memory.getmemorydomainlist)
   if not ok or not list then return false end
-  -- Preferencias de nombre para N64 (BizHawk suele exponer "RDRAM").
   local pref = { "RDRAM", "N64 RAM", "System Bus" }
   for _, p in ipairs(pref) do
     for _, d in ipairs(list) do
       if d == p or string.find(d, p, 1, true) then DOMAIN = d return true end
     end
   end
-  -- Fallback: cualquier dominio que tenga >= 8 MB.
   for _, d in ipairs(list) do
     local size = nil
     pcall(function() size = memory.getmemorydomainsize(d) end)
@@ -45,8 +40,20 @@ local function pick_domain()
   return false
 end
 
+local function reg(name)
+  local v = nil
+  pcall(function() v = memory.getregister(name) end)
+  if v == nil then pcall(function() v = cpu.getregister(name) end) end
+  return v
+end
+
 local function snapshot()
   if not DOMAIN then return end
+  local pc = reg("PC")
+  local a1 = reg("A1")
+  local a2 = reg("A2")
+  local r4 = reg("R4")
+  local r5 = reg("R5")
   local buf = {}
   for off = 0, RDRAM_SIZE - 1, 4 do
     local v = memory.read_u32_be(RDRAM_BASE + off, DOMAIN)
@@ -61,16 +68,20 @@ local function snapshot()
   f:write(table.concat(buf))
   f:close()
   local idx = io.open(DIR .. "eu_rdram_index.txt", "a")
-  if idx then idx:write(string.format("%d frame=%d %s\n", count, emu.framecount(), name)) idx:close() end
+  if idx then
+    idx:write(string.format("%d frame=%d pc=%s a1=%s a2=%s r4=%s r5=%s %s\n", count,
+      emu.framecount(), pc and string.format("0x%08X", pc) or "?",
+      a1 and string.format("0x%04X", a1) or "?", a2 and string.format("0x%04X", a2) or "?",
+      r4 and string.format("0x%08X", r4) or "?", r5 and string.format("0x%08X", r5) or "?", name))
+    idx:close()
+  end
   count = count + 1
   console.writeline("snapshot " .. name)
 end
 
--- Aviso: la carpeta DIR debe existir (BizHawk Lua no crea directorios).
 local probe = io.open(DIR .. "eu_rdram_index.txt", "a")
 if probe then probe:close() else console.writeline("Crea la carpeta: " .. DIR) end
 
--- Log de diagnostico: nombres de botones que expone joypad.get(1) (una vez).
 local dbg = io.open(DIR .. "eu_glyph_capture_debug.txt", "w")
 if dbg then
   dbg:write("MARK_BUTTON=" .. MARK_BUTTON .. "\n")
@@ -82,20 +93,14 @@ if dbg then
   local ok, list = pcall(memory.getmemorydomainlist)
   if ok and list then
     local names = {}
-    for _, d in ipairs(list) do
-      local size = nil
-      pcall(function() size = memory.getmemorydomainsize(d) end)
-      names[#names + 1] = string.format("%s(size=%s)", tostring(d), tostring(size))
-    end
+    for _, d in ipairs(list) do names[#names + 1] = tostring(d) end
     dbg:write("domains: " .. table.concat(names, ", ") .. "\n")
-  else
-    dbg:write("getmemorydomainlist NO disponible\n")
   end
   if pick_domain() then dbg:write("DOMAIN elegido: " .. tostring(DOMAIN) .. "\n") end
   dbg:flush()
 end
 
-console.writeline("eu_glyph_capture v2: pulsa '" .. MARK_BUTTON .. "' en el juego para cada snapshot.")
+console.writeline("eu_glyph_capture v3: pulsa '" .. MARK_BUTTON .. "' en el juego para cada snapshot.")
 
 local frame = 0
 while true do
@@ -107,9 +112,8 @@ while true do
     snapshot()
   end
   prev = down
-  -- Latido cada ~2 s (diagnostico de que el script corre).
   frame = frame + 1
-  if dbg and frame % 120 == 0 then
+  if dbg and frame % 300 == 0 then
     dbg:write(string.format("heartbeat frame=%d domain=%s snapshots=%d\n",
                             emu.framecount(), DOMAIN or "nil", count))
     dbg:flush()
