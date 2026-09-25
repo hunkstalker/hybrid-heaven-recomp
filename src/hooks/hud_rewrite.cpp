@@ -711,18 +711,10 @@ int class_of(const char* identity) {
     if (identity == nullptr) return kAuto;
     struct Entry { const char* id; int cls; };
     static const Entry kTable[] = {
-        // Radar (barra de salud radial), borde izquierdo.
+        // Radar (barra de salud radial), borde izquierdo. Residente en gameplay -> direccion estable.
         { "tex:0x802866f8#a3036828", kLeft },
         { "tex:0x80286af8#dfde6ac5", kLeft },
         { "dl:0x80181860#e59a0172", kLeft },
-        // HUD de combate POWER/STAMINA (al lado del radial, misma altura): barras + decoracion +
-        // numeros HP. Todo se desplaza lo mismo que el radial (`left`).
-        { "tex:0x802875b8#dde74e45", kLeft },   // barra fina
-        { "tex:0x80301ea8#49f54bfa", kLeft },   // decoracion/etiqueta POWER/STAMINA
-        { "tex:0x802872f8#18bafa7e", kLeft },   // marco
-        { "tex:0x802ec298#2d78f1b6", kLeft },   // decoracion
-        { "tex:0x802eca98#37a5c505", kLeft },   // decoracion
-        { "tex:0x802ed298#26092cb3", kLeft },   // decoracion
         // Mapa (abajo-derecha): fondo + capas. Identidades de la referencia, hashes coincidentes.
         { "fill:0x00000000@197,143,277,223", kRight },
         { "dl:0x030002e0#bbb8c0ba", kRight },
@@ -730,6 +722,33 @@ int class_of(const char* identity) {
     };
     for (const Entry& e : kTable) {
         if (std::strcmp(identity, e.id) == 0) return e.cls;
+    }
+    // HUD de combate POWER/STAMINA (al lado del radial, misma altura): barras + decoracion +
+    // numeros HP. Todo se desplaza lo mismo que el radial (`left`). El modulo de combate (file 57)
+    // se carga/descarga en CADA encuentro y los graficos viven en memoria dinamica: su direccion
+    // cambia y la identidad `tex:<addr>#<hash>` no casa (issue #3: 1er combate si, del 2o en
+    // adelante no). Por eso se clasifican por el HASH DE CONTENIDO (los primeros 64 B de la imagen),
+    // que es lo que identifica el grafico, ignorando la direccion.
+    //
+    // Riesgo (documentado en la referencia): *over-match* si otra imagen comparte los primeros 64 B.
+    // Es improbable con estos hashes; si apareciera un falso positivo, endurecer exigiendo tambien
+    // la extension 320x240 del draw (como el prefijo de los rellenos). Ver notes/2026-09-25-*.
+    struct ContentEntry { uint32_t hash; int cls; };
+    static const ContentEntry kContent[] = {
+        { 0xdde74e45u, kLeft },   // barra fina
+        { 0x49f54bfau, kLeft },   // decoracion/etiqueta POWER/STAMINA
+        { 0x18bafa7eu, kLeft },   // marco
+        { 0x2d78f1b6u, kLeft },   // decoracion
+        { 0x37a5c505u, kLeft },   // decoracion
+        { 0x26092cb3u, kLeft },   // decoracion
+    };
+    if (std::strncmp(identity, "tex:", 4) == 0) {
+        uint32_t h = 0;
+        if (hh::hudid::parse_hash(identity, h)) {
+            for (const ContentEntry& e : kContent) {
+                if (e.hash == h) return e.cls;
+            }
+        }
     }
     // Prefijos: barras de valor animadas (el ancho del fill cambia cada frame -> identidad distinta).
     struct Prefix { const char* p; int cls; };

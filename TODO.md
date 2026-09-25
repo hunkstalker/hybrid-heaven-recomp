@@ -34,6 +34,10 @@
   **Falta**: la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar sus
   identidades con `HH_HUD_TRACE=1` en las escenas donde aparecen (combate/diálogos) y añadirlas a
   la tabla fija. `HH_FULL_FRAME=0` desactiva el widescreen; `HH_NO_HUD_REWRITE=1` el anclaje.
+  **Issue #3 (2026-09-25)**: desde el **2º combate** el HUD de combate se quedaba en 4:3 (la
+  dirección RDRAM del gráfico cambia por encuentro; no es identidad). Fix: clasificar las texturas
+  de combate por **hash de contenido** (sin dirección). Ver
+  `notes/2026-09-25-f-hud-combate-contenido.md`. Headless OK; **falta validar en Windows 1º/2º combate**.
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta

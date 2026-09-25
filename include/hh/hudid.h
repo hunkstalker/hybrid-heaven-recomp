@@ -12,10 +12,15 @@
 //   dl:<addr lista>#<hash de sus primeros 16 comandos>
 //   fill:<color>@<ulx>,<uly>,<lrx>,<lry>   (pixeles 320x240)
 //
+// La direccion identifica una INSTANCIA, no un grafico: los elementos que se cargan en memoria
+// dinamica (HUD de combate) cambian de direccion por escena -> `class_of` clasifica esos por el
+// HASH de contenido (`texture_hash`/`parse_hash`), ignorando la direccion. Issue #3.
+//
 // Los fills a pantalla completa son *clears*: no tienen identidad.
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -35,12 +40,31 @@ inline uint32_t fnv(uint32_t h, uint32_t word) {
     return h;
 }
 
-inline std::string texture(const uint8_t* rdram, uint32_t address, uint32_t phys) {
+// Hash de CONTENIDO de una imagen: FNV-1a de sus primeros 64 bytes. Es la parte que de verdad
+// identifica el grafico; la direccion RDRAM no (el HUD de combate, file 57, vive en memoria dinamica
+// y cambia de direccion en cada encuentro; issue #3). Se expone aparte de `texture` para poder
+// clasificar por contenido sin depender de la direccion.
+inline uint32_t texture_hash(const uint8_t* rdram, uint32_t phys) {
     uint32_t h = 2166136261u;
     for (uint32_t i = 0; i < 16; ++i) h = fnv(h, read_word(rdram, phys + 4 * i));
+    return h;
+}
+
+inline std::string texture(const uint8_t* rdram, uint32_t address, uint32_t phys) {
     char buf[40];
-    std::snprintf(buf, sizeof buf, "tex:0x%08x#%08x", address, h);
+    std::snprintf(buf, sizeof buf, "tex:0x%08x#%08x", address, texture_hash(rdram, phys));
     return buf;
+}
+
+// Hash de contenido de una identidad `tex:0xADDR#hhhhhhhh` o `dl:0xADDR#hhhhhhhh` (el sufijo tras
+// '#'). false si la identidad no tiene el formato esperado. Lo usa `class_of` para clasificar el HUD
+// de combate por contenido, ignorando la direccion.
+inline bool parse_hash(const char* identity, uint32_t& out) {
+    if (identity == nullptr) return false;
+    const char* hash_pos = std::strrchr(identity, '#');
+    if (hash_pos == nullptr || hash_pos[1] == '\0') return false;
+    out = static_cast<uint32_t>(std::strtoul(hash_pos + 1, nullptr, 16));
+    return true;
 }
 
 inline std::string list(const uint8_t* rdram, uint32_t address, uint32_t phys) {
