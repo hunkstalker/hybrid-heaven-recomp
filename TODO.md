@@ -5,12 +5,6 @@
 
 ## Ahora (priorizado)
 
-- [•] **[Issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa
-  desanclado al inicio del nivel 2-1** (tras eliminar al primer jefe, Procyon): el **minimapa sale
-  fuera del marco** (en los niveles previos va bien). La **salud (POWER/STAMINA) ya se arregló**
-  (issue #3). Misma familia de causa (la **dirección RDRAM no es identidad** → el minimapa/panel
-  cambia de dirección por escena/capítulo y no casa con la tabla fija). Investigar con **F7**
-  (captura pareada) + Inspector de RT64. Ver `RETOMAR.md` y `notes/2026-09-25-f-hud-combate-contenido.md`.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
@@ -77,6 +71,11 @@
 
 ## Hecho (resumen; detalle en `notes/`)
 
+- [x] **[Issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa
+  desanclado al inicio del nivel 2-1 (2026-09-26)**: la salud ya se arregló con el issue #3; el
+  **minimapa** se anclaba por identidad `dl:<dirección>#<hash>` y el overlay cambia de dirección por
+  escena/capítulo → no casaba. Fix: emparejar los `dl` del mapa por **hash de contenido** (estable)
+  en `class_of`. `notes/2026-09-26-fix-minimapa-contenido.md`.
 - [x] **High frame rate por defecto (v0.4.0, 2026-09-23)**: `PresentEarly` + `Refresh Rate = Display`
   → presenta al refresco del monitor (~109 fps validado con RTSS), lógica a 30 Hz. Diagnóstico
   `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1`+F1; `HH_GRAPHICS_API`; atajos **F2** aspecto /

@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 109 | 2026-09-25 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 119 | 2026-09-25 |
-| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 80 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 139 | 2026-09-25 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 120 | 2026-09-25 |
+| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 83 | 2026-09-24 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 138 | 2026-09-25 |
 
 ## Técnico y guías (vivos)
 
@@ -29,6 +29,7 @@
 | [v0.4.1 - Flexible ROM Loading (SHA-1 Check)](releases/v0.4.1.md) | Carga de ROM más tolerante y con verificación de integridad. | 7 | 2026-09-25 |
 | [v0.4.2 - Combat HUD widescreen anchor fix](releases/v0.4.2.md) | El **HUD de combate** se ancla entero en widescreen también a partir del **2.º combate** (antes, | 10 | 2026-09-25 |
 | [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-25 |
+| [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-25 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 255 | 2026-09-21 |
 
 ## Decisiones (ADR, inmutables)
@@ -51,6 +52,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Issue #7 — Minimapa desanclado al inicio del nivel 2-1 (RESUELTO)](../notes/2026-09-26-fix-minimapa-contenido.md) | 2026-09-26. Bug reportado por El-Rana. Síntoma: al inicio del **nivel 2-1** (tras eliminar al | 39 | 2026-09-26 |
 | [Issue #3 — HUD de combate: anclaje por identidad de contenido (RESUELTO)](../notes/2026-09-25-f-hud-combate-contenido.md) | **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 4 partes. Aquí queda el cómo, | 150 | 2026-09-25 |
 | [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 110 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |

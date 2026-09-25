@@ -47,12 +47,13 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-25, v0.4.3)**: **issue #3 CERRADO y validado en Windows** — el HUD de
-combate se ancla entero en widescreen también del 2.º combate en adelante: POWER/STAMINA por hash
-de contenido (`d820d8e`), disco plateado del radial por hash+caja `27,19,59,51`, barra de combo
-(4 `G_FILLRECT` en `y=28..30`) y **stamina gastada** (`G_FILLRECT` en `y=34..38`), ambas por
-posición. Herramienta nueva: **F7 = captura pareada** (traza +
-imagen). `notes/2026-09-25-f-hud-combate-contenido.md`. Antes: **mapa widescreen (fase 07b)
+**Estado actual (2026-09-26, v0.4.4)**: **issues #3 y #7 CERRADOS y validados en Windows** — el HUD
+de combate y el **minimapa** se anclan enteros en widescreen en todas las escenas/capítulos:
+POWER/STAMINA por hash de contenido (`d820d8e`), disco plateado del radial por hash+caja
+`27,19,59,51`, barra de combo (4 `G_FILLRECT` en `y=28..30`) y **stamina gastada** (`G_FILLRECT` en
+`y=34..38`) por posición, y **minimapa** por hash de contenido de su lista. Herramienta: **F7 =
+captura pareada** (traza + imagen). `notes/2026-09-25-f-hud-combate-contenido.md` ·
+`notes/2026-09-26-fix-minimapa-contenido.md`. Antes: **mapa widescreen (fase 07b)
 validado** (`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`); **migración ELF (ADR 0011) hasta M4**
 validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y **M4c** (SEGV
 teardown, fix en fork NMR) hechos. Plan general:

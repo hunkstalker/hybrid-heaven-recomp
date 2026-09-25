@@ -811,6 +811,17 @@ int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t 
     // dinamica -> la identidad `tex:<addr>#<hash>` no casa (issue #3: 1er combate si, del 2o en
     // adelante no; disco y combo igual). La direccion NO es identidad.
     if (std::strncmp(identity, "tex:", 4) != 0) {
+        // MINIMAPA (`right`): el overlay del mapa se carga por escena/capitulo y su direccion
+        // cambia. Issue #7: al inicio del nivel 2-1 el mapa verde (un mesh bajo proyeccion
+        // ortografica) sale desanclado, fuera del marco, porque la identidad `dl:<addr>#<hash>` de
+        // kTable ya no casa. El HASH DE CONTENIDO de la lista (primeros 16 comandos) es estable ->
+        // se empareja por hash, ignorando la direccion. (El dial del radar, kLeft, ya caso antes.)
+        if (std::strncmp(identity, "dl:", 3) == 0) {
+            uint32_t dh = 0;
+            if (hh::hudid::parse_hash(identity, dh) && (dh == 0xbbb8c0bau || dh == 0x1427da33u)) {
+                return kRight;
+            }
+        }
         // Rellenos del HUD de combate (G_FILLRECT): filas de POWER (y24..27), COMBO (y28..30) y
         // STAMINA gastada (y34..38), en el tramo x~64..182. El COLOR no sirve como identidad:
         // cambia (rojo/azul/naranja apagado) y RT64 pinta el relleno con el PRIM color, asi que la

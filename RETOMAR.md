@@ -12,10 +12,13 @@
   - **Barra de combo**: 4 `G_FILLRECT` en la fila `y=28..30`, por **posición**.
   - **Stamina gastada** (v0.4.3): `G_FILLRECT` en `y=34..38`, por **posición**.
   - Detalle, herramienta y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
-- Herramienta nueva: **F7 = captura pareada** (traza de un frame → `hh_cap_<n>.log` **+ imagen** de
-  la ventana → `hh_cap_<n>.bmp`, mismo instante). Toggles de diagnóstico **F8/F9/F10**. Ver §Método HUD.
-- **Publicado**: push de `main` + release **v0.4.3** (2026-09-25) con las notas de
-  `docs/releases/v0.4.3.md` ("Combat HUD: stamina depletion bar fix").
+- **Issue #7 CERRADO (v0.4.4)** — el **minimapa** (mesh verde, `right`) se anclaba por identidad
+  `dl:<dirección>#<hash>`; el overlay del mapa cambia de dirección por escena/capítulo (nivel 2-1) y
+  no casaba → salía fuera del marco. Fix: emparejar los `dl` del mapa por **hash de contenido**
+  (estable) en `class_of`. Validado en Windows. `notes/2026-09-26-fix-minimapa-contenido.md`.
+- Herramienta: **F7 = captura pareada** (traza de un frame → `hh_cap_<n>.log` **+ imagen** de la
+  ventana → `hh_cap_<n>.bmp`, mismo instante). Toggles de diagnóstico **F8/F9/F10**. Ver §Método HUD.
+- **v0.4.3 publicada** (2026-09-25). **Pendiente**: push + release **v0.4.4** (ver §Git).
 
 ## Bug aplazado (interpolación de frames)
 
@@ -31,11 +34,6 @@
 
 ## Tareas siguientes (ver `TODO.md` §Ahora`)
 
-- **EN CURSO (prioridad)**:
-  **[issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa desanclado
-  al inicio del nivel 2-1**. La salud (POWER/STAMINA) **ya se arregló**; queda el **minimapa**.
-  Misma familia de causa que el issue #3 (la **dirección RDRAM no es identidad**). Investigar con
-  **F7** (captura pareada) + Inspector de RT64.
 - **Menú multilingüe / `SALIR` / `IDIOMA`**: rama **`menu-nativo`** (ahead 25, sin push).
 - **Widescreen**: falta la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar
   sus identidades con F7 (captura pareada).
@@ -72,7 +70,7 @@ actualiza el ejecutable.)
 
 ## Git
 
-- **`main`**: **pusheado** (fast-forward) con el cierre del issue #3 y **release v0.4.3 publicada**
-  (2026-09-25). `docs/releases/v0.4.3.md` da el título al Release (`release.yml`).
+- **`main`**: v0.4.3 publicada (2026-09-25). **Pendiente**: push + release **v0.4.4** (título en
+  `docs/releases/v0.4.4.md`, lo lee `release.yml`).
 - **`menu-nativo`**: work del menú (`SALIR`, `IDIOMA` en AJUSTES, fix reapply idioma), ahead 25.
 - No commitear sin validación (regla `AGENTS.md`).
