@@ -18,6 +18,60 @@ std::vector<Screen> g_screens;      // todas las pantallas (el estado vive aquí
 std::vector<ScreenId> g_stack;      // camino activo; el tope es la pantalla visible
 Layout g_layout;
 
+// Traducciones de las etiquetas/opciones del menú. Clave = etiqueta canónica en ESPAÑOL (la del
+// modelo). Columnas: en, ca, fr, de. El JAPONÉS de momento cae a INGLÉS (sus etiquetas en kana
+// necesitan embeber la fuente JP; pendiente). Uppercase (la fuente del menú no tiene minúsculas
+// acentuadas). Las tildes salen de las marcas del overlay (A/N/C).
+struct MenuTr { const char* es; const char* en; const char* ca; const char* fr; const char* de; };
+const MenuTr kMenuTr[] = {
+    // Pantallas / entradas
+    {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN"},
+    {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
+    {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
+    {"AJUSTES", "SETTINGS", "AJUSTOS", "OPTIONS", "EINSTELLUNGEN"},
+    {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
+    {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT"},
+    {"IDIOMA", "LANGUAGE", "IDIOMA", "LANGUE", "SPRACHE"},
+    {"GRÁFICOS", "GRAPHICS", "GRÀFICS", "GRAPHIQUES", "GRAFIK"},
+    {"SONIDO", "SOUND", "SO", "SON", "TON"},
+    {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG"},
+    {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA"},
+    {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN"},
+    {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO"},
+    {"RESOLUCIÓN", "RESOLUTION", "RESOLUCIÓ", "RÉSOLUTION", "AUFLÖSUNG"},
+    {"P. COMPLETA", "FULLSCREEN", "P. COMPLETA", "PLEIN ÉCRAN", "VOLLBILD"},
+    {"ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING"},
+    {"VSYNC", "VSYNC", "VSYNC", "VSYNC", "VSYNC"},
+    {"LÍMITE DE FPS", "FPS LIMIT", "LÍMIT DE FPS", "LIMITE FPS", "FPS-LIMIT"},
+    {"VENTANA DEBUG", "DEBUG WINDOW", "FINESTRA DEBUG", "FENÊTRE DEBUG", "DEBUG-FENSTER"},
+    {"MOSTRAR FPS", "SHOW FPS", "MOSTRAR FPS", "AFFICHER FPS", "FPS ANZEIGEN"},
+    {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE"},
+    {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE"},
+    {"MENÚ SFX", "MENU SFX", "MENÚ SFX", "MENU SFX", "MENÜ-SFX"},
+    // Opciones (mismos valores en todos los idiomas si no cambian)
+    {"SÍ", "YES", "SÍ", "OUI", "JA"},
+    {"NO", "NO", "NO", "NON", "NEIN"},
+    {"AUTO", "AUTO", "AUTO", "AUTO", "AUTO"},
+    {"ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL"},
+    {"NATIVO", "NATIVE", "NATIU", "NATIF", "NATIV"},
+    {"MONO", "MONO", "MONO", "MONO", "MONO"},
+    {"ESTÉREO", "STEREO", "ESTÈREO", "STÉRÉO", "STEREO"},
+    {"AURICULARES", "HEADPHONES", "AURICULARS", "CASQUE", "KOPFHÖRER"},
+    {"DEFINITIVO", "ULTIMATE", "DEFINITIU", "SUPRÊME", "ULTIMATIV"},
+    {"DIFÍCIL", "HARD", "DIFÍCIL", "DIFFICILE", "SCHWER"},
+    {"NORMAL", "NORMAL", "NORMAL", "NORMAL", "NORMAL"},
+};
+
+// Endónimos de la lista IDIOMA: SIEMPRE en su propia lengua (no dependen del idioma activo). Clave =
+// nombre canónico en español; valor = endónimo a mostrar. Uppercase (la fuente del menú no tiene
+// minúsculas acentuadas: à/ñ/ç). JA en rōmaji (el endónimo real es 日本語, kanji, que color0 no
+// dibuja; pendiente TTF).
+struct Endonym { const char* es; const char* shown; };
+const Endonym kEndonyms[] = {
+    {"INGLÉS", "ENGLISH"},  {"ESPAÑOL", "ESPAÑOL"}, {"CATALÁN", "CATALÀ"},
+    {"FRANCÉS", "FRANÇAIS"}, {"ALEMÁN", "DEUTSCH"}, {"JAPONÉS", "NIHONGO"},
+};
+
 Entry make_item(const char* label, Action action, bool enabled = true) {
     Entry e;
     e.label = label;
@@ -158,6 +212,8 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
         make_item("EMPEZAR PARTIDA", Action::StartGame),
         make_submenu("DIFICULTAD", Action::OpenDifficulty),
+        // IDIOMA va justo debajo de DIFICULTAD (decidido por el mantenedor).
+        make_submenu("IDIOMA", Action::OpenLanguage),
         make_selector("CÁMARA LIBRE", {"NO", "SÍ"}),
         make_selector("APUNTADO LIBRE", {"NO", "SÍ"}),
     }));
@@ -165,7 +221,7 @@ void build_tree() {
     // DIFICULTAD: lista (A marca la aplicada; el resto sale en gris). La opción marcada es el valor
     // en memoria; vendrá de la config en el paso 6.
     g_screens.push_back(make_screen(ScreenId::Difficulty, ScreenKind::List, {
-        make_option("SUPREMO"),
+        make_option("DEFINITIVO"),
         make_option("DIFÍCIL"),
         make_option("NORMAL", /*marked=*/true),
     }));
@@ -173,23 +229,27 @@ void build_tree() {
     // MODO COMBATE: por definir; la entrada de la raíz sale deshabilitada.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {}));
 
-    // AJUSTES: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
+    // AJUSTES: GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
+    // IDIOMA se movió a NUEVA PARTIDA (debajo de DIFICULTAD).
     g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {
-        make_submenu("IDIOMA", Action::OpenLanguage),
         make_submenu("GRÁFICOS", Action::OpenGraphics),
         make_submenu("SONIDO", Action::OpenSound),
         make_submenu("DEBUG", Action::OpenDebug),
     }));
 
-    // IDIOMA: lista, de INGLÉS (arriba) a JAPONÉS (abajo). El activo vendrá del idioma actual (A1).
-    g_screens.push_back(make_screen(ScreenId::Language, ScreenKind::List, {
-        make_option("INGLÉS", /*marked=*/true),
-        make_option("ESPAÑOL"),
-        make_option("CATALÁN"),
-        make_option("FRANCÉS"),
-        make_option("ALEMÁN"),
-        make_option("JAPONÉS"),
-    }));
+    // IDIOMA: lista (INGLÉS...JAPONÉS). La opción activa es el idioma actual (negrita/verde).
+    {
+        Screen lang = make_screen(ScreenId::Language, ScreenKind::List, {
+            make_option("INGLÉS"), make_option("ESPAÑOL"), make_option("CATALÁN"),
+            make_option("FRANCÉS"), make_option("ALEMÁN"), make_option("JAPONÉS"),
+        });
+        static const char* kCodes[] = { "en", "es", "ca", "fr", "de", "ja" };
+        const std::string cur = hh::text_current_language();
+        for (size_t i = 0; i < lang.entries.size() && i < 6; ++i) {
+            lang.entries[i].marked = (cur == kCodes[i]);
+        }
+        g_screens.push_back(std::move(lang));
+    }
 
     // GRÁFICOS: RATIO filtra las resoluciones de RESOLUCIÓN (ambos con AUTO/ORIGINAL). El paso 6
     // aplicará los valores a RT64. Por defecto RATIO=AUTO y RESOLUCIÓN=AUTO.
@@ -339,6 +399,32 @@ int depth() {
 
 const Layout& layout() {
     return g_layout;
+}
+
+std::string localized(const std::string& label) {
+    if (label.empty()) return label;
+    // Endónimos de la lista IDIOMA: fijos (no se traducen).
+    for (const Endonym& e : kEndonyms) {
+        if (label == e.es) return e.shown;
+    }
+    const std::string& c = hh::text_current_language();
+    int lang = 0;   // 0=es, 1=en, 2=ca, 3=fr, 4=de
+    if (c == "en") lang = 1;
+    else if (c == "ca") lang = 2;
+    else if (c == "fr") lang = 3;
+    else if (c == "de") lang = 4;
+    else if (c == "ja") lang = 1;   // JA: de momento inglés (kana pendiente)
+    for (const MenuTr& t : kMenuTr) {
+        if (label != t.es) continue;
+        switch (lang) {
+            case 1: return t.en;
+            case 2: return t.ca;
+            case 3: return t.fr;
+            case 4: return t.de;
+            default: return t.es;
+        }
+    }
+    return label;
 }
 
 Event move_up() {

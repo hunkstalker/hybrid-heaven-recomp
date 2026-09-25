@@ -88,3 +88,6 @@ config.ini
 build_windows.local.bat
 build_windows_release.local.bat
 build_windows_debug.local.bat
+
+# Logs de runtime del port (raíz)
+hh_*.log

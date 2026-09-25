@@ -43,5 +43,20 @@ bool glyph_uv(unsigned char c, unsigned& x, unsigned& y);
 // por 'M' sale 1 px a la izquierda del resto. Ver notes/2026-09-24-a2-*.md.
 int glyph_left_bearing(unsigned char c);
 
+// --- Marcas del MENU (overlay) -------------------------------------------------------------------
+// El menu lo dibuja el overlay: para una letra acentuada se pinta la letra base TAL CUAL (color0)
+// + una MARCA centrada encima (ver tools/text/menu_marks.py). Asi no se deforman las mayusculas.
+//
+// Busca `cp` (codepoint Unicode) en la tabla de acentuados/simbolos del menu. Si esta: `value` =
+// valor de la letra base (0 = sin letra, simbolo suelto) y `mark` = indice de marca. false si no.
+bool menu_char(unsigned cp, unsigned& value, int& mark);
+
+// UV de un glifo por su VALOR (0..63). false si esta fuera.
+bool value_uv(unsigned value, unsigned& x, unsigned& y);
+
+// Marca horneada en el atlas: UV, tamano y `dy` = offset vertical en px de glifo relativo al TOPE
+// de la letra (negativo = por encima). false si el indice no es valido.
+bool mark_info(int mark, unsigned& x, unsigned& y, unsigned& w, unsigned& h, int& dy);
+
 }  // namespace game
 }  // namespace hh::font

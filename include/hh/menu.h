@@ -118,6 +118,10 @@ int depth();  // nº de pantallas en la pila (1 = raíz)
 
 const Layout& layout();
 
+// Traduce una etiqueta/opción canónica (en español) al idioma activo (hh::text_current_language()).
+// Si no hay traducción para la clave, devuelve la canónica tal cual. La capa de dibujo la usa.
+std::string localized(const std::string& label);
+
 // Navegación. Devuelven el evento producido (None si la entrada no hace nada).
 Event move_up();
 Event move_down();

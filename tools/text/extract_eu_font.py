@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """Extrae la fuente EU (acentos reales) en el formato EXACTO del motor.
 
-Formato verificado (2026-09-25): el fichero de fuente "idioma"/color4 EU esta @`0x8C3298`
-(localizado por vecindad del color0 US, byte-identico). Mismo formato que el US:
-- 32 B por **par** de valores (`bloque = v >> 1`); paridad `v & 1` elige el plano.
-- 8x8, 2bpp, 2 px/byte (nibble). US = 66 valores (2112 B); EU = 114 valores (3648 B).
-- Validado: v1 = "1", v2 = "2"; los valores altos (66..113) son los acentos EU.
+Formato verificado (2026-09-25, corregido): el fichero de fuente "idioma" (Nisitenma idx108)
+esta @`0x8C3298` en la ROM EU (localizado por el primer bloque del mismo fichero en US).
+El glifo es **8x12** (no 8x8):
+- Cada bloque de `STRIDE` bytes contiene DOS glifos empaquetados (`bloque = v >> 1`); la
+  paridad `v & 1` elige el plano (PAR = bits 2-3 del nibble, IMPAR = bits 0-1).
+- 2bpp, 4 px por byte (nibble). 8x12 = 96 px por glifo -> 48 B por PAR (24 B por glifo).
+- **US idx108**: stride 48 (2112 B = 44 bloques = 88 valores).
+- **EU idx108**: stride **56** (3648 B = 65 bloques = **130 valores**); 8 B de mas por bloque
+  (probablemente 2 filas extra por glifo). Los 42 ultimos valores son los acentos EU.
+- El orden base coincide con US: v1..v10 = "0".."9", v11..v36 = "a".."z", v37..v62 = "A".."Z".
 
-La tabla `EUC B0xx -> valor` esta en el codigo (`func_8001D394`), no en el fichero.
+La tabla `EUC B0xx -> slot` esta en la ROM (`0x1EA30`, entradas de 8 B, `B0A1 -> 0x56`
+secuencial); el slot **no** es el valor del glifo directamente (pendiente de fijar con el
+oraculo del emulador; ver notes/2026-09-25-c-font-eu-color4-localizada.md §5).
 
 Uso:
     python3 tools/text/extract_eu_font.py --sheet work/fonts/eu_all.png
@@ -21,21 +28,25 @@ import zlib
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 US_ROM = os.path.join(REPO, "build", "linux", "baserom.us.z64")
 EU_ROM = os.path.join(REPO, "work", "roms", "eu_dec.z64")
-US108_OFF = 0x6E4CD6      # color4 "idioma" US (2112 B)
-W, H, STRIDE, N_EU = 8, 8, 32, 114
+US108_OFF = 0x6E4CD6      # "idioma" (idx108) US: 2112 B = 44 bloques x 48
+US_STRIDE = 48            # 8x12, par de glifos por bloque
+EU_STRIDE = 56            # 8x12 + 8 B por bloque
+W, H = 8, 12
+N_US = 2112 // US_STRIDE * 2   # 88 valores
+N_EU = 3648 // EU_STRIDE * 2   # 130 valores
 
 
 def locate_eu_font(eu, us):
-    """Localiza el fichero de fuente 'idioma' EU por el primer bloque del US108."""
-    first = us[US108_OFF:US108_OFF + 32]
+    """Localiza la fuente 'idioma' EU por el primer bloque de glifos del US108."""
+    first = us[US108_OFF:US108_OFF + US_STRIDE]
     j = eu.find(first)
     if j < 0:
         raise SystemExit("No se localiza la fuente EU (¿ROM EU distinta?)")
     return j
 
 
-def decode(font, v):
-    blk = font[(v >> 1) * STRIDE: ((v >> 1) + 1) * STRIDE]
+def decode(font, v, stride=EU_STRIDE):
+    blk = font[(v >> 1) * stride: ((v >> 1) + 1) * stride]
     par = v & 1
     pix = []
     for i in range(W * H):
@@ -91,8 +102,8 @@ def main():
     eu = open(EU_ROM, "rb").read()
     us = open(US_ROM, "rb").read()
     base = locate_eu_font(eu, us)
-    font = eu[base:base + N_EU * STRIDE]
-    print(f"fuente EU @0x{base:X} ({N_EU} valores, {len(font)} B)")
+    font = eu[base:base + (N_EU // 2) * EU_STRIDE]
+    print(f"fuente EU @0x{base:X} (stride {EU_STRIDE}, {N_EU} valores, {len(font)} B)")
 
     if args.sheet:
         sheet(args.sheet, font, list(range(N_EU)))
@@ -103,11 +114,14 @@ def main():
             f.write("// Generado por tools/text/extract_eu_font.py -- NO editar a mano.\n")
             f.write("#pragma once\n#include <cstdint>\n\n")
             f.write("namespace hh {\n")
-            f.write("// Bloques de la fuente EU 'idioma' (114 valores x 32 B, 8x8 2bpp).\n")
-            f.write("inline constexpr uint8_t kEuFontBlocks[%d][%d] = {\n" % (N_EU, STRIDE))
+            f.write("// Fuente EU 'idioma' (idx108): %d valores de 8x12, nivel 0..3 por pixel.\n" % N_EU)
+            f.write("inline constexpr uint8_t kEuGlyphs[%d][%d][%d] = {\n" % (N_EU, H, W))
             for v in range(N_EU):
-                blk = font[(v >> 1) * STRIDE: ((v >> 1) + 1) * STRIDE]
-                f.write("    {%s},\n" % ", ".join("0x%02X" % b for b in blk))
+                pix = decode(font, v)
+                rows = []
+                for y in range(H):
+                    rows.append("{%s}" % ", ".join(str(pix[y * W + x]) for x in range(W)))
+                f.write("    {%s},\n" % ", ".join(rows))
             f.write("};\n}  // namespace hh\n")
         print("header:", args.out)
 

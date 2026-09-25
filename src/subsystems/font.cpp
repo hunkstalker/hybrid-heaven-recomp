@@ -3,6 +3,7 @@
 
 #include "hh.h"
 #include "hh/font.h"
+#include "hh/menu_marks.h"
 
 #include <cstdint>
 #include <fstream>
@@ -21,9 +22,17 @@ constexpr unsigned kBlockStride = 32;   // dos glifos 8x8 2bpp por bloque
 constexpr unsigned kMaxValue = 64;      // valores 0..63 (letras + espacio)
 constexpr unsigned kAtlasCols = 16;
 constexpr unsigned kAtlasWidth = kAtlasCols * kGlyphW;                 // 128
-constexpr unsigned kAtlasHeight = (kMaxValue / kAtlasCols) * kGlyphH;  // 32
+constexpr unsigned kAtlasHeight = (kMaxValue / kAtlasCols) * kGlyphH;  // 32 (letras)
 
-uint8_t g_atlas[kAtlasWidth * kAtlasHeight * 4];
+// Region de MARCAS (menu): sprites recortados, celda 8x12, debajo de las letras.
+constexpr unsigned kMarkTop = kAtlasHeight;
+constexpr unsigned kMarkW = kGlyphW;                     // celda ancha de una marca
+constexpr unsigned kMarkH = hh::kMenuGlyphH;             // 12
+constexpr unsigned kMarkCols = kAtlasWidth / kMarkW;     // 16
+constexpr unsigned kMarkRows = (hh::kMenuMarkCount + kMarkCols - 1) / kMarkCols;
+constexpr unsigned kFullHeight = kMarkTop + kMarkRows * kMarkH;
+
+uint8_t g_atlas[kAtlasWidth * kFullHeight * 4];
 bool g_ready = false;
 bool g_tried = false;
 
@@ -48,6 +57,23 @@ void bake_atlas(const uint8_t* font) {
                 g_atlas[p + 1] = 255;                       // G
                 g_atlas[p + 2] = 255;                       // B
                 g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;    // A = cobertura
+            }
+        }
+    }
+    // Marcas del menu (sprites recortados) en la region inferior del atlas.
+    for (unsigned m = 0; m < hh::kMenuMarkCount; ++m) {
+        const hh::MenuMark& mk = hh::kMenuMarks[m];
+        const unsigned cx = (m % kMarkCols) * kMarkW;
+        const unsigned cy = kMarkTop + (m / kMarkCols) * kMarkH;
+        for (unsigned y = 0; y < mk.h; ++y) {
+            for (unsigned x = 0; x < mk.w; ++x) {
+                const unsigned lvl = mk.pix[y * mk.w + x];
+                if (lvl == 0) continue;
+                const unsigned p = ((cy + y) * kAtlasWidth + (cx + x)) * 4;
+                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
+                g_atlas[p + 1] = 255;
+                g_atlas[p + 2] = 255;
+                g_atlas[p + 3] = 255;
             }
         }
     }
@@ -81,15 +107,16 @@ bool init() {
 
     bake_atlas(reinterpret_cast<const uint8_t*>(data.data()));
     g_ready = true;
-    hh::log("[font] atlas RGBA8 color0: %ux%u (%u B)\n", kAtlasWidth, kAtlasHeight,
-            kAtlasWidth * kAtlasHeight * 4);
+    hh::log("[font] atlas RGBA8 color0: %ux%u (%u B; letras %ux%u + marcas %ux%u)\n",
+            kAtlasWidth, kFullHeight, kAtlasWidth * kFullHeight * 4,
+            kAtlasWidth, kAtlasHeight, kAtlasWidth, kMarkRows * kMarkH);
     return true;
 }
 
 bool ready() { return g_ready; }
 const uint8_t* atlas_rgba8() { return g_atlas; }
 unsigned atlas_width() { return kAtlasWidth; }
-unsigned atlas_height() { return kAtlasHeight; }
+unsigned atlas_height() { return kFullHeight; }
 unsigned char_width() { return kGlyphW; }
 unsigned char_height() { return kGlyphH; }
 
@@ -101,11 +128,38 @@ bool glyph_value(unsigned char c, unsigned& value) {
     return false;
 }
 
+bool value_uv(unsigned value, unsigned& x, unsigned& y) {
+    if (value >= kMaxValue) return false;
+    x = (value % kAtlasCols) * kGlyphW;
+    y = (value / kAtlasCols) * kGlyphH;
+    return true;
+}
+
 bool glyph_uv(unsigned char c, unsigned& x, unsigned& y) {
     unsigned v = 0;
-    if (!glyph_value(c, v) || v >= kMaxValue) return false;
-    x = (v % kAtlasCols) * kGlyphW;
-    y = (v / kAtlasCols) * kGlyphH;
+    if (!glyph_value(c, v)) return false;
+    return value_uv(v, x, y);
+}
+
+bool menu_char(unsigned cp, unsigned& value, int& mark) {
+    for (unsigned i = 0; i < hh::kMenuCharCount; ++i) {
+        if (hh::kMenuChars[i].cp == cp) {
+            value = hh::kMenuChars[i].base_value;
+            mark = static_cast<int>(hh::kMenuChars[i].mark);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool mark_info(int mark, unsigned& x, unsigned& y, unsigned& w, unsigned& h, int& dy) {
+    if (mark < 0 || static_cast<unsigned>(mark) >= hh::kMenuMarkCount) return false;
+    const hh::MenuMark& mk = hh::kMenuMarks[static_cast<unsigned>(mark)];
+    x = (static_cast<unsigned>(mark) % kMarkCols) * kMarkW;
+    y = kMarkTop + (static_cast<unsigned>(mark) / kMarkCols) * kMarkH;
+    w = mk.w;
+    h = mk.h;
+    dy = mk.dy;
     return true;
 }
 

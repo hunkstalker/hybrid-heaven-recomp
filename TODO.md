@@ -8,8 +8,11 @@
 - [x] **Bugs del menú overlay A2 (2026-09-24) — VALIDADOS en Windows**: bearing de "MODO COMBATE",
   **tercer set** de etiquetas al volver atrás, y cierre del overlay (instantáneo al cambiar de
   pantalla). Ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-dos-tablas.md`.
-- [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
-  **Antes: spike go/no-go** (nota 09-18 §6).
+- [x] **Menú IN-GAME de opciones PC (ADR 0008) — HECHO (2026-09-25, headless)**: árbol, navegación
+  (A/B, control total), acciones (video → `[video]`; audio → `[audio]`), SFX por eventos, **acentos**
+  (letra+marca) e **idiomas** (EN/ES/CA/FR/DE + **idioma del sistema**). Detalle:
+  `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, ADR 0008/0012.
+  **Falta**: **validar en Windows** y el **JA del menú** (kana del `color0` JP).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
@@ -82,17 +85,18 @@
      (`Move`/`Accept`/`Back`) en `feed_menu_navigation`; **puente retirado** (quedaba en silencio con
      el input muteado y nunca disparaba `back`). Validado: modelo (eventos incl. `Back`). Pendiente
      Windows.
-     **ACENTOS (paso 4) — fuente EU EXTRAÍDA Y LEGIBLE (2026-09-25)**: el atlas del overlay usa
-     `color0` 8x8 (compone acentos); se usarán los **glifos REALES de la ROM EU**. **Fuente EU
-     "idioma" @ `eu_dec.z64` `0x8C3298`**: 114 valores, formato idéntico al US (32 B por par `v>>1`,
-     paridad `v&1`, 8x8 2bpp). Validado `v1`="1", `v2`="2"; acentos reales en valores altos (Ü Ä Ö À
-     Ç É Ê Î Ì Ù ü ö ß...). El fichero EU **está reordenado por completo** (no es US+extra). El menú
-     vanilla EU no se tradujo (inglés), pero la fuente con tildes existe (texto in-game). Herramienta:
-     `tools/text/extract_eu_font.py --sheet work/fonts/eu_all.png` (hoja etiquetada por valor).
-     Detalle: `notes/2026-09-25-c-font-eu-color4-localizada.md`. **Falta**: (1) identificar cada valor
-     (0..113) con su Unicode leyendo la hoja; (2) integrar los bloques EU en el atlas del overlay;
-     (3) quitar `to_ascii` y mapear UTF-8→valor; (4) validar (`HH_MENU_SCREEN=5`) y Windows.
-     Para capturas: `tools/analysis/bizhawk_eu_glyph_capture.lua` (v3, botón `L`, sin hooks).
+      **ACENTOS + IDIOMAS DEL MENÚ HECHOS (2026-09-25, headless)**: (a) **corregido el formato** de la
+      fuente "idioma": es **8×12** (48 B US / 56 B EU, 130 valores EU), no 8×8/32; `extract_eu_font.py`
+      arreglado; el menú usa **`color0` 8×8** (engine `fileidx=108` = Nisitenma 107; `stride=32`). (b)
+      Acentos del menú = **letra base color0 + marca** (dibujada por el mantenedor;
+      `tools/text/menu_marks.py` → `include/hh/menu_marks.h`; atlas 128×44). `¿ ¡` = `? !` girados.
+      (c) **`IDIOMA` debajo de `DIFICULTAD` y funcional** (menú + texto in-game; persiste en `[lang]`);
+      etiquetas localizadas **en/es/ca/fr/de** (`hh::menu::localized`, endónimos en la lista);
+      **idioma del sistema** si no hay `[lang]` (fallback inglés). (d) Fuente in-game **8×12 `color4`**
+      preparada (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE) **sin
+      cablear**. **Pendiente**: validar en Windows; **JA del menú** (kana del `color0` JP — tiene kana,
+      no kanji); cablear la fuente in-game; extraer **DE/FR** (ROM EU) y **JA** (ROM JP) y redactar
+      **ES/CA**. Detalle: `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, **ADR 0012**.
      **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
      ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
      juego), `CONTINUAR`. Extras de audio (widening/EQ) evaluables más adelante. **Steam Deck**

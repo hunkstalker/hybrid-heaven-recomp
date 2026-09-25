@@ -32,13 +32,13 @@ B atrás):
 CONTINUAR                                  (arriba del todo: retomar partida directo)
 NUEVA PARTIDA ->
       EMPEZAR PARTIDA              (inicia el juego con la config elegida)
-      DIFICULTAD -> lista SUPREMO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
+      DIFICULTAD -> lista DEFINITIVO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
+      IDIOMA -> lista ENGLISH/ESPAÑOL/CATALÀ/FRANÇAIS/DEUTSCH/NIHONGO (endónimos; activa en
+            verde, resto gris; A fija). Cambia el idioma del MENÚ y del texto in-game; persiste.
       CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
       APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
 MODO COMBATE -> (por definir; de momento sale DESHABILITADO, en gris)
 AJUSTES ->
-      IDIOMA -> lista INGLÉS (arriba) … JAPONÉS (abajo); activa en verde, resto gris
-            (los rótulos cambian según el idioma elegido; por defecto, el del sistema)
       GRÁFICOS ->
             RATIO        < AUTO / ORIGINAL / 4:3 / 16:9 / 16:10 / 21:9 >
             RESOLUCIÓN   < AUTO … >    (filtrada por RATIO; AUTO/ORIGINAL + las del ratio)
@@ -129,6 +129,26 @@ AJUSTES ->
   pulsar `EMPEZAR PARTIDA`.
 - **MODO COMBATE**: por definir; de momento aparece **deshabilitado en gris**.
 
+## Idiomas y acentos (2026-09-25)
+
+- **Etiquetas localizadas**: las del modelo están en **español (canónico)** y se traducen al idioma
+  activo con `hh::menu::localized()` (tabla `kMenuTr`, `src/subsystems/menu.cpp`), que el overlay usa
+  al publicar el texto. Idiomas: **en/es/ca/fr/de**. La lista `IDIOMA` muestra **endónimos**
+  (`ENGLISH · ESPAÑOL · CATALÀ · FRANÇAIS · DEUTSCH · NIHONGO`) iguales en todos los idiomas.
+- **Acentos del menú = letra + marca**: el overlay pinta la **letra base** (color0 8×8, **sin
+  deformar**) + una **marca** (agudo, grave, circunflejo, diéresis, virgulilla, cedilla, punto medio)
+  dibujada por el propio overlay (`kMarkShapes` en `src/platform/overlay.cpp`) con la **forma que
+  dibuja el mantenedor** (`tools/text/menu_marks.py`: plantilla editable → import →
+  `include/hh/menu_marks.h`). Evita comprimir mayúsculas. `¿ ¡` se generan girando `? !`.
+- **Texto in-game**: los acentos del texto in-game usan la fuente real **8×12 (`color4`)** compuesta
+  (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE). **Pendiente cablearla**
+  (hoy `src/hooks/text_glyphs.cpp` sirve un set 8×8 propio).
+- **Idioma del sistema**: sin `[lang]` guardado, se usa el locale del SO (`GetUserDefaultLocaleName`
+  en Windows; `LANG`/`LC_*` en Linux) **si es uno de `en/es/ca/fr/de/ja`**; si no, **inglés**.
+  Prioridad: `HH_LANG` > `config.ini [lang]` > sistema > `en`.
+- **Japonés**: pendiente. `color0` JP tiene **kana** (no kanji); de momento JA cae a inglés en las
+  etiquetas del menú. El texto in-game sí soporta EUC-JP (kanji).
+
 ## Input — DECIDIDO: control total
 
 El overlay moderno **desacopla** el menú inicial del juego: nuestro menú lee el input
@@ -161,18 +181,17 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | paso | estado |
 |---|---|
 | 1. Modelo `hh::menu` (estado) | **HECHO** (`include/hh/menu.h` + `src/subsystems/menu.cpp`) |
-| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Listas con la aplicada en verde y el resto en gris; selectores (valores juntos o `< valor >` con flechas dibujadas); dígitos mapeados (2026-09-24). Falta: acentos reales |
+| 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Listas con la aplicada en verde y el resto en gris; selectores (valores juntos o `< valor >` con flechas dibujadas); dígitos mapeados (2026-09-24) |
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
-| 4. Etiquetas propias + acentos del overlay | pendiente. **Se hace DESPUÉS de completar el menú** (si no, no hay pantalla con tildes que validar) |
+| 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25)**: etiquetas localizadas (en/es/ca/fr/de) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. Falta **JA** (kana) y validar en Windows |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
 | 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 
-**Orden acordado (2026-09-24):** completar el menú **antes** de los acentos → **5 → 6 → 7 → 4 → 8**.
-Así, al integrar los acentos los submenús ya son navegables y se pueden validar (o forzarlos con
-`HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA).
+**Orden seguido:** 5 → 6 → 7 → 4 (hechos). **Pendiente: 8 (validar en Windows)**; y el **JA** del menú
+(kana). Los submenús se pueden forzar con `HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA.
 
-Alcance de la tanda actual: **solo el árbol de menús** (estructura, navegación y dibujo). **NO**
-persistir la configuración todavía (los selectores cambian en memoria; el guardado en `config.ini`
-queda para después).
+La configuración de los selectores ya **persiste** (`config.ini`) y el idioma también (`[lang]`).
+Pendiente funcional: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego) y
+`DIFICULTAD`/`EMPEZAR PARTIDA`/`CONTINUAR` (arrancar/retomar partida con la dificultad interna).

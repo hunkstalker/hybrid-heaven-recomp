@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 111 | 2026-09-24 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 132 | 2026-09-24 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 138 | 2026-09-24 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 90 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 222 | 2026-09-25 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 226 | 2026-09-25 |
 
 ## Técnico y guías (vivos)
 
@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 302 | 2026-09-24 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 178 | 2026-09-24 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 197 | 2026-09-24 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -44,11 +44,13 @@
 | [ADR 0009 — No versionar el C recompilado (obra derivada)](adr/0009-no-versionar-c-recompilado.md) | - **Estado**: Aceptado (2026-09-20). | 54 | 2026-09-21 |
 | [ADR 0010 — Dependencias del runtime como submódulos git (estándar del ecosistema)](adr/0010-dependencias-runtime-como-submodulos.md) | - **Estado**: Aceptado (2026-09-20). Supersede la parte de **clonado por `port/runtime.lock`** de | 48 | 2026-09-21 |
 | [ADR 0011 — Adoptar la vía de recompilación de la referencia (ELF + splat + residente limpio)](adr/0011-via-recompilacion-elf-splat.md) | - **Estado**: Aceptado (2026-09-21). | 65 | 2026-09-21 |
+| [0012 — Soporte multi-idioma y acentos (menú + in-game)](adr/0012-soporte-multi-idioma-y-acentos.md) | - **Estado:** Aceptado (2026-09-25). | 31 | 2026-09-25 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [D — Menú multilingüe, acentos por marcas e idiomas (EN/ES/CA/FR/DE)](../notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md) | Sesión 2026-09-25 (4.ª del día). Cierra la **tarea de menú + traducción** iniciada en las notas | 87 | 2026-09-25 |
 | [C — Fuente EU (`color4`) localizada y decodificada: gaiji acentuados reales](../notes/2026-09-25-c-font-eu-color4-localizada.md) | Sesión 2026-09-25. Desbloquea el paso 4 (acentos) del menú A2 y la vía B (glifos **reales**, no | 127 | 2026-09-25 |
 | [Docs: RETOMAR corto, presupuesto de contexto de arranque y aclaración de acentos](../notes/2026-09-24-docs-presupuesto-y-acentos.md) | Sesión 2026-09-24 (continuación). Cierra la reorganización de documentación (RETOMAR dejó de hacer | 56 | 2026-09-24 |
 | [A2 — Dibujo de selectores y ajuste del árbol de NUEVA PARTIDA](../notes/2026-09-24-a2-selectores-y-arbol.md) | Sesión 2026-09-24 (continuación del paso 5). Tras la validación en Windows del mantenedor: los | 100 | 2026-09-24 |

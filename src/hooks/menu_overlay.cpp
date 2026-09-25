@@ -147,7 +147,7 @@ char ascii_fold(unsigned cp) {
     }
 }
 
-std::string to_ascii(const std::string& s) {
+[[maybe_unused]] std::string to_ascii(const std::string& s) {
     std::string out;
     out.reserve(s.size());
     size_t i = 0;
@@ -155,6 +155,16 @@ std::string to_ascii(const std::string& s) {
         out.push_back(ascii_fold(utf8_next(s, i)));
     }
     return out;
+}
+
+// Numero de CODEPOINTS (no bytes): el avance del texto es monospace por caracter.
+size_t cp_count(const std::string& s) {
+    size_t i = 0, n = 0;
+    while (i < s.size()) {
+        utf8_next(s, i);
+        ++n;
+    }
+    return n;
 }
 
 // --- Flecha nativa de cursor ---------------------------------------------------------------------
@@ -326,19 +336,26 @@ void title_update(uint8_t* rdram) {
             color = kYellow;
         }
         // Sangría nativa: las etiquetas del motor llevan un espacio inicial (donde va la flecha).
-        const std::string text = " " + to_ascii(e.label);
+        const std::string text = " " + hh::menu::localized(e.label);
         // Alineación del primer glifo: la fuente no es uniforme (M/O/V/W/X/Z empiezan en la columna 0
         // y el resto en la 1), así que una línea que empiece por 'M' saldría 1 px a la izquierda del
         // resto (p. ej. "MODO COMBATE"). El menú nativo solo usa inicios de columna 1, por eso se ve
         // uniforme; compensamos el primer carácter a esa columna de referencia (1) para igualarlo.
         float x_text = x;
-        for (char c : text) {
-            if (c == ' ') continue;
-            const int bearing = hh::font::game::glyph_left_bearing(static_cast<unsigned char>(c));
-            if (bearing >= 0) {
-                x_text += static_cast<float>(1 - bearing);
+        {
+            size_t bi = 0;
+            while (bi < text.size()) {
+                const unsigned cp = utf8_next(text, bi);
+                if (cp == ' ') continue;
+                if (cp < 0x80) {
+                    const int bearing =
+                        hh::font::game::glyph_left_bearing(static_cast<unsigned char>(cp));
+                    if (bearing >= 0) {
+                        x_text += static_cast<float>(1 - bearing);
+                    }
+                }
+                break;
             }
-            break;
         }
         frame.texts.push_back({ x_text, y, g_scale_x, g_scale_y, color, text });
 
@@ -356,7 +373,7 @@ void title_update(uint8_t* rdram) {
             constexpr float kChevGap = 4.0f;
             float width = 0.0f;
             for (size_t oi = 0; oi < e.options.size(); ++oi) {
-                width += static_cast<float>(to_ascii(e.options[oi]).size()) * step;
+                width += static_cast<float>(cp_count(hh::menu::localized(e.options[oi]))) * step;
                 if (oi + 1 < e.options.size()) width += 2.0f * kSlashSep + kSlashW;
             }
             const bool fits = value_x + width <= hh::overlay::kVirtualWidth - 4.0f;
@@ -368,18 +385,18 @@ void title_update(uint8_t* rdram) {
                         append_slash(frame, ox, y + 1.0f, kGray);
                         ox += kSlashW + kSlashSep;
                     }
-                    const std::string opt = to_ascii(e.options[oi]);
+                    const std::string opt = hh::menu::localized(e.options[oi]);
                     const uint32_t oc = (static_cast<int>(oi) == e.value) ? kGreen : kGray;
                     frame.texts.push_back({ ox, y, g_scale_x, g_scale_y, oc, opt });
-                    ox += static_cast<float>(opt.size()) * step;
+                    ox += static_cast<float>(cp_count(opt)) * step;
                 }
             } else {
                 // Selector largo: solo el activo, alineado en la misma columna; el chevron izquierdo
                 // va a su izquierda y el derecho a 4 px del valor.
-                const std::string opt = to_ascii(e.options[static_cast<size_t>(e.value)]);
+                const std::string opt = hh::menu::localized(e.options[static_cast<size_t>(e.value)]);
                 append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, kWhite);
                 frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, kGreen, opt });
-                append_chevron(frame, value_x + static_cast<float>(opt.size()) * step + kChevGap,
+                append_chevron(frame, value_x + static_cast<float>(cp_count(opt)) * step + kChevGap,
                                y + 1.0f, false, kWhite);
             }
         }

@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-24**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-25**.
 
 ## 1. Objetivo
 
@@ -58,13 +58,19 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   básica, y **menú nativo oculto por defecto** (el juego tiene **varias copias** de las etiquetas del
   menú; el filtro cubría solo una). Diseño y estado: **`docs/menu.md`**; técnica:
   **`docs/architecture.md` §7**. `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
+  **Multi-idioma + acentos (2026-09-25)**: acentos del menú = **letra base `color0` + marca** (no se
+  deforma; `tools/text/menu_marks.py`); etiquetas localizadas **en/es/ca/fr/de** con `IDIOMA`
+  funcional (persiste `[lang]`) e **idioma del sistema** por defecto (fallback inglés); fuente in-game
+  **8×12 `color4`** preparada. **ADR 0012**; `docs/menu.md §Idiomas`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-24)**: **`hh_menu` del título en curso** (modelo + dibujo 1:1 + menú nativo
-oculto por defecto; pendiente acciones/selectores). **High frame rate por defecto** — el port presenta hasta el refresco
+**Estado actual (2026-09-25)**: **menú inicial + idiomas HECHOS en headless** (árbol, navegación,
+acciones video/audio, SFX, acentos por letra+marca, EN/ES/CA/FR/DE + idioma del sistema); **falta
+validar en Windows** y el **JA del menú**. Pendiente: cablear la fuente in-game 8×12 y las
+traducciones in-game (DE/FR/JA de las ROMs; ES/CA propias). **High frame rate por defecto** — el port presenta hasta el refresco
 del monitor (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a
 30 Hz). Antes: **mapa widescreen (fase 07b) validado** (HUD/minimapa anclados) y **migración ELF
 (ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y
@@ -82,7 +88,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
-| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime validada en Linux headless (`HH_LANG=es`, módulo 23); **A1: sistema de idiomas + cambio en vivo (F5)**; falta selector visual (A2) y glifos de acento |
+| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless)**. Falta: validar en Windows, JA del menú (kana), cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 
 Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.

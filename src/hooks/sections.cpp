@@ -284,6 +284,18 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
+    // IDIOMA: A sobre una opción de la lista cambia el idioma (texto in-game + etiquetas del menú).
+    // El confirm() del modelo ya marca la opción; aquí solo aplicamos el cambio.
+    if (ev == hh::menu::Event::Accept && hh::overlay::enabled()) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.id == hh::menu::ScreenId::Language) {
+            static const char* kLangCodes[] = { "en", "es", "ca", "fr", "de", "ja" };
+            const int n = static_cast<int>(sizeof(kLangCodes) / sizeof(kLangCodes[0]));
+            if (s.cursor >= 0 && s.cursor < n) {
+                hh::text_set_language(kLangCodes[s.cursor]);
+            }
+        }
+    }
     // SFX del menu desde los EVENTOS del modelo (paso 7): move/accept/back. Al sonar por el evento,
     // no suena si la pulsacion no hace nada (arriba en la 1.a entrada, B en la raiz, opcion gris, o
     // izquierda/derecha donde no hay selector). Solo cuando el overlay controla el menu: con

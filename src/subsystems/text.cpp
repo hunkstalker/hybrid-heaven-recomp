@@ -30,6 +30,16 @@
 #include <unordered_map>
 #include <vector>
 
+#if defined(_WIN32)
+#    ifndef WIN32_LEAN_AND_MEAN
+#        define WIN32_LEAN_AND_MEAN
+#    endif
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 #include "hh.h"
 #include "hh/accent_glyphs.h"
 
@@ -67,7 +77,7 @@ constexpr Pair kEsDefaults[] = {
     {"STEREO", "ESTEREO"},
     {"MONAURAL", "MONO"},
     {"HIGH NORMAL", "ALTA NORMAL"},
-    {"ULTIMATE", "SUPREMO"},
+    {"ULTIMATE", "DEFINITIVO"},
     {"HARD", "DIFICIL"},
     {"LOW", "MIN"},
 };
@@ -299,6 +309,42 @@ void apply_language(const std::string& code) {
                      [](const Key& a, const Key& b) { return a.text.size() > b.text.size(); });
 }
 
+// --- Deteccion del idioma del sistema ----------------------------------------------------------
+// Locale del SO como cadena (p. ej. "es-ES", "ca_ES.UTF-8", "fr_FR", "de-AT", "ja-JP").
+std::string os_locale() {
+#if defined(_WIN32)
+    wchar_t buf[LOCALE_NAME_MAX_LENGTH] = {};
+    if (GetUserDefaultLocaleName(buf, LOCALE_NAME_MAX_LENGTH) > 0) {
+        char n[LOCALE_NAME_MAX_LENGTH * 2] = {};
+        if (WideCharToMultiByte(CP_UTF8, 0, buf, -1, n, sizeof(n), nullptr, nullptr) > 0) {
+            return n;
+        }
+    }
+    return {};
+#else
+    for (const char* var : { "LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG" }) {
+        const char* e = std::getenv(var);
+        if (e == nullptr || *e == '\0') continue;
+        std::string v = e;
+        if (v == "C" || v == "POSIX") continue;
+        return v;
+    }
+    return {};
+#endif
+}
+
+// Idioma del SO si es uno de los incluidos; si no, "en" (p. ej. "pt-BR" -> "en").
+std::string detect_system_language() {
+    const std::string loc = os_locale();
+    std::string base;
+    for (char c : loc) {
+        if (c == '-' || c == '_' || c == '.' || c == ':' || c == '@') break;
+        base.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    if (is_builtin(base)) return base;
+    return "en";
+}
+
 void init() {
     State& s = state();
     if (s.loaded) return;
@@ -311,6 +357,10 @@ void init() {
         code = env;
     } else {
         code = read_config_language();
+        if (code.empty()) {
+            code = detect_system_language();   // sin preferencia guardada: la del sistema
+            hh::log("[text] idioma del sistema: %s\n", code.c_str());
+        }
     }
     if (code.empty()) code = "en";
     apply_language(code);

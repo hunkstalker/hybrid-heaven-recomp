@@ -60,6 +60,18 @@ namespace {
 
 using namespace plume;
 
+// Decodifica el siguiente codepoint UTF-8 y avanza `i`. ASCII = 1 byte.
+unsigned utf8_next_cp(const std::string& s, size_t& i) {
+    unsigned c = static_cast<unsigned char>(s[i++]);
+    if (c < 0x80) return c;
+    const unsigned extra = (c >= 0xF0) ? 3u : (c >= 0xE0) ? 2u : 1u;
+    unsigned cp = c & (0x3Fu >> extra);
+    for (unsigned k = 0; k < extra && i < s.size(); ++k) {
+        cp = (cp << 6) | (static_cast<unsigned char>(s[i++]) & 0x3Fu);
+    }
+    return cp;
+}
+
 constexpr RenderFormat kSwapChainFormat = RenderFormat::B8G8R8A8_UNORM;
 constexpr RenderFormat kTextureFormat = RenderFormat::R8G8B8A8_UNORM;
 constexpr uint32_t kMaxQuads = 1024;
@@ -301,18 +313,20 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         const float cw = static_cast<float>(hh::font::game::char_width());
         for (const Text& t : frame.texts) {
             float pen_x = t.x;
-            for (unsigned char c : t.text) {
-                if (c == ':') {
+            size_t i = 0;
+            while (i < t.text.size()) {
+                const unsigned cp = utf8_next_cp(t.text, i);
+                if (cp == ':') {
                     append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 1.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                     append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 4.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                 }
-                else if (c == '.') {
+                else if (cp == '.') {
                     append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 5.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                 }
-                else if (c == '%') {
+                else if (cp == '%') {
                     // Porcentaje (la fuente no lo tiene): dos puntos 2x2 y una barra diagonal de 1 px.
                     append_quad(vertices, indices, pen_x + 1.0f * t.scale_x, t.y + 1.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
@@ -335,14 +349,42 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         const float ch = static_cast<float>(hh::font::game::char_height());
         for (const Text& t : frame.texts) {
             float pen_x = t.x;
-            for (unsigned char c : t.text) {
-                unsigned gx = 0, gy = 0;
-                if (hh::font::game::glyph_uv(c, gx, gy)) {
+            size_t i = 0;
+            while (i < t.text.size()) {
+                const unsigned cp = utf8_next_cp(t.text, i);
+                unsigned value = 0, gx = 0, gy = 0;
+                int mark = -1;
+                if (hh::font::game::menu_char(cp, value, mark)) {
+                    // Letra base (si la hay) tal cual + marca centrada encima/debajo.
+                    if (value != 0 && hh::font::game::value_uv(value, gx, gy)) {
+                        const float u0 = static_cast<float>(gx) / g_atlas_w;
+                        const float v0 = static_cast<float>(gy) / g_atlas_h;
+                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
+                                    t.color, u0, v0, u1, v1);
+                    }
+                    unsigned mx = 0, my = 0, mw = 0, mh = 0;
+                    int dy = 0;
+                    if (mark >= 0 &&
+                        hh::font::game::mark_info(mark, mx, my, mw, mh, dy) && mw > 0 && mh > 0) {
+                        const float dx = pen_x + (cw - static_cast<float>(mw)) * 0.5f * t.scale_x;
+                        const float dyy = t.y + static_cast<float>(dy) * t.scale_y;
+                        const float u0 = static_cast<float>(mx) / g_atlas_w;
+                        const float v0 = static_cast<float>(my) / g_atlas_h;
+                        const float u1 = static_cast<float>(mx + mw) / g_atlas_w;
+                        const float v1 = static_cast<float>(my + mh) / g_atlas_h;
+                        append_quad(vertices, indices, dx, dyy, static_cast<float>(mw) * t.scale_x,
+                                    static_cast<float>(mh) * t.scale_y, t.color, u0, v0, u1, v1);
+                    }
+                } else if (hh::font::game::glyph_value(static_cast<unsigned char>(cp), value) &&
+                           hh::font::game::value_uv(value, gx, gy)) {
                     const float u0 = static_cast<float>(gx) / g_atlas_w;
                     const float v0 = static_cast<float>(gy) / g_atlas_h;
                     const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
                     const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
-                    append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y, t.color, u0, v0, u1, v1);
+                    append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
+                                t.color, u0, v0, u1, v1);
                 }
                 pen_x += cw * t.scale_x;
             }
