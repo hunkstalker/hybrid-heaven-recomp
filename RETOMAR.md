@@ -14,35 +14,32 @@
   - Detalle, herramienta y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
 - Herramienta nueva: **F7 = captura pareada** (traza de un frame → `hh_cap_<n>.log` **+ imagen** de
   la ventana → `hh_cap_<n>.bmp`, mismo instante). Toggles de diagnóstico **F8/F9/F10**. Ver §Método HUD.
-- **Pendiente de publicar**: push de `main` (forks primero) y tag **v0.4.3** (ver §Git).
+- **Publicado**: push de `main` + release **v0.4.3** (2026-09-25) con las notas de
+  `docs/releases/v0.4.3.md` ("Combat HUD: stamina depletion bar fix").
 
-## Bugs abiertos (2026-09-25)
+## Bug aplazado (interpolación de frames)
 
-**1. Barra de STAMINA gastada descolocada — RESUELTO (v0.4.3, validado en Windows).**
-- Era un **`G_FILLRECT`** en la fila de stamina `y=34..38` (Inspector: `Rect 64,34,92,38`, `Call #3`)
-  que `class_of` no clasificaba → quedaba en 4:3 → a la derecha. **Fix**: generalizar el anclaje de
-  los rellenos del HUD de combate por **posición** (`uly 24..38`, `lrx<=190`). Ver la nota.
-
-**2. Puerta que parpadea (PAUSADO; CAUSA VERIFICADA 2026-09-25).**
-- **Síntoma**: una puerta concreta parpadea entre visible/oculta. **NO** ocurre en **BizHawk** ni
-  **Simple64** → es del render (RT64/port), no del juego.
-- **CAUSA VERIFICADA por el mantenedor** (A/B en caliente con los toggles F8/F9):
-  - `Refresh Rate Mode = Display` (interpolación **ON**) → **parpadea**.
-  - `Refresh Rate Mode = Original` (interpolación **OFF**) → **no parpadea**.
-  - `Presentation Mode = Present Early` en **ambos** casos → **no influye**.
-  - Culpable: la **interpolación** (`RefreshRate::Display`), no el PresentEarly.
-- **Detalle**: ver `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
-- **Opciones de arreglo** (sin decidir): (a) default `original` (mitigación, pierde high fps);
-  (b) arreglo quirúrgico con *matrix groups* de RT64 (`gEXMatrixGroupNoInterpolate`) para los draws
-  afectados; (c) largo plazo: **desbloquear los fps del juego** (lógica a 60 Hz), épica aparte.
+**Artefacto de interpolación (puerta + primer jefe del nivel 1) — APLAZADO.**
+- **Síntoma**: con `Refresh Rate Mode = Display` (interpolación **ON**) cierta **puerta** parpadea
+  entre visible/oculta, y el **primer jefe del nivel 1** muestra geometría incoherente. Con
+  `Original` (interpolación **OFF**) **no** ocurre. `Presentation Mode = Present Early` no influye.
+  **NO** ocurre en **BizHawk** ni **Simple64** → es del render (RT64/port).
+- **Causa**: la **interpolación** de RT64 (`RefreshRate::Display`, v0.4.0): empareja draw calls entre
+  frames e interpola sus matrices; con ciertos objetos salen frames intermedios incoherentes.
+- **APLAZADO**: la solución de fondo es **desacoplar la lógica del juego del render** (lógica a 60 Hz)
+  → épica aparte. Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
 
 ## Tareas siguientes (ver `TODO.md` §Ahora`)
 
-- **PAUSADO (prioridad)**: bug de la **puerta** (bug 2) — probar el A/B **F8/F9/F10** en la puerta
-  y ver si **F9** (interpolación) lo arregla.
+- **EN CURSO (prioridad)**:
+  **[issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa desanclado
+  al inicio del nivel 2-1**. La salud (POWER/STAMINA) **ya se arregló**; queda el **minimapa**.
+  Misma familia de causa que el issue #3 (la **dirección RDRAM no es identidad**). Investigar con
+  **F7** (captura pareada) + Inspector de RT64.
 - **Menú multilingüe / `SALIR` / `IDIOMA`**: rama **`menu-nativo`** (ahead 25, sin push).
 - **Widescreen**: falta la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar
   sus identidades con F7 (captura pareada).
+- **APLAZADO**: artefacto de interpolación (puerta + jefe) — ver arriba.
 - Resto del backlog de `TODO.md`.
 
 ## Método HUD
@@ -75,8 +72,7 @@ actualiza el ejecutable.)
 
 ## Git
 
-- **`main`**: commits del cierre del issue #3 + v0.4.3, **sin pushear**. Publicar: forks primero
-  (N64Recomp, N64ModernRuntime), luego `main` (es fast-forward, no hace falta `--force`) y tag
-  **v0.4.3** (ver `AGENTS.md` §Push).
+- **`main`**: **pusheado** (fast-forward) con el cierre del issue #3 y **release v0.4.3 publicada**
+  (2026-09-25). `docs/releases/v0.4.3.md` da el título al Release (`release.yml`).
 - **`menu-nativo`**: work del menú (`SALIR`, `IDIOMA` en AJUSTES, fix reapply idioma), ahead 25.
 - No commitear sin validación (regla `AGENTS.md`).

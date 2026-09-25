@@ -5,6 +5,12 @@
 
 ## Ahora (priorizado)
 
+- [•] **[Issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa
+  desanclado al inicio del nivel 2-1** (tras eliminar al primer jefe, Procyon): el **minimapa sale
+  fuera del marco** (en los niveles previos va bien). La **salud (POWER/STAMINA) ya se arregló**
+  (issue #3). Misma familia de causa (la **dirección RDRAM no es identidad** → el minimapa/panel
+  cambia de dirección por escena/capítulo y no casa con la tabla fija). Investigar con **F7**
+  (captura pareada) + Inspector de RT64. Ver `RETOMAR.md` y `notes/2026-09-25-f-hud-combate-contenido.md`.
 - [ ] **Menú IN-GAME de opciones PC (ADR 0008)**: reutilizar el menú del `expansionram` (idx 23).
   **Antes: spike go/no-go** (nota 09-18 §6).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
@@ -43,6 +49,11 @@
   y RT64 pinta el relleno con el PRIM color, así que la traza lee `fill_color=0`). Herramienta:
   **F7 = captura pareada** (traza `hh_cap_<n>.log` + imagen `hh_cap_<n>.bmp` del mismo instante).
   Detalle, intentos descartados y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
+- [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
+  con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
+  jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
+  influye). **Depende de desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
+  Ver `RETOMAR.md` y `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
