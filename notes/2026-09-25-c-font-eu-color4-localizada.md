@@ -68,6 +68,24 @@ B0B4=à, B0B7=ê, B0B8=è, B0B9=é, B0BA=ü, B0BF=ö, B0C1=ç, B0CA=ß`) **verif
 - Extrae los 76 glifos y emite `--preview` (`work/fonts/eu_gaiji.png`) + header C (`--out`).
 - Lee el mapeo `B0xx→slot` de la tabla EU.
 
+## 4b. Captura con BizHawk (2026-09-25) — buffer del menú EU localizado
+
+Con `tools/analysis/bizhawk_eu_glyph_capture.lua` (v2, por botón) el mantenedor volcó RDRAM de la ROM
+EU (17 snapshots, `work/eu_glyphs/`). El dominio de N64 en BizHawk es **"System Bus"**. Hallazgos:
+
+- Los volcanes contienen **141 bloques de 32 B de la fuente EU** (confirma que el motor usa esa
+  fuente). Pero el motor **no copia el bloque tal cual**: lo **compone** (despaqueta/reempaqueta), así
+  que la coincidencia exacta no localiza el buffer.
+- **Buffer de glifos del menú EU ≈ `0x80109B60`** (zona que cambia al cambiar el texto del menú; en el
+  frame francés aparecen glifos que no están en el inglés). Se leen letras sueltas 8×8.
+- La `func_8001D394` EU está en `0x8001ECFC` (prólogo `27bdffd8`); el despacho por color comparte
+  subrutinas con US (`C670/C6E8/C734/...`).
+
+Herramienta: `tools/analysis/eu_glyphs_find.py --buf 0x80109B60 --render` (PNG del buffer).
+
+**Pendiente**: fijar el **layout exacto del buffer** (tamaño de tile/orden) y el `valor→glifo` real
+para identificar cada acento; luego decidir vía (migrar overlay a la fuente de menú EU, o componer).
+
 ## 5. Pendiente (paso 4, vía B)
 
 1. **Identificar** cada slot acentuado (leer los 41 gaiji del preview `work/fonts/eu_gaiji.png` /

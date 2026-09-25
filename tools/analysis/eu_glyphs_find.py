@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Localiza el buffer de glifos en volcanes de RDRAM de la ROM EU (BizHawk) y prueba layouts.
+"""Analiza volcanes de RDRAM de la ROM EU (BizHawk) para fijar el buffer de glifos del motor.
 
-Entrada: carpeta con `eu_rdram_*.bin` (8 MB c/u) producidos por
-`tools/analysis/bizhawk_eu_glyphs_dump.lua`.
+Hallazgo (2026-09-25, sesion de captura con BizHawk): el motor de texto EU compone los glifos en la
+textura de trabajo cerca de **`0x80109B60`** (8x8, 2bpp despaquetado; coincide en tamano/posicion con
+la zona que cambia al cambiar el texto del menu). El texto de menu cambia entre frames/idiomas.
 
-Heuristica: el buffer de glifos del motor es una zona de RDRAM pequena que CAMBIA cuando cambia el
-texto en pantalla. Se busca la ventana de `WIN` bytes con mas variacion entre volcanes y se prueba a
-decodificar glifos 2bpp (con/sin paridad, 8x8 y 8x12) para inspeccion visual.
+Entrada: carpeta con `eu_rdram_*.bin` (8 MB c/u) de `tools/analysis/bizhawk_eu_glyph_capture.lua`.
 
 Uso:
-    python3 tools/analysis/eu_glyphs_find.py work/eu_glyphs/
+    python3 tools/analysis/eu_glyphs_find.py work/eu_glyphs/ --buf 0x80109B60 --render
+    python3 tools/analysis/eu_glyphs_find.py work/eu_glyphs/ --scan   # busca la ventana que cambia
 """
 import argparse
 import glob
@@ -18,140 +18,107 @@ import struct
 import zlib
 
 RDRAM_SIZE = 0x800000
-WIN = 0x200          # ventana a analizar (buffer de glifos + margen)
-STEP = 0x10          # granularidad del barrido
+DEF_BUF = 0x80109B60     # textura de trabajo de glifos del menu EU (medida)
 
 
 def load(path):
     d = open(path, "rb").read()
     if len(d) != RDRAM_SIZE:
-        raise SystemExit(f"{path}: tamano {len(d)} != 8 MB (¿word-swapped/otro dominio?)")
+        raise SystemExit(f"{path}: tamano {len(d)} != 8 MB")
     return d
 
 
-def diff_score(a, b):
-    # nº de bytes distintos
-    return sum(1 for x, y in zip(a, b) if x != y)
-
-
-def find_changing_window(files):
-    a = load(files[0])
-    b = load(files[1])
-    best = (0, -1)
-    for base in range(0, RDRAM_SIZE - WIN, STEP):
-        # submuestreo para ir rapido (1 de cada 4 bytes)
-        s = 0
-        for i in range(0, WIN, 4):
-            if a[base + i] != b[base + i]:
-                s += 1
-        if s > best[1]:
-            best = (base, s)
-    return best
-
-
-def decode_2bpp(buf, v, w, h, stride, parity_mode):
-    block = buf[(v >> 1) * stride:(v >> 1) * stride + stride]
-    parity = v & 1
-    pix = []
-    for i in range(w * h):
-        byte = block[i >> 1]
-        nib = i & 1
-        val = (byte >> 4) & 0xF if nib == 0 else byte & 0xF
-        if parity_mode == "hi":
-            pix.append((val >> 2) & 3 if parity == 0 else val & 3)
-        else:
-            pix.append(val & 3)
-    return pix
-
-
-def show(pix, w, h):
+def render_2bpp(d, addr, nglyph, bytes_per_glyph=16):
+    """Dibuja glifos 8x8 2bpp despaquetados (1 byte = 4 px, MSB-first) desde `addr`."""
+    off = addr - 0x80000000
     out = []
-    for y in range(h):
-        out.append("".join(" .:#"[pix[y * w + x]] for x in range(w)))
-    return "\n".join(out)
+    for g in range(nglyph):
+        blk = d[off + g * bytes_per_glyph: off + (g + 1) * bytes_per_glyph]
+        rows = []
+        for y in range(8):
+            line = ""
+            for x in range(8):
+                b = blk[y * 2 + (x // 4)] if (y * 2 + x // 4) < len(blk) else 0
+                v = (b >> (6 - 2 * (x % 4))) & 3
+                line += " .:#"[v]
+            rows.append(line)
+        out.append(rows)
+    return out
 
 
-def find_source_blocks(files):
-    """Busca en cada snapshot los bloques EXACTOS de la fuente EU conocida.
+def png(path, tiles, percol=16, scale=6):
+    W = H = 8
+    cw, ch = W * scale + 2, H * scale + 2
+    rows = (len(tiles) + percol - 1) // percol
+    Wp, Hp = percol * cw + 2, rows * ch + 2
+    img = [[255] * Wp for _ in range(Hp)]
+    for i, pix in enumerate(tiles):
+        gx = (i % percol) * cw + 2
+        gy = (i // percol) * ch + 2
+        for y in range(H):
+            for x in range(W):
+                val = 255 - (pix[y][x] != " ") * 0  # placeholder
+        # pix es filas de caracteres; convertir
+        for y in range(H):
+            for x in range(W):
+                v = " .:#".index(pix[y][x]) if pix[y][x] in " .:#" else 0
+                val = 255 - v * 255 // 3
+                for dy in range(scale):
+                    for dx in range(scale):
+                        if gy + y * scale + dy < Hp and gx + x * scale + dx < Wp:
+                            img[gy + y * scale + dy][gx + x * scale + dx] = val
+    raw = b"".join(b"\x00" + bytes(r) for r in img)
 
-    La fuente EU (color4) esta en la ROM `eu_dec.z64` @0x8C3290 (ver nota C). Si el motor copia el
-    bloque tal cual a RDRAM, sus bytes apareceran en el volcan: eso localiza el buffer de glifos y el
-    valor (bloque -> glifo) sin ambiguedad.
-    """
-    rom_eu = "work/roms/eu_dec.z64"
-    if not os.path.exists(rom_eu):
-        print(f"(fuente EU no encontrada en {rom_eu}; salto busqueda de bloques)")
-        return
-    eu = open(rom_eu, "rb").read()
-    # Localizar la fuente EU por vecindad del color0 US (mismo metodo que extract_eu_font.py).
-    if not os.path.exists("build/linux/baserom.us.z64"):
-        print("(baserom US no disponible; salto busqueda de bloques)")
-        return
-    us = open("build/linux/baserom.us.z64", "rb").read()
-    import re as _re
-    man = open("notes/us_manifest.yaml").read()
-    m = _re.search(r"- index: 107\n  compressed: \w+\n  original_offset: '(0x[0-9A-Fa-f]+)'", man)
-    off = int(m.group(1), 16)
-    c0 = us[off:off + 4096]
-    c0e = eu.find(c0)
-    if c0e < 0:
-        print("(color0 US no encontrado en EU; salto)")
-        return
-    font = eu[c0e + 4096: c0e + 4096 + 3648]   # color4 EU
-    for f in files:
-        d = load(f)
-        hits = []
-        for slot in range(0, 114):
-            blk = font[slot * 32: slot * 32 + 32]
-            if blk == b"\x00" * 32:
-                continue
-            j = d.find(blk)
-            if j >= 0:
-                hits.append((slot, j))
-        if hits:
-            print(f"{os.path.basename(f)}: {len(hits)} bloques de la fuente EU encontrados en RDRAM:")
-            for slot, j in hits[:20]:
-                print(f"    slot {slot} -> RDRAM 0x{j + 0x80000000:08X}")
-        else:
-            print(f"{os.path.basename(f)}: sin bloques exactos de la fuente (¿el motor los transforma?)")
+    def chunk(t, dd):
+        return struct.pack(">I", len(dd)) + t + dd + struct.pack(">I", zlib.crc32(t + dd) & 0xFFFFFFFF)
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n"
+                           + chunk(b"IHDR", struct.pack(">IIBBBBB", Wp, Hp, 8, 0, 0, 0, 0))
+                           + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def scan(files):
+    data = [load(f) for f in files]
+    a, z = data[0], data[-1]
+    WIN = 0x1000
+    best = []
+    for base in range(0, RDRAM_SIZE - WIN, WIN):
+        diff = sum(1 for i in range(0, WIN, 4) if a[base + i] != z[base + i])
+        best.append((diff, base))
+    best.sort(reverse=True)
+    print("ventanas mas cambiantes (frame0 vs ultimo):")
+    for diff, base in best[:15]:
+        print(f"  0x{base + 0x80000000:08X} diff={diff}")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dir")
-    ap.add_argument("--window", type=lambda x: int(x, 0), default=WIN)
-    ap.add_argument("--perpix", type=int, default=10)
-    ap.add_argument("--blocks", action="store_true", help="buscar bloques de la fuente EU en RDRAM")
+    ap.add_argument("--buf", type=lambda x: int(x, 0), default=DEF_BUF)
+    ap.add_argument("--render", action="store_true", help="renderiza el buffer a PNG")
+    ap.add_argument("--scan", action="store_true", help="busca la ventana que cambia")
+    ap.add_argument("--frame", type=int, default=-1, help="indice de volcan (por defecto el ultimo)")
     args = ap.parse_args()
 
     files = sorted(glob.glob(os.path.join(args.dir, "eu_rdram_*.bin")))
-    if len(files) < 2:
-        raise SystemExit("Necesito >=2 volcanes eu_rdram_*.bin en " + args.dir)
-    print(f"{len(files)} volcanes")
+    if not files:
+        raise SystemExit("No hay eu_rdram_*.bin en " + args.dir)
 
-    if args.blocks:
-        find_source_blocks(files)
+    if args.scan:
+        scan(files)
         return
 
-    base, score = find_changing_window(files)
-    print(f"ventana mas cambiante: 0x{base:08X} (0x{base + 0x80000000:08X} vaddr), score={score}")
-    print("volcado hex de la ventana (primer volcan):")
-    a = load(files[0])
-    for off in range(0, min(args.window, 0x100), 16):
-        row = a[base + off:base + off + 16]
-        print(f"  0x{base + off:08X}: {row.hex(' ')}")
-
-    # Probar layouts sobre la ventana (asumiendo que empieza en un glifo).
-    for w, h, stride in [(8, 8, 32), (8, 12, 48), (8, 8, 16), (8, 12, 24)]:
-        for pm in ["hi", "lo"]:
-            print(f"\n=== layout {w}x{h} stride={stride} paridad={pm} (valores 0..7) ===")
-            try:
-                for v in range(8):
-                    pix = decode_2bpp(a[base:base + args.window], v, w, h, stride, pm)
-                    print(f"--- v{v} ---")
-                    print(show(pix, w, h))
-            except Exception as e:  # noqa
-                print("  fallo:", e)
+    d = load(files[args.frame])
+    tiles = render_2bpp(d, args.buf, 64)
+    if args.render:
+        out = os.path.join(args.dir, f"buf_{args.buf:08X}.png")
+        png(out, tiles)
+        print("render:", out)
+    else:
+        for i, rows in enumerate(tiles):
+            if any(r.strip() for r in rows):
+                print(f"--- glyph {i} ---")
+                for r in rows:
+                    print(r)
 
 
 if __name__ == "__main__":
