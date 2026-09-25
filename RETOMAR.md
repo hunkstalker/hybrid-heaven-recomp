@@ -4,6 +4,32 @@
 > **Diseño** y **técnica** viven en `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
 > **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
 
+## LO PRIMERO: sincronizar con `main` (merge `main` → `menu-nativo`)
+
+`menu-nativo` salió de **v0.4.0** (`c977bd5`) y `main` ya publicó **v0.4.1–v0.4.4** (fixes del HUD de
+combate POWER/STAMINA/combo/stamina y del minimapa, captura **F7**, toggles F8–F10). Hay que traerlos
+a esta rama **antes** de seguir/validar. **No** mergear todavía `menu-nativo` → `main`: es WIP sin
+validar en Windows; será la **futura feature release** (probablemente **v0.5.0**) cuando esté completa.
+
+**Método**: `git switch menu-nativo && git merge main` — **merge, no rebase** (`menu-nativo` ya está en
+`origin`; reescribir 60 commits es malo). Antes conviene: tag de checkpoint y **pushear `menu-nativo`**
+(`origin/menu-nativo` va detrás).
+
+**Conflictos esperados (~14 ficheros "changed in both", medido con `git merge-tree`)**: `.gitignore`,
+`AGENTS.md`, `PROYECTO.md`, `README.md`, `RETOMAR.md`, `TODO.md`, `build_windows.bat`, `docs/INDEX.md`,
+`include/hh.h`, `src/hooks/dl_snap.cpp`, `src/platform/main.cpp`,
+`src/platform/rt64_render_context.cpp`, `src/platform/support.cpp`, `src/subsystems/input.cpp`.
+- `src/hooks/hud_rewrite.cpp` **no** aparece → los fixes de HUD (issue #3/#7) llegan **limpios**;
+  el riesgo está en la **API/teclas**, no en la lógica del anclaje.
+- **Conservar de `main`**: fixes de HUD, captura **F7** + toggles **F8–F10**, `kVersionPatch` y docs.
+- **Conservar de `menu-nativo`**: lógica del menú, **F5** idioma / **F6** menú nativo, idiomas/acentos.
+- **Reconciliar con cuidado**: `input.cpp` (teclas), `include/hh.h` (API), `support.cpp` y
+  `rt64_render_context.cpp` (aquí chocan los toggles de video/render de `main` con el menú), `main.cpp`
+  (init) y los docs (`RETOMAR`/`TODO`/`PROYECTO`/`README`/`INDEX`).
+- Tras resolver: `cmake --build build/linux` y `python3 tools/analysis/docs_index.py`.
+
+No cerrar el merge “a ciegas”: compilar Linux **y** validar en Windows (ver §SIGUIENTE TAREA).
+
 ## Estado
 
 - **Menú inicial (`hh_menu`) COMPLETO**: modelo, dibujo 1:1, menú nativo oculto, navegación propia
@@ -61,13 +87,12 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
 - Pendiente funcional del menú: `CÁMARA LIBRE`/`APUNTADO LIBRE` (modifican el juego; aparcado),
   `DIFICULTAD`/`EMPEZAR PARTIDA`/`CONTINUAR` (arrancar/retomar con dificultad interna).
 
-## Git (estado al cerrar esta sesión)
+## Git
 
-- **Rama de trabajo: `menu-nativo`** (WIP del menú). Contiene TODO el trabajo posterior a **v0.4.0**
-  + el fix ROM. Último commit antes de esta tanda: **`002cf16`**.
-- **Sin push**: `origin/menu-nativo` va por detrás del local. Al retomar: `git switch menu-nativo`;
-  si `main` avanzó, `git merge main`.
-- **`main` = release**: pendiente de la otra sesión subir `4600fa3` (SHA-1 + README) y tag `v0.4.1`.
+- **`menu-nativo`** (WIP del menú): todo el trabajo posterior a **v0.4.0** + fix ROM. **Sin pushear**
+  (`origin/menu-nativo` va 25 detrás; **pushear antes del merge**, opcional).
+- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas). Traer `main` aquí con
+  `git merge main` (ver §LO PRIMERO).
 - Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
 
 ## Método (rápido)
