@@ -7,10 +7,10 @@ Hitos previos (detalle en `notes/`): arranque completo (4 MB RDRAM, ADR 0002/000
 Pak y audio `aspMain`; perfiles de mando (`config.ini`). Retomada: **`RETOMAR.md`** (estado, tarea
 actual, pasos exactos, instrumentación y bats).
 
-**Validado en Windows**: START → menú → GAME START → gameplay, primer NPC, **primer CaC**, ~30 min
-hasta el 6º combate sin cuelgues; mando y guardado OK (bloqueante del CaC resuelto). Pendiente: **M5**
-(saneamiento: `recomp/tools`, docs, purga `HH_*`) y **M4c** (SEGV al salir). Ver `TODO.md` y
-`notes/2026-09-21-migracion-via-referencia-elf.md`.
+**Validado en Windows**: primer nivel completo — START → menú → GAME START → gameplay, primer NPC,
+CaC, combates, mando y guardado OK; sin bloqueantes conocidos (M5 y M4c hechos). Lo abierto son
+artefactos visuales por la **interpolación de frames** (p. ej. una puerta que parpadea; ver
+`RETOMAR.md` §Bugs abiertos). Ver `TODO.md` y `notes/2026-09-21-migracion-via-referencia-elf.md`.
 
 Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}`, `include/`, `assets/`,
 `lib/`), pipeline en `recomp/`, tooling en `tools/`, builds (gitignored) en `build/`.
@@ -58,18 +58,18 @@ push.
 
 1. **N64Recomp** (fork) — `git -C lib/N64ModernRuntime/N64Recomp push origin hybrid-heaven`
 2. **N64ModernRuntime** (fork) — `git -C lib/N64ModernRuntime push fork hybrid-heaven`
-3. **Main repo** — **requiere `--force`** (el remoto conserva la historia per-file pre-reescritura y
-   diverge de la local): `git fetch origin && git tag backup-per-file origin/main &&
-   git push --force-with-lease origin main` (tag de seguridad opcional: `git push origin backup-per-file`).
+3. **Main repo** — es **fast-forward** si `origin/main` es ancestro: `git fetch origin && git push origin main`
+   (si divergiera: `git tag backup-per-file origin/main && git push --force-with-lease origin main`).
 
 Los gitlinks de `lib/` (y el pin `runtime.lock`) solo valen **tras** pushear los forks (si no, un clon
 nuevo no inicializa el submódulo; usa `build_windows.local.bat`).
 
+**Versionado / releases**: al subir versión (PATCH bugfix / MINOR feature; fuente única `include/hh.h`),
+**propón título de release** (`vX.Y.Z - <área>: <qué>`) y crea `docs/releases/vX.Y.Z.md` con él en la
+**primera línea** (`release.yml` lo usa). Propuesta: 1 recomendación + 2-3 alternativas, concisa.
+
 ## Calibración crítica
 
-- **No concluir el estado de ejecución (freeze/cuelgue, qué se ve, dónde está el juego) solo desde
-  logs headless.** Antes de afirmar "el juego se congela", ofrece al mantenedor que lo **valide
-  visualmente** (build Windows/port) y espera su confirmación; el harness sin ventana puede engañar.
 - **Visión disponible** (verificado 2026-09-11; modelo DeepSeek V4.1 Flash): puedo leer imágenes.
   Aun así el usuario **no ve adjuntos del chat** → los PNG se guardan en archivo y él los abre desde
   su filesystem. Usar la visión con criterio (cada imagen consume contexto); para análisis masivo de
@@ -77,9 +77,8 @@ nuevo no inicializa el submódulo; usa `build_windows.local.bat`).
 - **Imágenes por lotes**: triaje con `tools/analysis/triage_screenshots.py` y lectura en lotes de
   2-3 volcando cada imagen a texto. Ver `docs/workflows.md` §3.
 - Dumps RDRAM del harness Linux vienen **word-swapped** → bswap32. En BizHawk leer CPU BE.
-- Regla de oro: **nunca editar a mano el C generado**. Se regenera con `tools/regenerate.py` desde la
-  ROM (no se versiona; ADR 0009). Todo fix va a la config/syms, a la lista de reimplementadas del
-  toolchain (ver ADR 0002) o al runtime.
+- Regla de oro: **nunca editar a mano el C generado**; se regenera con `tools/regenerate.py` (no se
+  versiona; ADR 0009). Todo fix va a config/syms, reimplementadas del toolchain (ADR 0002) o runtime.
 - Tras regenerar: `python3 tools/analysis/fix_fallthroughs.py` y añadir `osYieldThread_recomp` a `funcs.h` si falta.
 - Commitear cuando se valide una tarea o cuando haya que commitear documentación. No tocar ROMs ni
   `work/*.so` sin pedirlo.
