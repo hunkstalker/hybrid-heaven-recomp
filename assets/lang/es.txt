@@ -3,12 +3,14 @@
 #   relleno de espacios.
 # - Solo ASCII de momento (los acentos/eñe aun no tienen glifo en la fuente).
 # - La traduccion debe caber en el campo original; las que no quepan se omiten (ver HH_TEXT_TRACE).
+# - Prefijo `^` en la traduccion = cadena CENTRADA por el motor: se termina justo tras el texto para
+#   que siga centrada al ser mas corta (si no, el relleno la desplaza a la izquierda).
 # Si este fichero existe junto al .exe (lang/es.txt), se usa en vez de la tabla embebida.
 
 # Titulo / arranque
 PLEASE SELECT=SELECCIONA
 GAME START=INICIAR
-PRESS START BUTTON=PULSA START
+PRESS START BUTTON=^PULSA START
 
 # Menu principal
 NEW GAME=NUEVA PARTIDA

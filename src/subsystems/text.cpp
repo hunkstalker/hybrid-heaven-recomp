@@ -51,13 +51,17 @@ namespace {
 struct Pair {
     const char* en;
     const char* es;
+    // `center`: el motor centra la cadena por su longitud. Si la traduccion es mas corta, hay que
+    // terminarla justo tras el texto (no rellenar con espacios) o el bloque se alarga y el texto
+    // visible se va a la izquierda. Ver translate_segment.
+    bool center = false;
 };
 
 constexpr Pair kEsDefaults[] = {
     // Titulo / arranque
     {"PLEASE SELECT", "SELECCIONA"},
     {"GAME START", "INICIAR"},
-    {"PRESS START BUTTON", "PULSA START"},
+    {"PRESS START BUTTON", "PULSA START", /*center=*/true},
     // Menu principal
     {"NEW GAME", "NUEVA PARTIDA"},
     {"CONTINUE", "CONTINUAR"},
@@ -91,6 +95,7 @@ bool env_flag(const char* name, bool def) {
 struct Key {
     std::string text;
     std::string repl;
+    bool center = false;   // texto centrado por el motor: terminar justo tras el texto
 };
 
 struct State {
@@ -117,12 +122,12 @@ State& state() {
     return s;
 }
 
-void add_key(State& s, const std::string& text, const std::string& repl) {
+void add_key(State& s, const std::string& text, const std::string& repl, bool center = false) {
     if (text.empty() || repl.empty()) return;
     for (const Key& k : s.keys) {
         if (k.text == text) return;  // el fichero gana sobre el default
     }
-    s.keys.push_back({text, repl});
+    s.keys.push_back({text, repl, center});
     s.longest = std::max(s.longest, text.size());
 }
 
@@ -151,7 +156,14 @@ bool load_file(State& s, const std::filesystem::path& path) {
         trim(key);
         trim(val);
         if (key.empty() || val.empty()) continue;
-        add_key(s, key, val);
+        // Marcador `^` al inicio del valor: el motor centra esa cadena (ver translate_segment).
+        bool center = false;
+        if (val[0] == '^') {
+            center = true;
+            val.erase(0, 1);
+            if (val.empty()) continue;
+        }
+        add_key(s, key, val, center);
         n++;
     }
     hh::log("[text] lang '%s': %zu entradas de %s\n", path.stem().string().c_str(), n,
@@ -295,7 +307,7 @@ void apply_language(const std::string& code) {
 
     if (!load_language_table(s, code)) {
         if (code == "es") {
-            for (const Pair& p : kEsDefaults) add_key(s, p.en, p.es);
+            for (const Pair& p : kEsDefaults) add_key(s, p.en, p.es, p.center);
             hh::log("[text] idioma 'es' (tabla embebida, %zu entradas)\n", s.keys.size());
         } else {
             hh::log("[text] idioma '%s' sin tabla -> se muestra el original (en)\n", code.c_str());
@@ -448,9 +460,17 @@ bool translate_segment(uint8_t* seg, size_t content_len, size_t slot, const Stat
             }
             return false;
         }
-        std::memset(seg, ' ', slot);
-        std::memcpy(seg, out.data(), out.size());
-        seg[slot - 1] = 0;  // terminador
+        if (k.center) {
+            // Texto CENTRADO por el motor: se termina JUSTO tras el texto (relleno NUL), para que el
+            // motor lo centre por su longitud real. Rellenar con espacios alarga el bloque y deja el
+            // texto visible a la izquierda (bug del "PRESS START" traducido mas corto).
+            std::memset(seg, 0, slot);
+            std::memcpy(seg, out.data(), out.size());
+        } else {
+            std::memset(seg, ' ', slot);
+            std::memcpy(seg, out.data(), out.size());
+            seg[slot - 1] = 0;  // terminador
+        }
         return true;
     }
     return false;
