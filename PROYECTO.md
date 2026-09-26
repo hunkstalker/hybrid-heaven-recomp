@@ -74,10 +74,12 @@ hash+caja `27,19,59,51`, barra de combo (4 `G_FILLRECT` en `y=28..30`) y **stami
 (`G_FILLRECT` en `y=34..38`) por posición, y **minimapa** por hash de contenido de su lista.
 Herramienta: **F7 = captura pareada** (traza + imagen).
 `notes/2026-09-25-f-hud-combate-contenido.md` · `notes/2026-09-26-fix-minimapa-contenido.md`.
-**`menu-nativo` (WIP, recién sincronizada con `main`; futura v0.5.0)**: menú inicial + idiomas
-HECHOS en headless (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
+**`menu-nativo` (WIP, sincronizada con `main`; futura v0.5.0)**: menú inicial + idiomas
+HECHOS (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
 EN/ES/CA/FR/DE + idioma del sistema); **BUG del reapply de idioma resuelto**
-(`notes/2026-09-25-e-fix-reapply-idioma.md`); **falta validar en Windows** y el **JA del menú**.
+(`notes/2026-09-25-e-fix-reapply-idioma.md`); **validado en Windows (2026-09-26, tras el merge con
+`main`)**; falta el **JA del menú**. Próximas tareas del menú en `TODO.md` (funcionales
+`CONTINUAR`/`EMPEZAR PARTIDA`/`DIFICULTAD`, código Konami → `TRUCOS`, demos de inactividad).
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
@@ -97,7 +99,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
-| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless)**. Falta: validar en Windows, JA del menú (kana), cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
+| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless; validado en Windows 2026-09-26)**. Falta: JA del menú (kana), cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 
 Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.

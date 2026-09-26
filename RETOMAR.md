@@ -73,31 +73,31 @@ Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y
 - **APLAZADO**: la solución de fondo es **desacoplar la lógica del juego del render** (lógica a 60 Hz)
   → épica aparte. Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
 
-## SIGUIENTE TAREA: validar el merge en Linux y Windows (paso 8)
+## SIGUIENTE TAREA: menú nativo — funcionales y pulido
 
-1. **Linux (compila)**: `cmake --build build/linux --parallel $(nproc)` — corregir la API del merge.
-2. **Windows (build normal)**, comprobar:
-   - **Menú 1:1** con el nativo, navegación, listas/selectores, SFX.
-   - **Acentos**: abrir `NUEVA PARTIDA` y `GRÁFICOS` (`CÁMARA`, `GRÁFICOS`, `RESOLUCIÓN`, `LÍMITE`) y
-     ver las tildes (letra + marca). Forzar con `HH_MENU_SCREEN=6`/`=5` si hace falta.
-   - **IDIOMA** (en `AJUSTES`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
-     texto in-game con F5), **sin que el juego se acelere** (fix del reapply; ver §BUG RESUELTO).
-     Persistencia en `config.ini [lang]`.
-   - **Idioma del sistema**: borrar `[lang]` de `config.ini` y arrancar con el SO en otro idioma
-     (p. ej. francés) → debe arrancar en ese idioma; un idioma no incluido → inglés.
-   - Rotar el log para revisar `[text] idioma del sistema: ...`.
-   - **HUD/minimapa (traídos de `main`)**: en widescreen, confirmar que el HUD de combate y el
-     minimapa siguen anclados, y que **F7–F10** (captura pareada + toggles) responden tras el merge.
+Merge validado (Linux + Windows). Ahora, en `menu-nativo`, por orden recomendado:
+
+1. **Bug del submenú `IDIOMA` (1b)**: entrar, mover el cursor sobre un idioma **sin aplicarlo** y salir
+   con **B** (hoy no pasa nada); al **volver a entrar y salir** se aplica el idioma señalado sin
+   confirmar. Debe aplicarse **solo con A/confirmar**.
+2. **Renombrar `AJUSTES` → `CONFIGURACIÓN` (1)** con traducción a todos los idiomas.
+3. **`CONTINUAR` (4b)**: enlazar con la función real de continuar (poco esfuerzo).
+4. **`EMPEZAR PARTIDA` (4c)**: enlazar con la función real de empezar partida.
+5. **`DIFICULTAD` (4d)**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la
+   dificultad elegida (esfuerzo por determinar).
+6. **Código Konami → `TRUCOS` (2)**: en la raíz, encima de `SALIR`; detección por mando o teclado,
+   con SFX.
+7. **Demos de inactividad (3)**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+   perdieron al crear el menú moderno); analizar.
 
 ### Después (backlog de la tarea)
 
-- **JA del menú**: embeber la **kana** del `color0` JP (o TTF) para que las etiquetas salgan en JA
-  (hoy caen a inglés). `color0` JP tiene kana, no kanji.
-- **Cablear** `game_font_color4.h` en `src/hooks/text_glyphs.cpp` (acentos del texto in-game).
-- **Traducciones in-game**: extraer **DE/FR** de la ROM EU y **JA** de la JP (emparejar por módulo) →
-  `assets/lang/*.txt`; redactar **ES/CA**.
-- Pendiente funcional del menú: `CÁMARA LIBRE`/`APUNTADO LIBRE` (modifican el juego; aparcado),
-  `DIFICULTAD`/`EMPEZAR PARTIDA`/`CONTINUAR` (arrancar/retomar con dificultad interna).
+- **Traducción — MENÚ (overlay)**: **JA del menú** (embeber la **kana** del `color0` JP o TTF; hoy las
+  etiquetas caen a inglés). `color0` JP tiene kana, no kanji.
+- **Traducción — JUEGO/GAMEPLAY (texto in-game)**: **cablear** `game_font_color4.h` en
+  `src/hooks/text_glyphs.cpp`; extraer **DE/FR** de la ROM EU y **JA** de la JP (emparejar por módulo)
+  → `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
+- **Aparcado**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (modifican el juego).
 
 ## Otras tareas (ver `TODO.md`)
 

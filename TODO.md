@@ -18,7 +18,20 @@
   (A/B, control total), acciones (video → `[video]`; audio → `[audio]`), SFX por eventos, **acentos**
   (letra+marca) e **idiomas** (EN/ES/CA/FR/DE + **idioma del sistema**). Detalle:
   `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, ADR 0008/0012.
-  **Falta**: **validar en Windows** y el **JA del menú** (kana del `color0` JP).
+  **Validado en Windows (2026-09-26, tras el merge con `main`)**; falta el **JA del menú** (kana).
+- [ ] **Menú nativo — funcionales y pulido (2026-09-26, orden recomendado)**:
+  1. **Bug del submenú `IDIOMA`**: entrar, mover el cursor sobre un idioma **sin aplicarlo** y salir
+     con **B** (hoy no pasa nada); al **volver a entrar y salir** se aplica el idioma señalado sin
+     confirmar. Debe aplicarse **solo con A/confirmar**.
+  2. **Renombrar `AJUSTES` → `CONFIGURACIÓN`** con traducción a todos los idiomas.
+  3. **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
+  4. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
+  5. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
+     elegida (esfuerzo por determinar).
+  6. **Código Konami → `TRUCOS`**: en la raíz del menú, encima de `SALIR`; detección por mando o
+     teclado, con SFX.
+  7. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+     perdieron al crear el menú moderno); analizar.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
@@ -26,103 +39,48 @@
 
 ## Backlog (priorizado)
 
-- [ ] **FPS en pantalla (overlay, opcional)**: hoy `HH_FPS=1` solo lo escribe en `hh.log`. El overlay
-  real requiere dibujar sobre el swapchain de RT64 → su **Inspector ImGui**. **Vía rápida hecha**:
-  `HH_DEVELOPER=1` habilita `developerMode` y **F1** abre el Inspector (FPS/frametimes); con dev-mode
-  RT64 consume F1-F4 (el F2/F3/F4 del port no actúa). Pendiente decidir si exponer una tecla propia
-  sin dev-mode o un overlay propio. Ver `notes/2026-09-22-fps-y-present-early.md`.
-  Nota: **RTSS funciona** una vez configurado (subir *detection level*), así que sirve como overlay
-  externo; `HH_DEVELOPER=1` + F1 es la vía interna.
-- [•] **Textos/traducción (requisito de producto) — spike de encoding + idiomas (EN CURSO)**: sería la
-  **primera traducción al español** del juego. **Hecho (2026-09-23)**: charset USA derivado (ASCII
-  en campos de ancho fijo + NUL; el "encoding custom" era en realidad los flujos LZKN64) y
-  **sustitución en runtime** vía el loader `trans` (`src/subsystems/text.cpp`; `HH_LANG=es`).
-  Extractor `tools/text/extract_strings.py`. Módulo 23 (título/menú/opciones) = 68 cadenas.
-  **Sistema de idiomas A1** (base del selector ADR 0008): lista `en/es/ca/fr/de/ja` + mods,
-  **cambio en vivo** (F5, re-aplicación a módulos cargados), persistencia en `config.ini [lang]`.
-  **Falta**: validar A1 en Windows; **A2** = selector visual; glifos de acento. Detalles:
-  `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
+- [x] **FPS en pantalla (2026-09-26)**: `MOSTRAR FPS` en el menú `DEBUG` (menú moderno de
+  `menu-nativo`) enciende el **indicador de FPS del overlay** (solo números, arriba-izquierda; mide la
+  tasa **real** de presentación) y persiste en `config.ini [video].showfps`. `HH_FPS=1` sigue volcando
+  a `hh.log`. Vías alternativas: `HH_DEVELOPER=1` + F1 (Inspector de RT64) y RTSS (overlay externo,
+  subir *detection level*). Ver `notes/2026-09-22-fps-y-present-early.md`.
+  `src/hooks/sections.cpp` (acción), `src/platform/support.cpp` + `rt64_render_context.cpp`.
+- [x] **Menú A2 — overlay moderno (render hook RT64) + opciones PC (2026-09-23/25)** — HISTÓRICO.
+  Menú propio del port, **solo en el menú inicial** (no el de pausa). Arquitectura `hh_menu → hh_font →
+  backend_game` (atlas de la **fuente del juego**, hoy) / `backend_modern` (TTF, futuro,
+  **seleccionable desde el propio menú**). El intento por GBI (`hud_rewrite`/`send_dl`) **falló** (RT64
+  compone el framebuffer del juego; los draws GBI no llegan al swapchain) y se retiró; la vía es
+  **`RT64::SetRenderHooks(init, draw, deinit)` + plume**. Hitos: shaders+CMake, render hook+atlas RGBA8,
+  `hh_menu` del título (hook `0x801C1DB8`, modelo+dibujo 1:1+navegación, **menú nativo oculto**, F6),
+  navegación/control total (A/B), **GRÁFICOS** (RATIO/RESOLUCIÓN/P. COMPLETA/ANTIALIASING/VSYNC/LÍMITE
+  DE FPS), **DEBUG** (VENTANA DEBUG→F1 + MOSTRAR FPS) y **AUDIO** (VOLUMEN/SALIDA/MENÚ SFX) aplican en
+  vivo y **persisten en `config.ini`** (`[video]`/`[audio]`); SFX por eventos del modelo. Todo
+  **validado en Windows (2026-09-26)**. Detalle: `notes/2026-09-24-a2-*.md`, `notes/2026-09-23-a2-*.md`,
+  `docs/menu.md`, ADR 0008/0012. Contexto descartado: `notes/2026-09-23-b-motor-texto-localizado.md`,
+  `...-a2-plan-menu-ajustes-idioma.md`.
+- [•] **Traducción — MENÚ (overlay del port)**. Alcance: **etiquetas del menú moderno** (no usa el
+  motor de texto del juego). **Hecho (2026-09-25/26)**: localización **en/es/ca/fr/de**
+  (`hh::menu::localized`, lista en **endónimos**); acentos = **letra base `color0` + marca**
+  (`tools/text/menu_marks.py` → `include/hh/menu_marks.h`; `¿ ¡` = `? !` girados); **`IDIOMA` en
+  `AJUSTES`** funcional (menú + texto in-game), con **idioma del sistema** (fallback inglés) y
+  persistencia `[lang]`; **validado en Windows (2026-09-26)**.
+  **Pendiente**: **JA del menú** (embeber la **kana** del `color0` JP — tiene kana, no kanji);
+  renombrar `AJUSTES`→`CONFIGURACIÓN` y el **bug del submenú `IDIOMA`** (ver "Ahora (priorizado)").
+  Detalle: `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, **ADR 0012**, `docs/menu.md`.
+- [•] **Traducción — JUEGO/GAMEPLAY (texto in-game)**. Alcance: **cadenas del juego** vía el motor de
+  texto (loader `trans`). **Hecho (2026-09-23)**: charset USA derivado (ASCII en campos de ancho fijo +
+  NUL; el "encoding custom" era LZKN64) y **sustitución en runtime** (`src/subsystems/text.cpp`;
+  `HH_LANG=es`); extractor `tools/text/extract_strings.py`; **sistema A1** (lista `en/es/ca/fr/de/ja` +
+  mods, **cambio en vivo** F5 con re-aplicación a módulos cargados, persistencia `[lang]`).
+  **Pendiente**: control de **longitud variable** y validar A1 en Windows; **cablear** la fuente
+  in-game **8×12 `color4`** (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE)
+  en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8 propio; `HH_ACCENTS=0` la desactiva);
+  **extraer DE/FR** (ROM EU) y **JA** (ROM JP) emparejando por módulo → `assets/lang/*.txt`, y redactar
+  **ES/CA**; **medir cobertura** (nº de strings/zonas) y decidir formato (La PAL FR/DE = referencia).
+  Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
-  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`.
-  Pasos originales:
-  1. [x] **Localizar** las tablas de texto de la ROM (anclas: `WASHINGTON D.C.` @`0x061CD7A`,
-     `PLEASE SELECT` @`0x05FB543`, `BATTLE` @`0x05FAF4C`, `ITEM...WEAPON` @`0x06C33AF`).
-  2. [x] **Derivar el charset** (USA: ASCII + campos de ancho fijo) y **extractor** ROM→texto.
-     Encoding real del motor: **EUC-JP**; acentos = gaiji de 2 bytes (ver nota 2026-09-23 de glifos).
-     Importante: los bytes no-ASCII alrededor de las anclas eran **LZKN64**, no glifos.
-  3. [•] **Reinsertar**: sustitución en runtime preservando longitud (vía loader `trans`); falta
-     control de longitud variable y validación en Windows.
-  4. [•] **A2 — OVERLAY MODERNO imitando al juego (2026-09-23; vía = RENDER HOOK de RT64)**. Menú
-     propio del port, **solo en el menú inicial** (no el de pausa). Arquitectura `hh_menu → hh_font →
-     backend_game` (atlas de la **fuente del juego**, hoy) / `backend_modern` (TTF, futuro,
-     **seleccionable desde el propio menú**). **El intento por GBI (`hud_rewrite`/`send_dl`) FALLÓ**
-     (RT64 compone el framebuffer del juego; los draws GBI no llegan al swapchain presentado) y **se
-     retiró del árbol**. Vía nueva: **`RT64::SetRenderHooks(init, draw, deinit)` + plume** (como
-     Goemon/recompui) → dibujo directo en el swapchain.
-     **(a) shaders + CMake HECHO**; **(b) render hook + atlas RGBA8 HECHO** (validado headless);
-     **(c) `hh_menu` del título HECHO (2026-09-24)**: hook `0x801C1DB8`, modelo + dibujo 1:1 +
-     navegación, **menú nativo oculto por defecto** (F6 alterna; cubre los **tres** sets) y bugs del
-     overlay resueltos. **Paso 5 HECHO (2026-09-24, validado headless)**: navegación propia completa
-     (arriba/abajo/izq-der, **A/B sin X**) y **control total** (input del handler nativo muteado).
-     **Dibujo HECHO**: listas con la aplicada en verde y el resto en gris; selectores con el activo en
-     verde (`NO/SÍ` o `< valor >` con flechas dibujadas); dígitos y `:` dibujados. NUEVA PARTIDA =
-     `EMPEZAR PARTIDA / DIFICULTAD / CÁMARA LIBRE / APUNTADO LIBRE`; GRÁFICOS con `RATIO` (filtra
-     `RESOLUCIÓN`), `P. COMPLETA`, `VSYNC` (SÍ) y `LÍMITE DE FPS` (`NATIVO`); **`DEBUG`** es submenú
-     en AJUSTES (`VENTANA DEBUG`→F1 + `MOSTRAR FPS`). Falta validar en Windows.
-     **GRÁFICOS/DEBUG/VENTANA DEBUG HECHOS (2026-09-25)**: `RATIO`, `RESOLUCIÓN`, `P. COMPLETA`,
-     `ANTIALIASING`, `VSYNC`, `LÍMITE DE FPS`, `MOSTRAR FPS` y `VENTANA DEBUG` aplican en vivo y
-     **persisten en `config.ini` `[video]`** (`aspect`/`res`/`wm`/`msaa`/`vsync`/`fps`/`showfps`/
-     `developer`, escritor `hh::config_ini_set`). `res=ANCHOxALTO` usa max(ancho/320, alto/240) para
-     que cada opción cambie de escala; el widescreen (`snap_overscan`) se aplica a aspectos > 4:3
-     (arregla la "caja pequeña" de `21:9`). Ventana `windowed`: geometría recordada (`win_*`) → `res`
-     concreta → nativa, guarda tamaño/posición al cerrar. `MOSTRAR FPS` mide presents reales.
-     Validado headless: modelo, arranque, geometría, re-aplicado en vivo (`mult 4→8`) y capturas de
-     ratio. Pendiente Windows.
-     **AUDIO HECHO (2026-09-25)**: `SONIDO` = `VOLUMEN` (0-100 %, pasos de 10; afecta a todo) +
-     `SALIDA` (`MONO`/`ESTÉREO`/`AURICULARES`) + `MENÚ SFX` (`NO/SÍ`). `MONO` = downmix `(L+R)/2`;
-     `AURICULARES` = **crossfeed** (canal opuesto filtrado); `MENÚ SFX=NO` silencia los sonidos del
-     menú. Procesado en `hh::queue_samples` (`hh_apply_audio_processing`); persiste en `[audio]`. El
-     `%` se dibuja (no está en la fuente). Los `.wav` de `sounds/` son personalizables (mismos
-     nombres, 48 kHz/S16/estéreo).
-     **VENTANA DEBUG/F1**: en Windows RT64 instala su hook solo al arrancar; si se activa en caliente,
-     F1 lo maneja el port (`hh::toggle_inspector`). Ver VSYNC con `HH_FPS=1` (log incluye
-     `vsync=0|1` real).
-     **SFX HECHO (2026-09-25)**: el SFX del menú suena desde los **eventos del modelo**
-     (`Move`/`Accept`/`Back`) en `feed_menu_navigation`; **puente retirado** (quedaba en silencio con
-     el input muteado y nunca disparaba `back`). Validado: modelo (eventos incl. `Back`). Pendiente
-     Windows.
-      **ACENTOS + IDIOMAS DEL MENÚ HECHOS (2026-09-25, headless)**: (a) **corregido el formato** de la
-      fuente "idioma": es **8×12** (48 B US / 56 B EU, 130 valores EU), no 8×8/32; `extract_eu_font.py`
-      arreglado; el menú usa **`color0` 8×8** (engine `fileidx=108` = Nisitenma 107; `stride=32`). (b)
-      Acentos del menú = **letra base color0 + marca** (dibujada por el mantenedor;
-      `tools/text/menu_marks.py` → `include/hh/menu_marks.h`; atlas 128×44). `¿ ¡` = `? !` girados.
-      (c) **`IDIOMA` en `AJUSTES` y funcional** (menú + texto in-game; persiste en `[lang]`);
-      etiquetas localizadas **en/es/ca/fr/de** (`hh::menu::localized`, endónimos en la lista);
-      **idioma del sistema** si no hay `[lang]` (fallback inglés). (d) Fuente in-game **8×12 `color4`**
-      preparada (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE) **sin
-      cablear**. **Pendiente**: validar en Windows; **JA del menú** (kana del `color0` JP — tiene kana,
-      no kanji); cablear la fuente in-game; extraer **DE/FR** (ROM EU) y **JA** (ROM JP) y redactar
-      **ES/CA**. Detalle: `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, **ADR 0012**.
-     **Pendiente (acordado)**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego; por
-     ahora NO), `DIFICULTAD`+`EMPEZAR PARTIDA` (arrancar partida nueva con la dificultad interna del
-     juego), `CONTINUAR`. Extras de audio (widening/EQ) evaluables más adelante. **Steam Deck**
-     (detección + perfil) apuntado abajo. Detalle:
-     `notes/2026-09-24-a2-selectores-y-arbol.md`,
-     `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`, `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md`,
-     `notes/2026-09-23-a2-render-hook-y-atlas.md`, `notes/2026-09-23-a2-overlay-primer-paso.md`.
-     Contexto (descartado): `notes/2026-09-23-b-motor-texto-localizado.md`, `...-a2-plan-menu-ajustes-idioma.md`.
-  5. [x] **B — fuente del juego descodificada + inyección de acentos (2026-09-23)**: **no es una
-     textura**, son **6 ficheros de bitmap por glifo** (Nisitenma US 106-111 / EU 115-120), uno por
-     color/estilo; **formato 2bpp con DOS glifos empaquetados por bloque** (valor par→bits 2-3,
-     impar→bits 0-1). El menú usa **color0 → fichero 107 (8×8)**. **5 de 6 ficheros byte-idénticos
-     US↔EU**; la PAL solo añade 32 glifos acentuados al color4. Herramientas
-     `tools/text/font_dump.py`, `tools/text/gen_accent_glyphs.py`; traza `HH_FONT_TRACE=1`;
-     inyección en `src/hooks/text_glyphs.cpp` (`HH_ACCENTS=0` la desactiva) + `text.cpp` (UTF-8→EUC
-     propio). **NO validable hoy** (la cadena con tilde vivía en el menú vanilla, ya oculto): **aparcado**.
-     Detalle: `notes/2026-09-23-b-fuente-formato-y-gaiji.md` (sustituye la hipótesis de "transplantar PAL").
-  6. [ ] **Medir cobertura** (nº de strings/zonas) y decidir formato de traducción (tabla ES, glifos
-     necesarios tipo `ñ/¿/¡` en la fuente). La PAL (FR/DE) sirve de **referencia de estilo**.
-  Ver `PROYECTO.md §4` y `notes/2026-09-05_asset-map.md`.
+  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
+  `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
 - [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
   **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
   `left` ya estaban. Commits `cleanup(hud)`+`fix(map)`+`docs` (ya en `origin/main`). **Detalle**:

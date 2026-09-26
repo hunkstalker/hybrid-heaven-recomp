@@ -8,10 +8,10 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-24 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 147 | 2026-09-25 |
-| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 93 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 251 | 2026-09-25 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 149 | 2026-09-26 |
+| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 93 | 2026-09-26 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 209 | 2026-09-26 |
 
 ## Técnico y guías (vivos)
 
@@ -27,10 +27,10 @@
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
 | [v0.4.0 - High frame rate (frame interpolation)](releases/v0.4.0.md) | El port presenta ahora hasta el **refresco del monitor** (interpolando los frames de 30 Hz del | 14 | 2026-09-22 |
-| [v0.4.1 - Flexible ROM Loading (SHA-1 Check)](releases/v0.4.1.md) | Carga de ROM más tolerante y con verificación de integridad. | 7 | 2026-09-26 |
-| [v0.4.2 - Combat HUD widescreen anchor fix](releases/v0.4.2.md) | El **HUD de combate** se ancla entero en widescreen también a partir del **2.º combate** (antes, | 10 | 2026-09-26 |
-| [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-26 |
-| [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-26 |
+| [v0.4.1 - Flexible ROM Loading (SHA-1 Check)](releases/v0.4.1.md) | Carga de ROM más tolerante y con verificación de integridad. | 7 | 2026-09-25 |
+| [v0.4.2 - Combat HUD widescreen anchor fix](releases/v0.4.2.md) | El **HUD de combate** se ancla entero en widescreen también a partir del **2.º combate** (antes, | 10 | 2026-09-25 |
+| [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-25 |
+| [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-25 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 265 | 2026-09-24 |
 
 ## Decisiones (ADR, inmutables)
