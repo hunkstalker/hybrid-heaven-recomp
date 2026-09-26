@@ -6,7 +6,9 @@
 //
 // Diagnostico: HH_OVERLAY=0 desactiva el overlay.
 
+#include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -90,8 +92,10 @@ struct Vertex {
 };
 
 // Push constant: xy = escala (clip/unidad virtual), zw = offset (clip). Proyeccion ortografica.
+// `mode`: 0 = atlas del menu (el PS usa R como cobertura y pinta el color de vertice); 1 = IMAGEN
+// (el PS pinta el color real de la textura, para los logos HD).
 struct PushConstants {
-    float scale_x, scale_y, offset_x, offset_y;
+    float scale_x, scale_y, offset_x, offset_y, mode;
 };
 
 bool g_enabled = true;
@@ -136,7 +140,41 @@ float g_image_w = 0.0f;
 float g_image_h = 0.0f;
 std::atomic<bool> g_image_on{ false };
 std::atomic<int> g_image_req{ 0 };   // 0 = nada; 1 = cargar (path en g_image_path_req)
+std::atomic<bool> g_image_show_pending{ true };   // al terminar la carga, mostrar (o solo precargar)
+std::atomic<bool> g_image_ready{ false };         // hay textura cargada (ruta en g_image_loaded_path)
+std::atomic<bool> g_image_loading{ false };       // carga en curso (para no pedir la misma ruta dos veces)
 std::string g_image_path_req;        // protegido por g_image_mutex
+std::string g_image_loaded_path;     // protegido por g_image_mutex (lo escribe el render)
+
+// Composicion de la capa de imagen (intro de logos): NEGRO base + TARJETA BLANCA OPACA + logo +
+// VELO NEGRO de fundido. El logo se composita UNA sola vez sobre la tarjeta opaca y el grupo se
+// funde con el velo (`alfa = 1 - fade`), evitando el "doble blanco"/lavado de un fade por capas.
+// `g_logo_alpha` = alfa del logo (crossfade KONAMI<->KCEO), `g_fade_alpha` = nivel del grupo
+// (255 = sin velo, 0 = negro). 0..255; los fija el hilo del juego, los lee el render.
+std::atomic<int> g_logo_alpha{ 255 };
+std::atomic<int> g_fade_alpha{ 255 };
+// Fade-out pedido desde el hilo del juego (fin de la intro): el render baja el VELO de `fade` a 0
+// durante `ms` y luego limpia la imagen. 0 = inactivo.
+std::atomic<int> g_fade_out_ms{ 0 };
+std::atomic<long long> g_fade_out_start_ms{ 0 };
+std::atomic<int> g_fade_from{ 255 };
+// Tarjeta NEGRA (logos modernos con fondo negro) o blanca (clasicos). `g_image_req_black` es lo
+// pedido; `g_card_black` se aplica al CARGAR la textura (evita ver el logo viejo sobre la tarjeta
+// nueva mientras carga el nuevo).
+std::atomic<bool> g_card_black{ false };
+std::atomic<bool> g_image_req_black{ false };
+// Flash blanco a pantalla completa (unlock): arranca al maximo y se desvanece durante `ms`.
+std::atomic<int> g_flash_ms{ 0 };
+std::atomic<long long> g_flash_start_ms{ 0 };
+// Telon negro opaco (tapa los logos nativos del boot antes de nuestra fase de logos).
+std::atomic<bool> g_blackout{ false };
+std::atomic<long long> g_blackout_start{ 0 };
+
+long long now_ms() {
+    using clock = std::chrono::steady_clock;
+    static const clock::time_point t0 = clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(clock::now() - t0).count();
+}
 
 void append_quad(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, float x, float y,
                  float w, float h, uint32_t color, float u0, float v0, float u1, float v1) {
@@ -219,7 +257,8 @@ void init_hook(RenderInterface* rhi, RenderDevice* device) {
 
     RenderPipelineLayoutBuilder layout_builder{};
     layout_builder.begin(false, true);
-    layout_builder.addPushConstant(0, 0, sizeof(PushConstants), RenderShaderStageFlag::VERTEX);
+    layout_builder.addPushConstant(0, 0, sizeof(PushConstants),
+                                   RenderShaderStageFlag::VERTEX | RenderShaderStageFlag::PIXEL);
     layout_builder.addDescriptorSet(sampler_set_builder);
     layout_builder.addDescriptorSet(*g_texture_set_builder);
     layout_builder.end();
@@ -298,6 +337,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // de copia de la textura es segura. Carga el PNG/memoria a RGBA8, sube la textura y prepara el set.
     if (g_image_req.load(std::memory_order_relaxed) != 0) {
         g_image_req.store(0, std::memory_order_relaxed);
+        g_image_loading.store(true, std::memory_order_relaxed);
+        const bool preload_only = !g_image_show_pending.load(std::memory_order_relaxed);
         std::string path;
         {
             const std::lock_guard<std::mutex> lock(g_image_mutex);
@@ -319,14 +360,48 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                     g_image_set = make_texture_set(g_image_texture.get());
                     g_image_w = static_cast<float>(iw);
                     g_image_h = static_cast<float>(ih);
-                    g_image_on.store(true, std::memory_order_relaxed);
-                    hh::log("[overlay] imagen cargada: %dx%d (%s)\n", iw, ih, path.c_str());
+                    {
+                        const std::lock_guard<std::mutex> lock(g_image_mutex);
+                        g_image_loaded_path = path;
+                    }
+                    // El color de tarjeta se aplica al CARGAR (no al pedir): asi no se ve el logo
+                    // anterior sobre la tarjeta nueva mientras llega la textura.
+                    g_card_black.store(g_image_req_black.load(std::memory_order_relaxed),
+                                       std::memory_order_relaxed);
+                    g_image_ready.store(true, std::memory_order_relaxed);
+                    // Se consulta al TERMINAR (no al empezar): si el juego pidio mostrarla
+                    // mientras el preload estaba en curso, se muestra ahora.
+                    if (g_image_show_pending.load(std::memory_order_relaxed)) {
+                        g_image_on.store(true, std::memory_order_relaxed);
+                    }
+                    hh::log("[overlay] imagen cargada%s: %dx%d (%s)\n",
+                            preload_only ? " (preload)" : "", iw, ih, path.c_str());
                 }
                 if (px != nullptr) stbi_image_free(px);
             }
             std::fclose(f);
         } else {
             hh::log("[overlay] no se pudo abrir la imagen: %s\n", path.c_str());
+        }
+        g_image_loading.store(false, std::memory_order_relaxed);
+    }
+
+    // Fade-out de la capa de imagen (fin de la intro): baja ambos alfa a 0 durante `ms` y limpia.
+    // Lo anima el hilo de render (el del juego ya no corre cuando termina la fase de logos).
+    {
+        const int fade_ms = g_fade_out_ms.load(std::memory_order_relaxed);
+        if (fade_ms > 0) {
+            const long long start = g_fade_out_start_ms.load(std::memory_order_relaxed);
+            const long long dt = now_ms() - start;
+            if (dt >= fade_ms) {
+                g_fade_out_ms.store(0, std::memory_order_relaxed);
+                g_fade_alpha.store(255, std::memory_order_relaxed);
+                g_image_on.store(false, std::memory_order_relaxed);
+            } else {
+                // Solo se baja el VELO (nivel del grupo); el logo NO se toca, para que no se lave.
+                const int ff = g_fade_from.load(std::memory_order_relaxed);
+                g_fade_alpha.store(static_cast<int>(ff - (ff * dt) / fade_ms), std::memory_order_relaxed);
+            }
         }
     }
 
@@ -342,7 +417,10 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // del menu). Si no hay ni menu, ni FPS, ni imagen, no se dibuja nada.
     const bool image_on = g_image_on.load(std::memory_order_relaxed) && g_image_set != nullptr &&
                           g_image_w > 0.0f && g_image_h > 0.0f;
-    if (!frame.visible && !fps_on && !image_on) {
+    // Telon negro: auto-off de seguridad a los 30 s (por si la intro no llega a arrancar).
+    const bool blackout_on = g_blackout.load(std::memory_order_relaxed) &&
+                             (now_ms() - g_blackout_start.load(std::memory_order_relaxed) < 30000);
+    if (!frame.visible && !fps_on && !image_on && !blackout_on) {
         return;
     }
 
@@ -360,12 +438,27 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     vertices.reserve(kMaxVertices);
     indices.reserve(kMaxIndices);
 
-    // IMAGEN primero (fondo): quad en PIXELES de ventana, ajustando el aspecto (contain) para no
-    // deformar. Rango de indices [0, image_index_count).
-    uint32_t image_index_count = 0;
+    // Capa de imagen (intro): NEGRO base + TARJETA OPACA + logo + VELO NEGRO de fundido + FLASH, en
+    // PIXELES de ventana. El logo se composita UNA sola vez sobre la tarjeta opaca y el grupo se
+    // funde con el velo (`alfa = 1 - fade`), evitando el lavado de fundir cada capa por separado.
+    // La tarjeta es blanca (logos clasicos) o negra (modernos, fondo negro). Rangos:
+    //   tarjeta=[0,image_bg); logo=[image_bg,image_logo_end); velo=[image_logo_end,image_veil_end);
+    //   flash=[image_veil_end,image_index_count).
+    uint32_t image_bg_index_count = 0;   // fin de la tarjeta (inicio del logo)
+    uint32_t image_logo_end = 0;         // fin del logo (inicio del velo)
+    uint32_t image_veil_end = 0;         // fin del velo (inicio del flash)
+    uint32_t image_index_count = 0;      // fin del flash (inicio de paneles/texto)
     if (image_on) {
         const float fw = static_cast<float>(width);
         const float fh = static_cast<float>(height);
+        const int la = std::clamp(g_logo_alpha.load(std::memory_order_relaxed), 0, 255);
+        const int fade = std::clamp(g_fade_alpha.load(std::memory_order_relaxed), 0, 255);
+        const uint32_t card = g_card_black.load(std::memory_order_relaxed) ? rgba(0, 0, 0, 255)
+                                                                           : rgba(255, 255, 255, 255);
+        // 1) Tarjeta OPACA: tapa el contenido nativo y rellena los laterales del logo 4:3.
+        append_quad(vertices, indices, 0.0f, 0.0f, fw, fh, card, 0.5f, 0.5f, 0.5f, 0.5f);
+        image_bg_index_count = static_cast<uint32_t>(indices.size());
+        // 2) Logo (contain), con alfa de crossfade KONAMI<->KCEO.
         const float img_aspect = g_image_w / g_image_h;
         const float win_aspect = fw / fh;
         float dw = fw, dh = fh;
@@ -374,8 +467,24 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         } else {
             dw = fh * img_aspect;   // limitado por alto
         }
-        append_quad(vertices, indices, (fw - dw) * 0.5f, (fh - dh) * 0.5f, dw, dh, 0xFFFFFFFFu,
-                    0.0f, 0.0f, 1.0f, 1.0f);
+        append_quad(vertices, indices, (fw - dw) * 0.5f, (fh - dh) * 0.5f, dw, dh,
+                    rgba(255, 255, 255, la), 0.0f, 0.0f, 1.0f, 1.0f);
+        image_logo_end = static_cast<uint32_t>(indices.size());
+        // 3) Velo negro de fundido (alfa = 1 - fade): funde el grupo entero a negro.
+        append_quad(vertices, indices, 0.0f, 0.0f, fw, fh, rgba(0, 0, 0, 255 - fade),
+                    0.5f, 0.5f, 0.5f, 0.5f);
+        image_veil_end = static_cast<uint32_t>(indices.size());
+        // 4) Flash blanco (unlock del codigo Konami), encima de todo.
+        int flash_a = 0;
+        const int fms = g_flash_ms.load(std::memory_order_relaxed);
+        if (fms > 0) {
+            const long long dt = now_ms() - g_flash_start_ms.load(std::memory_order_relaxed);
+            if (dt < fms) {
+                flash_a = 255 - static_cast<int>((255 * dt) / fms);
+            }
+        }
+        append_quad(vertices, indices, 0.0f, 0.0f, fw, fh, rgba(255, 255, 255, flash_a),
+                    0.5f, 0.5f, 0.5f, 0.5f);
         image_index_count = static_cast<uint32_t>(indices.size());
     }
     const uint32_t panel_base = static_cast<uint32_t>(indices.size());
@@ -496,6 +605,17 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         fps_index_count = static_cast<uint32_t>(indices.size()) - menu_text_end;
     }
 
+    // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
+    // logos nativos del boot). Solo mientras la intro no retire la bandera.
+    uint32_t blackout_begin = 0;
+    uint32_t blackout_index_count = 0;
+    if (blackout_on) {
+        blackout_begin = static_cast<uint32_t>(indices.size());
+        append_quad(vertices, indices, 0.0f, 0.0f, static_cast<float>(width),
+                    static_cast<float>(height), rgba(0, 0, 0, 255), 0.5f, 0.5f, 0.5f, 0.5f);
+        blackout_index_count = static_cast<uint32_t>(indices.size()) - blackout_begin;
+    }
+
     if (indices.empty()) {
         return;
     }
@@ -523,20 +643,41 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         .scale_y = -2.0f * k / static_cast<float>(height),
         .offset_x = -(kVirtualWidth * k) / static_cast<float>(width),
         .offset_y = 1.0f,
+        .mode = 0.0f,
     };
     list->setGraphicsPushConstants(0, &pc);
 
     // IMAGEN (logos) primero: proyeccion en PIXELES de ventana (1 unidad = 1 px, arriba-izquierda).
     if (image_index_count > 0 && g_image_set != nullptr) {
+        // Tarjeta blanca + velo negro (textura 1x1): mode=1 (color de vertice tal cual).
+        const PushConstants pc_solid{
+            .scale_x = 2.0f / static_cast<float>(width),
+            .scale_y = -2.0f / static_cast<float>(height),
+            .offset_x = -1.0f,
+            .offset_y = 1.0f,
+            .mode = 1.0f,
+        };
+        list->setGraphicsPushConstants(0, &pc_solid);
+        draw_range(list, g_white_set.get(), 0, image_bg_index_count);   // tarjeta opaca
+        // Logo: mode=2 (clave de blanco: el fondo blanco del PNG se vuelve transparente).
         const PushConstants pc_img{
             .scale_x = 2.0f / static_cast<float>(width),
             .scale_y = -2.0f / static_cast<float>(height),
             .offset_x = -1.0f,
             .offset_y = 1.0f,
+            .mode = 2.0f,
         };
         list->setGraphicsPushConstants(0, &pc_img);
-        draw_range(list, g_image_set.get(), 0, image_index_count);
+        draw_range(list, g_image_set.get(), image_bg_index_count,
+                   image_logo_end - image_bg_index_count);              // logo
+        // Velo negro del fundido + flash blanco (mode=1), por encima de la tarjeta y el logo.
+        list->setGraphicsPushConstants(0, &pc_solid);
+        draw_range(list, g_white_set.get(), image_logo_end, image_veil_end - image_logo_end);
+        draw_range(list, g_white_set.get(), image_veil_end, image_index_count - image_veil_end);
     }
+
+    // Restaurar la proyeccion VIRTUAL (320x240) para paneles/texto (la imagen deja pc_img).
+    list->setGraphicsPushConstants(0, &pc);
 
     // Paneles solidos (textura 1x1 blanca) y luego texto (atlas de la fuente del juego).
     draw_range(list, g_white_set.get(), image_index_count,
@@ -550,9 +691,23 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
             .scale_y = -2.0f / static_cast<float>(height),
             .offset_x = -1.0f,
             .offset_y = 1.0f,
+            .mode = 0.0f,
         };
         list->setGraphicsPushConstants(0, &pc_fps);
         draw_range(list, g_atlas_set.get(), menu_text_end, fps_index_count);
+    }
+
+    // TELON NEGRO el ultimo (tapa todo). Proyeccion en PIXELES, mode=1 (color de vertice).
+    if (blackout_index_count > 0) {
+        const PushConstants pc_px{
+            .scale_x = 2.0f / static_cast<float>(width),
+            .scale_y = -2.0f / static_cast<float>(height),
+            .offset_x = -1.0f,
+            .offset_y = 1.0f,
+            .mode = 1.0f,
+        };
+        list->setGraphicsPushConstants(0, &pc_px);
+        draw_range(list, g_white_set.get(), blackout_begin, blackout_index_count);
     }
 }
 
@@ -585,16 +740,82 @@ void deinit_hook() {
 
 bool enabled() { return g_enabled; }
 
-void set_screen_image(const std::string& png_path) {
-    {
-        const std::lock_guard<std::mutex> lock(g_image_mutex);
-        g_image_path_req = png_path;
+void preload_screen_image(const std::string& png_path, bool black_bg) {
+    const std::lock_guard<std::mutex> lock(g_image_mutex);
+    g_image_req_black.store(black_bg, std::memory_order_relaxed);
+    const bool loaded = g_image_ready.load(std::memory_order_relaxed) && g_image_loaded_path == png_path;
+    const bool pending = g_image_path_req == png_path &&
+                         (g_image_loading.load(std::memory_order_relaxed) ||
+                          g_image_req.load(std::memory_order_relaxed) != 0);
+    if (loaded || pending) {
+        return;
     }
+    g_image_path_req = png_path;
+    g_image_show_pending.store(false, std::memory_order_relaxed);
     g_image_req.store(1, std::memory_order_relaxed);
 }
 
+void set_screen_image(const std::string& png_path, bool black_bg) {
+    // OJO: NO se tocan los alfas aqui. El llamador los fija con set_screen_image_alpha ANTES o
+    // justo despues; resetearlos a 255 causaba un frame a plena luz (parpadeo) al entrar/cambiar.
+    g_fade_out_ms.store(0, std::memory_order_relaxed);   // cancela cualquier fade-out en curso
+    bool already = false;
+    {
+        const std::lock_guard<std::mutex> lock(g_image_mutex);
+        g_image_req_black.store(black_bg, std::memory_order_relaxed);
+        const bool loaded = g_image_ready.load(std::memory_order_relaxed) && g_image_loaded_path == png_path;
+        const bool pending = g_image_path_req == png_path &&
+                             (g_image_loading.load(std::memory_order_relaxed) ||
+                              g_image_req.load(std::memory_order_relaxed) != 0);
+        g_image_show_pending.store(true, std::memory_order_relaxed);
+        if (loaded) {
+            already = true;
+        } else if (!pending) {
+            g_image_path_req = png_path;
+            g_image_req.store(1, std::memory_order_relaxed);
+        }
+    }
+    if (already) {
+        g_card_black.store(black_bg, std::memory_order_relaxed);   // ya cargada: aplica ya el color
+        g_image_on.store(true, std::memory_order_relaxed);
+    }
+}
+
 void clear_screen_image() {
+    g_fade_out_ms.store(0, std::memory_order_relaxed);
     g_image_on.store(false, std::memory_order_relaxed);
+}
+
+// Alfa de la intro (0..255): `logo_alpha` = logo (crossfade KONAMI<->KCEO); `fade_alpha` = nivel del
+// grupo (255 = sin velo, 0 = negro). Los fija el hilo del juego.
+void set_screen_image_alpha(int logo_alpha, int fade_alpha) {
+    g_logo_alpha.store(std::clamp(logo_alpha, 0, 255), std::memory_order_relaxed);
+    g_fade_alpha.store(std::clamp(fade_alpha, 0, 255), std::memory_order_relaxed);
+}
+
+// Inicia un fade-out: el hilo de render baja el VELO de `fade` a 0 durante `ms` y luego limpia la
+// imagen. El logo NO se toca (asi el fundido no lava el logo).
+void fade_out_screen_image(int ms) {
+    if (ms <= 0) {
+        clear_screen_image();
+        return;
+    }
+    g_fade_from.store(g_fade_alpha.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    g_fade_out_start_ms.store(now_ms(), std::memory_order_relaxed);
+    g_fade_out_ms.store(ms, std::memory_order_relaxed);
+}
+
+void flash_white(int ms) {
+    g_flash_start_ms.store(now_ms(), std::memory_order_relaxed);
+    g_flash_ms.store(ms > 0 ? ms : 1, std::memory_order_relaxed);
+}
+
+void set_screen_blackout(bool enabled) {
+    const bool was = g_blackout.load(std::memory_order_relaxed);
+    g_blackout.store(enabled, std::memory_order_relaxed);
+    if (enabled && !was) {
+        g_blackout_start.store(now_ms(), std::memory_order_relaxed);
+    }
 }
 
 void set_fps_indicator(bool enabled, int fps) {

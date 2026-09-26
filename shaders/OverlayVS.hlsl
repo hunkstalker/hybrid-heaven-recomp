@@ -6,6 +6,7 @@
 
 struct Input {
     float4 transform;
+    float mode;      // 0 = atlas del menu (cobertura en R); 1 = imagen (color real)
 };
 
 [[vk::push_constant]]

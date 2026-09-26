@@ -56,8 +56,30 @@ bool enabled();
 // cubriendo el framebuffer con aspecto "contain" (letterbox si no coincide). Es independiente del
 // frame del menú (puede estar visible sola). La carga real ocurre en el hilo de render (seguro);
 // esta llamada solo encola la petición. Llamar desde el hilo del juego.
-void set_screen_image(const std::string& png_path);
+// `black_bg`: la imagen trae fondo NEGRO (logos modernos) -> la tarjeta se pinta negra y rellena
+// los laterales en negro; si es false, la tarjeta es blanca (logos clasicos).
+void set_screen_image(const std::string& png_path, bool black_bg = false);
 void clear_screen_image();
+
+// Precarga el PNG (lo sube a textura) SIN mostrarlo, para que el primer fade-in no se pierda
+// mientras se decodifica el PNG (evita que el logo aparezca a mitad de fundido).
+void preload_screen_image(const std::string& png_path, bool black_bg = false);
+
+// Composicion de la capa de imagen: NEGRO base + TARJETA BLANCA OPACA + logo + VELO NEGRO de fundido.
+// `set_screen_image_alpha` fija el alfa (0..255) del logo (crossfade KONAMI<->KCEO) y el nivel del
+// grupo (`fade`; 255 = sin velo, 0 = negro). `fade_out_screen_image` baja el velo durante `ms` y
+// luego limpia la imagen (animado por el hilo de render); el logo no se toca.
+void set_screen_image_alpha(int logo_alpha, int fade_alpha);
+void fade_out_screen_image(int ms);
+
+// Flash blanco a pantalla completa (p. ej. al desbloquear EXTRAS con el codigo Konami): pinta un
+// velo blanco que arranca al maximo y se desvanece durante `ms`. Lo anima el hilo de render.
+void flash_white(int ms);
+
+// Telon NEGRO opaco a pantalla completa, independiente de la capa de imagen. Se activa al arrancar
+// para tapar los logos NATIVOS del boot (file 8) que se pintan antes de que empiece nuestra fase de
+// logos (file 055); se retira al terminar la intro. Auto-off de seguridad a los 30 s.
+void set_screen_blackout(bool enabled);
 
 // Indicador de FPS (menú DEBUG -> MOSTRAR FPS): texto de SOLO NÚMEROS en la esquina superior
 // izquierda. Es una capa independiente del frame del menú (lo dibuja el render hook siempre que
