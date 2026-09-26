@@ -1,6 +1,6 @@
 # Leyenda de la hoja de marcas del menú
 
-Cada celda de `menu_marks_layer.png`, en orden. Dibuja el símbolo indicado sobre la letra de referencia (o el símbolo entero en las celdas sueltas).
+Cada celda de `menu_marks_blank.png`, en orden. Dibuja el símbolo indicado sobre la letra de referencia (o el símbolo entero en las celdas sueltas).
 
 | celda | qué dibujar | símbolo | code point | nombre | sirve para |
 |---|---|---|---|---|---|

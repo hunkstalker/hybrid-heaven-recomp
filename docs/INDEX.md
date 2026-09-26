@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 149 | 2026-09-26 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 93 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 219 | 2026-09-26 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 221 | 2026-09-26 |
 
 ## Técnico y guías (vivos)
 
@@ -55,6 +55,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Issue #7 — Minimapa desanclado al inicio del nivel 2-1 (RESUELTO)](../notes/2026-09-26-fix-minimapa-contenido.md) | 2026-09-26. Bug reportado por El-Rana. Síntoma: al inicio del **nivel 2-1** (tras eliminar al | 39 | 2026-09-26 |
+| [Menú: sombras (flecha y marcas) y nombres de las capas de marcas (Set A)](../notes/2026-09-26-c-sombras-y-set-a.md) | Sesión 2026-09-26 (c), rama `menu-nativo`. Implementa las tareas 8 y 9 del backlog del menú | 53 | 2026-09-26 |
 | [Menú: bug de `IDIOMA`, rename a `CONFIGURACIÓN` y análisis de sombras](../notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md) | Sesión 2026-09-26 (b), rama `menu-nativo`. Cierra dos tareas del backlog del menú y deja | 48 | 2026-09-26 |
 | [Sincronizar `menu-nativo` con `main` (v0.4.1–v0.4.4)](../notes/2026-09-26-a-sync-menu-nativo-con-main.md) | Sesión 2026-09-26. Cierra la desincronización de **`menu-nativo`** (que salió de `v0.4.0`, | 49 | 2026-09-26 |
 | [Issue #3 — HUD de combate: anclaje por identidad de contenido (RESUELTO)](../notes/2026-09-25-f-hud-combate-contenido.md) | **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 4 partes. Aquí queda el cómo, | 150 | 2026-09-25 |

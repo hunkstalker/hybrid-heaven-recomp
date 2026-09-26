@@ -34,14 +34,16 @@
      teclado, con SFX.
   7. [ ] **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
      perdieron al crear el menú moderno); analizar.
-  8. [ ] **Sombra de la flecha de cursor**: `append_native_cursor` (`src/hooks/menu_overlay.cpp`) la
-     dibuja con **rectángulos sólidos** de un color → **sin sombra** (el texto sí la lleva). Fix:
-     copia negra desplazada **+1,+1 px** detrás de la flecha.
-  9. [ ] **Sombra de las tildes/marcas**: `tools/text/menu_marks.py` genera las marcas de acento
-     **solo con tinta (nivel 1), sin sombra**; solo `¿ ¡` (ruta `AUTO`) llevan nivel 2. Aparecen (o se
-     recortan) mal respecto a la letra. Fix: generar sombra **+1,+1** en las marcas de acento,
-     incluirla en el recorte y comprobar la celda (ancho `kMarkW=8`, alto 12, `pix[96]`); regenerar
-     `include/hh/menu_marks.h`. Análisis: `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md` §3.
+  8. [x] **Sombra de la flecha de cursor — VALIDADO en Windows (2026-09-26)**:
+     `append_native_cursor` (`src/hooks/menu_overlay.cpp`) la dibujaba con rectángulos sólidos; ahora
+     lleva **copia negra `kShadow` desplazada +1,+1** detrás (como el texto).
+  9. [x] **Sombra de las tildes/marcas + z-order — VALIDADO en Windows (2026-09-26)**:
+     `tools/text/menu_marks.py` aplica `add_shadow_cell` (**nivel 2, +1,+1**) a **todas** las marcas
+     (tildes + `· Æ Œ`, con `Æ`/`Œ` desplazados 1 px); `include/hh/menu_marks.h` regenerado desde
+     `assets/fonts/menu_marks_ed.png` (formas del mantenedor verificadas; máx. 8×9). Las marcas se
+     dibujan **debajo de la letra** (`src/platform/overlay.cpp`) para que la sombra no pise la tinta.
+     Nombres `Set A`: `_base` (plantilla), `_ed` (diseño), `_blank` (lienzo de `--template`).
+     Detalle: `notes/2026-09-26-c-sombras-y-set-a.md`.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de

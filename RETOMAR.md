@@ -75,19 +75,16 @@ Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido
 
-Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`** y **`AJUSTES`→`CONFIGURACIÓN`**
-(`notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md`). Ahora, por orden recomendado:
+Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`**, **`AJUSTES`→`CONFIGURACIÓN`** y las
+**sombras del menú** (flecha + tildes/marcas, con las marcas por debajo de la letra).
+Notas: `2026-09-26-b-…-sombras.md` y `2026-09-26-c-sombras-y-set-a.md`. Ahora, por orden recomendado:
 
-1. **Sombra de la flecha de cursor**: hoy se dibuja con rectángulos sólidos, sin la sombra +1,+1 del
-   texto (`src/hooks/menu_overlay.cpp`); añadir copia negra desplazada.
-2. **Sombra de las tildes/marcas**: `tools/text/menu_marks.py` genera las marcas **sin sombra** (solo
-   tinta); generar sombra +1,+1 y regenerar `include/hh/menu_marks.h` (cuidado con el recorte de celda).
-3. **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
-4. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
-5. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
+1. **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
+2. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
+3. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
    elegida (esfuerzo por determinar).
-6. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
-7. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+4. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
+5. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
    perdieron al crear el menú moderno); analizar.
 
 ### Después (backlog de la tarea)

@@ -68,11 +68,12 @@ El menú lo dibuja el overlay: para una letra acentuada se pinta la **letra base
 Herramienta: `tools/text/menu_marks.py`.
 
 ```bash
-# 1) plantilla: base (letras de referencia) + capa vacía para dibujar
+# 1) plantilla: base (letras de referencia) + LIENZO en blanco para dibujar
 python3 tools/text/menu_marks.py --template \
-    work/fonts/menu_marks_base.png work/fonts/menu_marks_layer.png
-# 2) en Affinity dibuja las tildes en menu_marks_layer.png y exporta SOLO esa capa
-python3 tools/text/menu_marks.py --from-layer work/fonts/menu_marks_layer.png \
+    assets/fonts/menu_marks_base.png work/fonts/menu_marks_blank.png
+# 2) en Affinity dibuja las tildes sobre el lienzo y exporta SOLO esa capa como el DISEÑO
+#    (fuente de verdad): assets/fonts/menu_marks_ed.png
+python3 tools/text/menu_marks.py --from-layer assets/fonts/menu_marks_ed.png \
     --out include/hh/menu_marks.h
 ```
 
@@ -82,9 +83,10 @@ python3 tools/text/menu_marks.py --from-layer work/fonts/menu_marks_layer.png \
 - `menu_marks.h` contiene: `kMenuMarks[]` (sprites recortados con `dx,dy`) y
   `kMenuChars[]` (`codepoint -> letra base + índice de marca`).
 - El overlay centra la marca sobre la tinta de cada letra y la pinta a `t.y + dy`.
-- **Fuente versionada**: el dibujo del mantenedor está en `assets/fonts/menu_marks_ed.png` (y la
-  plantilla/guía en `assets/fonts/menu_marks_{base,layer}.png`, la leyenda en `..._legend.md`). El
-  header `include/hh/menu_marks.h` se genera desde ahí:
+- **Fuente versionada**: el dibujo del mantenedor está en `assets/fonts/menu_marks_ed.png` (la
+  plantilla/guía en `assets/fonts/menu_marks_*.png`, la leyenda en `..._legend.md`). El lienzo
+  `menu_marks_blank.png` es **scratch** de `--template` (no es fuente de verdad; no regenerar desde
+  él). Regenerar el header:
   `python3 tools/text/menu_marks.py --from-layer assets/fonts/menu_marks_ed.png --out include/hh/menu_marks.h`.
 
 ## Pendiente (integración)
