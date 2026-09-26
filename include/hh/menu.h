@@ -3,7 +3,7 @@
 // hh_menu — modelo del menú inicial del port (A2, paso 1: SOLO ESTADO).
 //
 // Describe el árbol de pantallas acordado en RETOMAR.md §Menú (CONTINUAR / NUEVA PARTIDA /
-// MODO COMBATE / AJUSTES y sus subpantallas) y la navegación. NO dibuja, NO lee input y NO
+// MODO COMBATE / CONFIGURACIÓN y sus subpantallas) y la navegación. NO dibuja, NO lee input y NO
 // persiste nada: de eso se encargan las capas posteriores (dibujo con hh_font -> backend_game,
 // enganche de input del paso 5 y ejecución de acciones del paso 6).
 //
@@ -25,11 +25,11 @@ namespace hh::menu {
 
 // Identidad de cada pantalla del árbol.
 enum class ScreenId {
-    Root,          // título (CONTINUAR / NUEVA PARTIDA / MODO COMBATE / AJUSTES)
+    Root,          // título (CONTINUAR / NUEVA PARTIDA / MODO COMBATE / CONFIGURACIÓN)
     NewGame,       // NUEVA PARTIDA (EMPEZAR PARTIDA / DIFICULTAD / selectores)
     Difficulty,    // DIFICULTAD (lista)
     BattleMode,    // MODO COMBATE (por definir; de momento deshabilitado)
-    Settings,      // AJUSTES
+    Settings,      // CONFIGURACIÓN
     Language,      // IDIOMA (lista)
     Graphics,      // GRÁFICOS (RATIO / RESOLUCIÓN / P. COMPLETA / ANTIALIASING / VSYNC / FPS)
     Sound,         // SONIDO (lista)
@@ -45,7 +45,7 @@ enum class Action {
     BattleMode,      // MODO COMBATE (deshabilitado)
     OpenNewGame,     // submenú NUEVA PARTIDA
     OpenDifficulty,  // submenú DIFICULTAD
-    OpenSettings,    // submenú AJUSTES
+    OpenSettings,    // submenú CONFIGURACIÓN
     OpenLanguage,    // submenú IDIOMA
     OpenGraphics,    // submenú GRÁFICOS
     OpenSound,       // submenú SONIDO

@@ -8,9 +8,9 @@
 ## Principios
 
 1. **Imitar el diseño original 1:1** (posiciones, tipografía y **flecha nativa**), **incluyendo menús
-   nuevos** (p. ej. `SONIDO` → `AJUSTES`, y dentro `IDIOMA` + `SONIDO`). **Ni panel ni cursor
+   nuevos** (p. ej. `SONIDO` → `CONFIGURACIÓN`, y dentro `IDIOMA` + `SONIDO`). **Ni panel ni cursor
    inventados**: nada de elementos extra que no existan en el original. **Única excepción acordada:
-   `SALIR`** en la raíz, debajo de `AJUSTES` (decisión del mantenedor, 2026-09-25; ver §SALIR).
+   `SALIR`** en la raíz, debajo de `CONFIGURACIÓN` (decisión del mantenedor, 2026-09-25; ver §SALIR).
 2. **Ocultar el menú nativo** por defecto (el port ya añade menús que no existían). Mecanismo:
    `architecture.md` §7 (supresión por tablas de etiquetas).
 3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A** marca/selecciona (entra
@@ -37,7 +37,7 @@ NUEVA PARTIDA ->
       CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
       APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
 MODO COMBATE -> (por definir; de momento sale DESHABILITADO, en gris)
-AJUSTES ->
+CONFIGURACIÓN ->
       IDIOMA -> lista ENGLISH/ESPAÑOL/CATALÀ/FRANÇAIS/DEUTSCH/NIHONGO (endónimos; activa en
             verde, resto gris; A fija). Cambia el idioma del MENÚ y del texto in-game; persiste.
       GRÁFICOS ->
@@ -59,7 +59,7 @@ SALIR                                      (extra del port: cierra de forma orde
 ```
 
 - **`RESOLUCIÓN` sale de la raíz**: el menú raíz queda en **CONTINUAR / NUEVA PARTIDA / MODO COMBATE /
-  AJUSTES / SALIR** (el `RESOLUTION` nativo se mueve a **GRÁFICOS**; `SALIR` es el extra del port,
+  CONFIGURACIÓN / SALIR** (el `RESOLUTION` nativo se mueve a **GRÁFICOS**; `SALIR` es el extra del port,
   ver §SALIR).
 - **`RATIO` + `RESOLUCIÓN`**: `RATIO` (aspecto) filtra la lista de `RESOLUCIÓN` (las adecuadas a ese
   ratio); la fuente no tiene `:`, así que los ratios se rotulan `4:3`, `16:9`… con el `:` **dibujado
@@ -135,7 +135,7 @@ SALIR                                      (extra del port: cierra de forma orde
 ### `SALIR`
 
 - **Extra del port** (el original no lo tiene): la **única** entrada fuera del árbol nativo, acordada
-  con el mantenedor (2026-09-25). Va la **última de la raíz**, debajo de `AJUSTES`.
+  con el mantenedor (2026-09-25). Va la **última de la raíz**, debajo de `CONFIGURACIÓN`.
 - **A** cierra el port de forma **ordenada**: `hh::request_quit()` recuerda la geometría de la ventana
   (`hh::video_remember_window`) y llama a `ultramodern::quit()` (salida limpia de `recomp::start`, con
   *join* de hilos; **no** `std::exit`, que dispararía `std::terminate`). Mismo camino que `SDL_QUIT`

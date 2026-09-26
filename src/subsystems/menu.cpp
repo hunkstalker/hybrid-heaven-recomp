@@ -28,7 +28,7 @@ const MenuTr kMenuTr[] = {
     {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN"},
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
-    {"AJUSTES", "SETTINGS", "AJUSTOS", "OPTIONS", "EINSTELLUNGEN"},
+    {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION"},
     {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN"},
     {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
     {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT"},
@@ -204,7 +204,7 @@ void build_tree() {
         make_item("CONTINUAR", Action::Continue),
         make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
         make_submenu("MODO COMBATE", Action::BattleMode, /*enabled=*/false),
-        make_submenu("AJUSTES", Action::OpenSettings),
+        make_submenu("CONFIGURACIÓN", Action::OpenSettings),
         // SALIR: extra del port (no existe en el nativo); cierra de forma ordenada. Decidido por el
         // mantenedor (2026-09-25); ver docs/menu.md.
         make_item("SALIR", Action::Exit),
@@ -231,7 +231,7 @@ void build_tree() {
     // MODO COMBATE: por definir; la entrada de la raíz sale deshabilitada.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {}));
 
-    // AJUSTES: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
+    // CONFIGURACIÓN: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
     g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {
         make_submenu("IDIOMA", Action::OpenLanguage),
         make_submenu("GRÁFICOS", Action::OpenGraphics),

@@ -529,7 +529,7 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     func_800058DC_64DC(rdram, ctx);
 }
 
-// A2: la entrada SOUND (inutil en PC) pasa a ser AJUSTES; dentro viven IDIOMA y SONIDO.
+// A2: la entrada SOUND (inutil en PC) pasa a ser CONFIGURACIÓN; dentro viven IDIOMA y SONIDO.
 // (Implementacion en src/hooks/hh_menu.cpp; aqui solo se registran los overrides.)
 
 // Debe correr en on_init, DESPUES de init_overlays(): init_overlays hace func_map.clear() y
@@ -561,7 +561,7 @@ void hh::register_runtime_functions() {
             hh_accent_register();
         }
     }
-    // A2: SOUND -> AJUSTES (pantalla propia con IDIOMA y SONIDO).
+    // A2: SOUND -> CONFIGURACIÓN (pantalla propia con IDIOMA y SONIDO).
     // hh_pc_menu_register();  // DESACTIVADO: reemplazado por overlay propio
     std::fprintf(stderr, "[hh] %zu code files; loaders envueltos en 0x%08X y 0x%08X\n",
                  kFileCount, kFileLoadAddress, kFileLoadStreamedAddress);
