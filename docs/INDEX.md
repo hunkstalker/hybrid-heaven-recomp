@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 150 | 2026-09-26 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 154 | 2026-09-26 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 93 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 236 | 2026-09-26 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 246 | 2026-09-26 |
 
 ## Técnico y guías (vivos)
 
@@ -54,6 +54,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Logos de intro HD + código Konami → `EXTRAS` (implementación)](../notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md) | Tarea 2026-09-26, rama `menu-nativo`. Continuación de | 133 | 2026-09-26 |
 | [Logos de intro en HD (KONAMI/KCEO) + código Konami durante el logo](../notes/2026-09-26-h-logos-intro-hd-y-konami.md) | Tarea (2026-09-26), rama `menu-nativo`. **Descripción del mantenedor** + reconocimiento técnico y | 207 | 2026-09-26 |
 | [EMPEZAR PARTIDA y DIFICULTAD (disparo nativo de GAME START)](../notes/2026-09-26-g-empezar-partida-y-dificultad.md) | Sesión 2026-09-26 (g), rama `menu-nativo`. Implementa el **arranque de partida nueva** desde el | 59 | 2026-09-26 |
 | [Issue #7 — Minimapa desanclado al inicio del nivel 2-1 (RESUELTO)](../notes/2026-09-26-fix-minimapa-contenido.md) | 2026-09-26. Bug reportado por El-Rana. Síntoma: al inicio del **nivel 2-1** (tras eliminar al | 39 | 2026-09-26 |

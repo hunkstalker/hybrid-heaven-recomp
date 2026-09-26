@@ -39,8 +39,18 @@
      global `0x801BBC0D` (`0=NORMAL`/`1=DIFÍCIL`/`2=DEFINITIVO`) leyendo la opción marcada del modelo
      (`hh::menu::screen(ScreenId::Difficulty)`). **Pendiente de comprobar jugando** el efecto real
      (daño que hacen los enemigos); el mantenedor confía en la implementación (2026-09-26).
-  6. [ ] **Código Konami → `TRUCOS`**: en la raíz del menú, encima de `SALIR`; detección por mando o
-     teclado, con SFX.
+   6. [x] **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS` — IMPLEMENTADO (2026-09-26)**;
+     **validado en headless**, **pendiente validar en Windows** (fades, skip, flash, `EXTRAS`,
+     parpadeo de arranque). **Causa raíz**: los logos de arranque los pinta el **módulo file 055**
+     (`func_80383AD4`), NO el de título. Composicion **negro base + tarjeta opaca (blanca clásicos /
+     negra modernos) + logo (`mode 2` clave de blanco) + velo de fundido (grupo) + flash**. Alfas
+     copiadas del nativo (`0x8038DBC0`/`0x8038DBD4`). **Preload** del PNG. Código `↑↑↓↓←→←→BA` con
+     **pausa** del file 055 → `unlock_extras()` **solo de sesión** (no persiste), **cambio a logos
+     modernos** + **flash blanco**. Entrada `EXTRAS` en la raíz (encima de `SALIR`); pantalla con
+     placeholders `NIVEL`/`HABILIDADES` (**contenido por definir**). **Skip con START** (1 por logo;
+     KCEO forzado). **Ventana** ya borderless al crear (sin transición). **Falta**: validar en Windows
+     (`HH_MENU_TRACE=1`) y el contenido de `EXTRAS`.
+     `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`.
   7. [ ] **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
      perdieron al crear el menú moderno); analizar.
   8. [x] **Sombra de la flecha de cursor — VALIDADO en Windows (2026-09-26)**:
