@@ -26,10 +26,10 @@
      `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md`.
   2. [x] **`AJUSTES` → `CONFIGURACIÓN` — HECHO y validado (2026-09-26)**: ES `CONFIGURACIÓN` · EN
      `SETTINGS` · CA `CONFIGURACIÓ` · FR `CONFIGURATION` · DE `KONFIGURATION` (`kMenuTr`).
-  3. [ ] **`CONTINUAR` — IMPLEMENTADO, falta validar en Windows (2026-09-26)**: reenvía la acción al
-     **dispatch nativo** del menú de título (`sel 0x801CC8C4 = 1` = CONTINUE + A inyectada una vez,
+  3. [x] **`CONTINUAR` — VALIDADO en Windows (2026-09-26)**: reenvía la acción al **dispatch nativo**
+     del menú de título (`sel 0x801CC8C4 = 1` = CONTINUE + A inyectada una vez,
      `src/hooks/sections.cpp`), reutilizando la carga real (`func_801C3CDC`). Con overlay activo; con
-     `HH_OVERLAY=0` manda el nativo.
+     `HH_OVERLAY=0` manda el nativo. `notes/2026-09-26-d-continuar-y-bugs-visuales.md`.
   4. [ ] **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
   5. [ ] **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
      elegida (esfuerzo por determinar).
@@ -89,8 +89,7 @@
   (`tools/text/menu_marks.py` → `include/hh/menu_marks.h`; `¿ ¡` = `? !` girados); **`IDIOMA` en
   `AJUSTES`** funcional (menú + texto in-game), con **idioma del sistema** (fallback inglés) y
   persistencia `[lang]`; **validado en Windows (2026-09-26)**.
-  **Pendiente**: **JA del menú** (embeber la **kana** del `color0` JP — tiene kana, no kanji);
-  renombrar `AJUSTES`→`CONFIGURACIÓN` y el **bug del submenú `IDIOMA`** (ver "Ahora (priorizado)").
+  **Pendiente**: **JA del menú** (embeber la **kana** del `color0` JP — tiene kana, no kanji).
   Detalle: `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, **ADR 0012**, `docs/menu.md`.
 - [•] **Traducción — JUEGO/GAMEPLAY (texto in-game)**. Alcance: **cadenas del juego** vía el motor de
   texto (loader `trans`). **Hecho (2026-09-23)**: charset USA derivado (ASCII en campos de ancho fijo +

@@ -1,135 +1,87 @@
 # RETOMAR — handoff
 
-> **Handoff para la próxima sesión.** Corto: estado, siguiente tarea y Git.
-> **Diseño** y **técnica** viven en `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
+> **Handoff para la próxima sesión.** Estado, siguiente tarea y métodos. **Diseño y técnica** viven en
+> `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
 > **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
 
-## Sincronización con `main` — CERRADA (2026-09-26)
+## Estado (2026-09-26)
 
-`menu-nativo` salió de **v0.4.0** (`c977bd5`) y `main` publicó **v0.4.1–v0.4.4**. El merge
-`main → menu-nativo` está **hecho y validado** (unión: HUD/docs de `main`, menú/idiomas de
-`menu-nativo`). Detalle en `notes/2026-09-26-a-sync-menu-nativo-con-main.md`.
+- **Sincronización con `main` CERRADA y validada**: merge `main → menu-nativo` con v0.4.1–v0.4.4
+  (HUD/minimapa #3/#7). Nota `notes/2026-09-26-a-sync-menu-nativo-con-main.md`; checkpoint pre-merge:
+  tag **`backup-menu-nativo-sync`**. **No** mergear `menu-nativo` → `main` todavía (es WIP; será la
+  **feature release v0.5.0**).
+- **Menú inicial del port (`hh_menu`) COMPLETO y validado en Windows**:
+  - Navegación propia (A/B, **control total**), **menú nativo oculto** (F6 alterna), SFX por eventos.
+  - Acciones de **video** (`[video]`) y **audio** (`[audio]`) que aplican en vivo y persisten.
+  - **Acentos** (letra base + marca) y **sombras** (flecha + marcas, con las marcas **debajo** de la
+    letra). Nombres de marcas **Set A**: `_base`/`_ed`/`_blank`.
+  - **Idiomas EN/ES/CA/FR/DE** + **idioma del sistema** (`config.ini [lang]`); `IDIOMA` funcional;
+    raíz `CONFIGURACIÓN` (antes AJUSTES).
+  - **`CONTINUAR`** retoma la partida (reenvío al dispatch nativo del título).
+  - Detalle: `notes/2026-09-26-b/…-idioma-configuracion-y-sombras.md`,
+    `…-c-sombras-y-set-a.md`, `…-d-continuar-y-bugs-visuales.md`; **ADR 0008/0012**; `docs/menu.md`.
+- **HUD/minimapa de `main`** integrados por el merge (issues #3 y #7).
+- **Traducción in-game (juego)**: charset + sustitución en runtime listos; **fuente 8×12 `color4`
+  preparada pero sin cablear**.
 
-- Resueltos a mano los 8 que conflictuaron: `include/hh.h`, `src/subsystems/input.cpp` (F5/F6 +
-  calibración + F1/ratón-dev **y** F7–F10), `src/platform/rt64_render_context.cpp` (API de menú +
-  captura F7/BMP), `AGENTS.md`, `PROYECTO.md`, `RETOMAR.md`, `TODO.md`, `docs/INDEX.md` (docs: unión).
-- Auto-merge limpio: `src/platform/main.cpp`, `src/platform/support.cpp`, `src/hooks/dl_snap.cpp`,
-  `build_windows.bat`, `.gitignore`, `README.md`; `src/hooks/hud_rewrite.cpp` llegó **limpio**
-  (fixes #3/#7 intactos).
-- **Validado**: Linux compila (`cmake --build build/linux`) y **Windows OK** (mantenedor).
-- **No** mergear todavía `menu-nativo` → `main`: es WIP; será la **futura feature release**
-  (probablemente **v0.5.0**) cuando esté completa. Checkpoint pre-merge: tag
-  `backup-menu-nativo-sync`.
+## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
-## Estado
+1. **`EMPEZAR PARTIDA`** (siguiente, poco esfuerzo): reenviar al **dispatch nativo** con **`sel = 0`**
+   (NEW GAME) → `func_801C3940` (abre el submenú de NUEVA PARTIDA; registra textos en `0x801CED10`).
+   Mismo mecanismo que `CONTINUAR` (`g_inject_native_a` en `src/hooks/sections.cpp`).
+2. **`DIFICULTAD`**: que `EMPEZAR PARTIDA` cree la partida en la dificultad elegida (esfuerzo por
+   determinar; el flujo nativo está en `func_801C3940`/su submenú).
+3. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
+4. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+   perdieron al crear el menú moderno); analizar.
+5. **Fallos visuales** (capturas del mantenedor en `work/gameplay screenshots/CONTINUAR/`; `work/` es
+   **gitignored**, pedir/copiar si hay que conservarlas):
+   - **`DATA LOAD`**: el borde verde del cuadro de selección aparece pegado al borde superior de la
+     pantalla (menú **nativo**; investigar con **F7** y `HH_FULL_FRAME=0`).
+   - **Combate (golpes)**: las cajas verdes/rojas salen con **recuadro negro**; el original no lo lleva.
+6. **Traducción — MENÚ (overlay)**: **JA** (embeber la **kana** del `color0` JP o TTF; hoy cae a inglés;
+   `color0` JP tiene kana, no kanji).
+7. **Traducción — JUEGO/GAMEPLAY (texto in-game)**: **cablear** `game_font_color4.h` en
+   `src/hooks/text_glyphs.cpp`; extraer **DE/FR** (ROM EU) y **JA** (ROM JP) emparejando por módulo →
+   `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
 
-- **Menú inicial (`hh_menu`) COMPLETO**: modelo, dibujo 1:1, menú nativo oculto, navegación propia
-  (A/B, control total), acciones (RATIO/RESOLUCIÓN/P. COMPLETA/ANTIALIASING/VSYNC/LÍMITE DE FPS/
-  MOSTRAR FPS/VENTANA DEBUG → `[video]`; SONIDO → `[audio]`) y SFX por eventos del modelo.
-- **Acentos + idiomas HECHO (2026-09-25, headless)**: ver `notes/2026-09-25-d-menu-multilingue-...md`
-  y **ADR 0012**:
-  - Menú: **letra base color0 + marca** dibujada por el mantenedor (`tools/text/menu_marks.py` →
-    `include/hh/menu_marks.h`; atlas 128×44). `¿ ¡` = `? !` girados.
-  - **`IDIOMA` en `AJUSTES`** y **funcional** (cambia menú + texto in-game; persiste en
-    `config.ini [lang]`). Etiquetas localizadas **en/es/ca/fr/de** (`hh::menu::localized`); lista en
-    **endónimos**.
-  - **Idioma del sistema** si no hay `[lang]` (Windows `GetUserDefaultLocaleName`; Linux `LANG`/`LC_*`),
-    con fallback a **inglés**. Prioridad `HH_LANG` > `[lang]` > sistema > `en`.
-- **HUD/minimapa de `main` (v0.4.1–v0.4.4) integrados por el merge**:
-  - **POWER/STAMINA** por hash de contenido (`d820d8e`); **disco plateado** del radial por hash+caja
-    `27,19,59,51`; **barra de combo** (4 `G_FILLRECT`, `y=28..30`) y **stamina gastada** (`y=34..38`)
-    por posición → issue **#3** CERRADO. `notes/2026-09-25-f-hud-combate-contenido.md`.
-  - **Minimapa** por **hash de contenido** de su `dl` (la dirección cambia por escena/capítulo) →
-    issue **#7** CERRADO (v0.4.4). `notes/2026-09-26-fix-minimapa-contenido.md`.
-- **Fuente in-game (8×12 `color4`) ES/CA/FR/DE preparada** (`tools/text/build_font.py` →
-  `include/hh/game_font_color4.h`) pero **sin cablear** (hoy `text_glyphs.cpp` sirve un set 8×8 propio).
-- **Idiomas en las ROMs**: EU = En/Fr/De; JP = ja (añadida a `work/roms/jp.z64`); ES/CA no existen.
-- Diseño: **`docs/menu.md`**; ADRs **0008** y **0012**; técnica del overlay: `architecture.md` §7.
+### Aparcado
+- **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego).
+- **Widescreen** (en `main`): falta la **barra HP** y elementos de la derecha (`right`/`stretch`).
 
-## BUG RESUELTO (2026-09-25, headless) — cambiar de idioma aceleraba el juego
+## Referencia técnica del menú (para reanudar)
 
-**Causa (medida)**: `hh_trans_reapply_language` (`src/subsystems/trans_cache.cpp`) reescribía el módulo
-entero desde el cache/ROM; el juego **modifica en caliente** esas regiones (relocaliza el módulo de
-código `005F1190`@`801BF1A0`: 241 B; buffer de trabajo `0068BF26`@`803837E0`: 33889 B) y el reapply
-las pisaba → `viOriginalRate` 30 → 60.
-
-**Fix**: re-aplicar **solo** las posiciones cuyo contenido actual coincide con el testigo `written`
-(los bytes que el port escribió en la carga, con traducción); se respetan los cambios del juego.
-Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y knob de A/B
-`HH_LANG_REAPPLY=0`. Detalle y evidencia: `notes/2026-09-25-e-fix-reapply-idioma.md`.
-
-**Validado headless**: con `HH_FPS=1 HH_LANG_CYCLE_AT=15` el `vi` se queda en 30 y `present≈29.5`
-(antes saltaba a 60 / ~54). **Falta confirmar en Windows** (ver tarea siguiente).
+- **Modelo**: `src/subsystems/menu.cpp` + `include/hh/menu.h` (pantallas, cursor, `Action`, `Event`).
+- **Overlay**: `src/hooks/menu_overlay.cpp` (frame del título), `src/platform/overlay.cpp` (dibujo
+  GPU: paneles/texto/marcas), `src/subsystems/font.cpp` (atlas de la fuente + marcas).
+- **Entrada y acciones**: `src/hooks/sections.cpp` → `feed_menu_navigation` (navegación + acciones) y
+  `hh_title_menu_hook` (envuelve `func_801C1DB8`; input nativo muteado con `g_mute_native_input`).
+- **Dispatch nativo del título** (`sel` @ `0x801CC8C4`, valor 0..4): `0=NEW GAME / 1=CONTINUE /
+  2=BATTLE MODE / 3=SOUND / 4=RESOLUTION`. Para disparar una acción del juego: fijar `sel` e inyectar
+  **A** una vez (`g_inject_native_a` en `hh_native_ab_input`).
+- **Marcas del menú**: `tools/text/menu_marks.py` (Set A: `_base` plantilla / `_ed` **diseño fuente de
+  verdad** / `_blank` lienzo de `--template`) → `include/hh/menu_marks.h`.
+- **Textos del menú**: `kMenuTr` en `menu.cpp` (ES canónico → en/ca/fr/de) + `hh::menu::localized`.
 
 ## Bug aplazado (interpolación de frames)
 
 **Artefacto de interpolación (puerta + primer jefe del nivel 1) — APLAZADO.**
-- **Síntoma**: con `Refresh Rate Mode = Display` (interpolación **ON**) cierta **puerta** parpadea
-  entre visible/oculta, y el **primer jefe del nivel 1** muestra geometría incoherente. Con
-  `Original` (interpolación **OFF**) **no** ocurre. `Presentation Mode = Present Early` no influye.
-  **NO** ocurre en **BizHawk** ni **Simple64** → es del render (RT64/port).
-- **Causa**: la **interpolación** de RT64 (`RefreshRate::Display`, v0.4.0): empareja draw calls entre
-  frames e interpola sus matrices; con ciertos objetos salen frames intermedios incoherentes.
-- **APLAZADO**: la solución de fondo es **desacoplar la lógica del juego del render** (lógica a 60 Hz)
-  → épica aparte. Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
-
-## SIGUIENTE TAREA: menú nativo — funcionales y pulido
-
-Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`**, **`AJUSTES`→`CONFIGURACIÓN`**, las
-**sombras del menú** (flecha + tildes/marcas, con las marcas por debajo de la letra) y **`CONTINUAR`**
-(reenvía al dispatch nativo; carga la partida). Notas: `2026-09-26-b-…`, `2026-09-26-c-…` y
-`2026-09-26-d-…`. Ahora, por orden recomendado:
-
-1. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
-2. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
-   elegida (esfuerzo por determinar).
-3. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
-4. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
-   perdieron al crear el menú moderno); analizar.
-5. **Fallos visuales** (backlog en `TODO.md`; capturas en `work/gameplay screenshots/CONTINUAR/`):
-   borde verde del cuadro de `DATA LOAD` descolgado al borde superior; recuadro negro en las cajas de
-   golpes (combate).
-
-### Después (backlog de la tarea)
-
-- **Traducción — MENÚ (overlay)**: **JA del menú** (embeber la **kana** del `color0` JP o TTF; hoy las
-  etiquetas caen a inglés). `color0` JP tiene kana, no kanji.
-- **Traducción — JUEGO/GAMEPLAY (texto in-game)**: **cablear** `game_font_color4.h` en
-  `src/hooks/text_glyphs.cpp`; extraer **DE/FR** de la ROM EU y **JA** de la JP (emparejar por módulo)
-  → `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
-- **Aparcado**: `CÁMARA LIBRE`/`APUNTADO LIBRE` (modifican el juego).
-
-## Otras tareas (ver `TODO.md`)
-
-- **Widescreen** (en `main`): falta la **barra HP** y elementos de la derecha (`right`/`stretch`) —
-  re-derivar sus identidades con F7 (captura pareada).
-- **APLAZADO**: artefacto de interpolación (puerta + jefe) — ver arriba.
-- Resto del backlog de `TODO.md`.
+- **Síntoma**: con `Refresh Rate Mode = Display` (interpolación **ON**) cierta **puerta** parpadea y el
+  **primer jefe del nivel 1** muestra geometría incoherente; con `Original` **no** ocurre (PresentEarly
+  no influye). **NO** pasa en **BizHawk**/ **Simple64** → es del render (RT64/port).
+- **Causa**: la interpolación de RT64 (`RefreshRate::Display`) empareja draw calls e interpola matrices.
+- **Solución de fondo**: **desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
+  Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
 
 ## Método HUD
 
 - **Lista de validación**: solo Windows (build release GUI). Linux headless solo compila.
-- Trazas a fichero junto al exe: `HH_HUD_TRACE=1`, `HH_HUD_REWRITE_TRACE=1`, `HH_HUD_SCISSOR_TRACE=1`,
+- Trazas junto al exe: `HH_HUD_TRACE=1`, `HH_HUD_REWRITE_TRACE=1`, `HH_HUD_SCISSOR_TRACE=1`,
   `HH_FULL_FRAME=0` (off), `HH_NO_HUD_REWRITE=1` (off), `HH_MAP_CROP=<px>`.
-- **Atajos de diagnostico** (A/B en caliente):
-  - **F7 = captura pareada**: traza de identidades 2D de UN frame → `hh_cap_<n>.log` **+ imagen** de
-    la ventana → `hh_cap_<n>.bmp`, en el mismo instante. Otro F7 la cancela. `HH_HUD_TRACE=1` sigue
-    volcando traza continua a `hh_hud.log`.
-  - **F8 = PresentEarly** ON/OFF (RT64: PresentEarly ↔ SkipBuffering).
-  - **F9 = interpolación** ON/OFF (RT64: `RefreshRate` Display ↔ Original; ver bug de la puerta).
-  - **F10 = reescritor HUD** ON/OFF (`HH_NO_HUD_REWRITE`).
-- **Regla**: la **dirección RDRAM no es identidad**; usar **hash de contenido** (+ caja/posición
-  cuando el hash se reutiliza). **No fiarse del color**: la barra de combo pasa rojo→azul y parpadea,
-  y RT64 pinta el relleno con el **PRIM color** (la traza lee `fill_color=0`).
-- El **Inspector de RT64** (`HH_DEVELOPER=1`, F1) fue clave: muestra el `Rect` y el `PrimColor` del
-  draw bajo el cursor.
-
-## Git
-
-- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
-- **`menu-nativo`** (WIP del menú): **pusheado** hasta el tip pre-merge (`60171dd`;
-  `backup-menu-nativo-sync`). Merge `main → menu-nativo` **hecho** (commit del 2026-09-26).
-- Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
+- **Atajos de diagnóstico**: **F7 = captura pareada** (traza `hh_cap_<n>.log` **+ imagen** `hh_cap_<n>.bmp`
+  del mismo instante); **F8** PresentEarly; **F9** interpolación; **F10** reescritor HUD.
+- **Regla**: la **dirección RDRAM no es identidad**; usar **hash de contenido** (+ caja/posición). **No
+  fiarse del color** (RT64 pinta el relleno con el PRIM color). Inspector de RT64: `HH_DEVELOPER=1` + F1.
 
 ## Método (rápido)
 
@@ -142,13 +94,20 @@ Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`**, **`AJUSTES`→`CON
   `HH_FPS=1`. Atajos: F2 aspecto, F3 ventana, F4 MSAA, F5 idioma, **F6 menú nativo**, F7–F10 (HUD).
   Inspector RT64: `HH_DEVELOPER=1` + F1 (o `DEBUG → VENTANA DEBUG = SÍ`).
 - **Fuente/acentos**: `tools/text/menu_marks.py` (marcas del menú), `tools/text/build_font.py`
-  (fuente in-game 8×12), `tools/text/README_font_sheet.md` (formato de las hojas). ROMs en `work/roms/`
-  (`us_dec.z64`, `eu_dec.z64`, `jp.z64`).
+  (fuente in-game 8×12), `tools/text/README_font_sheet.md`. ROMs en `work/roms/` (`us_dec.z64`,
+  `eu_dec.z64`, `jp.z64`).
 - **Regla ROM**: no tocar ROMs/`work/*.so` sin permiso. ROM USA para el port:
-  `build/linux/baserom.us.z64` (o cualquier `*.z64`, el nombre da igual). SHA-1 USA retail:
-  `16dbc21620b52deab5c5abf8a309ac60adfbee85`.
+  `build/linux/baserom.us.z64` (o cualquier `*.z64`). SHA-1 USA retail: `16dbc21620b52deab5c5abf8a309ac60adfbee85`.
 - **Docs**: tras editar docs, `python3 tools/analysis/docs_index.py` (regenera `docs/INDEX.md`;
   `--check` valida enlaces y el presupuesto de arranque).
+
+## Git
+
+- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
+- **`menu-nativo`** (WIP del menú): **~22 commits por delante de `origin/menu-nativo`** (sin pushear);
+  merge con `main` ya incluido. Commits de la sesión 2026-09-26: sync, backlog/docs, IDIOMA/CONFIGURACIÓN,
+  sombras, `CONTINUAR`.
+- Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
 
 ## Build Windows
 
