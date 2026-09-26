@@ -7,9 +7,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -28,6 +30,7 @@
 #include "ultramodern/ultramodern.hpp"
 
 #include "hh.h"
+#include "hh/config_ini.h"
 #include "hh/hudrewrite.h"
 
 // HH: reloj de juego esclavo del replay (runtime ultramodern/src/timer.cpp). Ver
@@ -90,6 +93,111 @@ struct PadProfile {
 
 static PadProfile hh_pad_game;
 static PadProfile hh_pad_menu;  // identico a game: el contexto ya NO cambia los botones
+
+// Teclado: mapeo por defecto (físico -> N64), espejo del mando. Lo usa `read_input_button` y la
+// descripción de bindings del menú CONTROLES. `name` = etiqueta que se muestra en el menú.
+struct HHKeyBind {
+    SDL_Scancode sc;
+    n64_button btn;
+    const char* name;
+};
+static const HHKeyBind kHHDefaultKeys[] = {
+    { SDL_SCANCODE_UP, DUP_BUTTON, "UP" },
+    { SDL_SCANCODE_DOWN, DDOWN_BUTTON, "DOWN" },
+    { SDL_SCANCODE_LEFT, DLEFT_BUTTON, "LEFT" },
+    { SDL_SCANCODE_RIGHT, DRIGHT_BUTTON, "RIGHT" },
+    { SDL_SCANCODE_H, Z_BUTTON, "H" },
+    { SDL_SCANCODE_J, A_BUTTON, "J" },
+    { SDL_SCANCODE_K, B_BUTTON, "K" },
+    { SDL_SCANCODE_L, CDOWN_BUTTON, "L" },  // PRIMERA PERSONA (C-abajo)
+    { SDL_SCANCODE_I, R_BUTTON, "I" },      // APUNTAR (N64 R)
+    { SDL_SCANCODE_R, CUP_BUTTON, "R" },    // ALTURA CÁMARA (C-arriba)
+    { SDL_SCANCODE_RETURN, START_BUTTON, "ENTER" },
+};
+
+// Teclado configurable: mapa scancode -> boton N64. Se inicializa con kHHDefaultKeys y se ajusta
+// con la seccion `[keys]` de config.ini (al reasignar desde el menu CONTROLES). `name` del display
+// sale de SDL_GetScancodeName.
+static std::map<SDL_Scancode, n64_button> hh_key_map;
+static bool hh_key_map_ready = false;
+
+// Funciones definidas mas abajo (se usan en la captura/reset de CONTROLES).
+static SDL_GameController* hh_pad_controller();
+static void hh_key_save();
+static float controller_axis_to_float(Sint16 value);
+
+static SDL_Scancode hh_scancode_by_name(const std::string& name) {
+    std::string want = name;
+    for (char& c : want) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+        const char* n = SDL_GetScancodeName(static_cast<SDL_Scancode>(sc));
+        if (n == nullptr || *n == '\0') continue;
+        std::string have = n;
+        for (char& c : have) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (have == want) return static_cast<SDL_Scancode>(sc);
+    }
+    return SDL_SCANCODE_UNKNOWN;
+}
+
+static std::string hh_scancode_display(SDL_Scancode sc) {
+    const char* n = SDL_GetScancodeName(sc);
+    std::string s = (n != nullptr) ? n : "";
+    for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    if (s == "RETURN" || s == "KP ENTER" || s == "KEYPAD ENTER") s = "ENTER";
+    if (s == "ESCAPE") s = "ESC";
+    return s;
+}
+
+// Ejes de movimiento (stick izquierdo). Solo el TECLADO es configurable; el mando es el stick.
+enum HHAxis { HH_AXIS_UP = 0, HH_AXIS_DOWN, HH_AXIS_LEFT, HH_AXIS_RIGHT, HH_AXIS_COUNT };
+static SDL_Scancode hh_axis_key[HH_AXIS_COUNT] = {
+    SDL_SCANCODE_W, SDL_SCANCODE_S, SDL_SCANCODE_A, SDL_SCANCODE_D
+};
+static int hh_axis_by_name(const std::string& raw) {
+    std::string n = raw;
+    for (char& c : n) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (n == "axis_up") return HH_AXIS_UP;
+    if (n == "axis_down") return HH_AXIS_DOWN;
+    if (n == "axis_left") return HH_AXIS_LEFT;
+    if (n == "axis_right") return HH_AXIS_RIGHT;
+    return -1;
+}
+
+// Fuente de MANDO de un eje: direccion de un stick (izquierdo/derecho). Por defecto, stick izq.
+enum {
+    HH_AXGP_NONE = 0,
+    HH_AXGP_LY_UP, HH_AXGP_LY_DOWN, HH_AXGP_LX_LEFT, HH_AXGP_LX_RIGHT,
+    HH_AXGP_RY_UP, HH_AXGP_RY_DOWN, HH_AXGP_RX_LEFT, HH_AXGP_RX_RIGHT
+};
+static int hh_axis_gp[HH_AXIS_COUNT] = {
+    HH_AXGP_LY_UP, HH_AXGP_LY_DOWN, HH_AXGP_LX_LEFT, HH_AXGP_LX_RIGHT
+};
+static const char* hh_axis_gp_name(int code) {
+    switch (code) {
+        case HH_AXGP_LY_UP: return "EJE Y+";
+        case HH_AXGP_LY_DOWN: return "EJE Y-";
+        case HH_AXGP_LX_LEFT: return "EJE X-";
+        case HH_AXGP_LX_RIGHT: return "EJE X+";
+        case HH_AXGP_RY_UP: return "EJE RY+";
+        case HH_AXGP_RY_DOWN: return "EJE RY-";
+        case HH_AXGP_RX_LEFT: return "EJE RX-";
+        case HH_AXGP_RX_RIGHT: return "EJE RX+";
+        default: return "-";
+    }
+}
+static int hh_axis_gp_by_name(const std::string& raw) {
+    std::string n = raw;
+    for (char& c : n) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    if (n == "EJE Y+") return HH_AXGP_LY_UP;
+    if (n == "EJE Y-") return HH_AXGP_LY_DOWN;
+    if (n == "EJE X-") return HH_AXGP_LX_LEFT;
+    if (n == "EJE X+") return HH_AXGP_LX_RIGHT;
+    if (n == "EJE RY+") return HH_AXGP_RY_UP;
+    if (n == "EJE RY-") return HH_AXGP_RY_DOWN;
+    if (n == "EJE RX-") return HH_AXGP_RX_LEFT;
+    if (n == "EJE RX+") return HH_AXGP_RX_RIGHT;
+    return HH_AXGP_NONE;
+}
 
 static const char* hh_pad_button_name(n64_button b) {
     switch (b) {
@@ -216,6 +324,11 @@ static void hh_pad_config_load() {
     if (loaded) return;
     loaded = true;
 
+    if (!hh_key_map_ready) {
+        hh_key_map_ready = true;
+        for (const HHKeyBind& k : kHHDefaultKeys) hh_key_map[k.sc] = k.btn;
+    }
+
     const char* env = getenv("HH_PAD_CONFIG");
     std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
     FILE* f = fopen(path.c_str(), "rb");
@@ -230,6 +343,7 @@ static void hh_pad_config_load() {
     }
     if (f != nullptr) {
         PadProfile* cur = nullptr;
+        bool in_keys = false;
         char line[512];
         while (fgets(line, sizeof(line), f) != nullptr) {
             std::string s(line);
@@ -239,13 +353,40 @@ static void hh_pad_config_load() {
             if (s.empty()) continue;
             if (s.front() == '[' && s.back() == ']') {
                 std::string sec = hh_pad_trim(s.substr(1, s.size() - 2));
+                in_keys = (sec == "keys");
                 cur = (sec == "menu") ? &hh_pad_menu : ((sec == "game") ? &hh_pad_game : nullptr);
                 continue;
             }
             size_t eq = s.find('=');
-            if (eq == std::string::npos || cur == nullptr) continue;
+            if (eq == std::string::npos) continue;
             std::string key = hh_pad_trim(s.substr(0, eq));
             std::string val = hh_pad_trim(s.substr(eq + 1));
+            if (in_keys) {
+                // `[keys]`: nombre de tecla (SDL_GetScancodeName) = boton N64; o eje:
+                // `axis_up = W` (tecla) y `axis_up_gp = EJE Y+` (fuente de mando del eje).
+                if (key.size() > 3 && key.compare(key.size() - 3, 3, "_gp") == 0) {
+                    const int ax = hh_axis_by_name(key.substr(0, key.size() - 3));
+                    if (ax >= 0) {
+                        const int code = hh_axis_gp_by_name(val);
+                        if (code != HH_AXGP_NONE) hh_axis_gp[ax] = code;
+                        continue;
+                    }
+                }
+                const int axis = hh_axis_by_name(key);
+                if (axis >= 0) {
+                    SDL_Scancode sc = hh_scancode_by_name(val);
+                    if (sc != SDL_SCANCODE_UNKNOWN) hh_axis_key[axis] = sc;
+                    continue;
+                }
+                bool ok = false;
+                n64_button btn = hh_pad_button_by_name(val, ok);
+                if (ok) {
+                    SDL_Scancode sc = hh_scancode_by_name(key);
+                    if (sc != SDL_SCANCODE_UNKNOWN) hh_key_map[sc] = btn;
+                }
+                continue;
+            }
+            if (cur == nullptr) continue;
             bool ok = false;
             hh_pad_set(*cur, key, val, ok);
             if (!ok) fprintf(stderr, "[PAD] config.ini: entrada ignorada '%s=%s'\n", key.c_str(), val.c_str());
@@ -325,6 +466,357 @@ static const PadProfile& hh_active_profile() {
         fprintf(stderr, "[PAD] contexto: %s\n", menu ? "menu" : "juego");
     }
     return menu ? hh_pad_menu : hh_pad_game;
+}
+
+// ===== Menu CONTROLES: descripción de bindings y Stick C =====
+static void hh_pad_save() {
+    auto sec = [](const PadProfile& p) {
+        std::vector<std::pair<std::string, std::string>> kv;
+        kv.emplace_back("a", hh_pad_button_name(p.a));
+        kv.emplace_back("b", hh_pad_button_name(p.b));
+        kv.emplace_back("x", hh_pad_button_name(p.x));
+        kv.emplace_back("y", hh_pad_button_name(p.y));
+        kv.emplace_back("lb", hh_pad_button_name(p.lb));
+        kv.emplace_back("rb", hh_pad_button_name(p.rb));
+        kv.emplace_back("back", hh_pad_button_name(p.back));
+        kv.emplace_back("start", hh_pad_button_name(p.start));
+        kv.emplace_back("dup", hh_pad_button_name(p.dup));
+        kv.emplace_back("ddown", hh_pad_button_name(p.ddown));
+        kv.emplace_back("dleft", hh_pad_button_name(p.dleft));
+        kv.emplace_back("dright", hh_pad_button_name(p.dright));
+        kv.emplace_back("cstick", p.cstick ? "on" : "off");
+        return kv;
+    };
+    hh::config_ini_set("game", sec(hh_pad_game));
+    hh::config_ini_set("menu", sec(hh_pad_menu));
+}
+
+bool hh::pad_cstick_enabled() {
+    return hh_active_profile().cstick;
+}
+
+void hh::pad_set_cstick(bool enabled) {
+    hh_pad_game.cstick = enabled;
+    hh_pad_menu.cstick = enabled;
+    hh_pad_save();
+    fprintf(stderr, "[PAD] STICK C -> %s\n", enabled ? "on" : "off");
+}
+
+// CONTROLES -> RESET: restaura el mapeo por defecto (mando = PadProfile por defecto; teclado =
+// kHHDefaultKeys) y lo persiste. Los valores por defecto tienen que coincidir con la config actual.
+void hh::pad_reset_defaults() {
+    hh_pad_config_load();  // asegura que el map esta inicializado antes de limpiarlo
+    hh_pad_game = PadProfile{};
+    hh_pad_menu = PadProfile{};
+    hh_key_map.clear();
+    for (const HHKeyBind& k : kHHDefaultKeys) hh_key_map[k.sc] = k.btn;
+    hh_axis_key[HH_AXIS_UP] = SDL_SCANCODE_W;
+    hh_axis_key[HH_AXIS_DOWN] = SDL_SCANCODE_S;
+    hh_axis_key[HH_AXIS_LEFT] = SDL_SCANCODE_A;
+    hh_axis_key[HH_AXIS_RIGHT] = SDL_SCANCODE_D;
+    hh_axis_gp[HH_AXIS_UP] = HH_AXGP_LY_UP;
+    hh_axis_gp[HH_AXIS_DOWN] = HH_AXGP_LY_DOWN;
+    hh_axis_gp[HH_AXIS_LEFT] = HH_AXGP_LX_LEFT;
+    hh_axis_gp[HH_AXIS_RIGHT] = HH_AXGP_LX_RIGHT;
+    hh_key_save();
+    hh_pad_save();
+    fprintf(stderr, "[PAD] RESET: cup=%s/%s cdown=%s/%s\n",
+            hh::pad_binding_gamepad("cup").c_str(), hh::pad_binding_key("cup").c_str(),
+            hh::pad_binding_gamepad("cdown").c_str(), hh::pad_binding_key("cdown").c_str());
+}
+
+std::string hh::pad_binding_desc(const std::string& action_key) {
+    hh_pad_config_load();  // asegura la config aunque el menu se construya antes del primer poll
+    bool ok = false;
+    const n64_button target = hh_pad_button_by_name(action_key, ok);
+    if (!ok || target == 0) return "-";
+    const PadProfile& p = hh_active_profile();
+    std::string out;
+    auto add = [&out](const char* n) {
+        if (!out.empty()) out += " / ";
+        out += n;
+    };
+    if (p.a == target) add("A");
+    if (p.b == target) add("B");
+    if (p.x == target) add("X");
+    if (p.y == target) add("Y");
+    if (p.lb == target) add("LB");
+    if (p.rb == target) add("RB");
+    if (p.back == target) add("BACK");
+    if (p.start == target) add("START");
+    if (p.dup == target) add("D-UP");
+    if (p.ddown == target) add("D-DOWN");
+    if (p.dleft == target) add("D-LEFT");
+    if (p.dright == target) add("D-RIGHT");
+    for (const auto& kv : hh_key_map) {
+        if (kv.second == target) add(hh_scancode_display(kv.first).c_str());
+    }
+    return out.empty() ? std::string("-") : out;
+}
+
+// Binding PRIMARIO de MANDO de una accion (el primer campo del perfil que la tenga), o "-".
+std::string hh::pad_binding_gamepad(const std::string& action_key) {
+    hh_pad_config_load();
+    const int axis = hh_axis_by_name(action_key);
+    if (axis >= 0) return hh_axis_gp_name(hh_axis_gp[axis]);
+    bool ok = false;
+    const n64_button target = hh_pad_button_by_name(action_key, ok);
+    if (!ok || target == 0) return "-";
+    const PadProfile& p = hh_active_profile();
+    if (p.a == target) return "A";
+    if (p.b == target) return "B";
+    if (p.x == target) return "X";
+    if (p.y == target) return "Y";
+    if (p.lb == target) return "LB";
+    if (p.rb == target) return "RB";
+    if (p.back == target) return "BACK";
+    if (p.start == target) return "START";
+    if (p.dup == target) return "D-UP";
+    if (p.ddown == target) return "D-DOWN";
+    if (p.dleft == target) return "D-LEFT";
+    if (p.dright == target) return "D-RIGHT";
+    // C-arriba/izq/der sin boton propio: los emula el STICK DERECHO (si STICK C esta en SI).
+    // C-abajo es PRIMERA PERSONA (con boton propio) y no entra aqui.
+    if (p.cstick) {
+        if (target == CUP_BUTTON) return "C-ARRIBA";
+        if (target == CLEFT_BUTTON) return "C-IZQ";
+        if (target == CRIGHT_BUTTON) return "C-DER";
+    }
+    return "-";
+}
+
+// Binding PRIMARIO de TECLADO de una accion (el primer scancode mapeado), o "-".
+std::string hh::pad_binding_key(const std::string& action_key) {
+    hh_pad_config_load();
+    const int axis = hh_axis_by_name(action_key);
+    if (axis >= 0) return hh_scancode_display(hh_axis_key[axis]);
+    bool ok = false;
+    const n64_button target = hh_pad_button_by_name(action_key, ok);
+    if (!ok || target == 0) return "-";
+    for (const auto& kv : hh_key_map) {
+        if (kv.second == target) return hh_scancode_display(kv.first);
+    }
+    return "-";
+}
+
+// ===== CONTROLES: reasignacion (captura del siguiente input fisico) =====
+static std::string g_capture_action;
+static bool g_prev_btn[SDL_CONTROLLER_BUTTON_MAX] = {};
+static std::vector<uint8_t> g_prev_key(SDL_NUM_SCANCODES, 0);
+// Tras asignar/cancelar se bloquea la navegacion 0.5 s para que el input de la asignacion (p. ej.
+// la tecla de "atras") no ejecute su accion en los frames siguientes.
+static std::chrono::steady_clock::time_point g_capture_block_until{};
+constexpr int kCaptureBlockMs = 250;
+
+static void hh_capture_end_block() {
+    g_capture_block_until =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(kCaptureBlockMs);
+}
+
+bool hh::pad_capture_blocking() {
+    return std::chrono::steady_clock::now() < g_capture_block_until;
+}
+
+// Asigna `sc` a la accion `target`, quitando esa accion de cualquier OTRA tecla (1 tecla/accion).
+static void hh_key_assign(SDL_Scancode sc, n64_button target) {
+    for (auto it = hh_key_map.begin(); it != hh_key_map.end();) {
+        if (it->second == target && it->first != sc) {
+            it = hh_key_map.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    hh_key_map[sc] = target;
+}
+
+static void hh_key_save() {
+    std::vector<std::pair<std::string, std::string>> kv;
+    for (const auto& e : hh_key_map) {
+        std::string name = SDL_GetScancodeName(e.first);
+        if (name.empty()) continue;
+        kv.emplace_back(name, hh_pad_button_name(e.second));
+    }
+    // Ejes de movimiento: `axis_up = W`, etc. (valor = nombre de tecla).
+    static const char* kAxisName[HH_AXIS_COUNT] = { "axis_up", "axis_down", "axis_left", "axis_right" };
+    for (int a = 0; a < HH_AXIS_COUNT; ++a) {
+        const char* n = SDL_GetScancodeName(hh_axis_key[a]);
+        if (n != nullptr && *n != '\0') kv.emplace_back(kAxisName[a], n);
+        kv.emplace_back(std::string(kAxisName[a]) + "_gp", hh_axis_gp_name(hh_axis_gp[a]));
+    }
+    // Borra la seccion entera antes de reescribirla: si no, los bindings viejos (teclas que ya no
+    // se usan) sobreviven y ganan al recargar (bug reportado: "MENU ..." volvia a VCAZ tras RESET).
+    hh::config_ini_clear_section("keys");
+    hh::config_ini_set("keys", kv);
+}
+
+// Quita la accion `target` de TODOS los campos del perfil (para que solo tenga 1 boton).
+static void hh_pad_clear_action(PadProfile* p, n64_button target) {
+    if (p->a == target) p->a = 0;
+    if (p->b == target) p->b = 0;
+    if (p->x == target) p->x = 0;
+    if (p->y == target) p->y = 0;
+    if (p->lb == target) p->lb = 0;
+    if (p->rb == target) p->rb = 0;
+    if (p->back == target) p->back = 0;
+    if (p->start == target) p->start = 0;
+    if (p->dup == target) p->dup = 0;
+    if (p->ddown == target) p->ddown = 0;
+    if (p->dleft == target) p->dleft = 0;
+    if (p->dright == target) p->dright = 0;
+}
+
+// Asigna el boton fisico del mando `b` a la accion N64 `target` (en ambos perfiles), liberando el
+// binding anterior de esa accion (un solo boton por accion).
+static void hh_pad_set_button_field(SDL_GameControllerButton b, n64_button target) {
+    for (PadProfile* p : { &hh_pad_game, &hh_pad_menu }) {
+        hh_pad_clear_action(p, target);
+        switch (b) {
+            case SDL_CONTROLLER_BUTTON_A: p->a = target; break;
+            case SDL_CONTROLLER_BUTTON_B: p->b = target; break;
+            case SDL_CONTROLLER_BUTTON_X: p->x = target; break;
+            case SDL_CONTROLLER_BUTTON_Y: p->y = target; break;
+            case SDL_CONTROLLER_BUTTON_BACK: p->back = target; break;
+            case SDL_CONTROLLER_BUTTON_START: p->start = target; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_UP: p->dup = target; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_DOWN: p->ddown = target; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_LEFT: p->dleft = target; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: p->dright = target; break;
+            case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: p->lb = target; break;
+            case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: p->rb = target; break;
+            default: break;
+        }
+    }
+}
+
+bool hh::pad_capture_active() {
+    return !g_capture_action.empty();
+}
+
+const std::string& hh::pad_capture_action() {
+    return g_capture_action;
+}
+
+void hh::pad_begin_capture(const std::string& action_key) {
+    g_capture_action = action_key;
+    // Snapshot del estado actual: no capturamos el input que inicio la captura (p. ej. A).
+    const Uint8* kb = SDL_GetKeyboardState(nullptr);
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+        g_prev_key[static_cast<size_t>(sc)] = kb[sc] ? 1 : 0;
+    }
+    SDL_GameController* c = hh_pad_controller();
+    for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; ++b) {
+        g_prev_btn[b] = (c != nullptr) &&
+                        (SDL_GameControllerGetButton(c, static_cast<SDL_GameControllerButton>(b)) != 0);
+    }
+    fprintf(stderr, "[PAD] captura para '%s' (ESC cancela)...\n", action_key.c_str());
+}
+
+void hh::pad_capture_poll() {
+    if (g_capture_action.empty()) return;
+    const Uint8* kb = SDL_GetKeyboardState(nullptr);
+    if (kb[SDL_SCANCODE_ESCAPE]) {  // ESC cancela
+        fprintf(stderr, "[PAD] captura cancelada\n");
+        hh_capture_end_block();
+        g_capture_action.clear();
+        return;
+    }
+    // Ejes de movimiento: solo se reasigna el TECLADO (el mando es el stick izquierdo).
+    const int axis = hh_axis_by_name(g_capture_action);
+    if (axis >= 0) {
+        for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+            const bool down = kb[sc] != 0;
+            if (down && !g_prev_key[static_cast<size_t>(sc)]) {
+                hh_axis_key[axis] = static_cast<SDL_Scancode>(sc);
+                hh_key_save();
+                fprintf(stderr, "[PAD] eje '%s' <- tecla %s\n", g_capture_action.c_str(),
+                        hh_scancode_display(static_cast<SDL_Scancode>(sc)).c_str());
+                hh_capture_end_block();
+                g_capture_action.clear();
+                return;
+            }
+        }
+        // Mando: primera direccion de stick que supere el umbral (izq o der).
+        SDL_GameController* c = hh_pad_controller();
+        if (c != nullptr) {
+            constexpr float TH = 0.6f;
+            const float lx = controller_axis_to_float(
+                SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTX));
+            const float ly = controller_axis_to_float(
+                SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_LEFTY));
+            const float rx = controller_axis_to_float(
+                SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTX));
+            const float ry = controller_axis_to_float(
+                SDL_GameControllerGetAxis(c, SDL_CONTROLLER_AXIS_RIGHTY));
+            int code = HH_AXGP_NONE;
+            if (ly <= -TH) code = HH_AXGP_LY_UP;       // SDL: LEFTY negativo = arriba
+            else if (ly >= TH) code = HH_AXGP_LY_DOWN;
+            else if (lx <= -TH) code = HH_AXGP_LX_LEFT;
+            else if (lx >= TH) code = HH_AXGP_LX_RIGHT;
+            else if (ry <= -TH) code = HH_AXGP_RY_UP;
+            else if (ry >= TH) code = HH_AXGP_RY_DOWN;
+            else if (rx <= -TH) code = HH_AXGP_RX_LEFT;
+            else if (rx >= TH) code = HH_AXGP_RX_RIGHT;
+            if (code != HH_AXGP_NONE) {
+                hh_axis_gp[axis] = code;
+                hh_key_save();
+                fprintf(stderr, "[PAD] eje '%s' <- mando %s\n", g_capture_action.c_str(),
+                        hh_axis_gp_name(code));
+                hh_capture_end_block();
+                g_capture_action.clear();
+                return;
+            }
+        }
+        for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+            g_prev_key[static_cast<size_t>(sc)] = kb[sc] ? 1 : 0;
+        }
+        return;
+    }
+    bool ok = false;
+    const n64_button target = hh_pad_button_by_name(g_capture_action, ok);
+    if (!ok || target == 0) {
+        hh_capture_end_block();
+        g_capture_action.clear();
+        return;
+    }
+    // Teclado: primer scancode recien pulsado.
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+        const bool down = kb[sc] != 0;
+        if (down && !g_prev_key[static_cast<size_t>(sc)]) {
+            hh_key_assign(static_cast<SDL_Scancode>(sc), target);
+            hh_key_save();
+            fprintf(stderr, "[PAD] '%s' <- tecla %s\n", g_capture_action.c_str(),
+                    hh_scancode_display(static_cast<SDL_Scancode>(sc)).c_str());
+            hh_capture_end_block();
+            g_capture_action.clear();
+            return;
+        }
+    }
+    // Mando: primer boton recien pulsado.
+    SDL_GameController* c = hh_pad_controller();
+    if (c != nullptr) {
+        for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; ++b) {
+            const bool down =
+                SDL_GameControllerGetButton(c, static_cast<SDL_GameControllerButton>(b)) != 0;
+            if (down && !g_prev_btn[b]) {
+                hh_pad_set_button_field(static_cast<SDL_GameControllerButton>(b), target);
+                hh_pad_save();
+                fprintf(stderr, "[PAD] '%s' <- boton mando %d\n", g_capture_action.c_str(), b);
+                hh_capture_end_block();
+                g_capture_action.clear();
+                return;
+            }
+        }
+    }
+    // Actualiza el estado previo para el siguiente frame.
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
+        g_prev_key[static_cast<size_t>(sc)] = kb[sc] ? 1 : 0;
+    }
+    if (c != nullptr) {
+        for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; ++b) {
+            g_prev_btn[b] =
+                SDL_GameControllerGetButton(c, static_cast<SDL_GameControllerButton>(b)) != 0;
+        }
+    }
 }
 
 // HH: inyeccion de input opt-in para runs headless (atravesar menus sin SDL/ventana).
@@ -429,24 +921,11 @@ static n64_button read_input_button() {
     const Uint8* keyboard_state = SDL_GetKeyboardState(nullptr);
     const Uint32 mouse_state = SDL_GetMouseState(nullptr, nullptr);
 
-    // D-pad por flechas (extra de teclado).
-    if (keyboard_state[SDL_SCANCODE_UP]) input |= DUP_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_DOWN]) input |= DDOWN_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_LEFT]) input |= DLEFT_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_RIGHT]) input |= DRIGHT_BUTTON;
-
-    // Layout de teclado (espejo del mando). WASD = stick izquierdo (se aplica en get_input).
-    //   H = X fisico -> Z (agacharse); J = A; K = B (atras/mapa); L = Y -> C-Down;
-    //   U/I = LB/RB -> L/R; O/P = LT/RT -> Z/R (alias); Enter = Start.
-    if (keyboard_state[SDL_SCANCODE_H]) input |= Z_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_J]) input |= A_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_K]) input |= B_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_L]) input |= CDOWN_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_U]) input |= L_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_I]) input |= R_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_O]) input |= Z_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_P]) input |= R_BUTTON;
-    if (keyboard_state[SDL_SCANCODE_RETURN]) input |= START_BUTTON;
+    // Teclado (mapeo configurable: kHHDefaultKeys + overrides de [keys]). WASD = stick izquierdo
+    // (se aplica en get_input). La tabla scancode->N64 la mantiene `hh_key_map`.
+    for (const auto& kv : hh_key_map) {
+        if (keyboard_state[kv.first]) input |= kv.second;
+    }
 
     // Raton -> botones N64. Se desactiva SOLO mientras el Inspector de RT64 esta abierto, para que
     // los clics en su panel no entren al juego. (En el futuro, control teclado+raton: revisar.)
@@ -890,6 +1369,26 @@ extern "C" unsigned long long hh_get_input_polls() {
     return hh_input_polls.load();
 }
 
+// Handle del mando cacheado (apertura perezosa, reintento 1/s para hotplug). Lo comparten el input
+// normal y la captura de reasignacion (CONTROLES).
+static SDL_GameController* hh_pad_controller() {
+    static SDL_GameController* controller = nullptr;
+    static double controller_next_try = 0.0;
+    if (controller != nullptr && !SDL_GameControllerGetAttached(controller)) {
+        SDL_GameControllerClose(controller);
+        controller = nullptr;
+    }
+    if (controller == nullptr && SDL_NumJoysticks() > 0) {
+        const auto now = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(now.time_since_epoch()).count();
+        if (secs >= controller_next_try) {
+            controller_next_try = secs + 1.0;
+            controller = SDL_GameControllerOpen(0);
+        }
+    }
+    return controller;
+}
+
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     static bool cfg_logged = false;
     if (controller_num == 0) {
@@ -1004,22 +1503,7 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     float axis_x = 0.0f;
     float axis_y = 0.0f;
 
-    // Handle cacheado: abrir el mando en cada poll filtraba handles (fuga) y ademas era costoso.
-    // Se reintenta abrir como maximo una vez por segundo si no hay mando (hotplug).
-    static SDL_GameController* controller = nullptr;
-    static double controller_next_try = 0.0;
-    if (controller != nullptr && !SDL_GameControllerGetAttached(controller)) {
-        SDL_GameControllerClose(controller);
-        controller = nullptr;
-    }
-    if (controller == nullptr && SDL_NumJoysticks() > 0) {
-        const auto now = std::chrono::steady_clock::now();
-        const double secs = std::chrono::duration<double>(now.time_since_epoch()).count();
-        if (secs >= controller_next_try) {
-            controller_next_try = secs + 1.0;
-            controller = SDL_GameControllerOpen(0);
-        }
-    }
+    SDL_GameController* controller = hh_pad_controller();
     if (controller != nullptr && controller_num == 0) {
         // Mapeo FIJO (config.ini [game]/[menu], identicos). Por defecto:
         //   A=A, B=B (atras/mapa/cancelar), X=Z (agacharse), Y=CDOWN (1a persona),
@@ -1040,12 +1524,38 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * prof.lb
             | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * prof.rb);
 
-        axis_x = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
-        // SDL: LEFTY positivo = abajo; N64: stick_y positivo = arriba -> negar.
-        // HH_INVERT_Y=1 invierte el signo (por si el mando lo requiere al revés).
-        float raw_y = controller_axis_to_float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
-        const char* hh_iy = getenv("HH_INVERT_Y");
-        axis_y = (hh_iy != nullptr && *hh_iy != '\0') ? raw_y : -raw_y;
+        // Movimiento: se lee segun las FUENTES asignadas por eje (por defecto, stick izquierdo).
+        {
+            const float lx = controller_axis_to_float(
+                SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX));
+            const float lx_sdl = lx;
+            const float ly_sdl = controller_axis_to_float(
+                SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY));
+            const float rx = controller_axis_to_float(
+                SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX));
+            const float ry_sdl = controller_axis_to_float(
+                SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY));
+            // SDL: LEFTY positivo = abajo; N64: +y = arriba. HH_INVERT_Y=1 invierte el signo.
+            const char* hh_iy = getenv("HH_INVERT_Y");
+            const float ly = (hh_iy != nullptr && *hh_iy != '\0') ? ly_sdl : -ly_sdl;
+            const float ry = (hh_iy != nullptr && *hh_iy != '\0') ? ry_sdl : -ry_sdl;
+            float gx = 0.0f, gy = 0.0f;
+            for (int a = 0; a < HH_AXIS_COUNT; ++a) {
+                switch (hh_axis_gp[a]) {
+                    case HH_AXGP_LY_UP:    gy += std::max(0.0f, ly); break;
+                    case HH_AXGP_LY_DOWN:  gy += std::min(0.0f, ly); break;
+                    case HH_AXGP_LX_LEFT:  gx += std::min(0.0f, lx_sdl); break;
+                    case HH_AXGP_LX_RIGHT: gx += std::max(0.0f, lx_sdl); break;
+                    case HH_AXGP_RY_UP:    gy += std::max(0.0f, ry); break;
+                    case HH_AXGP_RY_DOWN:  gy += std::min(0.0f, ry); break;
+                    case HH_AXGP_RX_LEFT:  gx += std::min(0.0f, rx); break;
+                    case HH_AXGP_RX_RIGHT: gx += std::max(0.0f, rx); break;
+                    default: break;
+                }
+            }
+            axis_x = std::clamp(gx, -1.0f, 1.0f);
+            axis_y = std::clamp(gy, -1.0f, 1.0f);
+        }
 
         // Stick derecho -> botones C (SDL: derecha/abajo positivos; N64 +y = arriba).
         // C-Down (vista en 1a persona) se deja SOLO en Y para no activarla sin querer con el stick.
@@ -1059,14 +1569,15 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
 
-    // Teclado: WASD = stick izquierdo (movimiento). Convencion N64: +y = arriba.
+    // Teclado: ejes de movimiento configurables (por defecto W/S/A/D) -> stick izquierdo.
+    // Convencion N64: +y = arriba.
     if (controller_num == 0) {
         const Uint8* kb = SDL_GetKeyboardState(nullptr);
         float kx = 0.0f, ky = 0.0f;
-        if (kb[SDL_SCANCODE_W]) ky += 1.0f;
-        if (kb[SDL_SCANCODE_S]) ky -= 1.0f;
-        if (kb[SDL_SCANCODE_A]) kx -= 1.0f;
-        if (kb[SDL_SCANCODE_D]) kx += 1.0f;
+        if (kb[hh_axis_key[HH_AXIS_UP]]) ky += 1.0f;
+        if (kb[hh_axis_key[HH_AXIS_DOWN]]) ky -= 1.0f;
+        if (kb[hh_axis_key[HH_AXIS_LEFT]]) kx -= 1.0f;
+        if (kb[hh_axis_key[HH_AXIS_RIGHT]]) kx += 1.0f;
         if (kx != 0.0f || ky != 0.0f) {
             axis_x = kx;
             axis_y = ky;
@@ -1202,8 +1713,15 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
 }
 
 void hh::set_rumble(int controller_num, bool rumble) {
-    (void)controller_num;
-    (void)rumble;
+    if (controller_num != 0) return;
+    SDL_GameController* c = hh_pad_controller();
+    if (c == nullptr) return;
+    if (rumble) {
+        // Duracion larga: el juego lo para con set_rumble(false) (osMotorStop).
+        SDL_GameControllerRumble(c, 0xFFFF, 0xFFFF, 5000);
+    } else {
+        SDL_GameControllerRumble(c, 0, 0, 0);
+    }
 }
 
 ultramodern::input::connected_device_info_t hh::get_connected_device_info(int controller_num) {
@@ -1219,7 +1737,9 @@ ultramodern::input::connected_device_info_t hh::get_connected_device_info(int co
 
     if (connected) {
         result.connected_device = ultramodern::input::Device::Controller;
-        result.connected_pak = ultramodern::input::Pak::None;
+        // Rumble Pak si la vibracion esta activada (CONTROLES -> VIBRACION).
+        result.connected_pak = hh::input_vibration_enabled() ? ultramodern::input::Pak::RumblePak
+                                                             : ultramodern::input::Pak::None;
     }
 
     // HH: diagnostico de accesorios -> hh_pak.log (una linea por puerto; ver hh_paklog.hpp).

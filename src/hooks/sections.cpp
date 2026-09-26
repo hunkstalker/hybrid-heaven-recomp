@@ -569,8 +569,25 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     func_801C1334_11BAE04(rdram, &ta);   // A/B/START
     const uint32_t btn = static_cast<uint32_t>(td.r2) | static_cast<uint32_t>(ta.r2);
     static uint32_t prev = 0;
+    // CONTROLES: mientras se captura un input para reasignar, se consume el frame y NO se navega
+    // (el input va a la captura; ESC cancela). El handler nativo sigue corriendo (muteado).
+    // Se RE-LEE el estado TRAS `pad_capture_poll` (que puede haber ASIGNADO el input): el nuevo
+    // binding entra asi en `prev` y no genera un flanco falso (p. ej. al asignar la tecla de
+    // "atras", que si no volveria un menu).
+    if (hh::pad_capture_active()) {
+        hh::pad_capture_poll();
+        recomp_context td2 = *ctx;
+        func_801C1340_11BAE10(rdram, &td2);
+        recomp_context ta2 = *ctx;
+        func_801C1334_11BAE04(rdram, &ta2);
+        prev = static_cast<uint32_t>(td2.r2) | static_cast<uint32_t>(ta2.r2);
+        return;
+    }
     const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
     prev = btn;
+    // Tras asignar/cancelar se bloquea 0.25 s SOLO aceptar/atras (no el resto del control): asi el
+    // input de la asignacion (p. ej. la tecla de "atras") no ejecuta su accion mientras se suelta.
+    const bool nav_block = hh::pad_capture_blocking();
     hh::menu::Event ev = hh::menu::Event::None;
     // Pantalla ANTES de procesar el boton: un mismo `Accept` que ENTRA en un submenu no debe
     // ejecutar acciones de la pantalla HIJA. Sin esto, entrar en IDIOMA aplicaba el idioma del
@@ -581,8 +598,8 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     if (pressed & 0x400u) ev = hh::menu::move_down();
     if (pressed & 0x200u) ev = hh::menu::move_left();
     if (pressed & 0x100u) ev = hh::menu::move_right();
-    if (pressed & 0x8000u) ev = hh::menu::confirm();   // A: entra / marca
-    if (pressed & 0x4000u) ev = hh::menu::back();      // B: atrás. (Sin X: los cambios son en vivo.)
+    if (!nav_block && (pressed & 0x8000u)) ev = hh::menu::confirm();   // A: entra / marca
+    if (!nav_block && (pressed & 0x4000u)) ev = hh::menu::back();      // B: atras (en vivo, sin X)
     const bool same_screen = (hh::menu::current_screen().id == screen_before);
     // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
     // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
@@ -593,7 +610,9 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
-            if (cur.action == hh::menu::Action::ToggleDebug) {
+            if (cur.kind == hh::menu::Kind::Binding) {
+                hh::pad_begin_capture(cur.remap_key);   // A sobre una fila -> capturar input
+            } else if (cur.action == hh::menu::Action::ToggleDebug) {
                 hh::video_set_developer_mode(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleFullscreen) {
                 hh::video_set_fullscreen(cur.value != 0);
@@ -619,6 +638,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::audio_set_output(kOut[(cur.value >= 0 && cur.value < n) ? cur.value : 1]);
             } else if (cur.action == hh::menu::Action::MenuSfxToggle) {
                 hh::audio_set_menu_sfx(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleVibration) {
+                hh::input_set_vibration(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ResetControls) {
+                hh::pad_reset_defaults();
             } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
                 hh::extras_set_persist(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {

@@ -35,6 +35,7 @@ enum class ScreenId {
     Sound,         // SONIDO (lista)
     Debug,         // DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     Extras,        // EXTRAS (desbloqueable con el codigo Konami)
+    Controls,      // CONTROLES (mapeado de teclado/mando + Stick C)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -52,6 +53,9 @@ enum class Action {
     OpenSound,       // submenú SONIDO
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
+    OpenControls,    // submenú CONTROLES (mapeado de teclado/mando)
+    ToggleVibration, // CONTROLES -> VIBRACIÓN: Rumble Pak / vibración del mando
+    ResetControls,   // CONTROLES -> RESET: vuelve al mapeo por defecto (mando + teclado)
     ToggleExtrasPersist,  // EXTRAS -> MANTENER EXTRAS: SÍ = el menu EXTRAS persiste entre arranques
     ToggleOriginalLogos,  // EXTRAS -> LOGOS ORIGINALES: SÍ = clasicos (blanco), NO = modernos (negro)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
@@ -73,6 +77,7 @@ enum class Kind {
     Submenu,   // A entra a la pantalla hija (action = Open*)
     Selector,  // selector lateral < valor >: izq/der cambian, X aplica
     Option,    // opción de una pantalla-lista: A la marca, X aplica
+    Binding,   // fila de mapeado: etiqueta + binding actual a la derecha (A reasigna)
 };
 
 // Tipo de pantalla.
@@ -97,6 +102,8 @@ struct Entry {
     std::vector<std::string> options;  // Selector: valores posibles
     int value = 0;                     // Selector: índice activo
     bool marked = false;               // List: opción activa (resaltada en verde)
+    std::string binding;               // Binding: texto del binding actual (derecha)
+    std::string remap_key;             // Binding: accion N64 a reasignar ("a","b","z",...)
 };
 
 struct Screen {

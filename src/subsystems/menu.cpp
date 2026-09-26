@@ -45,6 +45,28 @@ const MenuTr kMenuTr[] = {
     {"MANTENER EXTRAS", "KEEP EXTRAS", "MANTENIR EXTRAS", "GARDER EXTRAS", "EXTRAS BEHALTEN"},
     {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX",
      "ORIGINAL-LOGOS"},
+    {"CONTROLES", "CONTROLS", "CONTROLS", "CONTRÔLES", "STEUERUNG"},
+    {"ARRIBA/ADELANTE", "UP/FORWARD", "AMUNT/ENDAVANT", "HAUT/AVANT", "HOCH/VORWÄRTS"},
+    {"ABAJO/ATRÁS", "DOWN/BACK", "AVALL/ENRERE", "BAS/ARRIÈRE", "RUNTER/ZURÜCK"},
+    {"IZQUIERDA", "LEFT", "ESQUERRA", "GAUCHE", "LINKS"},
+    {"DERECHA", "RIGHT", "DRETA", "DROITE", "RECHTS"},
+    {"MENÚ ARRIBA", "MENU UP", "MENÚ AMUNT", "MENU HAUT", "MENÜ HOCH"},
+    {"MENÚ ABAJO", "MENU DOWN", "MENÚ AVALL", "MENU BAS", "MENÜ RUNTER"},
+    {"MENÚ IZQUIERDA", "MENU LEFT", "MENÚ ESQUERRA", "MENU GAUCHE", "MENÜ LINKS"},
+    {"MENÚ DERECHA", "MENU RIGHT", "MENÚ DRETA", "MENU DROITE", "MENÜ RECHTS"},
+    {"ACCIÓN/ACEPTAR", "ACTION/ACCEPT", "ACCIÓ/ACCEPTAR", "ACTION/ACCEPTER", "AKTION/OK"},
+    {"MAPA/ATRÁS", "MAP/BACK", "MAPA/ENRERE", "CARTE/RETOUR", "KARTE/ZURÜCK"},
+    {"AGACHARSE", "CROUCH", "AJUPIR-SE", "S'ACCROUPIR", "DUCKEN"},
+    {"MENÚ", "MENU", "MENÚ", "MENU", "MENÜ"},
+    {"APUNTAR", "AIM", "APUNTAR", "VISER", "ZIELEN"},
+    {"VIBRACIÓN", "VIBRATION", "VIBRACIÓ", "VIBRATION", "VIBRATION"},
+    {"ALTURA CÁMARA", "CAMERA HEIGHT", "ALÇADA CÀMERA", "HAUTEUR CAMÉRA", "KAMERAHÖHE"},
+    {"PRIMERA PERSONA", "FIRST PERSON", "PRIMERA PERSONA", "PREMIÈRE PERSONNE", "ERSTE PERSON"},
+    {"PULSA...", "PRESS...", "PREM...", "APPUYEZ...", "DRÜCKEN..."},
+    {"D-PAD ARRIBA", "D-PAD UP", "D-PAD AMUNT", "D-PAD HAUT", "D-PAD HOCH"},
+    {"D-PAD ABAJO", "D-PAD DOWN", "D-PAD AVALL", "D-PAD BAS", "D-PAD RUNTER"},
+    {"D-PAD IZQ", "D-PAD LEFT", "D-PAD ESQ", "D-PAD GAUCHE", "D-PAD LINKS"},
+    {"D-PAD DER", "D-PAD RIGHT", "D-PAD DRETA", "D-PAD DROITE", "D-PAD RECHTS"},
     {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA"},
     {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN"},
     {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO"},
@@ -146,6 +168,8 @@ int output_default() {
     return 1;  // estereo (default)
 }
 int menu_sfx_default() { return hh::audio_config().menusfx == "no" ? 0 : 1; }
+// CONTROLES -> VIBRACIÓN: Rumble Pak / vibración del mando (persiste en config.ini [input]).
+int vibration_default() { return hh::input_vibration_enabled() ? 1 : 0; }
 // EXTRAS -> LOGOS ORIGINALES: SÍ (1) = clasicos de fondo blanco; NO (0) = modernos de fondo negro.
 int original_logos_default() { return hh::extras_config().original_logos == "si" ? 1 : 0; }
 // EXTRAS -> MANTENER EXTRAS: SÍ (1) = el menu EXTRAS persiste entre arranques; NO (0) = solo tras
@@ -168,6 +192,17 @@ int msaa_default() {
     if (m == "2x") return 1;
     if (m == "4x") return 2;
     return 3;  // 8x (default)
+}
+
+// Fila de mapeado (CONTROLES): etiqueta de la accion N64 + su binding actual a la derecha.
+// `action_key` es el nombre de la accion (mismos que config.ini [game]: a,b,z,start,l,r,dup,...).
+Entry make_binding(const char* label, const char* action_key) {
+    Entry e;
+    e.label = label;
+    e.kind = Kind::Binding;
+    e.binding = hh::pad_binding_desc(action_key);
+    e.remap_key = action_key;
+    return e;
 }
 
 Entry make_option(const char* label, bool marked = false) {
@@ -255,6 +290,7 @@ void build_tree() {
         make_submenu("IDIOMA", Action::OpenLanguage),
         make_submenu("GRÁFICOS", Action::OpenGraphics),
         make_submenu("SONIDO", Action::OpenSound),
+        make_submenu("CONTROLES", Action::OpenControls),
         make_submenu("DEBUG", Action::OpenDebug),
     }));
 
@@ -309,6 +345,33 @@ void build_tree() {
                                   extras_persist_default()),
         make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
                                   original_logos_default()),
+    }));
+
+    // CONTROLES: Stick C + tabla del mapeado (accion N64 -> binding actual de mando/teclado). La
+    // lista es larga; el overlay la hace scrollear cuando no cabe en pantalla.
+    g_screens.push_back(make_screen(ScreenId::Controls, ScreenKind::Menu, {
+        // MOVIMIENTO: direccion del stick y/o tecla (por defecto W/S/A/D).
+        make_binding("ARRIBA/ADELANTE", "axis_up"),
+        make_binding("ABAJO/ATRÁS", "axis_down"),
+        make_binding("IZQUIERDA", "axis_left"),
+        make_binding("DERECHA", "axis_right"),
+        // Etiquetas = ACCION del juego (no el boton N64); a la derecha, MANDO y TECLADO.
+        make_binding("ACCIÓN/ACEPTAR", "a"),
+        make_binding("MAPA/ATRÁS", "b"),
+        make_binding("AGACHARSE", "z"),
+        make_binding("PRIMERA PERSONA", "cdown"),
+        make_binding("MENÚ", "start"),
+        make_binding("APUNTAR", "r"),
+        // C: solo C-arriba (altura de camara); C-abajo = PRIMERA PERSONA; C-izq/der no hacen nada.
+        make_binding("ALTURA CÁMARA", "cup"),
+        make_binding("MENÚ ARRIBA", "dup"),
+        make_binding("MENÚ ABAJO", "ddown"),
+        make_binding("MENÚ IZQUIERDA", "dleft"),
+        make_binding("MENÚ DERECHA", "dright"),
+        // VIBRACIÓN (encima de RESET) y RESET (abajo del todo).
+        make_selector_with_action("VIBRACIÓN", {"NO", "SÍ"}, Action::ToggleVibration,
+                                  vibration_default()),
+        make_item("RESET", Action::ResetControls),
     }));
 
     sync_resolution();
@@ -402,6 +465,7 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenSound:      out = ScreenId::Sound;      return true;
         case Action::OpenDebug:      out = ScreenId::Debug;      return true;
         case Action::OpenExtras:     out = ScreenId::Extras;     return true;
+        case Action::OpenControls:   out = ScreenId::Controls;   return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -565,8 +629,8 @@ Event confirm() {
         }
         return Event::None;
     }
-    // Item (acción) y selector: el modelo solo lo señala; la ejecución es del paso 6.
-    if (e.kind == Kind::Item || e.kind == Kind::Selector) {
+    // Item (acción), selector y fila de mapeado: el modelo solo lo señala; la ejecución es del paso 6.
+    if (e.kind == Kind::Item || e.kind == Kind::Selector || e.kind == Kind::Binding) {
         return Event::Accept;
     }
     return Event::None;
@@ -583,7 +647,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Extras)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Controls)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);
@@ -613,6 +677,9 @@ std::string describe_current() {
         out += e.label;
         if (e.kind == Kind::Selector && !e.options.empty()) {
             out += " < " + e.options[e.value] + " >";
+        }
+        if (e.kind == Kind::Binding) {
+            out += " : " + e.binding;
         }
         if (e.marked) {
             out += " [x]";
@@ -654,6 +721,9 @@ std::string describe_tree() {
             out += "  " + e.label;
             if (e.kind == Kind::Selector && !e.options.empty()) {
                 out += " < " + e.options[e.value] + " >";
+            }
+            if (e.kind == Kind::Binding) {
+                out += " : " + e.binding;
             }
             if (!e.enabled) {
                 out += " (gris)";

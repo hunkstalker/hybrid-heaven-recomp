@@ -119,4 +119,34 @@ void config_ini_set(const std::string& section,
     for (const std::string& l : lines) out << l << "\n";
 }
 
+void config_ini_clear_section(const std::string& section) {
+    std::vector<std::string> lines;
+    {
+        std::ifstream f(config_ini_path());
+        std::string line;
+        while (std::getline(f, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            lines.push_back(line);
+        }
+    }
+    int header = -1;
+    int end = static_cast<int>(lines.size());
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const std::string t = trim(lines[i]);
+        if (!t.empty() && t[0] == '[') {
+            if (header < 0 && is_section(t, section)) {
+                header = static_cast<int>(i);
+            } else if (header >= 0) {
+                end = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+    if (header < 0) return;  // la seccion no existe: nada que borrar
+    lines.erase(lines.begin() + header, lines.begin() + end);
+    std::ofstream out(config_ini_path(), std::ios::trunc);
+    if (!out) return;
+    for (const std::string& l : lines) out << l << "\n";
+}
+
 }  // namespace hh

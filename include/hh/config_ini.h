@@ -20,4 +20,8 @@ void config_ini_set(const std::string& section,
 // Valor de `clave` en `[seccion]` (recortado); cadena vacía si no existe.
 std::string config_ini_get(const std::string& section, const std::string& key);
 
+// Borra TODAS las claves de `[seccion]` (conserva el resto del fichero). Lo usa el guardado del
+// teclado ([keys]) para no dejar bindings viejos que sobrevivan y ganen al recargar.
+void config_ini_clear_section(const std::string& section);
+
 }  // namespace hh

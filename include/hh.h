@@ -65,6 +65,29 @@ namespace hh {
     void set_rumble(int controller_num, bool rumble);
     ultramodern::input::connected_device_info_t get_connected_device_info(int controller_num);
 
+    // Menu CONFIGURACIÓN -> CONTROLES: descripción legible del binding actual de una acción N64
+    // (p. ej. "A / J"). `action_key` usa los nombres de `config.ini [game]` ("a","b","z","start",
+    // "l","r","dup","ddown","dleft","dright"). Stick C: estado y cambio persistido.
+    std::string pad_binding_desc(const std::string& action_key);      // todos los bindings (diagnostico)
+    std::string pad_binding_gamepad(const std::string& action_key);   // 1 binding de mando (o "-")
+    std::string pad_binding_key(const std::string& action_key);       // 1 binding de teclado (o "-")
+    bool pad_cstick_enabled();
+    void pad_set_cstick(bool enabled);
+    void pad_reset_defaults();   // CONTROLES -> RESET: mapeo por defecto (mando + teclado)
+    // Reasignacion (CONTROLES): inicia la captura del siguiente input fisico para `action_key`.
+    // `pad_capture_poll` se llama por frame; asigna el primer flanco (tecla o boton) y persiste.
+    void pad_begin_capture(const std::string& action_key);
+    bool pad_capture_active();
+    const std::string& pad_capture_action();
+    void pad_capture_poll();
+    bool pad_capture_blocking();   // true 0.5 s tras asignar/cancelar (bloquea navegacion)
+
+    // Vibracion (CONTROLES -> VIBRACION): reporta Rumble Pak y usa la vibracion de SDL. Persiste en
+    // config.ini [input].vibration. OJO: reportar Rumble Pak puede alterar el flujo de guardado (PFS)
+    // del juego -> validar en Windows.
+    bool input_vibration_enabled();
+    void input_set_vibration(bool enabled);
+
     // RSP microcode dispatch.
     RspUcodeFunc* get_rsp_microcode(const OSTask* task);
 

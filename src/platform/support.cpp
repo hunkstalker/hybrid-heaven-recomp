@@ -536,6 +536,51 @@ void hh::extras_config_save() {
                                   {"persist", hh::extras_config().persist}});
 }
 
+// ===== Config de INPUT (config.ini [input]) =====
+// Vibracion (CONTROLES -> VIBRACION): reporta Rumble Pak al juego y usa la vibracion de SDL.
+// OJO: reportar Rumble Pak puede alterar el flujo de guardado (PFS) del juego -> validar en Windows.
+namespace {
+std::string g_input_vibration = "no";
+bool g_input_vibration_loaded = false;
+
+void hh_input_vibration_load() {
+    if (g_input_vibration_loaded) {
+        return;
+    }
+    g_input_vibration_loaded = true;
+    const char* env = getenv("HH_PAD_CONFIG");
+    std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
+    FILE* f = fopen(path.c_str(), "rb");
+    if (f == nullptr) return;
+    char line[512];
+    bool in_input = false;
+    while (fgets(line, sizeof line, f) != nullptr) {
+        std::string s = hh_video_trim(line);
+        if (s.empty() || s[0] == '#' || s[0] == ';') continue;
+        if (s[0] == '[') { in_input = (s.rfind("[input]", 0) == 0); continue; }
+        if (!in_input) continue;
+        const size_t eq = s.find('=');
+        if (eq == std::string::npos) continue;
+        const std::string k = hh_video_lower(hh_video_trim(s.substr(0, eq)));
+        const std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
+        if (k == "vibration" || k == "vibracion") g_input_vibration = v;
+    }
+    fclose(f);
+}
+}  // namespace
+
+bool hh::input_vibration_enabled() {
+    hh_input_vibration_load();
+    return g_input_vibration == "si";
+}
+
+void hh::input_set_vibration(bool enabled) {
+    hh_input_vibration_load();
+    g_input_vibration = enabled ? "si" : "no";
+    hh::config_ini_set("input", {{"vibration", g_input_vibration}});
+    fprintf(stderr, "[INPUT] VIBRACION -> %s\n", g_input_vibration.c_str());
+}
+
 // Menu GRÁFICOS -> RESOLUCIÓN: resolución INTERNA de render (RT64). No vive en GraphicsConfig, así
 // que se re-aplica a mano en el hilo de render.
 void hh::video_set_resolution(const std::string& res) {

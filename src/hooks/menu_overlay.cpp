@@ -93,8 +93,8 @@ constexpr float kSelectorValueCol = 16.0f;
 // EXTRAS es un menu del PORT (no existe en el original), asi que puede tener su propio layout: usa
 // el hueco libre a la IZQUIERDA y una columna de valores calculada a partir de su etiqueta mas larga,
 // para que quepan nombres como "MANTENER EXTRAS" / "LOGOS ORIGINALES" sin solaparse con el valor.
-constexpr float kExtrasXShift = -64.0f;   // desplaza el contenido a la izquierda (hueco desaprovechado)
-constexpr float kExtrasValueGap = 2.0f;   // caracteres de separacion tras la etiqueta mas larga
+constexpr float kExtrasValueGap = 2.0f;    // caracteres de separacion tras la etiqueta mas larga
+constexpr float kKeyColGap = 11.0f;        // columnas MANDO/TECLADO (CONTROLES): separacion
 
 constexpr uint32_t kWhite = hh::overlay::rgba(255, 255, 255, 255);
 constexpr uint32_t kYellow = hh::overlay::rgba(255, 220, 64, 255);
@@ -202,6 +202,29 @@ void append_slash(hh::overlay::Frame& frame, float x, float y, uint32_t color) {
     }
 }
 
+// Texto con separador "/": la fuente no tiene glifo de barra, asi que se parte por '/' y se dibuja
+// `append_slash` entre segmentos (mismo estilo que los selectores NO/SI).
+void append_text_with_slashes(hh::overlay::Frame& frame, float x, float y, uint32_t color,
+                              const std::string& s) {
+    constexpr float kSlashSep = 2.0f;
+    constexpr float kSlashW = 5.0f;
+    const float step = 8.0f * g_scale_x;
+    float ox = x;
+    size_t start = 0;
+    while (true) {
+        const size_t slash = s.find('/', start);
+        const std::string seg =
+            (slash == std::string::npos) ? s.substr(start) : s.substr(start, slash - start);
+        frame.texts.push_back({ ox, y, g_scale_x, g_scale_y, color, seg });
+        ox += static_cast<float>(cp_count(seg)) * step;
+        if (slash == std::string::npos) break;
+        ox += kSlashSep;
+        append_slash(frame, ox, y + 1.0f, color);
+        ox += kSlashW + kSlashSep;
+        start = slash + 1;
+    }
+}
+
 // Flecha "<" / ">" (chevron 5x5) de los selectores largos, con rectángulos de 2 px. `left` elige la
 // orientación; la punta cae en la fila central.
 void append_chevron(hh::overlay::Frame& frame, float x, float y, bool left, uint32_t color) {
@@ -209,6 +232,25 @@ void append_chevron(hh::overlay::Frame& frame, float x, float y, bool left, uint
     for (int row = 0; row < 5; ++row) {
         const float ox = left ? static_cast<float>(kOff[row]) : static_cast<float>(2 - kOff[row]);
         frame.panels.push_back({ x + ox, y + static_cast<float>(row), 2.0f, 1.0f, color });
+    }
+}
+
+// Flecha VERTICAL (indicador de scroll): triangulo de 5 filas, con la sombra +1,+1 del cursor.
+// `up` = punta arriba. Se usa para avisar de que hay filas por encima/por debajo.
+void append_scroll_arrow(hh::overlay::Frame& frame, float x, float y, bool up, uint32_t color) {
+    static const uint8_t kW[5] = { 1, 3, 5, 7, 9 };
+    for (int row = 0; row < 5; ++row) {
+        const int w = up ? kW[row] : kW[4 - row];
+        const float ox = (9.0f - static_cast<float>(w)) * 0.5f;
+        frame.panels.push_back(
+            { x + ox + 1.0f, y + static_cast<float>(row) + 1.0f, static_cast<float>(w), 1.0f,
+              kShadow });
+    }
+    for (int row = 0; row < 5; ++row) {
+        const int w = up ? kW[row] : kW[4 - row];
+        const float ox = (9.0f - static_cast<float>(w)) * 0.5f;
+        frame.panels.push_back(
+            { x + ox, y + static_cast<float>(row), static_cast<float>(w), 1.0f, color });
     }
 }
 
@@ -328,26 +370,72 @@ void title_update(uint8_t* rdram) {
     const hh::menu::Screen& screen = hh::menu::current_screen();
     const hh::menu::Layout& layout = hh::menu::layout();
 
-    // EXTRAS (menu del port): layout propio -> contenido a la izquierda y columna de valores
-    // calculada por la etiqueta mas larga de la pantalla (ver kExtrasXShift/kExtrasValueGap).
-    const bool extras_screen = (screen.id == hh::menu::ScreenId::Extras);
-    float selector_col = kSelectorValueCol;
-    if (extras_screen) {
-        size_t max_label = 0;
+    // Menus del PORT (EXTRAS, CONTROLES): layout propio -> contenido a la izquierda y columna de
+    // valores calculada por la etiqueta mas larga (sus etiquetas/bindings no caben con la nativa).
+    const bool is_controls = (screen.id == hh::menu::ScreenId::Controls);
+    // Los menus del PORT (EXTRAS, CONTROLES) se CENTRAN; los nativos conservan su margen original.
+    const bool custom_layout = is_controls || (screen.id == hh::menu::ScreenId::Extras);
+    float x_shift = 0.0f;
+    float selector_col = kSelectorValueCol;   // EXTRAS: columna de valores; CONTROLES: columna MANDO
+    float key_col = selector_col + kKeyColGap;  // CONTROLES: columna TECLADO
+    if (custom_layout) {
+        const float step = 8.0f * g_scale_x;
+        size_t max_label = 0, max_gp = 0, max_key = 0;
+        float max_val_px = 0.0f;
+        constexpr float kSlashSep2 = 2.0f, kSlashW2 = 5.0f;
         for (const hh::menu::Entry& e : screen.entries) {
             max_label = std::max(max_label, cp_count(hh::menu::localized(e.label)));
+            if (e.kind == hh::menu::Kind::Binding) {
+                max_gp = std::max(max_gp, cp_count(hh::pad_binding_gamepad(e.remap_key)));
+                max_key = std::max(max_key, cp_count(hh::pad_binding_key(e.remap_key)));
+            } else if (e.kind == hh::menu::Kind::Selector && !e.options.empty()) {
+                float w = 0.0f;
+                for (size_t oi = 0; oi < e.options.size(); ++oi) {
+                    w += static_cast<float>(cp_count(hh::menu::localized(e.options[oi]))) * step;
+                    if (oi + 1 < e.options.size()) w += 2.0f * kSlashSep2 + kSlashW2;
+                }
+                max_val_px = std::max(max_val_px, w);
+            }
         }
-        selector_col = static_cast<float>(max_label + 1) + kExtrasValueGap;   // +1 = espacio inicial
+        float content_px = 0.0f;
+        if (is_controls) {
+            // Columnas MANDO y TECLADO: etiqueta + 1 espacio + 1 hueco, y luego el binding de mando.
+            selector_col = static_cast<float>(max_label + 1) + 1.0f;
+            key_col = selector_col + static_cast<float>(max_gp) + 2.0f;
+            content_px = (key_col + static_cast<float>(max_key)) * step;
+        } else {
+            selector_col = static_cast<float>(max_label + 1) + kExtrasValueGap;
+            key_col = selector_col + kKeyColGap;
+            content_px = selector_col * step + max_val_px;
+        }
+        x_shift = (hh::overlay::kVirtualWidth - content_px) * 0.5f - layout.x;
     }
 
     hh::overlay::Frame frame;
     frame.visible = true;
 
-    for (size_t i = 0; i < screen.entries.size(); ++i) {
-        const hh::menu::Entry& e = screen.entries[i];
-        const float x = layout.x + g_calib_x + (extras_screen ? kExtrasXShift : 0.0f);
-        const float y = layout.y0 + kTextTopOffset + layout.dy * static_cast<float>(i) + g_calib_y;
-        const bool selected = (static_cast<int>(i) == screen.cursor);
+    // Scroll vertical: si no caben todas las entradas (p. ej. CONTROLES), se muestra una VENTANA que
+    // sigue al cursor. Para pantallas cortas `first=0` y todo queda igual que el nativo.
+    const int n_entries = static_cast<int>(screen.entries.size());
+    const float list_y0 = layout.y0 + kTextTopOffset;
+    // Filas visibles: hasta el copyright nativo (~y=188). En los menus del PORT (CONTROLES) se
+    // limita a 5: las filas se ocultan a partir de la 6ª y el cursor hace scrollear la ventana.
+    constexpr float kListBottom = 188.0f;
+    int max_visible = std::max(1, static_cast<int>((kListBottom - list_y0) / layout.dy));
+    if (custom_layout) max_visible = std::min(max_visible, 5);
+    int first = 0;
+    if (n_entries > max_visible) {
+        if (screen.cursor >= first + max_visible) first = screen.cursor - max_visible + 1;
+        if (screen.cursor < first) first = screen.cursor;
+        first = std::clamp(first, 0, n_entries - max_visible);
+    }
+    const int last = std::min(n_entries, first + max_visible);
+
+    for (int i = first; i < last; ++i) {
+        const hh::menu::Entry& e = screen.entries[static_cast<size_t>(i)];
+        const float x = layout.x + g_calib_x + x_shift;
+        const float y = list_y0 + layout.dy * static_cast<float>(i - first) + g_calib_y;
+        const bool selected = (i == screen.cursor);
 
         // Las ETIQUETAS del menú van en blanco (amarillo la del cursor + flecha nativa). La regla
         // gris/verde es SOLO para las opciones a configurar: en una lista, la aplicada en verde y el
@@ -383,7 +471,11 @@ void title_update(uint8_t* rdram) {
                 break;
             }
         }
-        frame.texts.push_back({ x_text, y, g_scale_x, g_scale_y, color, text });
+        if (text.find('/') != std::string::npos) {
+            append_text_with_slashes(frame, x_text, y, color, text);
+        } else {
+            frame.texts.push_back({ x_text, y, g_scale_x, g_scale_y, color, text });
+        }
 
         // Selector lateral: el valor ACTIVO en verde y el resto en gris; izq/der lo cambia.
         //   - Pocas opciones (SÍ/NO, ...): todos los valores juntos en columna fija (NO/SI).
@@ -427,8 +519,42 @@ void title_update(uint8_t* rdram) {
             }
         }
 
+        // Fila de mapeado (CONTROLES): el binding actual a la derecha, alineado con los selectores.
+        // Si esa fila esta en captura, se muestra el aviso "PULSA..." en amarillo.
+        // Fila de mapeado (CONTROLES): DOS columnas, MANDO y TECLADO (un binding cada una).
+        if (e.kind == hh::menu::Kind::Binding) {
+            const float step = 8.0f * g_scale_x;
+            const bool capturing =
+                hh::pad_capture_active() && (hh::pad_capture_action() == e.remap_key);
+            if (capturing) {
+                frame.texts.push_back({ x + selector_col * step, y, g_scale_x, g_scale_y, kYellow,
+                                        hh::menu::localized("PULSA...") });
+            } else {
+                const float gp_x = x + selector_col * step;
+                const float kb_x = x + key_col * step;
+                frame.texts.push_back({ gp_x, y, g_scale_x, g_scale_y, kWhite,
+                                        hh::pad_binding_gamepad(e.remap_key) });
+                frame.texts.push_back({ kb_x, y, g_scale_x, g_scale_y, kWhite,
+                                        hh::pad_binding_key(e.remap_key) });
+            }
+        }
+
         if (selected) {
             append_native_cursor(frame, x + 1.0f, y + 1.0f, kWhite);
+        }
+    }
+
+    // Indicadores de scroll: arriba si hay filas por encima de la ventana, abajo si quedan por
+    // debajo. Desaparecen al llegar al tope (o al final). Solo en pantallas con scroll.
+    if (n_entries > max_visible) {
+        // Alineadas con el inicio de las palabras (las etiquetas llevan 1 espacio de sangria).
+        const float arrow_x = layout.x + g_calib_x + x_shift + 8.0f * g_scale_x;
+        if (first > 0) {
+            append_scroll_arrow(frame, arrow_x, list_y0 - 7.0f, true, kWhite);
+        }
+        if (first + max_visible < n_entries) {
+            const float ay = list_y0 + layout.dy * static_cast<float>(max_visible) + 1.0f;
+            append_scroll_arrow(frame, arrow_x, ay, false, kWhite);
         }
     }
 
