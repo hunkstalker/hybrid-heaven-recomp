@@ -13,10 +13,14 @@ Geometria exacta (la del menu):
   - la letra 8x8 va en las filas 2..9.
   - filas 0..1: tilde.  filas 10..11: cedilla.
 
-Uso:
-  python3 tools/text/menu_marks.py --template work/fonts/menu_marks_base.png \
-      work/fonts/menu_marks_layer.png
-  python3 tools/text/menu_marks.py --from-layer work/fonts/menu_marks_layer.png \
+Uso (Set A):
+  # 1) plantilla: base (letras de referencia) + LIENZO en blanco para dibujar
+  python3 tools/text/menu_marks.py --template \
+      assets/fonts/menu_marks_base.png assets/fonts/menu_marks_blank.png
+  # 2) en Affinity dibuja las tildes sobre el lienzo y exporta SOLO esa capa como el DISENO
+  #    (fuente de verdad): assets/fonts/menu_marks_ed.png
+  # 3) regenerar el header desde el DISENO (nunca desde el lienzo en blanco):
+  python3 tools/text/menu_marks.py --from-layer assets/fonts/menu_marks_ed.png \
       --out include/hh/menu_marks.h
 """
 import argparse
@@ -85,7 +89,7 @@ def legend_rows():
 def write_legend(path):
     with open(path, "w", encoding="utf-8") as f:
         f.write("# Leyenda de la hoja de marcas del menú\n\n")
-        f.write("Cada celda de `menu_marks_layer.png`, en orden. Dibuja el símbolo indicado ")
+        f.write("Cada celda de `menu_marks_blank.png`, en orden. Dibuja el símbolo indicado ")
         f.write("sobre la letra de referencia (o el símbolo entero en las celdas sueltas).\n\n")
         f.write("| celda | qué dibujar | símbolo | code point | nombre | sirve para |\n")
         f.write("|---|---|---|---|---|---|\n")
@@ -179,6 +183,17 @@ def add_shadow_cell(cell):
     return out
 
 
+def touches_right(cell):
+    """True si la tinta toca la columna derecha de la celda (la sombra +1 se recortaría)."""
+    return any(cell[y][W - 1] for y in range(CH))
+
+
+def shift_left(cell):
+    """Desplaza 1 px a la izquierda dentro de la celda, para hacer sitio a la sombra a la derecha.
+    El overlay re-centra cada marca, así que no descoloca la forma."""
+    return [[(row[x + 1] if x + 1 < W else 0) for x in range(W)] for row in cell]
+
+
 def ink_bbox(cell):
     xs = [x for y in range(CH) for x in range(W) if cell[y][x]]
     ys = [y for y in range(CH) for x in range(W) if cell[y][x]]
@@ -240,7 +255,12 @@ def from_layer(path, out, scale=12):
         if ib is None:                    # celda sin dibujar
             marks.append((0, 0, 0, 0, []))
             continue
-        w, h, _dx, _dy, pix = crop_shift(ink)   # SOLO tinta (sin sombra): como tu referencia
+        # Todas las marcas llevan sombra (nivel 2) desplazada +1,+1, como las letras del texto.
+        # Los símbolos sueltos (· Æ Œ) que tocan el borde derecho se desplazan 1 px a la izquierda
+        # para que la sombra quepa en la celda. `crop_shift` recorta incluyendo la sombra.
+        src = shift_left(ink) if (c["kind"] == "standalone" and touches_right(ink)) else ink
+        cell = add_shadow_cell(src)
+        w, h, _dx, _dy, pix = crop_shift(cell)
         dy = ib[1] - LETTER_TOP          # respeta la altura a la que lo dibujaste (la letra va en fila 2)
         marks.append((w, h, 0, dy, pix))
     for cp, v in AUTO:                   # ¿ ¡ (con sombra)

@@ -355,15 +355,9 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 unsigned value = 0, gx = 0, gy = 0;
                 int mark = -1;
                 if (hh::font::game::menu_char(cp, value, mark)) {
-                    // Letra base (si la hay) tal cual + marca centrada encima/debajo.
-                    if (value != 0 && hh::font::game::value_uv(value, gx, gy)) {
-                        const float u0 = static_cast<float>(gx) / g_atlas_w;
-                        const float v0 = static_cast<float>(gy) / g_atlas_h;
-                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
-                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
-                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
-                                    t.color, u0, v0, u1, v1);
-                    }
+                    // La MARCA se dibuja DEBAJO de la letra (z-order): así su sombra (+1,+1) no pisa
+                    // los píxeles de la letra al proyectarse sobre ella. Primero la marca, luego la
+                    // letra base (si la hay).
                     unsigned mx = 0, my = 0, mw = 0, mh = 0;
                     int dy = 0;
                     if (mark >= 0 &&
@@ -376,6 +370,14 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         const float v1 = static_cast<float>(my + mh) / g_atlas_h;
                         append_quad(vertices, indices, dx, dyy, static_cast<float>(mw) * t.scale_x,
                                     static_cast<float>(mh) * t.scale_y, t.color, u0, v0, u1, v1);
+                    }
+                    if (value != 0 && hh::font::game::value_uv(value, gx, gy)) {
+                        const float u0 = static_cast<float>(gx) / g_atlas_w;
+                        const float v0 = static_cast<float>(gy) / g_atlas_h;
+                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
+                                    t.color, u0, v0, u1, v1);
                     }
                 } else if (hh::font::game::glyph_value(static_cast<unsigned char>(cp), value) &&
                            hh::font::game::value_uv(value, gx, gy)) {

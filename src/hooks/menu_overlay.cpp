@@ -95,6 +95,8 @@ constexpr uint32_t kYellow = hh::overlay::rgba(255, 220, 64, 255);
 constexpr uint32_t kGreen = hh::overlay::rgba(96, 255, 96, 255);
 // Gris de opción no seleccionada/deshabilitada (el original "sombrea" lo que no está activo).
 constexpr uint32_t kGray = hh::overlay::rgba(130, 130, 130, 255);
+// Sombra del texto/UI (negra, +1 px derecha/abajo), como la horneada en el atlas de la fuente.
+constexpr uint32_t kShadow = hh::overlay::rgba(0, 0, 0, 255);
 
 // El handler del menú de título se ejecuta en el hilo del juego; `tick` en el de render. El contador
 // permite ocultar el overlay cuando el menú deja de publicarlo (p. ej. al salir del título).
@@ -173,6 +175,12 @@ size_t cp_count(const std::string& s) {
 // (la prohibición de "paneles" es para fondos/barras inventados, no para la flecha del juego).
 void append_native_cursor(hh::overlay::Frame& frame, float x, float y, uint32_t color) {
     static const uint8_t kWidths[5] = { 2, 4, 6, 4, 2 };
+    // Sombra: copia negra desplazada +1 px a la derecha y +1 abajo (como la del texto). Se pinta
+    // primero para que la flecha quede encima.
+    for (int row = 0; row < 5; ++row) {
+        frame.panels.push_back({ x + 1.0f, y + static_cast<float>(row) + 1.0f,
+                                 static_cast<float>(kWidths[row]), 1.0f, kShadow });
+    }
     for (int row = 0; row < 5; ++row) {
         frame.panels.push_back(
             { x, y + static_cast<float>(row), static_cast<float>(kWidths[row]), 1.0f, color });
