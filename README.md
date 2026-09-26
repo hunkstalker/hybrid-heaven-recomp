@@ -86,8 +86,11 @@ El repositorio **no** incluye la ROM de Hybrid Heaven (© Konami).
 
 - **Repo de referencia**: [danielgomesvieira2000/hybrid-heaven-recomp](https://github.com/danielgomesvieira2000/hybrid-heaven-recomp)
   (**MIT**) — tooling de recompilación por ELF adaptado (detalle en [`CREDITS.md`](CREDITS.md)).
-- **Sonidos del menú** (de [Pixabay](https://pixabay.com/); [licencia de contenido de Pixabay](https://pixabay.com/service/license-summary/):
+- **Sonidos del menú y del código Konami** (de [Pixabay](https://pixabay.com/); [licencia de contenido de Pixabay](https://pixabay.com/service/license-summary/):
   uso libre y modificación permitidos, **sin obligación de atribución** — la damos igualmente):
   - *Menu Move* — «Game UI Confirm Selection Sound #2 UI» de **Vadim_Makes_Sound**.
   - *Menu Accept* — «UI Sound 115» de **juniorsoundays**.
   - *Menu Back* — «UI Sound 116» de **juniorsoundays**.
+  - *Konami Correct* — «KS Motion Metal Hit» de **ALEXIS_GAMING_CAM**.
+  - *Konami Error* — «Error Notification 010» de **Universfield**.
+  - *Konami Unlock* — «Ascent Braam Magma Brass D (Cinematic Trailer Sound Effect)» de **Viral Audio**.
