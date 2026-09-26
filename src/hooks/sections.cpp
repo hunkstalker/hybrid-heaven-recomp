@@ -112,16 +112,20 @@ extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
 constexpr uint32_t kBootFlagHi = 0x801D0000;
 constexpr int kKonamiTimeout = 120;   // ~2 s a 60 Hz
 
-// Logos de la intro en HD (PNG en `<exe>/logos/`). Por defecto los CLASICOS (fondo blanco); si
-// EXTRAS esta desbloqueado (codigo Konami completado), se usan los MODERNOS (fondo negro).
+// Logos de la intro en HD (PNG en `<exe>/logos/`). El set MODERNO (fondo negro) se usa si EXTRAS se
+// desbloqueo en esta sesion (codigo Konami) o si el ajuste EXTRAS -> LOGOS ORIGINALES esta en NO; si
+// no, los CLASICOS (fondo blanco).
 bool logo_is_modern(const std::string& name) {
     return name == "konami-2023.png" || name == "kceo-2000.png";
 }
+bool use_modern_logos() {
+    return hh::menu::extras_code_unlocked() || hh::extras_config().original_logos != "si";
+}
 const char* konami_logo() {
-    return hh::menu::extras_unlocked() ? "konami-2023.png" : "konami-1998.png";
+    return use_modern_logos() ? "konami-2023.png" : "konami-1998.png";
 }
 const char* kceo_logo() {
-    return hh::menu::extras_unlocked() ? "kceo-2000.png" : "kceo-1995.png";
+    return use_modern_logos() ? "kceo-2000.png" : "kceo-1995.png";
 }
 
 constexpr uint32_t kBtnUp = 0x0800, kBtnDown = 0x0400, kBtnLeft = 0x0200, kBtnRight = 0x0100;
@@ -718,6 +722,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::audio_set_output(kOut[(cur.value >= 0 && cur.value < n) ? cur.value : 1]);
             } else if (cur.action == hh::menu::Action::MenuSfxToggle) {
                 hh::audio_set_menu_sfx(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
+                hh::extras_set_persist(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {
+                hh::extras_set_original_logos(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ResolutionSelect) {
                 if (cur.value >= 0 && cur.value < static_cast<int>(cur.options.size())) {
                     hh::video_set_resolution(cur.options[cur.value]);

@@ -484,6 +484,58 @@ void hh::audio_config_save() {
                                  {"menusfx", a.menusfx}});
 }
 
+// ===== Config de EXTRAS (config.ini [extras]) =====
+// Ajustes de la pantalla EXTRAS (desbloqueada con el codigo Konami). A diferencia del desbloqueo
+// (de sesion), estos valores persisten. `original_logos` elige el set de logos de la intro por
+// defecto (si = clasicos de fondo blanco; no = modernos de fondo negro) y `persist` mantiene la
+// entrada EXTRAS visible entre arranques.
+hh::ExtrasConfig& hh::extras_config_mutable() {
+    static hh::ExtrasConfig cfg = [] {
+        hh::ExtrasConfig c;
+        const char* env = getenv("HH_PAD_CONFIG");
+        std::string path = (env != nullptr && *env != '\0') ? env : "config.ini";
+        FILE* f = fopen(path.c_str(), "rb");
+        if (f == nullptr) return c;
+        char line[512];
+        bool in_extras = false;
+        while (fgets(line, sizeof line, f) != nullptr) {
+            std::string s = hh_video_trim(line);
+            if (s.empty() || s[0] == '#' || s[0] == ';') continue;
+            if (s[0] == '[') { in_extras = (s.rfind("[extras]", 0) == 0); continue; }
+            if (!in_extras) continue;
+            const size_t eq = s.find('=');
+            if (eq == std::string::npos) continue;
+            const std::string k = hh_video_lower(hh_video_trim(s.substr(0, eq)));
+            const std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
+            if (k == "original_logos" || k == "logos_originales") c.original_logos = v;
+            else if (k == "persist" || k == "mantener") c.persist = v;
+        }
+        fclose(f);
+        return c;
+    }();
+    return cfg;
+}
+const hh::ExtrasConfig& hh::extras_config() { return hh::extras_config_mutable(); }
+
+// Menu EXTRAS -> LOGOS ORIGINALES: si = clasicos (fondo blanco), no = modernos (fondo negro).
+void hh::extras_set_original_logos(bool enabled) {
+    hh::extras_config_mutable().original_logos = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] LOGOS ORIGINALES -> %s\n", hh::extras_config().original_logos.c_str());
+}
+
+// Menu EXTRAS -> MANTENER EXTRAS: si = la entrada EXTRAS persiste entre arranques.
+void hh::extras_set_persist(bool enabled) {
+    hh::extras_config_mutable().persist = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] MANTENER EXTRAS -> %s\n", hh::extras_config().persist.c_str());
+}
+
+void hh::extras_config_save() {
+    hh::config_ini_set("extras", {{"original_logos", hh::extras_config().original_logos},
+                                  {"persist", hh::extras_config().persist}});
+}
+
 // Menu GRÁFICOS -> RESOLUCIÓN: resolución INTERNA de render (RT64). No vive en GraphicsConfig, así
 // que se re-aplica a mano en el hilo de render.
 void hh::video_set_resolution(const std::string& res) {

@@ -18,8 +18,9 @@ std::vector<Screen> g_screens;      // todas las pantallas (el estado vive aquí
 std::vector<ScreenId> g_stack;      // camino activo; el tope es la pantalla visible
 Layout g_layout;
 
-// EXTRAS: desbloqueo SOLO de sesion (no persiste; hay que teclear el codigo Konami siempre). Lo
-// que haya DENTRO (ajustes, si los hubiera) se persistira aparte.
+// EXTRAS: se muestra si se ha desbloqueado en esta sesion con el codigo Konami, o si hay algun
+// ajuste de EXTRAS persistido distinto del valor por defecto (asi el menu no se pierde tras
+// configurarlo). Al volver a los valores por defecto deja de estar persistido -> oculto al arrancar.
 bool g_extras_unlocked_state = false;
 
 // Traducciones de las etiquetas/opciones del menú. Clave = etiqueta canónica en ESPAÑOL (la del
@@ -41,8 +42,9 @@ const MenuTr kMenuTr[] = {
     {"SONIDO", "SOUND", "SO", "SON", "TON"},
     {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG"},
     {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS"},
-    {"NIVEL", "LEVEL", "NIVELL", "NIVEAU", "LEVEL"},
-    {"HABILIDADES", "ABILITIES", "HABILITATS", "COMPÉTENCES", "FÄHIGKEITEN"},
+    {"MANTENER EXTRAS", "KEEP EXTRAS", "MANTENIR EXTRAS", "GARDER EXTRAS", "EXTRAS BEHALTEN"},
+    {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX",
+     "ORIGINAL-LOGOS"},
     {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA"},
     {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN"},
     {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO"},
@@ -144,6 +146,11 @@ int output_default() {
     return 1;  // estereo (default)
 }
 int menu_sfx_default() { return hh::audio_config().menusfx == "no" ? 0 : 1; }
+// EXTRAS -> LOGOS ORIGINALES: SÍ (1) = clasicos de fondo blanco; NO (0) = modernos de fondo negro.
+int original_logos_default() { return hh::extras_config().original_logos == "si" ? 1 : 0; }
+// EXTRAS -> MANTENER EXTRAS: SÍ (1) = el menu EXTRAS persiste entre arranques; NO (0) = solo tras
+// teclear el codigo Konami.
+int extras_persist_default() { return hh::extras_config().persist == "si" ? 1 : 0; }
 // RATIO: índice en {"AUTO","ORIGINAL","4:3","16:9","16:10","21:9"} según `[video].aspect`.
 int ratio_default() {
     const std::string a = hh::video_config().aspect;
@@ -294,11 +301,14 @@ void build_tree() {
                                   show_fps_default()),
     }));
 
-    // EXTRAS: desbloqueado con el codigo Konami. Alcance (editar nivel/habilidades) POR DEFINIR:
-    // entradas provisionales deshabilitadas para que la pantalla exista y se pueda revisar el acceso.
+    // EXTRAS: desbloqueado con el codigo Konami. MANTENER EXTRAS decide si el propio menu persiste
+    // entre arranques; LOGOS ORIGINALES elige el set de logos de la intro por defecto. Ambos
+    // persisten en config.ini [extras].
     g_screens.push_back(make_screen(ScreenId::Extras, ScreenKind::Menu, {
-        make_item("NIVEL", Action::None, /*enabled=*/false),
-        make_item("HABILIDADES", Action::None, /*enabled=*/false),
+        make_selector_with_action("MANTENER EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
+                                  extras_persist_default()),
+        make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
+                                  original_logos_default()),
     }));
 
     sync_resolution();
@@ -615,16 +625,23 @@ std::string describe_current() {
     return out;
 }
 
-bool extras_unlocked() {
+// Desbloqueo por CODIGO de la sesion (sin el ajuste MANTENER EXTRAS).
+bool extras_code_unlocked() {
     return g_extras_unlocked_state;
+}
+
+// Visible si se tecleo el codigo en esta sesion o si MANTENER EXTRAS esta en SI (persistencia
+// explicita).
+bool extras_unlocked() {
+    return g_extras_unlocked_state || hh::extras_config().persist == "si";
 }
 
 void unlock_extras() {
     if (g_extras_unlocked_state) return;
     g_extras_unlocked_state = true;
     // Rehace la raiz para que aparezca la entrada EXTRAS (el arbol se construyo sin ella). Seguro:
-    // el desbloqueo ocurre durante la intro, antes de usar el menu. NO se persiste: en el proximo
-    // arranque hay que volver a teclear el codigo.
+    // el desbloqueo ocurre durante la intro, antes de usar el menu. El desbloqueo por codigo es de
+    // sesion; si ADEMAS MANTENER EXTRAS esta en SI, el menu reaparece solo en el siguiente arranque.
     reset();
 }
 

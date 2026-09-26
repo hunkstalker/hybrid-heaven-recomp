@@ -90,6 +90,12 @@ constexpr float kTextTopOffset = 5.0f;
 // largo (`3840x2160`, 9) con su chevron derecho.
 constexpr float kSelectorValueCol = 16.0f;
 
+// EXTRAS es un menu del PORT (no existe en el original), asi que puede tener su propio layout: usa
+// el hueco libre a la IZQUIERDA y una columna de valores calculada a partir de su etiqueta mas larga,
+// para que quepan nombres como "MANTENER EXTRAS" / "LOGOS ORIGINALES" sin solaparse con el valor.
+constexpr float kExtrasXShift = -64.0f;   // desplaza el contenido a la izquierda (hueco desaprovechado)
+constexpr float kExtrasValueGap = 2.0f;   // caracteres de separacion tras la etiqueta mas larga
+
 constexpr uint32_t kWhite = hh::overlay::rgba(255, 255, 255, 255);
 constexpr uint32_t kYellow = hh::overlay::rgba(255, 220, 64, 255);
 constexpr uint32_t kGreen = hh::overlay::rgba(96, 255, 96, 255);
@@ -322,12 +328,24 @@ void title_update(uint8_t* rdram) {
     const hh::menu::Screen& screen = hh::menu::current_screen();
     const hh::menu::Layout& layout = hh::menu::layout();
 
+    // EXTRAS (menu del port): layout propio -> contenido a la izquierda y columna de valores
+    // calculada por la etiqueta mas larga de la pantalla (ver kExtrasXShift/kExtrasValueGap).
+    const bool extras_screen = (screen.id == hh::menu::ScreenId::Extras);
+    float selector_col = kSelectorValueCol;
+    if (extras_screen) {
+        size_t max_label = 0;
+        for (const hh::menu::Entry& e : screen.entries) {
+            max_label = std::max(max_label, cp_count(hh::menu::localized(e.label)));
+        }
+        selector_col = static_cast<float>(max_label + 1) + kExtrasValueGap;   // +1 = espacio inicial
+    }
+
     hh::overlay::Frame frame;
     frame.visible = true;
 
     for (size_t i = 0; i < screen.entries.size(); ++i) {
         const hh::menu::Entry& e = screen.entries[i];
-        const float x = layout.x + g_calib_x;
+        const float x = layout.x + g_calib_x + (extras_screen ? kExtrasXShift : 0.0f);
         const float y = layout.y0 + kTextTopOffset + layout.dy * static_cast<float>(i) + g_calib_y;
         const bool selected = (static_cast<int>(i) == screen.cursor);
 
@@ -372,9 +390,9 @@ void title_update(uint8_t* rdram) {
         //   - Muchas (RESOLUCIÓN, LÍMITE DE FPS): solo el activo, con flechas < > dibujadas.
         if (e.kind == hh::menu::Kind::Selector && !e.options.empty()) {
             const float step = 8.0f * g_scale_x;
-            // Todos los valores empiezan en la MISMA columna (`kSelectorValueCol`); los chevrons < >
-            // quedan a la izquierda/derecha (fuera de la alineación).
-            const float value_x = x + kSelectorValueCol * step;
+            // Todos los valores empiezan en la MISMA columna (`selector_col`; nativa o de EXTRAS);
+            // los chevrons < > quedan a la izquierda/derecha (fuera de la alineación).
+            const float value_x = x + selector_col * step;
             constexpr float kSlashSep = 2.0f;   // hueco a cada lado de la barra
             constexpr float kSlashW = 5.0f;
             constexpr float kChevW = 2.0f;

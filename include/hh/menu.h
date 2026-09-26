@@ -52,6 +52,8 @@ enum class Action {
     OpenSound,       // submenú SONIDO
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
+    ToggleExtrasPersist,  // EXTRAS -> MANTENER EXTRAS: SÍ = el menu EXTRAS persiste entre arranques
+    ToggleOriginalLogos,  // EXTRAS -> LOGOS ORIGINALES: SÍ = clasicos (blanco), NO = modernos (negro)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
     ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
@@ -147,11 +149,13 @@ std::string describe_current();
 // dibujo sin navegar (el input llega en el paso 5). `screen_id` = valor de ScreenId.
 void debug_show(int screen_id);
 
-// EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. El desbloqueo es SOLO
-// de sesion (no persiste; hay que teclear el codigo en cada arranque). Al desbloquear se rehace el
-// arbol para anadir la entrada EXTRAS (encima de SALIR); su contenido (editar partida:
-// nivel/habilidades) esta por definir.
+// EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. Se muestra si se
+// desbloqueo en esta sesion con el codigo o si el ajuste MANTENER EXTRAS esta en SI ([extras] en
+// config.ini). Al desbloquear se rehace el arbol para anadir la entrada EXTRAS (encima de SALIR).
 bool extras_unlocked();
 void unlock_extras();
+// Solo el desbloqueo por codigo de la sesion (sin el ajuste MANTENER EXTRAS): lo usa la intro para
+// el cambio a los logos modernos (recompensa del codigo).
+bool extras_code_unlocked();
 
 }  // namespace hh::menu

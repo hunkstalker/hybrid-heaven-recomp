@@ -134,6 +134,18 @@ namespace hh {
     void audio_set_menu_sfx(bool enabled);    // menu SONIDO -> MENÚ SFX
     void audio_config_save();
 
+    // Config de EXTRAS ([extras] en config.ini). La pantalla EXTRAS se desbloquea con el codigo
+    // Konami (de sesion); `persist` decide si ademas se mantiene visible entre arranques.
+    struct ExtrasConfig {
+        std::string original_logos = "si";  // si = clasicos de fondo blanco; no = modernos de fondo negro
+        std::string persist = "no";         // si = la entrada EXTRAS se mantiene entre arranques
+    };
+    const ExtrasConfig& extras_config();
+    ExtrasConfig& extras_config_mutable();
+    void extras_set_original_logos(bool enabled);  // menu EXTRAS -> LOGOS ORIGINALES
+    void extras_set_persist(bool enabled);         // menu EXTRAS -> MANTENER EXTRAS
+    void extras_config_save();
+
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El
     // input del port no mapea el raton a botones N64 mientras lo esta, para no meter clics en el
     // juego al usar el panel. Se publica desde el hilo de render (ver rt64_render_context.cpp).
