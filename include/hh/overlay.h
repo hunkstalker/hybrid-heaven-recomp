@@ -52,6 +52,13 @@ void publish(Frame frame);
 // el menú nativo sigue respondiendo a los botones.
 bool enabled();
 
+// Capa de IMAGEN a pantalla completa (logos de la intro, etc.): carga un PNG (RGBA8) y lo dibuja
+// cubriendo el framebuffer con aspecto "contain" (letterbox si no coincide). Es independiente del
+// frame del menú (puede estar visible sola). La carga real ocurre en el hilo de render (seguro);
+// esta llamada solo encola la petición. Llamar desde el hilo del juego.
+void set_screen_image(const std::string& png_path);
+void clear_screen_image();
+
 // Indicador de FPS (menú DEBUG -> MOSTRAR FPS): texto de SOLO NÚMEROS en la esquina superior
 // izquierda. Es una capa independiente del frame del menú (lo dibuja el render hook siempre que
 // esté activo, también en gameplay). Se llama por frame desde el hilo de render.

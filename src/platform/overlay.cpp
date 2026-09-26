@@ -20,6 +20,10 @@
 
 #include "rhi/rt64_render_hooks.h"
 
+// stb_image ya está COMPILADO dentro de rt64.a (rt64_texture_cache.cpp). Solo se declara la API aquí
+// (sin STB_IMAGE_IMPLEMENTATION) para decodificar PNG en memoria -> RGBA8.
+#include "contrib/stb/stb_image.h"
+
 #include "hh.h"
 #include "hh/font.h"
 #include "hh/overlay.h"
@@ -121,6 +125,18 @@ std::unique_ptr<RenderTexture> g_atlas_texture;
 std::unique_ptr<RenderDescriptorSet> g_atlas_set;
 float g_atlas_w = 0.0f;
 float g_atlas_h = 0.0f;
+
+// Capa de IMAGEN a pantalla completa (logos de la intro, etc.). Se sube una textura RGBA8 y se
+// dibuja cubriendo el framebuffer con su propia proyeccion en pixeles de ventana (letterbox si el
+// aspecto no coincide). Ver include/hh/overlay.h -> set_screen_image.
+std::mutex g_image_mutex;
+std::unique_ptr<RenderTexture> g_image_texture;
+std::unique_ptr<RenderDescriptorSet> g_image_set;
+float g_image_w = 0.0f;
+float g_image_h = 0.0f;
+std::atomic<bool> g_image_on{ false };
+std::atomic<int> g_image_req{ 0 };   // 0 = nada; 1 = cargar (path en g_image_path_req)
+std::string g_image_path_req;        // protegido por g_image_mutex
 
 void append_quad(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, float x, float y,
                  float w, float h, uint32_t color, float u0, float v0, float u1, float v1) {
@@ -278,6 +294,42 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // real de presentación, la que muestra el indicador de FPS.
     g_presented_frames.fetch_add(1, std::memory_order_relaxed);
 
+    // Peticion de carga de imagen pendiente (logos): se resuelve AQUI (render thread), donde la cola
+    // de copia de la textura es segura. Carga el PNG/memoria a RGBA8, sube la textura y prepara el set.
+    if (g_image_req.load(std::memory_order_relaxed) != 0) {
+        g_image_req.store(0, std::memory_order_relaxed);
+        std::string path;
+        {
+            const std::lock_guard<std::mutex> lock(g_image_mutex);
+            path = g_image_path_req;
+        }
+        FILE* f = path.empty() ? nullptr : std::fopen(path.c_str(), "rb");
+        if (f != nullptr) {
+            std::fseek(f, 0, SEEK_END);
+            long sz = std::ftell(f);
+            std::fseek(f, 0, SEEK_SET);
+            std::vector<uint8_t> bytes(sz > 0 ? static_cast<size_t>(sz) : 0);
+            if (!bytes.empty() && std::fread(bytes.data(), 1, bytes.size(), f) == bytes.size()) {
+                int iw = 0, ih = 0, comp = 0;
+                stbi_uc* px = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()),
+                                                    &iw, &ih, &comp, 4);
+                if (px != nullptr && iw > 0 && ih > 0) {
+                    g_image_texture = upload_texture(static_cast<uint32_t>(iw),
+                                                     static_cast<uint32_t>(ih), px);
+                    g_image_set = make_texture_set(g_image_texture.get());
+                    g_image_w = static_cast<float>(iw);
+                    g_image_h = static_cast<float>(ih);
+                    g_image_on.store(true, std::memory_order_relaxed);
+                    hh::log("[overlay] imagen cargada: %dx%d (%s)\n", iw, ih, path.c_str());
+                }
+                if (px != nullptr) stbi_image_free(px);
+            }
+            std::fclose(f);
+        } else {
+            hh::log("[overlay] no se pudo abrir la imagen: %s\n", path.c_str());
+        }
+    }
+
     // Indicador de FPS: capa aparte, activa también sin menú (gameplay). Solo números, arriba-izq.
     const bool fps_on = g_fps_on.load(std::memory_order_relaxed);
     const int fps_value = g_fps_value.load(std::memory_order_relaxed);
@@ -286,7 +338,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         const std::lock_guard<std::mutex> lock(g_frame_mutex);
         frame = g_frame;
     }
-    if (!frame.visible && !fps_on) {
+    // Capa de IMAGEN (logos): independiente del menu; puede estar activa sola (al arrancar, antes
+    // del menu). Si no hay ni menu, ni FPS, ni imagen, no se dibuja nada.
+    const bool image_on = g_image_on.load(std::memory_order_relaxed) && g_image_set != nullptr &&
+                          g_image_w > 0.0f && g_image_h > 0.0f;
+    if (!frame.visible && !fps_on && !image_on) {
         return;
     }
 
@@ -303,6 +359,26 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     std::vector<uint32_t> indices;
     vertices.reserve(kMaxVertices);
     indices.reserve(kMaxIndices);
+
+    // IMAGEN primero (fondo): quad en PIXELES de ventana, ajustando el aspecto (contain) para no
+    // deformar. Rango de indices [0, image_index_count).
+    uint32_t image_index_count = 0;
+    if (image_on) {
+        const float fw = static_cast<float>(width);
+        const float fh = static_cast<float>(height);
+        const float img_aspect = g_image_w / g_image_h;
+        const float win_aspect = fw / fh;
+        float dw = fw, dh = fh;
+        if (img_aspect > win_aspect) {
+            dh = fw / img_aspect;   // limitado por ancho
+        } else {
+            dw = fh * img_aspect;   // limitado por alto
+        }
+        append_quad(vertices, indices, (fw - dw) * 0.5f, (fh - dh) * 0.5f, dw, dh, 0xFFFFFFFFu,
+                    0.0f, 0.0f, 1.0f, 1.0f);
+        image_index_count = static_cast<uint32_t>(indices.size());
+    }
+    const uint32_t panel_base = static_cast<uint32_t>(indices.size());
 
     for (const Panel& p : frame.panels) {
         append_quad(vertices, indices, p.x, p.y, p.w, p.h, p.color, 0.5f, 0.5f, 0.5f, 0.5f);
@@ -450,8 +526,21 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     };
     list->setGraphicsPushConstants(0, &pc);
 
+    // IMAGEN (logos) primero: proyeccion en PIXELES de ventana (1 unidad = 1 px, arriba-izquierda).
+    if (image_index_count > 0 && g_image_set != nullptr) {
+        const PushConstants pc_img{
+            .scale_x = 2.0f / static_cast<float>(width),
+            .scale_y = -2.0f / static_cast<float>(height),
+            .offset_x = -1.0f,
+            .offset_y = 1.0f,
+        };
+        list->setGraphicsPushConstants(0, &pc_img);
+        draw_range(list, g_image_set.get(), 0, image_index_count);
+    }
+
     // Paneles solidos (textura 1x1 blanca) y luego texto (atlas de la fuente del juego).
-    draw_range(list, g_white_set.get(), 0, panel_index_count);
+    draw_range(list, g_white_set.get(), image_index_count,
+               panel_index_count - image_index_count);
     draw_range(list, g_atlas_set.get(), panel_index_count, text_index_count);
 
     // Indicador de FPS con proyeccion en PIXELES (1 unidad = 1 px, origen arriba-izquierda).
@@ -495,6 +584,18 @@ void deinit_hook() {
 }  // namespace
 
 bool enabled() { return g_enabled; }
+
+void set_screen_image(const std::string& png_path) {
+    {
+        const std::lock_guard<std::mutex> lock(g_image_mutex);
+        g_image_path_req = png_path;
+    }
+    g_image_req.store(1, std::memory_order_relaxed);
+}
+
+void clear_screen_image() {
+    g_image_on.store(false, std::memory_order_relaxed);
+}
 
 void set_fps_indicator(bool enabled, int fps) {
     g_fps_on.store(enabled, std::memory_order_relaxed);
