@@ -60,6 +60,12 @@ constexpr size_t kFileCount = sizeof(hh::kCodeFiles) / sizeof(hh::kCodeFiles[0])
 // nuestra navegación. La bandera solo está activa durante esa llamada (ver hh_title_menu_hook).
 bool g_mute_native_input = false;
 
+// A2: cuando el overlay confirma una accion que debe ejecutar el JUEGO (p. ej. CONTINUAR), se
+// reenvia al dispatch NATIVO del menu de titulo: se fija `sel` (0x801CC8C4) al indice nativo y se
+// inyecta una pulsacion de A una sola vez, para que el handler corra su rama real (carga de
+// partida). Ver `feed_menu_navigation` y `hh_title_menu_hook`.
+bool g_inject_native_a = false;
+
 extern "C" void hh_native_dir_input(uint8_t* rdram, recomp_context* ctx) {
     if (g_mute_native_input) {
         ctx->r2 = 0;
@@ -69,6 +75,10 @@ extern "C" void hh_native_dir_input(uint8_t* rdram, recomp_context* ctx) {
 }
 
 extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
+    if (g_inject_native_a) {
+        ctx->r2 = 0x8000;   // A: reenvia la accion del overlay al dispatch nativo (una vez)
+        return;
+    }
     if (g_mute_native_input) {
         ctx->r2 = 0;
         return;
@@ -291,6 +301,18 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
+    // CONTINUAR (raiz): reenvia la accion al menu NATIVO. El indice de seleccion del juego
+    // (`0x801CC8C4`) va 0..4 = NEW GAME / CONTINUE / BATTLE MODE / SOUND / RESOLUTION; se fija a
+    // CONTINUE (1) y se inyecta A una vez, de modo que el handler nativo ejecute su rama real
+    // (func_801C3CDC: desmonta el menu y carga la partida). Solo con el overlay controlando.
+    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size()) &&
+            s.entries[s.cursor].action == hh::menu::Action::Continue) {
+            rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
+            g_inject_native_a = true;
+        }
+    }
     // SALIR (raíz): A cierra el port de forma ordenada (extra del port; ver docs/menu.md). Solo con
     // el overlay controlando el menú (con HH_OVERLAY=0 manda el nativo).
     if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
@@ -414,6 +436,7 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
         g_mute_native_input = controlling;
         func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original con input neutralizado
         g_mute_native_input = false;
+        g_inject_native_a = false;          // la inyeccion (CONTINUAR) es de un solo frame
         if (controlling) {
             MEM_H(0x3C, obj) = 0x384;
         }
