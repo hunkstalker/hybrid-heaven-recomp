@@ -64,6 +64,13 @@
      dibujan **debajo de la letra** (`src/platform/overlay.cpp`) para que la sombra no pise la tinta.
      Nombres `Set A`: `_base` (plantilla), `_ed` (diseño), `_blank` (lienzo de `--template`).
      Detalle: `notes/2026-09-26-c-sombras-y-set-a.md`.
+  10. [ ] **`CONTROLES` (remapeo + ejes + VIBRACIÓN) — IMPLEMENTADO (2026-09-26); pendiente validar
+     en Windows**: submenú con tabla de **acciones** y 2 columnas (**MANDO/TECLADO**), **scroll de 5
+     filas + flechas ↑/↓**, menús del port centrados. Reasignación a **cualquier botón (incl. D-PAD)
+     y/o tecla** (**1 botón + 1 tecla**), con bloqueo A/B 0.25 s al asignar; **movimiento** (4 ejes:
+     stick izq/der + tecla), **D-PAD** como botones (`MENÚ ...`), toggle **`VIBRACIÓN`** (Rumble Pak →
+     SDL; **comprobar que sigue guardando**) y **`RESET`**. Persiste en `[game]/[menu]` + `[keys]`.
+     `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de

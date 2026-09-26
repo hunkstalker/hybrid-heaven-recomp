@@ -40,6 +40,14 @@
   (sin logos HD en el replay; timer de inactividad nativo → intro/demos al ritmo original) y del
   **centrado del "Press Start"** traducido. Detalle:
   `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`; §Git.
+- **`CONFIGURACIÓN → CONTROLES` (remapeo + ejes + VIBRACIÓN)**: **implementado** (rama `menu-nativo`);
+  **pendiente validar en Windows**. Tabla de **acciones** con 2 columnas (**MANDO/TECLADO**), lista
+  larga con **scroll de 5 filas + flechas ↑/↓**, menús del port **centrados**. Reasignación de
+  cualquier acción a **cualquier botón (incl. D-PAD) y/o tecla** (**1 botón + 1 tecla**), con bloqueo
+  de A/B 0.25 s al asignar; **movimiento** (4 ejes: stick izq/der + tecla), **D-PAD** como botones
+  (`MENÚ ...`), toggle **`VIBRACIÓN`** (Rumble Pak → SDL) y **`RESET`**. Persiste en `[game]/[menu]`
+  (mando) y `[keys]` (teclado/ejes); `config_ini_clear_section` evita claves viejas. Detalle:
+  `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
 - **Traducción in-game (juego)**: charset + sustitución en runtime listos; **fuente 8×12 `color4`
   preparada pero sin cablear**.
 
@@ -121,12 +129,19 @@
    `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
 6. **Comprobar `DIFICULTAD` jugando**: verificar que el valor de `0x801BBC0D` se traduce en el **daño
    real** de los enemigos (requiere partida). La escritura está implementada (`0x801BBC0D`).
+7. **`CONTROLES` (remapeo + ejes + VIBRACIÓN)**: **implementado**; **pendiente validar en Windows**
+   (reasignación incl. tecla de "atrás" y stick, movimiento, D-PAD, `VIBRACIÓN` —¿vibra y **sigue
+   guardando**?—, `RESET`, centrado y scroll). Detalle:
+   `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
 
 > **Hecho (2026-09-26)**: `EMPEZAR PARTIDA` **validado en Windows**; `DIFICULTAD` implementada
 > (`notes/2026-09-26-g-empezar-partida-y-dificultad.md`).
 
 ### Aparcado
-- **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego).
+- **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego). **Interacción con CONTROLES
+  (decidido 2026-09-26)**: el **stick derecho** simula los **botones C** por defecto (`STICK C`); con
+  la **cámara libre activa**, el stick derecho pasa a ser **cámara** y se **desactivan todos los
+  mapeados de los botones C**. Sin conflicto (la cámara libre no es un botón C).
 
 **Widescreen/HUD — CERRADO (2026-09-26)**: radar y HUD de combate (POWER/STAMINA, disco, combo,
 stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre combates/niveles;
@@ -201,7 +216,9 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
   troceada en 6 commits (`422714c` capa de imagen del overlay, `33147da` pantalla `EXTRAS`, `a9eb0ae`
   logos HD + código Konami, `ff8fdc0` ventana borderless, `4318527` WAVs, `57dca28` docs) y los
   **fixes validados en Windows (2026-09-26)**: `a7705d5` (toggles `EXTRAS` + layout propio), `6e4df36`
-  (attract + timer de inactividad), `5e93d61` (centrado de traducciones `^`) y el commit de docs.
+  (attract + timer de inactividad), `5e93d61` (centrado de traducciones `^`) y sus docs. Después,
+  `1d790c7` (`chore(sfx)`: sonido de error + créditos Konami) y `74dd5a8` (`feat(config)`: pantalla
+  `CONTROLES` con remapeo, ejes, D-PAD, `VIBRACIÓN`, `RESET`, layout/scroll) + su commit de docs.
 - **`backup-sesion-intro-2026-09-26`**: respaldo del estado con el trabajo de logos/SFX; **CONSERVAR**.
 - **Estado del árbol**: limpio tras commitear (todo lo validado en Windows el 2026-09-26).
 - Commitear **solo** lo validado o la documentación, y **solo con permiso del mantenedor** (regla
