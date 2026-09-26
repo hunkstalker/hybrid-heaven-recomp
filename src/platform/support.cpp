@@ -637,7 +637,14 @@ ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
 }
 
 ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
-    uint32_t flags = SDL_WINDOW_RESIZABLE;
+    // HH: `wm=borderless` abre la ventana YA borderless y a tamano de escritorio, VISIBLE, de modo
+    // que aparece fullscreen desde el primer frame (SDL le da foco e icono de taskbar al crearla).
+    // RT64 la confirma en el constructor (`app->setFullScreen`: guarda el rect y re-aplica WS_POPUP
+    // al mismo rect -> sin transicion visible). `wm=windowed` deja una ventana normal: tamano
+    // recordado (`win_w/h`), si no una `res` concreta `ANCHOxALTO`, y si no la resolucion del monitor.
+    const hh::VideoConfig& vc = hh::video_config();
+    const bool fullscreen = (vc.wm != "windowed");
+    uint32_t flags = fullscreen ? SDL_WINDOW_BORDERLESS : SDL_WINDOW_RESIZABLE;
 
 #if defined(__APPLE__)
     flags |= SDL_WINDOW_METAL;
@@ -646,10 +653,6 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
 #endif
 
     hh::log("create_window: creating SDL window\n");
-    // HH: `wm=borderless` abre la ventana a tamano de escritorio y RT64 la pasa a fullscreen en el
-    // constructor (`app->setFullScreen`). `wm=windowed` deja una ventana normal: tamano recordado
-    // (`win_w/h`), si no una `res` concreta `ANCHOxALTO`, y si no la resolucion nativa del monitor.
-    const hh::VideoConfig& vc = hh::video_config();
     int win_w = 1280, win_h = 720;
     int win_x = SDL_WINDOWPOS_CENTERED, win_y = SDL_WINDOWPOS_CENTERED;
     SDL_DisplayMode dm{};
