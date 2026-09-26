@@ -22,6 +22,11 @@ assets/sounds/**/*.mp3
 
 # Capturas de test (imagenes del juego)
 muestra-menu-hybrid-heaven.png
+# Logs/capturas de desarrollo en la raiz (hh.log, y captura pareada F10 hh_cap_N.*);
+# ver src/hooks/dl_snap.cpp
+hh_*.log
+hh_cap_*.bmp
+hh_cap_*.png
 # tests/ ignorado salvo los replays de input (texto: tiempos+botones, sin datos del juego)
 tests/*
 !tests/replays/

@@ -135,6 +135,20 @@
   **Falta**: la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar sus
   identidades con `HH_HUD_TRACE=1` en las escenas donde aparecen (combate/diálogos) y añadirlas a
   la tabla fija. `HH_FULL_FRAME=0` desactiva el widescreen; `HH_NO_HUD_REWRITE=1` el anclaje.
+  **[x] Issue #3 (2026-09-25) — CERRADO y validado en Windows**: desde el **2º combate** el HUD de
+  combate se quedaba en 4:3 (la dirección RDRAM del gráfico cambia por encuentro; no es identidad).
+  Arreglos: POWER/STAMINA por **hash de contenido** (`d820d8e`); **disco plateado del radial** por
+  **hash + caja `27,19,59,51`**; **barra de combo** = 4 `G_FILLRECT` en la fila `y=28..30`; y
+  **stamina gastada** (v0.4.3) = `G_FILLRECT` en `y=34..38`. Los rellenos del HUD de combate
+  (POWER/combo/stamina) se clasifican por **posición** (el color no sirve: rojo→azul→naranja apagado;
+  y RT64 pinta el relleno con el PRIM color, así que la traza lee `fill_color=0`). Herramienta:
+  **F7 = captura pareada** (traza `hh_cap_<n>.log` + imagen `hh_cap_<n>.bmp` del mismo instante).
+  Detalle, intentos descartados y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
+- [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
+  con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
+  jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
+  influye). **Depende de desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
+  Ver `RETOMAR.md` y `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
@@ -170,6 +184,11 @@
   clic se colaba al juego (L→A). `hh::dev_panel_open()` (publicado en `update_screen`) desactiva el
   mapeo ratón→A/B **solo mientras el panel está abierto**. Pendiente validar en Windows.
   `notes/2026-09-23-input-raton-y-panel-rt64.md`.
+- [x] **[Issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa
+  desanclado al inicio del nivel 2-1 (2026-09-26)**: la salud ya se arregló con el issue #3; el
+  **minimapa** se anclaba por identidad `dl:<dirección>#<hash>` y el overlay cambia de dirección por
+  escena/capítulo → no casaba. Fix: emparejar los `dl` del mapa por **hash de contenido** (estable)
+  en `class_of`. `notes/2026-09-26-fix-minimapa-contenido.md`.
 - [x] **High frame rate por defecto (v0.4.0, 2026-09-23)**: `PresentEarly` + `Refresh Rate = Display`
   → presenta al refresco del monitor (~109 fps validado con RTSS), lógica a 30 Hz. Diagnóstico
   `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1`+F1; `HH_GRAPHICS_API`; atajos **F2** aspecto /

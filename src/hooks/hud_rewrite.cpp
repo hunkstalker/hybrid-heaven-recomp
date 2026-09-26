@@ -10,6 +10,7 @@
 #include "hh/hudrewrite.h"
 #include "hh/hudid.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -48,11 +49,18 @@ int map_crop_q() {
     return g_map_crop.load(std::memory_order_relaxed) * 4;
 }
 
+// Reescritor activo/desactivado en caliente (F10). Arranca segun `HH_NO_HUD_REWRITE`.
+std::atomic<bool> g_rewrite_off{ [] {
+    const char* v = std::getenv("HH_NO_HUD_REWRITE");
+    return v != nullptr && *v != '\0' && *v != '0';
+}() };
+
 // F3DEX2.
 constexpr uint8_t kMtx = 0xDA, kMoveWord = 0xDB, kMoveMem = 0xDC, kDl = 0xDE, kEndDl = 0xDF;
 constexpr uint8_t kTexRect = 0xE4, kTexRectFlip = 0xE5, kRdpHalf1 = 0xE1, kRdpHalf2 = 0xF1;
 constexpr uint8_t kSetScissor = 0xED, kSetFillColor = 0xF7, kSetTImg = 0xFD, kSetCImg = 0xFF;
 constexpr uint8_t kFillRect = 0xF6, kSetCombine = 0xFC;
+constexpr uint8_t kSetPrimColor = 0xFA, kSetEnvColor = 0xFB;
 constexpr uint8_t kMwSegment = 0x06, kMvViewport = 0x08, kMtxProjection = 0x04;
 
 // Vertex (`G_VTX`): carga `count` vertices desde el segmento `seg`/offset `w1` al slot `v0`.
@@ -78,17 +86,36 @@ void trace_site(const std::string& identity, const char* what, int ulx, int uly,
     hh::log("[hh-site] %s %s @ %d,%d..%d,%d (320x240)\n", what, identity.c_str(), ulx, uly, lrx, lry);
 }
 
-// HH_HUD_REWRITE_TRACE=1: cada identidad que ve el reescritor, una vez, con su clase y donde.
-void trace_seen(const std::string& identity, const char* where, int cls) {
-    static const bool on = std::getenv("HH_HUD_REWRITE_TRACE") != nullptr;
-    if (!on) return;
+// HH_HUD_REWRITE_TRACE=1 (o F7, captura pareada): cada identidad que ve el reescritor,
+// una vez, con su clase, donde, y su caja en 320x240 cuando el draw la tiene (rect/fill). La caja
+// es imprescindible cuando dos elementos comparten hash (p. ej. el radial y el disco usan el mismo
+// grafico): la combinacion hash+extension es la que desambigua. Vuelca a `hh_hud.log`.
+bool rewrite_trace_on() {
+    return std::getenv("HH_HUD_REWRITE_TRACE") != nullptr ||
+           hh::hud_trace_enabled();   // F7 (captura) comparte interruptor
+}
+
+void trace_seen(const std::string& identity, const char* where, int cls, int ulx = -1, int uly = -1,
+                int lrx = -1, int lry = -1) {
+    if (!rewrite_trace_on()) return;
     static std::vector<std::string> seen;
+    static int seen_epoch = -1;
+    const int ep = hh::hud_capture_epoch();
+    if (ep != seen_epoch) { seen_epoch = ep; seen.clear(); }   // cada captura (F7) es completa
+    char key[160];
+    std::snprintf(key, sizeof key, "%s %d %d,%d,%d,%d", identity.c_str(), cls, ulx, uly, lrx, lry);
     for (const auto& s : seen) {
-        if (s == identity) return;
+        if (s == key) return;
     }
     if (seen.size() > 4000) return;
-    seen.push_back(identity);
-    hh::log("[hh-hud] %s %s class %d\n", where, identity.c_str(), cls);
+    seen.push_back(key);
+    hh::log("[hh-hud] %s %s class %d box %d,%d,%d,%d\n", where, identity.c_str(), cls, ulx, uly, lrx,
+            lry);
+    if (std::FILE* f = hh::hud_trace_file()) {
+        std::fprintf(f, "%s %s class %d box %d,%d,%d,%d\n", where, identity.c_str(), cls, ulx, uly,
+                     lrx, lry);
+        std::fflush(f);
+    }
 }
 
 struct Writer {
@@ -105,6 +132,8 @@ struct Writer {
     uint32_t image = 0, fill_colour = 0;
     uint32_t combine_w0 = 0, combine_w1 = 0;   // ultimo G_SETCOMBINE visto (para restaurar)
     bool have_combine = false;
+    uint32_t prim_colour = 0, env_colour = 0;  // G_SETPRIMCOLOR / G_SETENVCOLOR (para la traza: color)
+    bool have_prim = false, have_env = false;
     std::string texture_ident;
     int applied = 0;
 
@@ -324,6 +353,19 @@ struct Writer {
     // `w0`/`w1` van ya en ORDEN DE SCISSOR (w0 = ulx/uly, w1 = lrx/lry): el llamante intercambia
     // las palabras de G_FILLRECT (ul en w1, lr en w0) y deja las de G_TEXRECT tal cual.
     void rect_begin(int cls, uint32_t w0, uint32_t w1) {
+        // Diagnostico (F7/HH_HUD_REWRITE_TRACE): scissor vigente al empezar un rect clasificado.
+        if (cls != kAuto && rewrite_trace_on()) {
+            const int q = 4;
+            int su = have_scissor ? static_cast<int>((scissor_w0 >> 12) & 0xFFF) : -1;
+            int sv = have_scissor ? static_cast<int>(scissor_w0 & 0xFFF) : -1;
+            int sl = have_scissor ? static_cast<int>((scissor_w1 >> 12) & 0xFFF) : -1;
+            int sm = have_scissor ? static_cast<int>(scissor_w1 & 0xFFF) : -1;
+            char key[128];
+            std::snprintf(key, sizeof key, "rect_begin cls=%d have_scissor=%d sc=%d,%d..%d,%d",
+                          cls, have_scissor ? 1 : 0, su / q, sv / q, sl / q, sm / q);
+            hh::log("[hh-hud] %s (320x240)\n", key);
+            if (std::FILE* f = hh::hud_trace_file()) { std::fprintf(f, "%s\n", key); std::fflush(f); }
+        }
         switch (cls) {
             case kLeft:
                 widen_scissor(cls);
@@ -560,6 +602,16 @@ struct Writer {
                     combine_w1 = w1;
                     emit(w0, w1);
                     break;
+                case kSetPrimColor:
+                    have_prim = true;
+                    prim_colour = w1;
+                    emit(w0, w1);
+                    break;
+                case kSetEnvColor:
+                    have_env = true;
+                    env_colour = w1;
+                    emit(w0, w1);
+                    break;
                 case kSetCImg:
                     fb_width = ((w1 & 0x00FFFFFF) == 0x00400000) ? 640 : 320;
                     emit(w0, w1);
@@ -576,12 +628,14 @@ struct Writer {
                 case kFillRect: {
                     // Mismas coordenadas que el trace: 320x240, clears excluidos.
                     const float to_320 = 320.0f / static_cast<float>(fb_width);
-                    const std::string id = hh::hudid::fill(
-                        fill_colour, int((((w1 >> 12) & 0xFFF) / 4.0f) * to_320), int(((w1 & 0xFFF) / 4.0f) * to_320),
-                        int((((w0 >> 12) & 0xFFF) / 4.0f) * to_320), int(((w0 & 0xFFF) / 4.0f) * to_320));
-                    int cls = id.empty() ? kAuto : class_of(id.c_str());
+                    const int f_ulx = int((((w1 >> 12) & 0xFFF) / 4.0f) * to_320);
+                    const int f_uly = int(((w1 & 0xFFF) / 4.0f) * to_320);
+                    const int f_lrx = int((((w0 >> 12) & 0xFFF) / 4.0f) * to_320);
+                    const int f_lry = int(((w0 & 0xFFF) / 4.0f) * to_320);
+                    const std::string id = hh::hudid::fill(fill_colour, f_ulx, f_uly, f_lrx, f_lry);
+                    int cls = id.empty() ? kAuto : class_of(id.c_str(), f_ulx, f_uly, f_lrx, f_lry);
                     if (cls == kAuto) cls = elem_cls;   // heredada del grupo que lo contiene
-                    if (!id.empty()) trace_seen(id, "fill rect", cls);
+                    if (!id.empty()) trace_seen(id, "fill rect", cls, f_ulx, f_uly, f_lrx, f_lry);
                     if (cls != kAuto) trace_elem(id, cls);
                     if (cls == kRight) {
                         // Fondo negro del mapa. NO se usa el G_FILLRECT del juego: se RECONSTRUYE a
@@ -662,9 +716,37 @@ struct Writer {
                 }
                 case kTexRect:
                 case kTexRectFlip: {
-                    int cls = class_of(texture_ident.c_str());
+                    // Extension del rect en 320x240 (mismo orden que el trace): se pasa a class_of
+                    // para desambiguar graficos con hash compartido (p. ej. el par del radial).
+                    const float to_320 = 320.0f / static_cast<float>(fb_width);
+                    const int t_ulx = int((((w1 >> 12) & 0xFFF) / 4.0f) * to_320);
+                    const int t_uly = int(((w1 & 0xFFF) / 4.0f) * to_320);
+                    const int t_lrx = int((((w0 >> 12) & 0xFFF) / 4.0f) * to_320);
+                    const int t_lry = int(((w0 & 0xFFF) / 4.0f) * to_320);
+                    int cls = class_of(texture_ident.c_str(), t_ulx, t_uly, t_lrx, t_lry, env_colour);
                     if (cls == kAuto) cls = elem_cls;   // heredada del grupo que lo contiene
-                    trace_seen(texture_ident, "tex rect", cls);
+                    // La traza incluye el color de prim/env (RGBA) para desambiguar graficos con
+                    // hash compartido (dfde6ac5: radial = mascara; segmentos de combo = rojo).
+                    if (rewrite_trace_on()) {
+                        const int pr = int((prim_colour >> 24) & 0xFF), pg = int((prim_colour >> 16) & 0xFF);
+                        const int pb = int((prim_colour >> 8) & 0xFF), pa = int(prim_colour & 0xFF);
+                        const int er = int((env_colour >> 24) & 0xFF), eg = int((env_colour >> 16) & 0xFF);
+                        const int eb = int((env_colour >> 8) & 0xFF), ea = int(env_colour & 0xFF);
+                        char key[200];
+                        std::snprintf(key, sizeof key, "%s cls=%d box=%d,%d,%d,%d prim=%d,%d,%d,%d env=%d,%d,%d,%d",
+                                      texture_ident.c_str(), cls, t_ulx, t_uly, t_lrx, t_lry, pr, pg, pb,
+                                      pa, er, eg, eb, ea);
+                        static std::vector<std::string> seen_colour;
+                        static int seen_colour_epoch = -1;
+                        const int cep = hh::hud_capture_epoch();
+                        if (cep != seen_colour_epoch) { seen_colour_epoch = cep; seen_colour.clear(); }
+                        if (seen_colour.size() < 4000 && std::find(seen_colour.begin(), seen_colour.end(), key) == seen_colour.end()) {
+                            seen_colour.push_back(key);
+                            hh::log("[hh-hud] %s\n", key);
+                            if (std::FILE* f = hh::hud_trace_file()) { std::fprintf(f, "%s\n", key); std::fflush(f); }
+                        }
+                    }
+                    trace_seen(texture_ident, "tex rect", cls, t_ulx, t_uly, t_lrx, t_lry);
                     if (cls != kAuto) trace_elem(texture_ident, cls);
                     rect_begin(cls, w0, w1);
                     trace_draw(texture_ident, "texrect");
@@ -707,22 +789,13 @@ void map_crop_add(int delta) {
     std::fflush(stderr);
 }
 
-int class_of(const char* identity) {
+int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t env_colour) {
     if (identity == nullptr) return kAuto;
+    // dl: lista llamada. La direccion de un `dl` identificado no vive en heap movil, asi que el
+    // exact-match por identidad sigue valiendo.
     struct Entry { const char* id; int cls; };
     static const Entry kTable[] = {
-        // Radar (barra de salud radial), borde izquierdo.
-        { "tex:0x802866f8#a3036828", kLeft },
-        { "tex:0x80286af8#dfde6ac5", kLeft },
-        { "dl:0x80181860#e59a0172", kLeft },
-        // HUD de combate POWER/STAMINA (al lado del radial, misma altura): barras + decoracion +
-        // numeros HP. Todo se desplaza lo mismo que el radial (`left`).
-        { "tex:0x802875b8#dde74e45", kLeft },   // barra fina
-        { "tex:0x80301ea8#49f54bfa", kLeft },   // decoracion/etiqueta POWER/STAMINA
-        { "tex:0x802872f8#18bafa7e", kLeft },   // marco
-        { "tex:0x802ec298#2d78f1b6", kLeft },   // decoracion
-        { "tex:0x802eca98#37a5c505", kLeft },   // decoracion
-        { "tex:0x802ed298#26092cb3", kLeft },   // decoracion
+        { "dl:0x80181860#e59a0172", kLeft },   // dial del radar (rama G_DL)
         // Mapa (abajo-derecha): fondo + capas. Identidades de la referencia, hashes coincidentes.
         { "fill:0x00000000@197,143,277,223", kRight },
         { "dl:0x030002e0#bbb8c0ba", kRight },
@@ -731,14 +804,68 @@ int class_of(const char* identity) {
     for (const Entry& e : kTable) {
         if (std::strcmp(identity, e.id) == 0) return e.cls;
     }
-    // Prefijos: barras de valor animadas (el ancho del fill cambia cada frame -> identidad distinta).
-    struct Prefix { const char* p; int cls; };
-    static const Prefix kPrefix[] = {
-        { "fill:0x00000000@64,24,", kLeft },   // relleno de POWER/STAMINA (y 24..27)
-    };
-    for (const Prefix& p : kPrefix) {
-        if (std::strncmp(identity, p.p, std::strlen(p.p)) == 0) return p.cls;
+
+    // A partir de aqui, texturas clasificadas por HASH DE CONTENIDO (los primeros 64 B de la
+    // imagen), que identifica el grafico aunque cambie su direccion RDRAM. Motivo: el modulo de
+    // combate (file 57) y otras escenas se cargan/descargan y los graficos viven en memoria
+    // dinamica -> la identidad `tex:<addr>#<hash>` no casa (issue #3: 1er combate si, del 2o en
+    // adelante no; disco y combo igual). La direccion NO es identidad.
+    if (std::strncmp(identity, "tex:", 4) != 0) {
+        // MINIMAPA (`right`): el overlay del mapa se carga por escena/capitulo y su direccion
+        // cambia. Issue #7: al inicio del nivel 2-1 el mapa verde (un mesh bajo proyeccion
+        // ortografica) sale desanclado, fuera del marco, porque la identidad `dl:<addr>#<hash>` de
+        // kTable ya no casa. El HASH DE CONTENIDO de la lista (primeros 16 comandos) es estable ->
+        // se empareja por hash, ignorando la direccion. (El dial del radar, kLeft, ya caso antes.)
+        if (std::strncmp(identity, "dl:", 3) == 0) {
+            uint32_t dh = 0;
+            if (hh::hudid::parse_hash(identity, dh) && (dh == 0xbbb8c0bau || dh == 0x1427da33u)) {
+                return kRight;
+            }
+        }
+        // Rellenos del HUD de combate (G_FILLRECT): filas de POWER (y24..27), COMBO (y28..30) y
+        // STAMINA gastada (y34..38), en el tramo x~64..182. El COLOR no sirve como identidad:
+        // cambia (rojo/azul/naranja apagado) y RT64 pinta el relleno con el PRIM color, asi que la
+        // traza lee `fill_color=0`. Se anclan por POSICION (fila estable). Confirmado con el
+        // Inspector de RT64 (HH_DEVELOPER=1, F1): combo = `Rect 64,28,92,30`; stamina gastada =
+        // `Rect 64,34,92,38` (Call #3, 2 triangulos). Ver RETOMAR §Bugs abiertos y la nota.
+        if (uly >= 24 && uly <= 38 && lry >= 24 && lry <= 38 && lrx <= 190) return kLeft;
+        return kAuto;
     }
+    uint32_t h = 0;
+    if (!hh::hudid::parse_hash(identity, h)) return kAuto;
+
+    // Graficos EXCLUSIVOS del HUD (barras/decoracion de combate, barra de combo): el hash es
+    // unico, basta con el. `box_exact` solo cuando hace falta (hash compartido).
+    struct ContentEntry { uint32_t hash; int cls; };
+    static const ContentEntry kContent[] = {
+        { 0xdde74e45u, kLeft },   // barra fina
+        { 0x49f54bfau, kLeft },   // decoracion/etiqueta POWER/STAMINA
+        { 0x18bafa7eu, kLeft },   // marco
+        { 0x2d78f1b6u, kLeft },   // decoracion
+        { 0x37a5c505u, kLeft },   // decoracion
+        { 0x26092cb3u, kLeft },   // decoracion
+    };
+    for (const ContentEntry& e : kContent) {
+        if (e.hash == h) return e.cls;
+    }
+
+    // Par del radial/disco (`a3036828` + `dfde6ac5`): el hash se reutiliza en menus y minimapa
+    // (198 usos), asi que SOLO se ancla cuando la caja es exactamente la del radial (32x32 en
+    // 27,19..59,51). Combinacion hash+extension = identidad sin over-match.
+    struct BoxEntry { uint32_t hash; int ulx, uly, lrx, lry; int cls; };
+    static const BoxEntry kBox[] = {
+        { 0xa3036828u, 27, 19, 59, 51, kLeft },   // disco/fondo del radial
+        { 0xdfde6ac5u, 27, 19, 59, 51, kLeft },   // capa del radial
+    };
+    for (const BoxEntry& e : kBox) {
+        if (e.hash == h && e.ulx == ulx && e.uly == uly && e.lrx == lrx && e.lry == lry) {
+            return e.cls;
+        }
+    }
+
+    // Nada mas: `dfde6ac5` (mascara compartida por radial/minimapa/menus) NO se ancla por tamano;
+    // un intento previo por "32x32 no-radial" quedo sin validar y se retiro. La barra de combo son
+    // los G_FILLRECT de la fila y=28..30, ya cubiertos arriba.
     return kAuto;
 }
 
@@ -746,12 +873,19 @@ bool any_classes() {
     return true;
 }
 
+bool enabled() {
+    return !g_rewrite_off.load(std::memory_order_relaxed);
+}
+
+void toggle() {
+    const bool now_on = g_rewrite_off.load(std::memory_order_relaxed);   // si estaba off -> ahora on
+    g_rewrite_off.store(!now_on, std::memory_order_relaxed);
+    hh::log("[hh] reescritor HUD %s (F10)\n", now_on ? "ACTIVADO" : "DESACTIVADO");
+    std::fprintf(stderr, "[HH] F10: reescritor HUD %s\n", now_on ? "ON" : "OFF");
+}
+
 uint32_t rewrite(uint8_t* rdram, uint32_t list_address) {
-    static const bool off = [] {
-        const char* v = std::getenv("HH_NO_HUD_REWRITE");
-        return v != nullptr && *v != '\0' && *v != '0';
-    }();
-    if (off || !any_classes() || rdram == nullptr) return 0;
+    if (g_rewrite_off.load(std::memory_order_relaxed) || !any_classes() || rdram == nullptr) return 0;
 
     g_turn ^= 1;
     Writer w{ rdram, kScratch[g_turn], kScratchSize };

@@ -8,10 +8,10 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 111 | 2026-09-24 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 139 | 2026-09-25 |
-| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 90 | 2026-09-24 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 232 | 2026-09-25 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-24 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 147 | 2026-09-25 |
+| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 93 | 2026-09-24 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 251 | 2026-09-25 |
 
 ## Técnico y guías (vivos)
 
@@ -27,6 +27,10 @@
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
 | [v0.4.0 - High frame rate (frame interpolation)](releases/v0.4.0.md) | El port presenta ahora hasta el **refresco del monitor** (interpolando los frames de 30 Hz del | 14 | 2026-09-22 |
+| [v0.4.1 - Flexible ROM Loading (SHA-1 Check)](releases/v0.4.1.md) | Carga de ROM más tolerante y con verificación de integridad. | 7 | 2026-09-26 |
+| [v0.4.2 - Combat HUD widescreen anchor fix](releases/v0.4.2.md) | El **HUD de combate** se ancla entero en widescreen también a partir del **2.º combate** (antes, | 10 | 2026-09-26 |
+| [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-26 |
+| [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-26 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 265 | 2026-09-24 |
 
 ## Decisiones (ADR, inmutables)
@@ -50,6 +54,9 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Issue #7 — Minimapa desanclado al inicio del nivel 2-1 (RESUELTO)](../notes/2026-09-26-fix-minimapa-contenido.md) | 2026-09-26. Bug reportado por El-Rana. Síntoma: al inicio del **nivel 2-1** (tras eliminar al | 39 | 2026-09-26 |
+| [Sincronizar `menu-nativo` con `main` (v0.4.1–v0.4.4)](../notes/2026-09-26-a-sync-menu-nativo-con-main.md) | Sesión 2026-09-26. Cierra la desincronización de **`menu-nativo`** (que salió de `v0.4.0`, | 49 | 2026-09-26 |
+| [Issue #3 — HUD de combate: anclaje por identidad de contenido (RESUELTO)](../notes/2026-09-25-f-hud-combate-contenido.md) | **Sesiones 2026-09-25.** Cerrado y **validado en Windows** en las 4 partes. Aquí queda el cómo, | 150 | 2026-09-25 |
 | [Fix: cambiar de idioma aceleraba el juego (reapply sobre RDRAM)](../notes/2026-09-25-e-fix-reapply-idioma.md) | Evidencia del bug reportado en `RETOMAR.md §BUG CONOCIDO` (vi 30 → 60 al cambiar idioma). | 61 | 2026-09-25 |
 | [D — Menú multilingüe, acentos por marcas e idiomas (EN/ES/CA/FR/DE)](../notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md) | Sesión 2026-09-25 (4.ª del día). Cierra la **tarea de menú + traducción** iniciada en las notas | 87 | 2026-09-25 |
 | [C — Fuente EU (`color4`) localizada y decodificada: gaiji acentuados reales](../notes/2026-09-25-c-font-eu-color4-localizada.md) | Sesión 2026-09-25. Desbloquea el paso 4 (acentos) del menú A2 y la vía B (glifos **reales**, no | 127 | 2026-09-25 |
@@ -68,7 +75,7 @@
 | [A2 — Plan: sección "Idioma" en el menú de AJUSTES in-game](../notes/2026-09-23-a2-plan-menu-ajustes-idioma.md) | Sesión 2026-09-23. Continuación de A1. Objetivo (del mantenedor): el selector de idioma debe ser un | 109 | 2026-09-23 |
 | [A2 — Overlay propio: intento por GBI (fallido) y cambio de vía al render hook](../notes/2026-09-23-a2-overlay-primer-paso.md) | Sesión 2026-09-23. Primer paso de A2 (overlay moderno imitando al juego). Se intentó dibujar el | 75 | 2026-09-23 |
 | [A1 — Sistema de idiomas + cambio en vivo (base del selector, ADR 0008)](../notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md) | Sesión 2026-09-23. Primera parte de la vía **A** (UI/selector propio). Funcional; falta la parte | 55 | 2026-09-23 |
-| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 90 | 2026-09-22 |
+| [2026-09-22 — FPS: contador mínimo (`HH_FPS`) y pista `PresentEarly`](../notes/2026-09-22-fps-y-present-early.md) | Evidencia de la sesión. Estado/tareas: `TODO.md`. Referencia MIT en `/tmp/opencode/ref-hh` | 110 | 2026-09-22 |
 | [2026-09-22 — Fix mapa: rect negro vs contenido (widescreen fase 07b)](../notes/2026-09-22-fix-mapa-rect-negro-widescreen.md) | Tarea cerrada y **validada en Windows** por el mantenedor (2026-09-22). Continúa | 53 | 2026-09-22 |
 | [2026-09-22 — Cursor, carpeta `rom/` en release y README](../notes/2026-09-22-cursor-release-rom-readme.md) | Sesión de cierre tras validar el fix del mapa (fase 07b). Tres tareas pequeñas + hallazgo del | 33 | 2026-09-22 |
 | [2026-09-22 — Anclaje del HUD/mapa a los bordes (widescreen, fase 07b)](../notes/2026-09-22-anclaje-hud-widescreen-fase07b.md) | Nota de **tarea** (fase 07b). Contexto previo del radar: | 39 | 2026-09-22 |

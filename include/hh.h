@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -19,7 +20,7 @@ namespace hh {
     // derivan el string del log (get_version_string) y el recomp::Version del runtime.
     inline constexpr int kVersionMajor = 0;
     inline constexpr int kVersionMinor = 4;
-    inline constexpr int kVersionPatch = 0;
+    inline constexpr int kVersionPatch = 4;
 
     const char* get_version_string();
 
@@ -142,6 +143,8 @@ namespace hh {
     // F1). La peticion se aplica en el hilo de render (update_screen). Definido en
     // src/platform/rt64_render_context.cpp.
     void set_developer_mode(bool enabled);
+    void video_toggle_present_early();   // F8 (diagnostico: PresentEarly <-> SkipBuffering)
+    void video_toggle_interpolation();   // F9 (diagnostico: RefreshRate Display <-> Original)
 
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();
@@ -193,6 +196,21 @@ namespace hh {
         void play(Sfx s);
         void mix(int16_t* samples, size_t sample_count);   // desde hh::queue_samples
     }
+
+    // Handle de `hh_hud.log` (se abre la primera vez; null si falla) o, si hay captura en curso, del
+    // fichero de esa captura. Lo comparten el walker (dl_snap.cpp) y el reescritor (hud_rewrite.cpp).
+    std::FILE* hud_trace_file();
+
+    // Captura PAREADA a demanda (tecla F7): vuelca la traza de identidades 2D de UN frame a
+    // `hh_cap_<n>.log` y, en el siguiente present, guarda la imagen de la ventana en `hh_cap_<n>.bmp`.
+    // Asi el log y la imagen son el mismo instante (indispensable para atar un box del trace a lo que
+    // se ve en pantalla). Cada F7 abre una captura nueva (n++). Ver dl_snap.cpp / rt64_render_context.
+    void hud_capture_trigger();          // F7: abre una captura (o cancela la activa)
+    bool hud_capture_active();           // hay una captura en curso (para `hud_trace_enabled`)
+    int  hud_capture_epoch();            // cambia con cada captura: los dedup `seen` se vacian al cambiar
+    bool hud_capture_pending();          // toca guardar la imagen en este present
+    const char* hud_capture_image_path();// ruta del .bmp de la captura activa
+    void hud_capture_finish();           // cierra el log y termina la captura
 }
 
 // Traduce in-place un buffer en orden guest (antes de escribirlo a RDRAM). Devuelve n.º de

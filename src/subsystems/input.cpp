@@ -556,6 +556,24 @@ void hh::poll_input() {
                         hh::menu_overlay::adjust(dx, dy, dsx, dsy);
                     }
                 }
+                else if (k.sym == SDLK_F7) {
+                    // Captura pareada a demanda (widescreen fase 07b / issue #3): traza de identidades
+                    // 2D de un frame -> `hh_cap_<n>.log` + imagen de la ventana -> `hh_cap_<n>.bmp`,
+                    // en el mismo instante. Cada F7 abre una captura nueva; otro F7 la cancela.
+                    hh::hud_capture_trigger();
+                }
+                else if (k.sym == SDLK_F8) {
+                    // Diagnostico (parpadeo de geometria): PresentEarly <-> SkipBuffering.
+                    hh::video_toggle_present_early();
+                }
+                else if (k.sym == SDLK_F9) {
+                    // Diagnostico (parpadeo de geometria): interpolacion (RefreshRate) Display <-> Original.
+                    hh::video_toggle_interpolation();
+                }
+                else if (k.sym == SDLK_F10) {
+                    // Diagnostico (A/B): activa/desactiva el reescritor del HUD 2D.
+                    hh::hudrewrite::toggle();
+                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);

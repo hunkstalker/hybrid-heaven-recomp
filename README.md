@@ -25,13 +25,16 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 
 ## Estado (punto de control)
 
-**Sin bloqueantes conocidos para terminar el juego** (revisión del mantenedor, 2026-09-22):
+**Sin bloqueantes conocidos**: validado en Windows, jugado **hasta el nivel 2-1** (tras el primer
+jefe) sin cuelgues ni crashes.
 
-- **Validado en Windows**: START → menú → GAME START → gameplay, primer NPC, cajas, primer CaC y
-  combate, y una sesión de ~30 min hasta el **6º combate** sin cuelgues ni crashes.
-- **Guardado/carga** (cápsula) y **mando** validados; **widescreen** con HUD/minimapa anclados.
-- **Alta tasa de refresco**: presenta hasta el refresco del monitor (movimiento suave).
+- **Guardado/carga** (cápsula) y **mando** validados; **widescreen** con HUD/minimapa anclados en
+  todas las escenas.
+- **Alta tasa de refresco**: presenta hasta el refresco del monitor mediante **interpolación de frames**.
 - Teardown limpio (sin SEGV al salir).
+- **Único problema conocido**: fallos **visuales** por la **interpolación de frames** (p. ej. una
+  puerta y el primer jefe del nivel 1); con `Refresh Rate = Original` desaparecen. El arreglo de
+  fondo implica desacoplar la lógica del juego del render (ver `TODO.md`).
 
 Limitaciones y pendientes (detalle en `TODO.md`): menú multijugador (SEGV, fuera de alcance),
 audio atado al tick de 30 Hz, extracción/traducción de textos, y validación de Steam Deck.

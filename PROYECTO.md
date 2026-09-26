@@ -67,16 +67,24 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-25)**: **menú inicial + idiomas HECHOS en headless** (árbol, navegación,
-acciones video/audio, SFX, acentos por letra+marca, EN/ES/CA/FR/DE + idioma del sistema); **BUG del
-reapply de idioma resuelto** (ya no acelera el juego: `notes/2026-09-25-e-fix-reapply-idioma.md`);
-**falta validar en Windows** y el **JA del menú**. Pendiente: cablear la fuente in-game 8×12 y las
-traducciones in-game (DE/FR/JA de las ROMs; ES/CA propias). **High frame rate por defecto** — el port presenta hasta el refresco
-del monitor (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a
-30 Hz). Antes: **mapa widescreen (fase 07b) validado** (HUD/minimapa anclados) y **migración ELF
-(ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues). **M5** (saneamiento) y
-**M4c** (SEGV teardown, fix en fork NMR) hechos. `lib/` como **submódulos** (ADR 0010). Plan general:
-`notes/2026-09-21-migracion-via-referencia-elf.md`.
+**Estado actual (2026-09-26)**: **`main` = v0.4.4** con **issues #3 y #7 CERRADOS y validados en
+Windows** — el HUD de combate y el **minimapa** se anclan enteros en widescreen en todas las
+escenas/capítulos: POWER/STAMINA por hash de contenido (`d820d8e`), disco plateado del radial por
+hash+caja `27,19,59,51`, barra de combo (4 `G_FILLRECT` en `y=28..30`) y **stamina gastada**
+(`G_FILLRECT` en `y=34..38`) por posición, y **minimapa** por hash de contenido de su lista.
+Herramienta: **F7 = captura pareada** (traza + imagen).
+`notes/2026-09-25-f-hud-combate-contenido.md` · `notes/2026-09-26-fix-minimapa-contenido.md`.
+**`menu-nativo` (WIP, recién sincronizada con `main`; futura v0.5.0)**: menú inicial + idiomas
+HECHOS en headless (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
+EN/ES/CA/FR/DE + idioma del sistema); **BUG del reapply de idioma resuelto**
+(`notes/2026-09-25-e-fix-reapply-idioma.md`); **falta validar en Windows** y el **JA del menú**.
+Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
+propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
+(interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
+Antes: **mapa widescreen (fase 07b) validado** (`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`);
+**migración ELF (ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues).
+**M5** (saneamiento) y **M4c** (SEGV teardown, fix en fork NMR) hechos. `lib/` como **submódulos**
+(ADR 0010). Plan general: `notes/2026-09-21-migracion-via-referencia-elf.md`.
 **Historial (detalle en `notes/`)**: reset per-file 2026-09-20 (causa del bloqueo de boot/CaC, superado
 por la vía ELF); antes, live 30 ticks/s + replay y CaC investigado por el scheduler de eventos; 2026-09-18
 cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fixes de M55/`HH_S0FIX`.

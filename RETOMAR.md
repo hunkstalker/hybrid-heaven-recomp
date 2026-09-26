@@ -4,31 +4,22 @@
 > **Diseño** y **técnica** viven en `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
 > **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
 
-## LO PRIMERO: sincronizar con `main` (merge `main` → `menu-nativo`)
+## Sincronización con `main` — CERRADA (2026-09-26)
 
-`menu-nativo` salió de **v0.4.0** (`c977bd5`) y `main` ya publicó **v0.4.1–v0.4.4** (fixes del HUD de
-combate POWER/STAMINA/combo/stamina y del minimapa, captura **F7**, toggles F8–F10). Hay que traerlos
-a esta rama **antes** de seguir/validar. **No** mergear todavía `menu-nativo` → `main`: es WIP sin
-validar en Windows; será la **futura feature release** (probablemente **v0.5.0**) cuando esté completa.
+`menu-nativo` salió de **v0.4.0** (`c977bd5`) y `main` publicó **v0.4.1–v0.4.4**. El merge
+`main → menu-nativo` está **hecho y validado** (unión: HUD/docs de `main`, menú/idiomas de
+`menu-nativo`). Detalle en `notes/2026-09-26-a-sync-menu-nativo-con-main.md`.
 
-**Método**: `git switch menu-nativo && git merge main` — **merge, no rebase** (`menu-nativo` ya está en
-`origin`; reescribir 60 commits es malo). Antes conviene: tag de checkpoint y **pushear `menu-nativo`**
-(`origin/menu-nativo` va detrás).
-
-**Conflictos esperados (~14 ficheros "changed in both", medido con `git merge-tree`)**: `.gitignore`,
-`AGENTS.md`, `PROYECTO.md`, `README.md`, `RETOMAR.md`, `TODO.md`, `build_windows.bat`, `docs/INDEX.md`,
-`include/hh.h`, `src/hooks/dl_snap.cpp`, `src/platform/main.cpp`,
-`src/platform/rt64_render_context.cpp`, `src/platform/support.cpp`, `src/subsystems/input.cpp`.
-- `src/hooks/hud_rewrite.cpp` **no** aparece → los fixes de HUD (issue #3/#7) llegan **limpios**;
-  el riesgo está en la **API/teclas**, no en la lógica del anclaje.
-- **Conservar de `main`**: fixes de HUD, captura **F7** + toggles **F8–F10**, `kVersionPatch` y docs.
-- **Conservar de `menu-nativo`**: lógica del menú, **F5** idioma / **F6** menú nativo, idiomas/acentos.
-- **Reconciliar con cuidado**: `input.cpp` (teclas), `include/hh.h` (API), `support.cpp` y
-  `rt64_render_context.cpp` (aquí chocan los toggles de video/render de `main` con el menú), `main.cpp`
-  (init) y los docs (`RETOMAR`/`TODO`/`PROYECTO`/`README`/`INDEX`).
-- Tras resolver: `cmake --build build/linux` y `python3 tools/analysis/docs_index.py`.
-
-No cerrar el merge “a ciegas”: compilar Linux **y** validar en Windows (ver §SIGUIENTE TAREA).
+- Resueltos a mano los 8 que conflictuaron: `include/hh.h`, `src/subsystems/input.cpp` (F5/F6 +
+  calibración + F1/ratón-dev **y** F7–F10), `src/platform/rt64_render_context.cpp` (API de menú +
+  captura F7/BMP), `AGENTS.md`, `PROYECTO.md`, `RETOMAR.md`, `TODO.md`, `docs/INDEX.md` (docs: unión).
+- Auto-merge limpio: `src/platform/main.cpp`, `src/platform/support.cpp`, `src/hooks/dl_snap.cpp`,
+  `build_windows.bat`, `.gitignore`, `README.md`; `src/hooks/hud_rewrite.cpp` llegó **limpio**
+  (fixes #3/#7 intactos).
+- **Validado**: Linux compila (`cmake --build build/linux`) y **Windows OK** (mantenedor).
+- **No** mergear todavía `menu-nativo` → `main`: es WIP; será la **futura feature release**
+  (probablemente **v0.5.0**) cuando esté completa. Checkpoint pre-merge: tag
+  `backup-menu-nativo-sync`.
 
 ## Estado
 
@@ -44,6 +35,12 @@ No cerrar el merge “a ciegas”: compilar Linux **y** validar en Windows (ver 
     **endónimos**.
   - **Idioma del sistema** si no hay `[lang]` (Windows `GetUserDefaultLocaleName`; Linux `LANG`/`LC_*`),
     con fallback a **inglés**. Prioridad `HH_LANG` > `[lang]` > sistema > `en`.
+- **HUD/minimapa de `main` (v0.4.1–v0.4.4) integrados por el merge**:
+  - **POWER/STAMINA** por hash de contenido (`d820d8e`); **disco plateado** del radial por hash+caja
+    `27,19,59,51`; **barra de combo** (4 `G_FILLRECT`, `y=28..30`) y **stamina gastada** (`y=34..38`)
+    por posición → issue **#3** CERRADO. `notes/2026-09-25-f-hud-combate-contenido.md`.
+  - **Minimapa** por **hash de contenido** de su `dl` (la dirección cambia por escena/capítulo) →
+    issue **#7** CERRADO (v0.4.4). `notes/2026-09-26-fix-minimapa-contenido.md`.
 - **Fuente in-game (8×12 `color4`) ES/CA/FR/DE preparada** (`tools/text/build_font.py` →
   `include/hh/game_font_color4.h`) pero **sin cablear** (hoy `text_glyphs.cpp` sirve un set 8×8 propio).
 - **Idiomas en las ROMs**: EU = En/Fr/De; JP = ja (añadida a `work/roms/jp.z64`); ES/CA no existen.
@@ -64,18 +61,33 @@ Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y
 **Validado headless**: con `HH_FPS=1 HH_LANG_CYCLE_AT=15` el `vi` se queda en 30 y `present≈29.5`
 (antes saltaba a 60 / ~54). **Falta confirmar en Windows** (ver tarea siguiente).
 
-## SIGUIENTE TAREA: validar en Windows (paso 8)
+## Bug aplazado (interpolación de frames)
 
-No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
-1. **Menú 1:1** con el nativo, navegación, listas/selectores, SFX.
-2. **Acentos**: abrir `NUEVA PARTIDA` y `GRÁFICOS` (`CÁMARA`, `GRÁFICOS`, `RESOLUCIÓN`, `LÍMITE`) y
-   ver las tildes (letra + marca). Forzar con `HH_MENU_SCREEN=6`/`=5` si hace falta.
-3. **IDIOMA** (en `AJUSTES`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
-   texto in-game con F5), **sin que el juego se acelere** (fix del reapply; ver §BUG RESUELTO).
-   Persistencia en `config.ini [lang]`.
-4. **Idioma del sistema**: borrar `[lang]` de `config.ini` y arrancar con el SO en otro idioma
-   (p. ej. francés) → debe arrancar en ese idioma; un idioma no incluido → inglés.
-5. Rotar el log para revisar `[text] idioma del sistema: ...`.
+**Artefacto de interpolación (puerta + primer jefe del nivel 1) — APLAZADO.**
+- **Síntoma**: con `Refresh Rate Mode = Display` (interpolación **ON**) cierta **puerta** parpadea
+  entre visible/oculta, y el **primer jefe del nivel 1** muestra geometría incoherente. Con
+  `Original` (interpolación **OFF**) **no** ocurre. `Presentation Mode = Present Early` no influye.
+  **NO** ocurre en **BizHawk** ni **Simple64** → es del render (RT64/port).
+- **Causa**: la **interpolación** de RT64 (`RefreshRate::Display`, v0.4.0): empareja draw calls entre
+  frames e interpola sus matrices; con ciertos objetos salen frames intermedios incoherentes.
+- **APLAZADO**: la solución de fondo es **desacoplar la lógica del juego del render** (lógica a 60 Hz)
+  → épica aparte. Detalle: `notes/2026-09-22-fps-y-present-early.md` §Regresión conocida.
+
+## SIGUIENTE TAREA: validar el merge en Linux y Windows (paso 8)
+
+1. **Linux (compila)**: `cmake --build build/linux --parallel $(nproc)` — corregir la API del merge.
+2. **Windows (build normal)**, comprobar:
+   - **Menú 1:1** con el nativo, navegación, listas/selectores, SFX.
+   - **Acentos**: abrir `NUEVA PARTIDA` y `GRÁFICOS` (`CÁMARA`, `GRÁFICOS`, `RESOLUCIÓN`, `LÍMITE`) y
+     ver las tildes (letra + marca). Forzar con `HH_MENU_SCREEN=6`/`=5` si hace falta.
+   - **IDIOMA** (en `AJUSTES`): cambiar a EN/CA/FR/DE y ver que **todo el menú** cambia (y el
+     texto in-game con F5), **sin que el juego se acelere** (fix del reapply; ver §BUG RESUELTO).
+     Persistencia en `config.ini [lang]`.
+   - **Idioma del sistema**: borrar `[lang]` de `config.ini` y arrancar con el SO en otro idioma
+     (p. ej. francés) → debe arrancar en ese idioma; un idioma no incluido → inglés.
+   - Rotar el log para revisar `[text] idioma del sistema: ...`.
+   - **HUD/minimapa (traídos de `main`)**: en widescreen, confirmar que el HUD de combate y el
+     minimapa siguen anclados, y que **F7–F10** (captura pareada + toggles) responden tras el merge.
 
 ### Después (backlog de la tarea)
 
@@ -87,12 +99,36 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
 - Pendiente funcional del menú: `CÁMARA LIBRE`/`APUNTADO LIBRE` (modifican el juego; aparcado),
   `DIFICULTAD`/`EMPEZAR PARTIDA`/`CONTINUAR` (arrancar/retomar con dificultad interna).
 
+## Otras tareas (ver `TODO.md`)
+
+- **Widescreen** (en `main`): falta la **barra HP** y elementos de la derecha (`right`/`stretch`) —
+  re-derivar sus identidades con F7 (captura pareada).
+- **APLAZADO**: artefacto de interpolación (puerta + jefe) — ver arriba.
+- Resto del backlog de `TODO.md`.
+
+## Método HUD
+
+- **Lista de validación**: solo Windows (build release GUI). Linux headless solo compila.
+- Trazas a fichero junto al exe: `HH_HUD_TRACE=1`, `HH_HUD_REWRITE_TRACE=1`, `HH_HUD_SCISSOR_TRACE=1`,
+  `HH_FULL_FRAME=0` (off), `HH_NO_HUD_REWRITE=1` (off), `HH_MAP_CROP=<px>`.
+- **Atajos de diagnostico** (A/B en caliente):
+  - **F7 = captura pareada**: traza de identidades 2D de UN frame → `hh_cap_<n>.log` **+ imagen** de
+    la ventana → `hh_cap_<n>.bmp`, en el mismo instante. Otro F7 la cancela. `HH_HUD_TRACE=1` sigue
+    volcando traza continua a `hh_hud.log`.
+  - **F8 = PresentEarly** ON/OFF (RT64: PresentEarly ↔ SkipBuffering).
+  - **F9 = interpolación** ON/OFF (RT64: `RefreshRate` Display ↔ Original; ver bug de la puerta).
+  - **F10 = reescritor HUD** ON/OFF (`HH_NO_HUD_REWRITE`).
+- **Regla**: la **dirección RDRAM no es identidad**; usar **hash de contenido** (+ caja/posición
+  cuando el hash se reutiliza). **No fiarse del color**: la barra de combo pasa rojo→azul y parpadea,
+  y RT64 pinta el relleno con el **PRIM color** (la traza lee `fill_color=0`).
+- El **Inspector de RT64** (`HH_DEVELOPER=1`, F1) fue clave: muestra el `Rect` y el `PrimColor` del
+  draw bajo el cursor.
+
 ## Git
 
-- **`menu-nativo`** (WIP del menú): todo el trabajo posterior a **v0.4.0** + fix ROM. **Sin pushear**
-  (`origin/menu-nativo` va 25 detrás; **pushear antes del merge**, opcional).
-- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas). Traer `main` aquí con
-  `git merge main` (ver §LO PRIMERO).
+- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
+- **`menu-nativo`** (WIP del menú): **pusheado** hasta el tip pre-merge (`60171dd`;
+  `backup-menu-nativo-sync`). Merge `main → menu-nativo` **hecho** (commit del 2026-09-26).
 - Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
 
 ## Método (rápido)
@@ -103,8 +139,8 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
 - **Headless + replay para llegar al menú**: `docs/workflows.md` §2.
 - **Diagnósticos** (`hh.log`): `HH_MENU_TRACE=1`, `HH_NATIVE=1`, `HH_OVERLAY_X/Y/SX/SY`, `HH_OVERLAY=0`,
   `HH_MENU_SCREEN=<id>`, `HH_FONT_TRACE=1`, `HH_FONT_DUMP_GLYPH=<color>`, `HH_ACCENTS=0`, `HH_LANG=es`,
-  `HH_FPS=1`. Atajos: F2 aspecto, F3 ventana, F4 MSAA, F5 idioma, **F6 menú nativo**. Inspector RT64:
-  `HH_DEVELOPER=1` + F1 (o `DEBUG → VENTANA DEBUG = SÍ`).
+  `HH_FPS=1`. Atajos: F2 aspecto, F3 ventana, F4 MSAA, F5 idioma, **F6 menú nativo**, F7–F10 (HUD).
+  Inspector RT64: `HH_DEVELOPER=1` + F1 (o `DEBUG → VENTANA DEBUG = SÍ`).
 - **Fuente/acentos**: `tools/text/menu_marks.py` (marcas del menú), `tools/text/build_font.py`
   (fuente in-game 8×12), `tools/text/README_font_sheet.md` (formato de las hojas). ROMs en `work/roms/`
   (`us_dec.z64`, `eu_dec.z64`, `jp.z64`).
@@ -113,3 +149,13 @@ No hay nada bloqueante de diseño. En Windows (build normal), comprobar:
   `16dbc21620b52deab5c5abf8a309ac60adfbee85`.
 - **Docs**: tras editar docs, `python3 tools/analysis/docs_index.py` (regenera `docs/INDEX.md`;
   `--check` valida enlaces y el presupuesto de arranque).
+
+## Build Windows
+
+```
+rmdir /s /q hybrid-heaven-recomp\build\windows
+hybrid-heaven-recomp\build_windows_release.bat
+```
+(La build **no siempre** refresca el `.exe`: comprobar su fecha; si no cambia, borrar
+`build\windows` y recompilar desde cero. Verificado que sale `=== LISTO ===` pero a veces no
+actualiza el ejecutable.)
