@@ -20,18 +20,28 @@
   `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, ADR 0008/0012.
   **Validado en Windows (2026-09-26, tras el merge con `main`)**; falta el **JA del menú** (kana).
 - [ ] **Menú nativo — funcionales y pulido (2026-09-26, orden recomendado)**:
-  1. **Bug del submenú `IDIOMA`**: entrar, mover el cursor sobre un idioma **sin aplicarlo** y salir
-     con **B** (hoy no pasa nada); al **volver a entrar y salir** se aplica el idioma señalado sin
-     confirmar. Debe aplicarse **solo con A/confirmar**.
-  2. **Renombrar `AJUSTES` → `CONFIGURACIÓN`** con traducción a todos los idiomas.
-  3. **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
-  4. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
-  5. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
+  1. [x] **Bug del submenú `IDIOMA` — RESUELTO y validado en Windows (2026-09-26)**: al entrar con A
+     en `IDIOMA` se aplicaba el idioma del cursor (el `Accept` de entrar ejecutaba acciones de la
+     pantalla hija). Fix: aplicar acciones por `Accept` solo si no cambió la pantalla.
+     `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md`.
+  2. [x] **`AJUSTES` → `CONFIGURACIÓN` — HECHO y validado (2026-09-26)**: ES `CONFIGURACIÓN` · EN
+     `SETTINGS` · CA `CONFIGURACIÓ` · FR `CONFIGURATION` · DE `KONFIGURATION` (`kMenuTr`).
+  3. [ ] **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
+  4. [ ] **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
+  5. [ ] **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
      elegida (esfuerzo por determinar).
-  6. **Código Konami → `TRUCOS`**: en la raíz del menú, encima de `SALIR`; detección por mando o
+  6. [ ] **Código Konami → `TRUCOS`**: en la raíz del menú, encima de `SALIR`; detección por mando o
      teclado, con SFX.
-  7. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+  7. [ ] **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
      perdieron al crear el menú moderno); analizar.
+  8. [ ] **Sombra de la flecha de cursor**: `append_native_cursor` (`src/hooks/menu_overlay.cpp`) la
+     dibuja con **rectángulos sólidos** de un color → **sin sombra** (el texto sí la lleva). Fix:
+     copia negra desplazada **+1,+1 px** detrás de la flecha.
+  9. [ ] **Sombra de las tildes/marcas**: `tools/text/menu_marks.py` genera las marcas de acento
+     **solo con tinta (nivel 1), sin sombra**; solo `¿ ¡` (ruta `AUTO`) llevan nivel 2. Aparecen (o se
+     recortan) mal respecto a la letra. Fix: generar sombra **+1,+1** en las marcas de acento,
+     incluirla en el recorte y comprobar la celda (ancho `kMarkW=8`, alto 12, `pix[96]`); regenerar
+     `include/hh/menu_marks.h`. Análisis: `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md` §3.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
