@@ -6,16 +6,13 @@
 
 ## Estado (2026-09-26)
 
-- **Limpieza de commits HECHA (2026-09-26)**: `menu-nativo` = **`4759bd0`** (padre de `9445df2`), que
-  coincide con `origin/menu-nativo`. Se deshicieron los 13 commits de basura
-  (dumpeo/decodificador/bats/diagnóstico) con `git reset --hard 4759bd0`; `dump-logos/` y las
-  herramientas temporales quedan **fuera del árbol**; `.gitignore` ignora `/dump-logos/` y `/dump*/`.
+- **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
+  (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
+  deshicieron y **nunca llegaron a `origin`**. `dump-logos/` y las herramientas temporales están
+  **fuera del árbol** (`.gitignore` ignora `/dump-logos/` y `/dump*/`).
   - **Rama de respaldo `backup-sesion-intro-2026-09-26` (= `390b712`): CONSERVAR (no borrar).**
-    Contiene el trabajo completo de la sesión de intro (incluida la basura y el diagnóstico).
-  - **Trabajo real reaplicado en commits limpios**: `b5303da` **SFX Konami** (código + `.wav`) y
-    `dfb7da4` **`hh::overlay::set_screen_image`** (overlay). Compila en Linux.
-  - La documentación **limpia** de la tarea de logos vive en
-    `notes/2026-09-26-h-logos-intro-hd-y-konami.md` (sin herramientas ni volcados).
+  - El trabajo real se **reaplicó en commits limpios**: `b5303da` (SFX Konami) y `dfb7da4`
+    (`set_screen_image`); documentación en `54775c3`. Compila en Linux.
 - **Sincronización con `main` CERRADA y validada**: merge `main → menu-nativo` con v0.4.1–v0.4.4
   (HUD/minimapa #3/#7). Nota `notes/2026-09-26-a-sync-menu-nativo-con-main.md`; checkpoint pre-merge:
   tag **`backup-menu-nativo-sync`**. **No** mergear `menu-nativo` → `main` todavía (es WIP; será la
