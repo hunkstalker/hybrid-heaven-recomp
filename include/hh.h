@@ -188,10 +188,11 @@ namespace hh {
         void adjust(float dx, float dy, float dsx, float dsy);
     }
 
-    // Efectos de sonido del menú (move/accept/back). Se mezclan sobre el stream del juego; los WAV
-    // se cargan de `<app>/sounds/*.wav`. Ver src/platform/menu_sfx.cpp.
+    // Efectos de sonido del menú (move/accept/back) y del código Konami (correct/error/unlock). Se
+    // mezclan sobre el stream del juego; los WAV se cargan de `<app>/sounds/*.wav`.
+    // Ver src/platform/menu_sfx.cpp.
     namespace menu_sfx {
-        enum class Sfx { Move, Accept, Back };
+        enum class Sfx { Move, Accept, Back, KonamiCorrect, KonamiError, KonamiUnlock };
         void init();
         void play(Sfx s);
         void mix(int16_t* samples, size_t sample_count);   // desde hh::queue_samples

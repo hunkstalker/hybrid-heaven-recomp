@@ -18,14 +18,17 @@
 namespace hh::menu_sfx {
 namespace {
 
-constexpr int kNumSfx = 3;
+constexpr int kNumSfx = 6;
 constexpr double kSrcRate = 48000.0;   // tasa de los WAV
 constexpr int kChannels = 2;
 
 std::vector<uint8_t> g_data[kNumSfx];
 bool g_tried = false;
 
-const char* kFiles[kNumSfx] = { "menu-move.wav", "menu-accept.wav", "menu-back.wav" };
+// Índice = valor de hh::menu_sfx::Sfx (Move/Accept/Back + código Konami: Correct/Error/Unlock).
+const char* kFiles[kNumSfx] = { "menu-move.wav",       "menu-accept.wav",
+                                 "menu-back.wav",       "konami-correct.wav",
+                                 "konami-error.wav",    "konami-unlock.wav" };
 
 // Instancia de un SFX sonando: referencia a su WAV y posición (en frames) con resample.
 struct Instance {
@@ -59,8 +62,9 @@ void init_once() {
         g_data[i].assign(buf, buf + len);
         SDL_FreeWAV(buf);
     }
-    hh::log("[sfx] listo: move=%zuB accept=%zuB back=%zuB\n", g_data[0].size(), g_data[1].size(),
-            g_data[2].size());
+    hh::log("[sfx] listo: move=%zuB accept=%zuB back=%zuB konami=%zu/%zu/%zuB\n",
+            g_data[0].size(), g_data[1].size(), g_data[2].size(), g_data[3].size(),
+            g_data[4].size(), g_data[5].size());
 }
 
 }  // namespace
