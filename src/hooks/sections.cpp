@@ -34,11 +34,6 @@ extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1508_11BAFD8(uint8_t* rdram, recomp_context* ctx);
-extern "C" void func_801C1624_11BB0F4(uint8_t* rdram, recomp_context* ctx);  // crea la secuencia
-extern "C" void func_801C1764_11BB234(uint8_t* rdram, recomp_context* ctx);  // logo KONAMI
-extern "C" void func_801C17C8_11BB298(uint8_t* rdram, recomp_context* ctx);  // logo KCEO
-extern "C" void func_801C1A30_11BB500(uint8_t* rdram, recomp_context* ctx);  // skip -> espera START
-extern "C" void func_801C184C_11BB31C(uint8_t* rdram, recomp_context* ctx);  // espera ("Press Start")
 extern "C" void func_80383AD4_12F4B04(uint8_t* rdram, recomp_context* ctx);  // estado de logos de ARRANQUE (file 055)
 extern "C" unsigned long long hh_get_vi_count(void);                          // diagnostico (VI)
 extern "C" void func_801C18FC_11BB3CC(uint8_t* rdram, recomp_context* ctx);
@@ -140,11 +135,6 @@ int g_konami_timeout = 0;                  // frames restantes sin pulsar
 uint32_t g_logo_prev_dir = 0;              // flanco de direcciones
 uint32_t g_logo_prev_ab = 0;               // flanco de A/B/START
 
-void set_boot_flag(uint8_t* rdram, uint8_t value) {
-    gpr base = (gpr)(int32_t)kBootFlagHi;
-    MEM_BU(-0x3734, base) = (int8_t)value;
-}
-
 std::string logo_path(const char* name) {
     return (hh::get_app_folder_path() / "logos" / name).string();
 }
@@ -155,14 +145,6 @@ void show_logo(const char* name) {
     g_logo_prev_dir = 0;
     g_logo_prev_ab = 0;
     hh::overlay::set_screen_image(logo_path(name), logo_is_modern(name));
-}
-
-void hide_logo() {
-    if (g_logo_shown.empty()) return;
-    g_logo_shown.clear();
-    g_logo_prev_dir = 0;
-    g_logo_prev_ab = 0;
-    hh::overlay::clear_screen_image();
 }
 
 uint32_t read_raw_dir(uint8_t* rdram, recomp_context* ctx) {
@@ -176,28 +158,15 @@ uint32_t read_raw_ab(uint8_t* rdram, recomp_context* ctx) {
     return static_cast<uint32_t>(t.r2) & 0xFFFFu;
 }
 
-// Salta la escena de logos: reenvia al estado nativo de espera (igual que el skip original).
-void skip_logos(uint8_t* rdram, recomp_context* ctx) {
-    hide_logo();
-    g_konami_idx = 0;
-    set_boot_flag(rdram, 0);
-    recomp_context t = *ctx;
-    t.r4 = ctx->r4;   // obj
-    t.r5 = 0x801C1A30u;
-    func_800058DC_64DC(rdram, &t);
-}
-
 // Procesa el codigo Konami durante el logo KONAMI. `pdir`/`pab` son flancos de pulsacion.
-// `pause_native` solo aplica al replay del modulo de titulo (bandera D_801CC8CC); en la intro de
-// arranque (file 055) no tocamos el timing nativo, asi que se pasa `false`.
-void konami_tick(uint8_t* rdram, uint32_t pdir, uint32_t pab, bool pause_native) {
+void konami_tick(uint8_t* rdram, uint32_t pdir, uint32_t pab) {
+    (void)rdram;
     static const bool trace = std::getenv("HH_MENU_TRACE") != nullptr;
     const uint32_t pressed = (pdir & (kBtnUp | kBtnDown | kBtnLeft | kBtnRight)) |
                              (pab & (kBtnB | kBtnA));
     if (pressed == 0) {
         if (g_konami_idx > 0 && --g_konami_timeout <= 0) {
             g_konami_idx = 0;
-            if (pause_native) set_boot_flag(rdram, 0);   // cancela la pausa: la intro retoma
             if (trace) hh::log("[konami] timeout: secuencia cancelada\n");
         }
         return;
@@ -206,7 +175,6 @@ void konami_tick(uint8_t* rdram, uint32_t pdir, uint32_t pab, bool pause_native)
         if (pressed == kBtnUp) {
             g_konami_idx = 1;
             g_konami_timeout = kKonamiTimeout;
-            if (pause_native) set_boot_flag(rdram, 1);   // pausa la intro
             hh::menu_sfx::play(hh::menu_sfx::Sfx::KonamiCorrect);
             if (trace) hh::log("[konami] inicio (1/10)\n");
         }
@@ -220,7 +188,6 @@ void konami_tick(uint8_t* rdram, uint32_t pdir, uint32_t pab, bool pause_native)
             hh::menu::unlock_extras();
             hh::menu_sfx::play(hh::menu_sfx::Sfx::KonamiUnlock);
             hh::overlay::flash_white(400);   // flash blanco al desbloquear (tapa el cambio a moderno)
-            if (pause_native) set_boot_flag(rdram, 0);
             if (trace) hh::log("[konami] COMPLETADO: EXTRAS desbloqueado\n");
             return;
         }
@@ -230,66 +197,14 @@ void konami_tick(uint8_t* rdram, uint32_t pdir, uint32_t pab, bool pause_native)
         hh::menu_sfx::play(hh::menu_sfx::Sfx::KonamiError);
         g_konami_idx = (pressed == kBtnUp) ? 1 : 0;   // reinicio (si fue ↑, arranca de nuevo)
         g_konami_timeout = (g_konami_idx > 0) ? kKonamiTimeout : 0;
-        if (pause_native) set_boot_flag(rdram, g_konami_idx > 0 ? 1 : 0);
         if (trace) hh::log("[konami] fallo: reinicio (idx=%d)\n", g_konami_idx);
     }
 }
 
-// Envuelve el handler KONAMI: publica el logo HD y captura el codigo Konami.
-extern "C" void hh_logo_konami_hook(uint8_t* rdram, recomp_context* ctx) {
-    if (std::getenv("HH_MENU_TRACE") != nullptr) {
-        static bool once = false;
-        if (!once) { once = true; hh::log("[intro] handler KONAMI activo (0x801C1764)\n"); }
-    }
-    show_logo(konami_logo());
-    hh::overlay::set_screen_image_alpha(255, 255);   // replay del titulo: logo a plena luz
-    const uint32_t dir = read_raw_dir(rdram, ctx);
-    const uint32_t ab = read_raw_ab(rdram, ctx);
-    const uint32_t pdir = dir & ~g_logo_prev_dir;
-    const uint32_t pab = ab & ~g_logo_prev_ab;
-    g_logo_prev_dir = dir;
-    g_logo_prev_ab = ab;
-    if (pab & kBtnStart) {
-        skip_logos(rdram, ctx);
-        return;
-    }
-    konami_tick(rdram, pdir, pab, true);
-    g_mute_native_input = true;
-    func_801C1764_11BB234(rdram, ctx);   // transiciona a KCEO solo si la bandera es 0
-    g_mute_native_input = false;
-}
-
-// Envuelve el handler KCEO: publica el logo HD y gestiona el skip.
-extern "C" void hh_logo_kceo_hook(uint8_t* rdram, recomp_context* ctx) {
-    if (std::getenv("HH_MENU_TRACE") != nullptr) {
-        static bool once = false;
-        if (!once) { once = true; hh::log("[intro] handler KCEO activo (0x801C17C8)\n"); }
-    }
-    show_logo(kceo_logo());
-    hh::overlay::set_screen_image_alpha(255, 255);   // replay del titulo: logo a plena luz
-    const uint32_t dir = read_raw_dir(rdram, ctx);
-    const uint32_t ab = read_raw_ab(rdram, ctx);
-    const uint32_t pab = ab & ~g_logo_prev_ab;
-    g_logo_prev_dir = dir;
-    g_logo_prev_ab = ab;
-    if (pab & kBtnStart) {
-        skip_logos(rdram, ctx);
-        return;
-    }
-    g_mute_native_input = true;
-    func_801C17C8_11BB298(rdram, ctx);
-    g_mute_native_input = false;
-}
-
-// Skip nativo / pantalla de espera: la escena de logos ha terminado -> retira el overlay HD.
-extern "C" void hh_logo_skip_hook(uint8_t* rdram, recomp_context* ctx) {
-    hide_logo();
-    func_801C1A30_11BB500(rdram, ctx);
-}
-extern "C" void hh_logo_wait_hook(uint8_t* rdram, recomp_context* ctx) {
-    hide_logo();
-    func_801C184C_11BB31C(rdram, ctx);
-}
+// NOTA: los handlers del modulo de TITULO (0x801C1624 / 0x801C1764 / 0x801C17C8) son el REPLAY del
+// modo attract (mucho despues de la ciudad + HYBRID HEAVEN), NO la intro de arranque. La intro real
+// la pinta el modulo file 055 (ver hh_boot_logo_hook mas abajo). Antes se envolvian para publicar el
+// logo HD; se RETIRARON porque hacia aparecer KONAMI/KCEO otra vez durante el attract.
 
 // Lee la bandera de arranque D_801CC8CC (la que decide crear la secuencia de logos).
 uint8_t read_boot_flag(uint8_t* rdram) {
@@ -314,21 +229,6 @@ extern "C" void hh_force_intro_hook(uint8_t* rdram, recomp_context* ctx) {
         MEM_BU(-0x3734, base) = 2;   // D_801CC8CC = 2 -> func_801C1508 llama a func_801C1624
     }
     func_801C1508_11BAFD8(rdram, ctx);
-}
-
-// Envuelve la CREACION de la secuencia (0x801C1624): publica ya el logo KONAMI. Asi el overlay no
-// depende de que 0x801C1764 llegue a ejecutarse por el dispatcher (robustez ante la paridad).
-extern "C" void hh_logo_create_hook(uint8_t* rdram, recomp_context* ctx) {
-    if (std::getenv("HH_MENU_TRACE") != nullptr) {
-        static bool once = false;
-        if (!once) {
-            once = true;
-            hh::log("[intro] secuencia de logos creada (0x801C1624)\n");
-        }
-    }
-    show_logo(konami_logo());
-    hh::overlay::set_screen_image_alpha(255, 255);
-    func_801C1624_11BB0F4(rdram, ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -476,7 +376,7 @@ extern "C" void hh_boot_logo_hook(uint8_t* rdram, recomp_context* ctx) {
         else if (g_boot_konami_hold) {
             const uint32_t dir = read_raw_dir(rdram, ctx);
             const uint32_t ab = read_raw_ab(rdram, ctx);
-            konami_tick(rdram, dir & ~g_logo_prev_dir, ab & ~g_logo_prev_ab, false);
+            konami_tick(rdram, dir & ~g_logo_prev_dir, ab & ~g_logo_prev_ab);
             g_logo_prev_dir = dir;
             g_logo_prev_ab = ab;
         }
@@ -510,12 +410,9 @@ void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x801C1DB8, hh_title_menu_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
-    // Intro: logos HD + codigo Konami (ver bloque "Intro" mas arriba).
-    recomp::overlays::add_loaded_function(0x801C1624, hh_logo_create_hook);
-    recomp::overlays::add_loaded_function(0x801C1764, hh_logo_konami_hook);
-    recomp::overlays::add_loaded_function(0x801C17C8, hh_logo_kceo_hook);
-    recomp::overlays::add_loaded_function(0x801C1A30, hh_logo_skip_hook);
-    recomp::overlays::add_loaded_function(0x801C184C, hh_logo_wait_hook);
+    // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
+    // el replay del attract y hacian reaparecer KONAMI/KCEO tras la ciudad. La intro real (file 055)
+    // se maneja abajo.
     // Intro de ARRANQUE (file 055): refleja KONAMI/KCEO con HD mientras corre la fase de logos.
     recomp::overlays::add_loaded_function(0x80383AD4, hh_boot_logo_hook);
     // Update del menú: registra/compone las etiquetas nativas (una vez por entrada). Se envuelve
@@ -868,9 +765,13 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
         auto guest_byte = [&](uint32_t addr) -> unsigned {
             return rdram[(addr - 0x80000000u) ^ 3u];
         };
-        hh::log("[menu] a0=%08X a1=%08X sel=%u g1=%u g2=%u\n",
+        const uint32_t obj_trace = static_cast<uint32_t>(ctx->r4);
+        const unsigned idle = static_cast<unsigned>(
+            (rdram[((obj_trace + 0x3Cu) - 0x80000000u) ^ 3u] << 8) |
+            rdram[((obj_trace + 0x3Du) - 0x80000000u) ^ 3u]);
+        hh::log("[menu] a0=%08X a1=%08X sel=%u idle=%u g1=%u g2=%u\n",
                 static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r5),
-                guest_byte(0x801CC8C4u), guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
+                guest_byte(0x801CC8C4u), idle, guest_byte(0x801BBD54u), guest_byte(0x801CC8A8u));
     }
     // ¿El handler nativo cambió de pantalla este frame? (p. ej. al seleccionar una opción). En ese
     // caso NO publicamos el frame del overlay (seguiría mostrando la raíz durante la transición).
@@ -900,19 +801,24 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
         const bool controlling = hh::overlay::enabled();
         if (controlling) {
             // El handler nativo decrementa su temporizador de inactividad (obj+0x3C) y, al llegar a
-            // 0, abandona el menú (goto 0x801C2050). Con el input muteado nunca se reinicia, así que
-            // lo mantenemos a tope (antes y después de la llamada) mientras NUESTRO menú tiene el
-            // control; si no, la pantalla se cerraría sola a los ~8-30 s. El valor 0x384 es el que
-            // usa el propio handler al resetear.
-            MEM_H(0x3C, obj) = 0x384;
+            // 0, abandona el menu hacia el attract (goto 0x801C2050 -> func_801C5A00: intro/demos).
+            // Como nosotros MUTEAMOS su input, el handler no lo reinicia al navegar; lo reiniciamos
+            // aqui con la entrada REAL (0x384 = valor nativo). Antes se forzaba a 0x384 CADA frame,
+            // lo que impedia que el timeout nativo disparara a su ritmo y el attract salia mas tarde
+            // (bug reportado 2026-09-26). Ahora manda el timer nativo, igual que en el original.
+            recomp_context td = *ctx;
+            func_801C1340_11BAE10(rdram, &td);   // direcciones (entrada real)
+            recomp_context ta = *ctx;
+            func_801C1334_11BAE04(rdram, &ta);   // A/B/START (entrada real)
+            const uint32_t held = static_cast<uint32_t>(td.r2) | static_cast<uint32_t>(ta.r2);
+            if (held != 0) {
+                MEM_H(0x3C, obj) = 0x384;
+            }
         }
         g_mute_native_input = controlling;
         func_801C1DB8_11BB888(rdram, ctx);  // comportamiento original con input neutralizado
         g_mute_native_input = false;
         g_inject_native_a = false;          // la inyeccion (CONTINUAR) es de un solo frame
-        if (controlling) {
-            MEM_H(0x3C, obj) = 0x384;
-        }
         const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
         screen_changed = (goto_after != goto_before);
     }
