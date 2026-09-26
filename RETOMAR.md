@@ -75,17 +75,20 @@ Además: poda de entradas que solapan una carga nueva, tope de memoria (32 MB) y
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido
 
-Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`**, **`AJUSTES`→`CONFIGURACIÓN`** y las
-**sombras del menú** (flecha + tildes/marcas, con las marcas por debajo de la letra).
-Notas: `2026-09-26-b-…-sombras.md` y `2026-09-26-c-sombras-y-set-a.md`. Ahora, por orden recomendado:
+Hecho y validado (2026-09-26): **bug del submenú `IDIOMA`**, **`AJUSTES`→`CONFIGURACIÓN`**, las
+**sombras del menú** (flecha + tildes/marcas, con las marcas por debajo de la letra) y **`CONTINUAR`**
+(reenvía al dispatch nativo; carga la partida). Notas: `2026-09-26-b-…`, `2026-09-26-c-…` y
+`2026-09-26-d-…`. Ahora, por orden recomendado:
 
-1. **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
-2. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
-3. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
+1. **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
+2. **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
    elegida (esfuerzo por determinar).
-4. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
-5. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+3. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
+4. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
    perdieron al crear el menú moderno); analizar.
+5. **Fallos visuales** (backlog en `TODO.md`; capturas en `work/gameplay screenshots/CONTINUAR/`):
+   borde verde del cuadro de `DATA LOAD` descolgado al borde superior; recuadro negro en las cajas de
+   golpes (combate).
 
 ### Después (backlog de la tarea)
 

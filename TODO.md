@@ -26,7 +26,10 @@
      `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md`.
   2. [x] **`AJUSTES` → `CONFIGURACIÓN` — HECHO y validado (2026-09-26)**: ES `CONFIGURACIÓN` · EN
      `SETTINGS` · CA `CONFIGURACIÓ` · FR `CONFIGURATION` · DE `KONFIGURATION` (`kMenuTr`).
-  3. [ ] **`CONTINUAR`**: enlazar con la función real de continuar (poco esfuerzo).
+  3. [ ] **`CONTINUAR` — IMPLEMENTADO, falta validar en Windows (2026-09-26)**: reenvía la acción al
+     **dispatch nativo** del menú de título (`sel 0x801CC8C4 = 1` = CONTINUE + A inyectada una vez,
+     `src/hooks/sections.cpp`), reutilizando la carga real (`func_801C3CDC`). Con overlay activo; con
+     `HH_OVERLAY=0` manda el nativo.
   4. [ ] **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
   5. [ ] **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
      elegida (esfuerzo por determinar).
@@ -51,6 +54,16 @@
 
 ## Backlog (priorizado)
 
+- [ ] **Fallos visuales detectados por el mantenedor (2026-09-26; capturas en
+  `work/gameplay screenshots/CONTINUAR/`)**: `work/` está gitignored; si hace falta conservar las
+  capturas, copiar las relevantes al repo.
+  1. **`DATA LOAD` (slots de partida)** — al mover el cuadro de selección entre slots, su **borde
+     verde** aparece pegado al **borde superior de la pantalla** (línea verde a `y≈0`), descolgado del
+     cuadro. Captura `Captura de pantalla 2026-09-26 033740.png`. Es un menú **nativo** (no overlay).
+     Probable artefacto de widescreen (`snap_overscan`)/rect 2D; investigar con **F7** (captura pareada)
+     y `HH_FULL_FRAME=0` para acotar.
+  2. **Combate (golpes)**: los ataques salen como **cajas verdes/rojas con recuadro negro (solo el
+     borde)**; en el original **no** llevan ese borde. El mantenedor irá añadiendo capturas a esa carpeta.
 - [x] **FPS en pantalla (2026-09-26)**: `MOSTRAR FPS` en el menú `DEBUG` (menú moderno de
   `menu-nativo`) enciende el **indicador de FPS del overlay** (solo números, arriba-izquierda; mide la
   tasa **real** de presentación) y persiste en `config.ini [video].showfps`. `HH_FPS=1` sigue volcando
