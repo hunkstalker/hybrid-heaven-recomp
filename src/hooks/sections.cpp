@@ -222,17 +222,24 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
     prev = btn;
     hh::menu::Event ev = hh::menu::Event::None;
+    // Pantalla ANTES de procesar el boton: un mismo `Accept` que ENTRA en un submenu no debe
+    // ejecutar acciones de la pantalla HIJA. Sin esto, entrar en IDIOMA aplicaba el idioma del
+    // cursor (p. ej. al reentrar en IDIOMA tras senalarlo sin confirmar). Solo si seguimos en la
+    // misma pantalla se aplican las acciones.
+    const hh::menu::ScreenId screen_before = hh::menu::current_screen().id;
     if (pressed & 0x800u) ev = hh::menu::move_up();
     if (pressed & 0x400u) ev = hh::menu::move_down();
     if (pressed & 0x200u) ev = hh::menu::move_left();
     if (pressed & 0x100u) ev = hh::menu::move_right();
     if (pressed & 0x8000u) ev = hh::menu::confirm();   // A: entra / marca
     if (pressed & 0x4000u) ev = hh::menu::back();      // B: atrás. (Sin X: los cambios son en vivo.)
+    const bool same_screen = (hh::menu::current_screen().id == screen_before);
     // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
     // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
     // cursor por encima.
-    if (ev != hh::menu::Event::None && (pressed & (0x100u | 0x200u | 0x8000u))) {
+    if (ev != hh::menu::Event::None && same_screen &&
+        (pressed & (0x100u | 0x200u | 0x8000u))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -286,7 +293,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     }
     // SALIR (raíz): A cierra el port de forma ordenada (extra del port; ver docs/menu.md). Solo con
     // el overlay controlando el menú (con HH_OVERLAY=0 manda el nativo).
-    if (ev == hh::menu::Event::Accept && hh::overlay::enabled()) {
+    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size()) &&
             s.entries[s.cursor].action == hh::menu::Action::Exit) {
@@ -294,8 +301,9 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         }
     }
     // IDIOMA: A sobre una opción de la lista cambia el idioma (texto in-game + etiquetas del menú).
-    // El confirm() del modelo ya marca la opción; aquí solo aplicamos el cambio.
-    if (ev == hh::menu::Event::Accept && hh::overlay::enabled()) {
+    // El confirm() del modelo ya marca la opción; aquí solo aplicamos el cambio. `same_screen` evita
+    // aplicarlo al ENTRAR en el submenú (el Accept de entrar ya no cuenta como confirmación interna).
+    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.id == hh::menu::ScreenId::Language) {
             static const char* kLangCodes[] = { "en", "es", "ca", "fr", "de", "ja" };
