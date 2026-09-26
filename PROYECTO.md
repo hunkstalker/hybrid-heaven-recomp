@@ -80,11 +80,11 @@ EN/ES/CA/FR/DE + idioma del sistema); **BUG del reapply de idioma resuelto**
 (`notes/2026-09-25-e-fix-reapply-idioma.md`); **validado en Windows (2026-09-26, tras el merge con
 `main`)**; falta el **JA del menú**. **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)** y
 **`DIFICULTAD`** implementada (escritura de `0x801BBC0D`; efecto por comprobar jugando). **Logos de
-intro HD KONAMI/KCEO + código Konami** implementados y validados en headless (assets en
-`assets/logos/`, fundido por grupo + clave de blanco, preload, skip START, modernos+flash al
-desbloquear, entrada `EXTRAS` **solo de sesión**); pendiente validar en Windows y definir el contenido
-de la pantalla `EXTRAS`. Próximas tareas del menú en `TODO.md` (contenido de `EXTRAS`, demos de
-inactividad, fallos visuales). Detalle: `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`.
+intro HD KONAMI/KCEO + código Konami** implementados y **validados en Windows (2026-09-26)** (assets en
+`assets/logos/`, fundido por grupo + clave de blanco, preload, skip START, `EXTRAS` con toggles
+`MANTENER EXTRAS`/`LOGOS ORIGINALES` persistidos, attract al ritmo original y "Press Start" centrado);
+queda ampliar el contenido de la pantalla `EXTRAS`. Próximas tareas del menú en `TODO.md`
+(contenido de `EXTRAS`, fallos visuales). Detalle: `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

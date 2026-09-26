@@ -2,9 +2,9 @@
 
 > Tarea 2026-09-26, rama `menu-nativo`. Continuación de
 > `notes/2026-09-26-h-logos-intro-hd-y-konami.md` (reconocimiento y plan).
-> **Estado: implementado y validado en HEADLESS; PENDIENTE VALIDAR EN WINDOWS** (fades, skip, flash,
-> `EXTRAS` y el parpadeo de arranque). **No se ha commiteado nada** (a la espera del mantenedor).
-> Las utilidades de captura/volcado usadas son **externas al repo** (`/tmp`); aquí va el conocimiento.
+> **Estado: COMPLETADO y VALIDADO EN WINDOWS (2026-09-26)** (fades, skip, flash, `EXTRAS`, attract y
+> "Press Start" centrado). Commitado por tareas; ver §Fixes posteriores. Las utilidades de
+> captura/volcado usadas son **externas al repo** (`/tmp`); aquí va el conocimiento.
 >
 > **CORRIGE el diagnóstico previo (nota h/i vieja)**: los logos de arranque los pinta el **módulo de
 > arranque file 055**, no el módulo de título. Ver §Causa raíz.
@@ -86,14 +86,23 @@ correct/error/unlock; timeout 2 s; reintentos infinitos).
 
 ## `EXTRAS`
 
-- `ScreenId::Extras` + `Action::OpenExtras` en `include/hh/menu.h`.
-- Entrada en la **raíz, encima de `SALIR`**, solo si está desbloqueado (`build_tree` filtra por
-  `extras_unlocked()`); `unlock_extras()` rehace el árbol (`reset()`) para que aparezca al vuelo.
-- **Desbloqueo SOLO DE SESIÓN** (no persiste): `extras_unlocked()` devuelve un flag de memoria; en el
-  próximo arranque hay que teclear el código otra vez. (Lo de DENTRO, si hubiera ajustes, se
-  persistirá aparte.)
-- Pantalla `Extras` con placeholders **deshabilitados** `NIVEL` / `HABILIDADES` — **contenido por
-  definir con el mantenedor**.
+- `ScreenId::Extras` + `Action::OpenExtras` (+ `Action::ToggleExtrasPersist` /
+  `Action::ToggleOriginalLogos`) en `include/hh/menu.h`.
+- Entrada en la **raíz, encima de `SALIR`**, si `extras_unlocked()` = desbloqueo **de sesión** por el
+  código Konami (`g_extras_unlocked_state`) **o** ajuste **MANTENER EXTRAS = SÍ**
+  (`[extras].persist`). `extras_code_unlocked()` expone solo el desbloqueo por código (lo usa la
+  intro para la recompensa de logos modernos). `unlock_extras()` rehace el árbol (`reset()`).
+- Ajustes de EXTRAS (persisten en `config.ini [extras]`):
+  - **`MANTENER EXTRAS <NO/SÍ>`** (def. `NO`): **SÍ** = la entrada EXTRAS se mantiene entre arranques
+    aunque no se teclee el código; **NO** = solo tras teclear el código. Es el primera entrada.
+  - **`LOGOS ORIGINALES <NO/SÍ>`** (def. `SÍ`): **SÍ** = logos clásicos de fondo blanco; **NO** =
+    modernos de fondo negro. En `sections.cpp`, `use_modern_logos()` = `extras_code_unlocked() ||
+    original_logos != "si"` (el código Konami sigue cambiando a modernos como recompensa).
+- **Layout propio de EXTRAS** (`menu_overlay.cpp`): al ser un menú del PORT (no existe en el
+  original), no imita al nativo. Usa el hueco libre de la **izquierda** (`kExtrasXShift = -64`) y una
+  **columna de valores calculada** con la etiqueta más larga de la pantalla + 2 (`kExtrasValueGap`),
+  en vez de la columna fija nativa de 16; así `MANTENER EXTRAS` / `LOGOS ORIGINALES` no se solapan
+  con el valor. El resto de pantallas mantienen el layout nativo 1:1.
 
 ## Skip con START
 
@@ -117,6 +126,25 @@ y re-aplica `WS_POPUP` al mismo rect) → sin transición con barra ni resize de
 - Autoplay temporal de test (`HH_BOOT_KONAMI_AUTOPLAY`): usado y **retirado** (no está en el árbol).
 - Replay para llegar al menú: `HH_REPLAY` + `HH_REPLAY_MODE=vi` (START=`0x1000`).
 
+## Fixes posteriores (misma sesión)
+
+- **Bug del attract**: se **RETIRARON** los hooks de los handlers del módulo de TÍTULO
+  (`0x801C1624/1764/17C8` + skip/wait). Publicaban el logo HD durante el **replay del attract**
+  (ciudad 3D + `HYBRID HEAVEN`), haciendo **reaparecer KONAMI/KCEO** tras la ciudad. La intro real
+  (file 055) no se toca. (Si el attract sigue mostrando los logos NATIVOS del propio juego y se
+  quieren ocultar, haría falta saltar/suprimir su secuencia.)
+- **Timing del attract (intro/demos)** (`src/hooks/sections.cpp`, `hh_title_menu_hook`): se forzaba
+  `obj+0x3C = 0x384` **en cada frame** para que el menú nativo (con input muteado) no se cerrara. Eso
+  impedía que el **timeout de inactividad** disparara a su ritmo, así que el attract (intro y demos,
+  vía `obj+0x3C==0` → goto `0x801C2050` → `func_801C5A00`) salía **más tarde** que en el original.
+  Ahora el timer **cuenta de forma nativa** y se **reinicia a `0x384` solo con input real**
+  (direcciones/A/B/START), como el original. Traza `[menu] … idle=<valor>` con `HH_MENU_TRACE=1`.
+- **Centrado de texto traducido** (`src/subsystems/text.cpp`): nuevo marcador **`^`** al inicio de la
+  traducción (en `lang/*.txt`, o `kEsDefaults[].center`). El motor **centra por longitud**; nuestra
+  sustitución rellenaba con espacios hasta el fin del campo, alargando el bloque y dejando el texto
+  visible a la izquierda. Con `^` la cadena se **termina justo tras el texto** (relleno NUL) y queda
+  centrada. Aplicado a `PRESS START BUTTON=^PULSA START` (`assets/lang/es.txt`).
+
 ## Pendiente
 
 1. **Windows**: validar fades (inicio / KONAMI→KCEO / final), **skip con Enter** (1 por logo), flash +
@@ -124,7 +152,8 @@ y re-aplica `WS_POPUP` al mismo rect) → sin transición con barra ni resize de
 2. **Parpadeo de arranque**: el nativo del **file 8** se pinta antes del primer *present* del overlay
    (~1.5 s en headless); el **telón negro** lo tapa desde que el overlay dibuja. Si aún se ve un
    instante, el siguiente paso es **enganchar el logo del file 8** (ocultarlo), no solo taparlo.
-3. `EXTRAS`: definir el **contenido real** (nivel/habilidades) y cablearlo.
+3. `EXTRAS`: ampliar el **contenido real** más allá de `LOGOS ORIGINALES` (nivel/habilidades por
+   definir) y cablearlo.
 4. **BUG de paridad headless** (carrera `ptick`/`bootstate`): fix de fondo (hoy `HH_FORCE_INTRO`).
 
 ## Referencias

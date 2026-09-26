@@ -33,12 +33,13 @@
     `…-c-sombras-y-set-a.md`, `…-d-continuar-y-bugs-visuales.md`, `…-g-empezar-partida-y-dificultad.md`;
     **ADR 0008/0012**; `docs/menu.md`.
 - **HUD/minimapa de `main`** integrados por el merge (issues #3 y #7).
-- **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS`**: implementado y validado en headless;
-  **pendiente de validar en Windows**. Causa raíz corregida (los logos de arranque los pinta el
-  **módulo file 055**, no el de título), fundido por grupo con velo + clave de blanco, preload,
-  modernos al desbloquear con flash, `EXTRAS` de sesión, y arreglo de arranque de ventana. **Todo sin
-  commitear** (ver §Git). Detalle: `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md` y
-  §SIGUIENTE TAREA → tarea 1.
+- **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS`**: implementado y **VALIDADO EN WINDOWS
+  (2026-09-26)**. Causa raíz corregida (los logos de arranque los pinta el **módulo file 055**, no el
+  de título), fundido por grupo con velo + clave de blanco, preload, `EXTRAS` con persistencia explícita
+  (toggles `MANTENER EXTRAS`/`LOGOS ORIGINALES`), arranque de ventana borderless, y **fixes del attract**
+  (sin logos HD en el replay; timer de inactividad nativo → intro/demos al ritmo original) y del
+  **centrado del "Press Start"** traducido. Detalle:
+  `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`; §Git.
 - **Traducción in-game (juego)**: charset + sustitución en runtime listos; **fuente 8×12 `color4`
   preparada pero sin cablear**.
 
@@ -46,9 +47,9 @@
 
 1. **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS`**.
 
-   **Estado (2026-09-26, final de sesión): IMPLEMENTADO y VALIDADO en HEADLESS. PENDIENTE VALIDAR EN
-   WINDOWS** (fades, skip, flash, `EXTRAS`, y confirmar que se ha ido el parpadeo de arranque).
-   Nada commiteado (ver §Git).
+   **Estado (2026-09-26): COMPLETADO y VALIDADO EN WINDOWS** (fades, skip, flash, `EXTRAS`, attract y
+   "Press Start" centrado). Commitado **por tareas** (ver §Git). Solo queda el relleno de `EXTRAS`
+   (`NIVEL`/`HABILIDADES`, por definir) y el fix de fondo de paridad headless.
 
    **CAUSA RAÍZ (corrige el diagnóstico antiguo)**: los logos que se ven **al arrancar** los pinta el
    **módulo de arranque file 055** (`func_80383AD4`, base `0x803837E0`), **NO** el módulo de título. Los
@@ -74,10 +75,13 @@
      infinitos): **pausa** al primer `↑` congelando el state machine del file 055 (`0x8038DBB8=1`,
      `0x8038DBB4=0`, `0x8038DBC0=0xFF`, `0x8038DBD4=0`), aplicada tras el original. Al completar →
      `unlock_extras()`, **cambio a los logos MODERNOS** y **flash blanco** (`flash_white(400)`).
-   - **`EXTRAS`**: `ScreenId::Extras` + `Action::OpenExtras`; entrada en la raíz **encima de `SALIR`**
-     solo si está desbloqueado. El desbloqueo es **SOLO DE SESIÓN** (no persiste; hay que teclear el
-     código siempre). La pantalla `Extras` tiene placeholders deshabilitados `NIVEL`/`HABILIDADES`
-     (**contenido por definir**). `unlock_extras()` rehace el árbol (`reset()`).
+   - **`EXTRAS`**: `ScreenId::Extras` + `Action::OpenExtras` (+ `ToggleExtrasPersist` /
+     `ToggleOriginalLogos`); entrada en la raíz **encima de `SALIR`** si `extras_unlocked()` (código
+     Konami de sesión **o** `MANTENER EXTRAS = SÍ`). Ajustes persistidos en `config.ini [extras]`:
+     **`MANTENER EXTRAS <NO/SÍ>`** (def. `NO`; primera entrada: `SÍ` mantiene EXTRAS entre arranques)
+     y **`LOGOS ORIGINALES <NO/SÍ>`** (def. `SÍ`: clásicos de fondo blanco; `NO` = modernos negros).
+     `use_modern_logos()` = código de sesión **o** `NO`. `unlock_extras()` rehace el árbol (`reset()`).
+     EXTRAS usa **layout propio** (desplazado a la izquierda + columna de valores por etiqueta larga).
    - **Skip con START**: KONAMI lo gestiona el nativo (1 pulsación); para KCEO el nativo ignora START
      durante su fade-in, así que el hook fuerza `0x8038DBCC=3` → **1 Enter = 1 skip** también en KCEO.
    - **Arranque de ventana** (`src/platform/support.cpp`): en fullscreen la ventana se crea ya
@@ -92,13 +96,15 @@
      cargada`, `[menu] goto pantalla=…`; `HH_TRACE_RANGE=0x803837E0:0xA5E0` y `HH_CANARY=0x8038Dxxx`
      para el file 055. Autoplay temporal de test (`HH_BOOT_KONAMI_AUTOPLAY`) usado y **retirado** (no
      está en el árbol).
+   - **Validado en Windows (2026-09-26)**: fades inicio/KONAMI→KCEO/final, **skip con Enter** (1 por
+     logo), flash + modernos al desbloquear, `EXTRAS` en la raíz, **attract** al ritmo original (sin
+     logos HD en el replay) y **"Press Start" centrado** al traducir.
    - **Pendiente**:
-     a) **Windows**: validar fades (inicio/KONAMI→KCEO/final), **skip con Enter** (1 por logo), flash +
-     modernos al desbloquear, `EXTRAS` visible en la raíz, y que **no parpadea** al inicio.
-     b) **Parpadeo de inicio**: si persiste, el nativo del **file 8** pinta antes del primer present de
-     nuestro overlay; siguiente paso = **enganchar el logo del file 8** (ocultarlo), no solo taparlo.
-     c) `EXTRAS`: definir **contenido real** (nivel/habilidades) y cablearlo.
-     d) **BUG de paridad headless** (carrera `ptick`/`bootstate`): fix de fondo (hoy `HH_FORCE_INTRO`).
+     a) `EXTRAS`: ampliar el **contenido real** más allá de `LOGOS ORIGINALES` (nivel/habilidades) y
+     cablearlo.
+     b) **BUG de paridad headless** (carrera `ptick`/`bootstate`): fix de fondo (hoy `HH_FORCE_INTRO`).
+     c) **Parpadeo de inicio**: si en alguna config persistiera, el nativo del **file 8** se pinta antes
+     del primer present de nuestro overlay → **engancharlo/ocultarlo**, no solo taparlo.
    - Detalle: `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`; plan previo:
      `notes/2026-09-26-h-logos-intro-hd-y-konami.md`.
 2. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
@@ -189,20 +195,15 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
 
 - **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
 - **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
-  basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Encima, dos
-  commits limpios nuevos **sin pushear**: `b5303da` (SFX Konami) y `dfb7da4` (`set_screen_image`).
-  Commits limpios previos de 2026-09-26: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras,
-  `CONTINUAR`, `EMPEZAR PARTIDA`/`DIFICULTAD`.
+  basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Commits limpios
+  de 2026-09-26 **sin pushear**: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras, `CONTINUAR`,
+  `EMPEZAR PARTIDA`/`DIFICULTAD`, `b5303da` (SFX Konami), `dfb7da4` (`set_screen_image`), la **tarea 1**
+  troceada en 6 commits (`422714c` capa de imagen del overlay, `33147da` pantalla `EXTRAS`, `a9eb0ae`
+  logos HD + código Konami, `ff8fdc0` ventana borderless, `4318527` WAVs, `57dca28` docs) y los
+  **fixes validados en Windows (2026-09-26)**: `a7705d5` (toggles `EXTRAS` + layout propio), `6e4df36`
+  (attract + timer de inactividad), `5e93d61` (centrado de traducciones `^`) y el commit de docs.
 - **`backup-sesion-intro-2026-09-26`**: respaldo del estado con el trabajo de logos/SFX; **CONSERVAR**.
-- **Cambios SIN COMMITEAR (sesiones logos/Konami + arranque, 2026-09-26) — NO PERDER**: el mantenedor
-  pidió **no commitear**, así que **todo** el trabajo de la tarea 1 está en el **árbol de trabajo**
-  (HEAD = `e1aceea`). **Compila en Linux**. Ficheros modificados: `CMakeLists.txt`, `include/hh.h`,
-  `include/hh/menu.h`, `include/hh/overlay.h`, `shaders/OverlayPS.hlsl`, `shaders/OverlayVS.hlsl`,
-  `src/hooks/sections.cpp`, `src/platform/overlay.cpp`, `src/platform/support.cpp`,
-  `src/platform/rt64_render_context.cpp`, `src/subsystems/menu.cpp`, `PROYECTO.md`, `RETOMAR.md`,
-  `TODO.md`, `docs/INDEX.md`. Sin trackear: `assets/logos/` (4 PNG: `konami-1998/2023`,
-  `kceo-1995/2000`) y `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`. Commitear **solo** cuando
-  el mantenedor lo pida.
+- **Estado del árbol**: limpio tras commitear (todo lo validado en Windows el 2026-09-26).
 - Commitear **solo** lo validado o la documentación, y **solo con permiso del mantenedor** (regla
   `AGENTS.md`). Las herramientas de volcado/pruebas y sus docs van **fuera del repo** (`/tmp` o `work/`).
 
