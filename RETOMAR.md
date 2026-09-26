@@ -47,7 +47,10 @@
 
 ### Aparcado
 - **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego).
-- **Widescreen** (en `main`): falta la **barra HP** y elementos de la derecha (`right`/`stretch`).
+
+**Widescreen/HUD — CERRADO (2026-09-26)**: radar y HUD de combate (POWER/STAMINA, disco, combo,
+stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre combates/niveles;
+**no hay barra HP** (dial + numérico); los cuadros de diálogo van centrados. Detalle en `TODO.md`.
 
 ## Referencia técnica del menú (para reanudar)
 

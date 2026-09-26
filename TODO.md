@@ -105,27 +105,24 @@
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
   `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
-- [x] **Widescreen fase 07b — mapa validado en Windows (2026-09-22)**: anclaje del contenido +
-  **fondo negro** del minimapa cuadrados (fill con scissor propio, `invRatioScale=1`). Radar y HUD
-  `left` ya estaban. Commits `cleanup(hud)`+`fix(map)`+`docs` (ya en `origin/main`). **Detalle**:
-  `notes/2026-09-22-fix-mapa-rect-negro-widescreen.md` ·
-  `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`.
-- [ ] **Widescreen: anclaje del HUD/mapa a los bordes (fase 07b, cosmético)**: **radar anclado a la
-  izquierda** (2026-09-21; `src/hooks/hud_rewrite.cpp` + `HH_HUD_TRACE`; validado en Linux headless
-  por centroide: OFF x=287 → ON x=125, y=const). **Mapa y HUD de combate POWER/STAMINA validados
-  en Windows (2026-09-22)** (ver arriba).
-  **Falta**: la **barra HP** y elementos de la derecha (`right`/`stretch`) — re-derivar sus
-  identidades con `HH_HUD_TRACE=1` en las escenas donde aparecen (combate/diálogos) y añadirlas a
-  la tabla fija. `HH_FULL_FRAME=0` desactiva el widescreen; `HH_NO_HUD_REWRITE=1` el anclaje.
-  **[x] Issue #3 (2026-09-25) — CERRADO y validado en Windows**: desde el **2º combate** el HUD de
-  combate se quedaba en 4:3 (la dirección RDRAM del gráfico cambia por encuentro; no es identidad).
-  Arreglos: POWER/STAMINA por **hash de contenido** (`d820d8e`); **disco plateado del radial** por
-  **hash + caja `27,19,59,51`**; **barra de combo** = 4 `G_FILLRECT` en la fila `y=28..30`; y
-  **stamina gastada** (v0.4.3) = `G_FILLRECT` en `y=34..38`. Los rellenos del HUD de combate
-  (POWER/combo/stamina) se clasifican por **posición** (el color no sirve: rojo→azul→naranja apagado;
-  y RT64 pinta el relleno con el PRIM color, así que la traza lee `fill_color=0`). Herramienta:
-  **F7 = captura pareada** (traza `hh_cap_<n>.log` + imagen `hh_cap_<n>.bmp` del mismo instante).
-  Detalle, intentos descartados y errores a no repetir: `notes/2026-09-25-f-hud-combate-contenido.md`.
+- [x] **Widescreen: anclaje del HUD/mapa (fase 07b) — COMPLETO y validado en Windows (2026-09-26)**:
+  - **Izquierda**: radar y **HUD de combate** (POWER/STAMINA, disco radial, combo, stamina gastada);
+    **derecha**: **minimapa** (contenido + fondo negro a todo el ancho). Persiste entre combates y niveles.
+  - **No existe barra HP**: la salud es el **dial radial** + el **numérico `HP n/n`** (bloque izquierdo
+    ya anclado). **Cuadros de diálogo**: salen centrados con su propio anclaje → **sin cambios**.
+  - **Issue #3 (v0.4.1–v0.4.3, validado)**: desde el **2º combate** el HUD se quedaba en 4:3 (la
+    dirección RDRAM del gráfico cambia por encuentro; no es identidad). POWER/STAMINA por **hash de
+    contenido** (`d820d8e`); **disco radial** por **hash + caja `27,19,59,51`**; **combo** (4
+    `G_FILLRECT`, `y=28..30`) y **stamina gastada** (`y=34..38`) por **posición** (el color cambia
+    rojo→azul→naranja y RT64 pinta el relleno con el PRIM color → la traza lee `fill_color=0`).
+  - **Issue #7 (v0.4.4, validado)**: **minimapa** por **hash de contenido** (la dirección del overlay
+    cambia por escena/capítulo). `notes/2026-09-26-fix-minimapa-contenido.md`.
+  - Reescritor: `src/hooks/hud_rewrite.cpp` (+ `include/hh/hudid.h`); `HH_NO_HUD_REWRITE=1` lo
+    desactiva, `HH_FULL_FRAME=0` el widescreen, `HH_HUD_TRACE=1` la traza; **F7** = captura pareada.
+  - Detalle: `notes/2026-09-21-anclaje-hud-widescreen-radar.md`,
+    `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`,
+    `notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`,
+    `notes/2026-09-25-f-hud-combate-contenido.md`.
 - [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
   con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
   jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
