@@ -18,6 +18,10 @@ std::vector<Screen> g_screens;      // todas las pantallas (el estado vive aquí
 std::vector<ScreenId> g_stack;      // camino activo; el tope es la pantalla visible
 Layout g_layout;
 
+// EXTRAS: desbloqueo SOLO de sesion (no persiste; hay que teclear el codigo Konami siempre). Lo
+// que haya DENTRO (ajustes, si los hubiera) se persistira aparte.
+bool g_extras_unlocked_state = false;
+
 // Traducciones de las etiquetas/opciones del menú. Clave = etiqueta canónica en ESPAÑOL (la del
 // modelo). Columnas: en, ca, fr, de. El JAPONÉS de momento cae a INGLÉS (sus etiquetas en kana
 // necesitan embeber la fuente JP; pendiente). Uppercase (la fuente del menú no tiene minúsculas
@@ -36,6 +40,9 @@ const MenuTr kMenuTr[] = {
     {"GRÁFICOS", "GRAPHICS", "GRÀFICS", "GRAPHIQUES", "GRAFIK"},
     {"SONIDO", "SOUND", "SO", "SON", "TON"},
     {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG"},
+    {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS"},
+    {"NIVEL", "LEVEL", "NIVELL", "NIVEAU", "LEVEL"},
+    {"HABILIDADES", "ABILITIES", "HABILITATS", "COMPÉTENCES", "FÄHIGKEITEN"},
     {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA"},
     {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN"},
     {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO"},
@@ -200,15 +207,20 @@ void sync_resolution();
 void build_tree() {
     g_screens.clear();
 
-    g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, {
+    std::vector<Entry> root = {
         make_item("CONTINUAR", Action::Continue),
         make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
         make_submenu("MODO COMBATE", Action::BattleMode, /*enabled=*/false),
         make_submenu("CONFIGURACIÓN", Action::OpenSettings),
-        // SALIR: extra del port (no existe en el nativo); cierra de forma ordenada. Decidido por el
-        // mantenedor (2026-09-25); ver docs/menu.md.
-        make_item("SALIR", Action::Exit),
-    }));
+    };
+    // EXTRAS: solo aparece si se ha desbloqueado con el codigo Konami (arriba de SALIR).
+    if (extras_unlocked()) {
+        root.push_back(make_submenu("EXTRAS", Action::OpenExtras));
+    }
+    // SALIR: extra del port (no existe en el nativo); cierra de forma ordenada. Decidido por el
+    // mantenedor (2026-09-25); ver docs/menu.md.
+    root.push_back(make_item("SALIR", Action::Exit));
+    g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, std::move(root)));
 
     // NUEVA PARTIDA: iniciar, dificultad y los selectores de "experiencia moderna" (integrados aquí
     // en vez de un submenú: la etiqueta larga no cabía y se solapaba con los valores). El valor de
@@ -280,6 +292,13 @@ void build_tree() {
         // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
         make_selector_with_action("MOSTRAR FPS", {"NO", "SÍ"}, Action::ToggleShowFps,
                                   show_fps_default()),
+    }));
+
+    // EXTRAS: desbloqueado con el codigo Konami. Alcance (editar nivel/habilidades) POR DEFINIR:
+    // entradas provisionales deshabilitadas para que la pantalla exista y se pueda revisar el acceso.
+    g_screens.push_back(make_screen(ScreenId::Extras, ScreenKind::Menu, {
+        make_item("NIVEL", Action::None, /*enabled=*/false),
+        make_item("HABILIDADES", Action::None, /*enabled=*/false),
     }));
 
     sync_resolution();
@@ -372,6 +391,7 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenGraphics:   out = ScreenId::Graphics;   return true;
         case Action::OpenSound:      out = ScreenId::Sound;      return true;
         case Action::OpenDebug:      out = ScreenId::Debug;      return true;
+        case Action::OpenExtras:     out = ScreenId::Extras;     return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -553,7 +573,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Debug)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Extras)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);
@@ -593,6 +613,19 @@ std::string describe_current() {
         out += "\n";
     }
     return out;
+}
+
+bool extras_unlocked() {
+    return g_extras_unlocked_state;
+}
+
+void unlock_extras() {
+    if (g_extras_unlocked_state) return;
+    g_extras_unlocked_state = true;
+    // Rehace la raiz para que aparezca la entrada EXTRAS (el arbol se construyo sin ella). Seguro:
+    // el desbloqueo ocurre durante la intro, antes de usar el menu. NO se persiste: en el proximo
+    // arranque hay que volver a teclear el codigo.
+    reset();
 }
 
 std::string describe_tree() {

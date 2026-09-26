@@ -34,6 +34,7 @@ enum class ScreenId {
     Graphics,      // GRÁFICOS (RATIO / RESOLUCIÓN / P. COMPLETA / ANTIALIASING / VSYNC / FPS)
     Sound,         // SONIDO (lista)
     Debug,         // DEBUG (VENTANA DEBUG + MOSTRAR FPS)
+    Extras,        // EXTRAS (desbloqueable con el codigo Konami)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -50,6 +51,7 @@ enum class Action {
     OpenGraphics,    // submenú GRÁFICOS
     OpenSound,       // submenú SONIDO
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
+    OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
     ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
@@ -144,5 +146,12 @@ std::string describe_current();
 // Diagnóstico (HH_MENU_SCREEN=<id>): coloca la pantalla indicada como activa para poder revisar su
 // dibujo sin navegar (el input llega en el paso 5). `screen_id` = valor de ScreenId.
 void debug_show(int screen_id);
+
+// EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. El desbloqueo es SOLO
+// de sesion (no persiste; hay que teclear el codigo en cada arranque). Al desbloquear se rehace el
+// arbol para anadir la entrada EXTRAS (encima de SALIR); su contenido (editar partida:
+// nivel/habilidades) esta por definir.
+bool extras_unlocked();
+void unlock_extras();
 
 }  // namespace hh::menu
