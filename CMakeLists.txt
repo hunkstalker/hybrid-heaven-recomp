@@ -198,6 +198,17 @@ add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
         ${MENU_SFX_WAVS}
         "$<TARGET_FILE_DIR:HybridHeavenRecomp>/sounds")
 
+# Logos de la intro en HD (KONAMI/KCEO): copiar assets/logos junto al ejecutable (logos/*.png).
+# Son assets de PRODUCTO (derivados de la ROM, pero obra del port); el overlay los dibuja. Ver
+# src/hooks/sections.cpp (control de la secuencia de intro).
+file(GLOB INTRO_LOGO_PNGS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/assets/logos/*.png")
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/logos"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${INTRO_LOGO_PNGS}
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/logos")
+
 if(WIN32)
     target_compile_definitions(HybridHeavenRecomp PRIVATE
         NOMINMAX
