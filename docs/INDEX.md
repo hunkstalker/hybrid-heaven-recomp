@@ -54,6 +54,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Logos de intro en HD (KONAMI/KCEO) + código Konami durante el logo](../notes/2026-09-26-h-logos-intro-hd-y-konami.md) | Tarea (2026-09-26), rama `menu-nativo`. **Descripción del mantenedor** + reconocimiento técnico y | 207 | 2026-09-26 |
 | [EMPEZAR PARTIDA y DIFICULTAD (disparo nativo de GAME START)](../notes/2026-09-26-g-empezar-partida-y-dificultad.md) | Sesión 2026-09-26 (g), rama `menu-nativo`. Implementa el **arranque de partida nueva** desde el | 59 | 2026-09-26 |
 | [Issue #7 — Minimapa desanclado al inicio del nivel 2-1 (RESUELTO)](../notes/2026-09-26-fix-minimapa-contenido.md) | 2026-09-26. Bug reportado por El-Rana. Síntoma: al inicio del **nivel 2-1** (tras eliminar al | 39 | 2026-09-26 |
 | [Widescreen/HUD: cierre (no existe "barra HP")](../notes/2026-09-26-e-widescreen-hud-completo.md) | Sesión 2026-09-26 (e), rama `menu-nativo` (aplica a `main`). **Corrección de documentación**: se | 32 | 2026-09-26 |

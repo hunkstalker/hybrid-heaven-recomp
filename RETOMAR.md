@@ -6,6 +6,16 @@
 
 ## Estado (2026-09-26)
 
+- **Limpieza de commits HECHA (2026-09-26)**: `menu-nativo` = **`4759bd0`** (padre de `9445df2`), que
+  coincide con `origin/menu-nativo`. Se deshicieron los 13 commits de basura
+  (dumpeo/decodificador/bats/diagnóstico) con `git reset --hard 4759bd0`; `dump-logos/` y las
+  herramientas temporales quedan **fuera del árbol**; `.gitignore` ignora `/dump-logos/` y `/dump*/`.
+  - **Rama de respaldo `backup-sesion-intro-2026-09-26` (= `390b712`): CONSERVAR (no borrar).**
+    Contiene el trabajo completo de la sesión de intro (incluida la basura y el diagnóstico).
+  - **Trabajo real reaplicado en commits limpios**: `b5303da` **SFX Konami** (código + `.wav`) y
+    `dfb7da4` **`hh::overlay::set_screen_image`** (overlay). Compila en Linux.
+  - La documentación **limpia** de la tarea de logos vive en
+    `notes/2026-09-26-h-logos-intro-hd-y-konami.md` (sin herramientas ni volcados).
 - **Sincronización con `main` CERRADA y validada**: merge `main → menu-nativo` con v0.4.1–v0.4.4
   (HUD/minimapa #3/#7). Nota `notes/2026-09-26-a-sync-menu-nativo-con-main.md`; checkpoint pre-merge:
   tag **`backup-menu-nativo-sync`**. **No** mergear `menu-nativo` → `main` todavía (es WIP; será la
@@ -31,7 +41,73 @@
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
-1. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
+1. **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS`** (nueva, 2026-09-26): overlay con
+   los logos **4K** y **fondo blanco**, control de la secuencia (**skip con START**) y captura del
+   **código Konami** durante el logo KONAMI (SFX, espera ~2 s, error→2 s para retomar). Enfoque,
+   reconocimiento y plan completos: `notes/2026-09-26-h-logos-intro-hd-y-konami.md`. La entrada
+   `EXTRAS` de la raíz queda ligada a esta tarea.
+
+   **DÓNDE SE QUEDÓ LA EXTRACCIÓN DE LOGOS (retomar aquí, 2026-09-26)**:
+   - **Decisión**: NO reemplazar texturas (RT64 texture-pack) → **overlay** con la imagen HD
+     (fondo blanco, skip START, código Konami encima). Ver §"Decisión de enfoque" de la nota.
+   - **Hallazgo clave**: el logo **no existe como textura única**. La N64 (4 KB TMEM) lo compone de
+     **muchos fragmentos/tiles** (patrón tipo "KONAMI" repetido + barras), no el logo entero.
+   - **Punto exacto donde paré**: analizando el **layout de composición** en el C recompilado
+     (`func_801C205C` = KCEO y `func_801C3090` = KONAMI), que llaman a `func_80146208` una vez por
+     tile con posiciones. **No completado**: extraer de ahí la posición/tamaño de cada fragmento y
+     montarlos en una imagen (vía A1, elegida). Alternativa si se atasca: **captura del framebuffer
+     del juego real** en Windows (que sí muestra los logos) y reescalar (vía A2).
+   - **Datos ya disponibles** en la nota: mapa de la secuencia de logos
+     (`func_801C1624`→`0x801C1764` KONAMI→`0x801C17C8` KCEO→`0x801C184C`), skip (`func_801C1A30`),
+     y la causa raíz del BUG de paridad headless (carrera `ptick`/`bootstate`).
+   - **Insumos resueltos**: SFX (`konami-correct/error/unlock`) convertidos y cargados (commit
+     `b5303da`); secuencia `↑↑↓↓←→←→BA`, timeout 2 s, reintentos infinitos; menú desbloqueable =
+     **`EXTRAS`**.
+   - **Bloqueante conocido**: el **headless se salta la intro** (BUG de paridad abierto, ver la nota).
+     La composición desde fragmentos (A1) **no** necesita el headless; la captura de framebuffer (A2)
+     sí requeriría arreglarlo antes.
+   - **Instrumentación/volcados**: las utilidades de análisis son **externas y no se versionan**
+     (`/tmp` o `work/`); **nada de dumps ni herramientas en el repo**.
+
+   **PLAN PARA COMPLETAR TODA LA TAREA (logos HD + intro + código Konami)**:
+   El detalle canónico está en `notes/2026-09-26-h-logos-intro-hd-y-konami.md` §Plan (A–F); resumen:
+
+   **A. Assets (logos HD)** — A1 (elegida): **componer** KONAMI y KCEO desde los fragmentos,
+   analizando `func_801C205C` (KCEO) y `func_801C3090` (KONAMI). A2 (fallback): captura de framebuffer
+   en Windows y reescalar. Los PNG finales son **assets de producto** → sí van al repo
+   (`assets/logos/`), a diferencia de los volcados/herramientas.
+
+   **B. Capa de imagen del overlay** (ya implementada en `55fd951`; reaplicar en commit limpio):
+   `hh::overlay::set_screen_image(path)` / `clear_screen_image()`; sube el PNG en el render thread y
+   lo dibuja a pantalla completa con aspecto *contain*, independiente del frame del menú. **Falta**
+   quizá: fondo **blanco** detrás del logo (el original es sobre negro) → panel blanco a pantalla
+   completa antes de la imagen.
+
+   **C. Control de la secuencia de logos** (hook, patrón de `hh_title_menu_hook`): envolver el handler
+   del título y detectar el estado activo `func_801C1764` (KONAMI) / `func_801C17C8` (KCEO); publicar
+   la imagen, ocultar los sprites nativos y mutear el input nativo (`g_mute_native_input`) para
+   gestionar el **skip con START** nosotros (`func_801C1A30` es el skip nativo); **pausar el timer
+   nativo** (`obj+0x3C`) mientras el código Konami esté en curso; al terminar, dejar que la intro siga.
+   Anclajes ya existentes en `src/hooks/sections.cpp` (`hh_title_menu_hook`, `g_mute_native_input`,
+   `g_inject_native_a`, patrón `MEM_H(0x3C, obj)=0x384`).
+
+   **D. Código Konami** (input propio durante el logo KONAMI): secuencia `↑ ↑ ↓ ↓ ← → ← → B A`; estado
+   = índice + timestamp; **primer `↑`** pausa la intro + SFX `KonamiCorrect`; acierto `KonamiCorrect`,
+   fallo `KonamiError` + reinicio (reintentos infinitos); **timeout 2 s** → cancela y la intro retoma
+   por donde se pausó; secuencia completa → `KonamiUnlock` + desbloquear `EXTRAS`.
+
+   **E. Menú `EXTRAS`** (desbloqueado por el código): entrada en la raíz (encima de `SALIR`), oculta o
+   deshabilitada hasta desbloquear. Editará partida (nivel y habilidades) — alcance por definir.
+   Persistencia del desbloqueo (¿`config.ini`/save?).
+
+   **F. Validar en Windows** (mando y teclado): logos HD con fondo blanco, skip con START, código
+   Konami (SFX, timeout, reintentos), desbloqueo de `EXTRAS`, e intro normal si no se completa.
+
+   > **Trabajo real ya reaplicado** (en commits limpios y separados):
+   > - SFX — commit `b5303da`: `assets/sounds/konami-{correct,error,unlock}.wav` + enum
+   >   `KonamiCorrect/Error/Unlock` en `include/hh.h` + `src/platform/menu_sfx.cpp`.
+   > - Capa de imagen — commit `dfb7da4`: `include/hh/overlay.h` + `src/platform/overlay.cpp`
+   >   (`set_screen_image`/`clear_screen_image`).
 2. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
    perdieron al crear el menú moderno); analizar.
 3. **Fallos visuales** (capturas del mantenedor en `work/gameplay screenshots/CONTINUAR/`; `work/` es
@@ -112,10 +188,14 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
 ## Git
 
 - **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
-- **`menu-nativo`** (WIP del menú): **~24 commits por delante de `origin/menu-nativo`** (sin pushear);
-  merge con `main` ya incluido. Commits de la sesión 2026-09-26: sync, backlog/docs, IDIOMA/CONFIGURACIÓN,
-  sombras, `CONTINUAR`, `EMPEZAR PARTIDA`/`DIFICULTAD`.
-- Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
+- **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
+  basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Encima, dos
+  commits limpios nuevos **sin pushear**: `b5303da` (SFX Konami) y `dfb7da4` (`set_screen_image`).
+  Commits limpios previos de 2026-09-26: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras,
+  `CONTINUAR`, `EMPEZAR PARTIDA`/`DIFICULTAD`.
+- **`backup-sesion-intro-2026-09-26`**: respaldo del estado con el trabajo de logos/SFX; **CONSERVAR**.
+- Commitear **solo** lo validado o la documentación, y **solo con permiso del mantenedor** (regla
+  `AGENTS.md`). Las herramientas de volcado/pruebas y sus docs van **fuera del repo** (`/tmp` o `work/`).
 
 ## Build Windows
 

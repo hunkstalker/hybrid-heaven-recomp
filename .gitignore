@@ -84,6 +84,10 @@ recomp/*.bak
 # splat/ELF): NO se versiona. Anclado a la raiz para no atrapar otros `work/`.
 /work/
 
+# Dumps de texturas (volcado temporal de analisis; NUNCA al repo). Anclado a la raiz.
+/dump-logos/
+/dump*/
+
 # Artefactos de build del usuario (release de Windows) y config local de runtime:
 # ahora viven bajo build/ (ya ignorado). config.ini tambien se ignora en cualquier ruta.
 hhport_win.zip
