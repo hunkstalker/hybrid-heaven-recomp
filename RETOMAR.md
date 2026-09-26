@@ -18,32 +18,37 @@
   - **Idiomas EN/ES/CA/FR/DE** + **idioma del sistema** (`config.ini [lang]`); `IDIOMA` funcional;
     raíz `CONFIGURACIÓN` (antes AJUSTES).
   - **`CONTINUAR`** retoma la partida (reenvío al dispatch nativo del título).
+  - **`EMPEZAR PARTIDA`** arranca partida nueva (**validado en Windows 2026-09-26**): disparo nativo
+    puntual de **GAME START** (rama idx0 de `func_801C3A40`), sin pilotar el submenú nativo. **`DIFICULTAD`**
+    fija la dificultad en el global `0x801BBC0D` (implementada; **efecto real —daño enemigo— por
+    comprobar jugando**). Nota `notes/2026-09-26-g-…`.
   - Detalle: `notes/2026-09-26-b/…-idioma-configuracion-y-sombras.md`,
-    `…-c-sombras-y-set-a.md`, `…-d-continuar-y-bugs-visuales.md`; **ADR 0008/0012**; `docs/menu.md`.
+    `…-c-sombras-y-set-a.md`, `…-d-continuar-y-bugs-visuales.md`, `…-g-empezar-partida-y-dificultad.md`;
+    **ADR 0008/0012**; `docs/menu.md`.
 - **HUD/minimapa de `main`** integrados por el merge (issues #3 y #7).
 - **Traducción in-game (juego)**: charset + sustitución en runtime listos; **fuente 8×12 `color4`
   preparada pero sin cablear**.
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
-1. **`EMPEZAR PARTIDA`** (siguiente, poco esfuerzo): reenviar al **dispatch nativo** con **`sel = 0`**
-   (NEW GAME) → `func_801C3940` (abre el submenú de NUEVA PARTIDA; registra textos en `0x801CED10`).
-   Mismo mecanismo que `CONTINUAR` (`g_inject_native_a` en `src/hooks/sections.cpp`).
-2. **`DIFICULTAD`**: que `EMPEZAR PARTIDA` cree la partida en la dificultad elegida (esfuerzo por
-   determinar; el flujo nativo está en `func_801C3940`/su submenú).
-3. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
-4. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
+1. **Código Konami → `TRUCOS`**: en la raíz, encima de `SALIR`; detección por mando o teclado, con SFX.
+2. **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se
    perdieron al crear el menú moderno); analizar.
-5. **Fallos visuales** (capturas del mantenedor en `work/gameplay screenshots/CONTINUAR/`; `work/` es
+3. **Fallos visuales** (capturas del mantenedor en `work/gameplay screenshots/CONTINUAR/`; `work/` es
    **gitignored**, pedir/copiar si hay que conservarlas):
    - **`DATA LOAD`**: el borde verde del cuadro de selección aparece pegado al borde superior de la
      pantalla (menú **nativo**; investigar con **F7** y `HH_FULL_FRAME=0`).
    - **Combate (golpes)**: las cajas verdes/rojas salen con **recuadro negro**; el original no lo lleva.
-6. **Traducción — MENÚ (overlay)**: **JA** (embeber la **kana** del `color0` JP o TTF; hoy cae a inglés;
+4. **Traducción — MENÚ (overlay)**: **JA** (embeber la **kana** del `color0` JP o TTF; hoy cae a inglés;
    `color0` JP tiene kana, no kanji).
-7. **Traducción — JUEGO/GAMEPLAY (texto in-game)**: **cablear** `game_font_color4.h` en
+5. **Traducción — JUEGO/GAMEPLAY (texto in-game)**: **cablear** `game_font_color4.h` en
    `src/hooks/text_glyphs.cpp`; extraer **DE/FR** (ROM EU) y **JA** (ROM JP) emparejando por módulo →
    `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
+6. **Comprobar `DIFICULTAD` jugando**: verificar que el valor de `0x801BBC0D` se traduce en el **daño
+   real** de los enemigos (requiere partida). La escritura está implementada (`0x801BBC0D`).
+
+> **Hecho (2026-09-26)**: `EMPEZAR PARTIDA` **validado en Windows**; `DIFICULTAD` implementada
+> (`notes/2026-09-26-g-empezar-partida-y-dificultad.md`).
 
 ### Aparcado
 - **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego).
@@ -107,9 +112,9 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
 ## Git
 
 - **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
-- **`menu-nativo`** (WIP del menú): **~22 commits por delante de `origin/menu-nativo`** (sin pushear);
+- **`menu-nativo`** (WIP del menú): **~24 commits por delante de `origin/menu-nativo`** (sin pushear);
   merge con `main` ya incluido. Commits de la sesión 2026-09-26: sync, backlog/docs, IDIOMA/CONFIGURACIÓN,
-  sombras, `CONTINUAR`.
+  sombras, `CONTINUAR`, `EMPEZAR PARTIDA`/`DIFICULTAD`.
 - Commitear **solo** lo validado o la documentación (regla `AGENTS.md`).
 
 ## Build Windows

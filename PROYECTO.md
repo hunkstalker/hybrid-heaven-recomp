@@ -78,8 +78,9 @@ Herramienta: **F7 = captura pareada** (traza + imagen).
 HECHOS (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
 EN/ES/CA/FR/DE + idioma del sistema); **BUG del reapply de idioma resuelto**
 (`notes/2026-09-25-e-fix-reapply-idioma.md`); **validado en Windows (2026-09-26, tras el merge con
-`main`)**; falta el **JA del menú**. Próximas tareas del menú en `TODO.md` (funcionales
-`EMPEZAR PARTIDA`/`DIFICULTAD`, código Konami → `TRUCOS`, demos de inactividad, fallos visuales).
+`main`)**; falta el **JA del menú**. **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)** y
+**`DIFICULTAD`** implementada (escritura de `0x801BBC0D`; efecto por comprobar jugando). Próximas
+tareas del menú en `TODO.md` (código Konami → `TRUCOS`, demos de inactividad, fallos visuales).
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

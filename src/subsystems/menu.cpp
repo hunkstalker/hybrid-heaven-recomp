@@ -394,6 +394,11 @@ const Screen& current_screen() {
     return *s;
 }
 
+const Screen* screen(ScreenId id) {
+    ensure();
+    return find_screen(id);
+}
+
 int depth() {
     ensure();
     return static_cast<int>(g_stack.size());

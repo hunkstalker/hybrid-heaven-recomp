@@ -38,6 +38,7 @@ extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_8001B204_1BE04(uint8_t* rdram, recomp_context* ctx);  // compone texto de menú
 extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80005670_6270(uint8_t* rdram, recomp_context* ctx);  // crea objeto de transición
 extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // carga bitmap de glifo
 extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
 extern "C" void func_801C1340_11BAE10(uint8_t* rdram, recomp_context* ctx);  // lee botones (direcciones)
@@ -217,12 +218,28 @@ void hh::register_overlays() {
 // cursor movido -> move; pantalla cambiada -> aceptar/atrás. Así no suena si el botón no hace nada.
 static std::atomic<uint32_t> g_goto_count{ 0 };
 
+// Dificultad de la partida nueva en su codificación NATIVA (byte global 0x801BBC0D):
+// 0=NORMAL, 1=DIFÍCIL, 2=DEFINITIVO. La lista del overlay va en orden inverso
+// (DEFINITIVO/DIFÍCIL/NORMAL), de ahí el mapeo. Por defecto NORMAL.
+static int native_difficulty_value() {
+    const hh::menu::Screen* d = hh::menu::screen(hh::menu::ScreenId::Difficulty);
+    if (d == nullptr) return 0;
+    for (size_t i = 0; i < d->entries.size(); ++i) {
+        if (!d->entries[i].marked) continue;
+        return (i == 0) ? 2 : (i == 1) ? 1 : 0;   // DEFINITIVO / DIFÍCIL / NORMAL
+    }
+    return 0;
+}
+
 // A2 (paso 5, control total): alimenta NUESTRO menú con el input del juego (los mismos botones que
 // lee el handler nativo, que queda muteado). Arriba/abajo mueven el cursor; izq/der cambian el valor
 // de un selector lateral; A marca/selecciona (entra en submenús) y B atrás. Los cambios son en vivo
 // (sin X/"aplicar"); las ACCIONES llegan en el paso 6 (de momento, solo DEBUG engancha el modo
 // desarrollador). La raíz no tiene "atrás" (el modelo lo ignora).
 static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
+    // a0 del handler del menú de título = objeto del menú; lo necesita el disparo nativo de
+    // GAME START (ver más abajo). Se lee ANTES de las copias que usa la lectura de botones.
+    const uint32_t obj = static_cast<uint32_t>(ctx->r4);
     recomp_context td = *ctx;
     func_801C1340_11BAE10(rdram, &td);   // direcciones
     recomp_context ta = *ctx;
@@ -311,6 +328,31 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             s.entries[s.cursor].action == hh::menu::Action::Continue) {
             rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
             g_inject_native_a = true;
+        }
+    }
+    // EMPEZAR PARTIDA (NUEVA PARTIDA): arranca la partida con la dificultad elegida, reutilizando el
+    // flujo NATIVO de GAME START. La rama idx0 del submenú de NUEVA PARTIDA (func_801C3A40) hace
+    // func_80005670(obj, 0x80044090) y fija el callback func_801C3BA4; a partir de ahí la cadena
+    // nativa (func_801C3BA4 -> func_801C3BD8 -> func_801C3C14) crea la partida. NO se pasa por
+    // func_801C3940: solo resetea la dificultad y registra las etiquetas del submenú (que el overlay
+    // ya dibuja), y resetearía la dificultad que acabamos de fijar. Solo con el overlay controlando.
+    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size()) &&
+            s.entries[s.cursor].action == hh::menu::Action::StartGame) {
+            const int difficulty = native_difficulty_value();
+            rdram[(0x801BBC0Du - 0x80000000u) ^ 3u] = static_cast<uint8_t>(difficulty);
+            recomp_context t = *ctx;
+            t.r4 = obj;
+            t.r5 = 0x80044090u;             // descriptor de la transición (igual que el nativo)
+            func_80005670_6270(rdram, &t);
+            recomp_context u = *ctx;
+            u.r4 = obj;
+            u.r5 = 0x801C3BA4u;             // siguiente callback: GAME START nativo
+            func_800058DC_64DC(rdram, &u);
+            if (env_set("HH_MENU_TRACE")) {
+                hh::log("[menu] EMPEZAR PARTIDA: difficulty=%d -> GAME START nativo\n", difficulty);
+            }
         }
     }
     // SALIR (raíz): A cierra el port de forma ordenada (extra del port; ver docs/menu.md). Solo con

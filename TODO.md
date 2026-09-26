@@ -30,9 +30,15 @@
      del menú de título (`sel 0x801CC8C4 = 1` = CONTINUE + A inyectada una vez,
      `src/hooks/sections.cpp`), reutilizando la carga real (`func_801C3CDC`). Con overlay activo; con
      `HH_OVERLAY=0` manda el nativo. `notes/2026-09-26-d-continuar-y-bugs-visuales.md`.
-  4. [ ] **`EMPEZAR PARTIDA`**: enlazar con la función real de empezar partida.
-  5. [ ] **`DIFICULTAD`**: controlar la config para que `EMPEZAR PARTIDA` cree la partida en la dificultad
-     elegida (esfuerzo por determinar).
+  4. [x] **`EMPEZAR PARTIDA` — VALIDADO en Windows (2026-09-26)**: dispara la rama **GAME START** del
+     submenú nativo `NUEVA PARTIDA` (`func_801C3A40` idx 0): `func_80005670(obj, 0x80044090)` +
+     `func_800058DC(obj, 0x801C3BA4)`; la cadena nativa crea la partida. No pasa por `func_801C3940`
+     (solo resetea dificultad/registra etiquetas). `src/hooks/sections.cpp`. Método en `docs/menu.md`
+     §Acciones nativas; nota `notes/2026-09-26-g-empezar-partida-y-dificultad.md`.
+  5. [x] **`DIFICULTAD` — HECHO (2026-09-26)**: `EMPEZAR PARTIDA` escribe la dificultad elegida en el
+     global `0x801BBC0D` (`0=NORMAL`/`1=DIFÍCIL`/`2=DEFINITIVO`) leyendo la opción marcada del modelo
+     (`hh::menu::screen(ScreenId::Difficulty)`). **Pendiente de comprobar jugando** el efecto real
+     (daño que hacen los enemigos); el mantenedor confía en la implementación (2026-09-26).
   6. [ ] **Código Konami → `TRUCOS`**: en la raíz del menú, encima de `SALIR`; detección por mando o
      teclado, con SFX.
   7. [ ] **Demos de inactividad**: recuperar la intro/demos que salían a los segundos sin pulsar (se

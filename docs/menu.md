@@ -201,7 +201,7 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25)**: etiquetas localizadas (en/es/ca/fr/de) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. Falta **JA** (kana) y validar en Windows |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE`/`EMPEZAR PARTIDA`/`CONTINUAR` |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. Falta `CÁMARA LIBRE`/`APUNTADO LIBRE` |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 
@@ -209,5 +209,33 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 (kana). Los submenús se pueden forzar con `HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA.
 
 La configuración de los selectores ya **persiste** (`config.ini`) y el idioma también (`[lang]`).
-Pendiente funcional: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego) y
-`DIFICULTAD`/`EMPEZAR PARTIDA`/`CONTINUAR` (arrancar/retomar partida con la dificultad interna).
+Pendiente funcional: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego).
+
+## Acciones nativas (arranque/retomada de partida)
+
+El overlay es la UI, pero las **acciones que arrancan la partida** reutilizan el flujo del juego
+(evitando reimplementarlo). En `feed_menu_navigation` (`src/hooks/sections.cpp`):
+
+- **`CONTINUAR`** (raíz, hoja nativa): se fija `sel` (`0x801CC8C4`) a `1` (CONTINUE) y se inyecta
+  **A** una vez (`g_inject_native_a`); el handler de la raíz corre su rama real
+  (`func_801C3CDC`, carga la partida).
+- **`EMPEZAR PARTIDA`** (hoja del submenú nativo `NUEVA PARTIDA`): se fija la **dificultad** en el
+  byte global **`0x801BBC0D`** (`0=NORMAL`, `1=DIFÍCIL`, `2=DEFINITIVO`) y se dispara la rama
+  **GAME START** del submenú (`func_801C3A40`, idx 0): `func_80005670(obj, 0x80044090)` crea el
+  objeto de transición y `func_800058DC(obj, 0x801C3BA4)` fija el callback; la cadena nativa
+  `func_801C3BA4 → func_801C3BD8 → func_801C3C14` crea la partida. **NO** se pasa por
+  `func_801C3940`: solo resetea la dificultad y registra las etiquetas del submenú (que el overlay ya
+  dibuja). El objeto del menú (`obj`) es el `a0` del handler (`ctx->r4`).
+- **`DIFICULTAD`**: la lista del overlay (`DEFINITIVO/DIFÍCIL/NORMAL`) es orden inverso al nativo;
+  la acción de `EMPEZAR PARTIDA` lee la opción marcada (`hh::menu::screen(ScreenId::Difficulty)`) y
+  la escribe en `0x801BBC0D`.
+
+**Validado en Windows (2026-09-26)**: `EMPEZAR PARTIDA` arranca la partida nueva. La **`DIFICULTAD`**
+se escribe correctamente en `0x801BBC0D` (implementación confiada), pero su **efecto en el juego**
+(daño de los enemigos) **queda por comprobar jugando** en una sesión posterior. Evidencia:
+`notes/2026-09-26-g-empezar-partida-y-dificultad.md`.
+
+Criterio de futuro: el overlay **reemplaza** los submenús nativos (SOUND/RESOLUTION/CONFIGURACIÓN),
+así que las acciones nativas se disparan de forma **puntual y centralizada** desde la hoja del
+overlay, no pilotando el submenú nativo. Si algún día se decide reutilizar un submenú nativo entero
+(p. ej. `MODO COMBATE`), eso sería un diseño aparte con sus propios hooks.

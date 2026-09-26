@@ -117,6 +117,11 @@ void reset();
 const Screen& current_screen();
 int depth();  // nº de pantallas en la pila (1 = raíz)
 
+// Acceso de solo lectura a una pantalla por id (nullptr si no existe). Lo usa la capa de acciones
+// (feed_menu_navigation) para consultar el estado de OTRA pantalla; p. ej. la DIFICULTAD marcada al
+// pulsar EMPEZAR PARTIDA.
+const Screen* screen(ScreenId id);
+
 const Layout& layout();
 
 // Traduce una etiqueta/opción canónica (en español) al idioma activo (hh::text_current_language()).
