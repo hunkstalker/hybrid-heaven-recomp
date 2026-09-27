@@ -9,16 +9,16 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 158 | 2026-09-27 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 162 | 2026-09-27 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 317 | 2026-09-27 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 323 | 2026-09-27 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 77 | 2026-09-21 |
-| [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 399 | 2026-09-26 |
+| [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 79 | 2026-09-21 |
+| [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 403 | 2026-09-26 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 302 | 2026-09-24 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
@@ -32,6 +32,7 @@
 | [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-25 |
 | [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-25 |
 | [v0.5.0 - Native menu: multilingual UI & PC options](releases/v0.5.0.md) | Primera release con el **menú inicial propio del port** (overlay moderno sobre RT64), que sustituye | 44 | 2026-09-27 |
+| [v0.5.1 - Clean release: no diagnostic dumps by default](releases/v0.5.1.md) | El `.exe` de release **ya no deja ficheros de volcado** en su carpeta. Todos los diagnósticos que | 25 | 2026-09-27 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 265 | 2026-09-24 |
 
 ## Decisiones (ADR, inmutables)
@@ -55,6 +56,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [2026-09-27 — Release limpia: diagnósticos y volcados desactivados por defecto (v0.5.1)](../notes/2026-09-27-d-release-sin-volcados.md) | Sesión `main`. Petición del mantenedor: el `.exe` de release **no debe dejar ficheros de volcado**. | 52 | 2026-09-27 |
 | [2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +0.5 px y MENÚ en japonés (kana)](../notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md) | Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos, | 92 | 2026-09-27 |
 | [2026-09-27 — `MODO COMBATE` (BATTLE MODE): reconocimiento nativo y reproducción del SEGV](../notes/2026-09-27-battle-mode-recon.md) | Sesión `menu-nativo`. Objetivo del mantenedor: reconocer la secuencia NATIVA de BATTLE MODE, | 194 | 2026-09-27 |
 | [CONTROLES: remapeo mando/teclado, ejes, D-PAD y VIBRACIÓN](../notes/2026-09-26-j-controles-remapeo-y-vibracion.md) | Tarea 2026-09-26, rama `menu-nativo`. Pantalla del port **`CONFIGURACIÓN → CONTROLES`**. | 94 | 2026-09-26 |

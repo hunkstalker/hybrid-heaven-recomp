@@ -195,13 +195,15 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
 - **`run_mqlog.bat`** — traza de colas/eventos + `HH_S0FIX` + grabación de replay (`hh_mq_all.log`...).
 - **`run_watch.bat`** — watchpoint (`HH_WATCH_ADDR`) + volcados `hh_ring`/`hh_ring2` + replay.
 
-> **Logs de diagnóstico (2026-09-17)**: los logs always-on (`hh_sched`, `hh_pi`, `hh_mq`, `hh_cmds`,
-> `hh_ovl`, `hh_rsp`) ahora requieren **`HH_DIAG=1`** (su I/O con `fflush` degradaba el pacing).
-> Por defecto solo se escriben `hh_state.log` (`HH_STATE_SECS`), crash/hang y `hh_audio.log`.
-> `run_pacing.bat` usa los defaults (sin `HH_DIAG`); los bats de diagnóstico lo activan.
-> Otros ruidos opt-in (2026-09-17): `[PAD] contexto:` → **`HH_PADLOG=1`**; dump PCM
-> `hh_audio_dump.bin` (4 MB) → **`HH_AUDIODUMP=<f>`** (ya no se escribe por defecto).
-> `run_pacing.bat` aparta los logs previos a `logs_prev\` y recoge `boot.log` + dumps de hang/crash.
+> **Logs de diagnóstico (2026-09-27, v0.5.1)**: el `.exe` release **no deja volcados**. Por defecto
+> **solo** se escribe `hh.log` (se sobrescribe cada arranque). Todo lo demás es **opt-in**:
+> `HH_DIAG=1` (audio `hh_audio.log`, `hh_tick.log`/`hh_slow.log`, watchdog `hh_state.log`/
+> `hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), `HH_CRASH_LOG=1` (crash `hh_crash.log` +
+> RDRAM/DMEM), `HH_PAKLOG=1` (`hh_pak.log`, runtime) y los ya clásicos (`hh_rsp`/`hh_sched`/`hh_pi`/
+> `hh_mq`/`hh_cmds`/`hh_ovl` con `HH_DIAG`). Otros ruidos opt-in: `[PAD] contexto:` → `HH_PADLOG=1`;
+> dump PCM `hh_audio_dump.bin` (4 MB) → `HH_AUDIODUMP=<f>`.
+> `run_pacing.bat` aparta los logs previos a `logs_prev\` y recoge `boot.log` + dumps de hang/crash
+> (sus bats activan `HH_DIAG`/`HH_CRASH_LOG`).
 
 > Política: los bats **puntuales** (una regresión concreta) se eliminan tras usarse; solo se quedan
 > los que sirven de forma recurrente (build, run, diagnóstico). Los que probaban configs antiguas
@@ -209,19 +211,21 @@ de compilar en **Release**: con optimizaciones el juego mantiene 60 fps y el aud
 
 ## 3d. Si el port crashea (para depurar)
 
-En el CWD (junto al `.exe`) se escriben solos, en cada crash:
+Los volcados de crash están **desactivados por defecto** (v0.5.1). Arranca con **`HH_CRASH_LOG=1`**
+y, en cada crash, se escriben en el CWD (junto al `.exe`):
 
 - **`hh_crash.log`** — excepción, dirección, módulo+offset, registros y contador de VI.
-- **`hh_crash_rdram.bin`** — los 8 MB de RDRAM en el momento del crash (estado exacto del juego).
-- **`hh_crash_dmem.bin`** — 4 KB de DMEM del RSP.
+- **`hh_crash_rdram_*.bin`** — los 8 MB de RDRAM en el momento del crash (estado exacto del juego).
+- **`hh_crash_dmem_*.bin`** — 4 KB de DMEM del RSP.
 
 Con eso puedo inspeccionar el estado del juego en el crash sin reproducirlo. Si el fallo fue por un
 símbolo ausente, `hh_missing.log` (también junto al `.exe`) lista las `Failed to find function at 0x...`.
 
-**Cuelgues (ventana congelada)**: si el juego deja de pedir input durante 15 s (`HH_HANG_SECS` para
-cambiarlo), un watchdog escribe `hh_hang.log` (contexto MIPS de cada hilo: argumentos y SP = dónde
-está bloqueado cada uno) y `hh_hang_rdram_<pid>_<n>.bin` (8 MB). Deja la ventana congelada ~20 s
-antes de cerrarla para que dé tiempo al volcado.
+**Cuelgues (ventana congelada)**: el watchdog está **desactivado por defecto** (v0.5.1). Con
+**`HH_DIAG=1`** y si el juego deja de pedir input durante 15 s (`HH_HANG_SECS` para cambiarlo),
+escribe `hh_hang.log` (contexto MIPS de cada hilo: argumentos y SP = dónde está bloqueado cada uno) y
+`hh_hang_rdram_<pid>_<n>.bin` (8 MB). Deja la ventana congelada ~20 s antes de cerrarla para que dé
+tiempo al volcado.
 
 ## 4. Estado actual esperado (2026-09-14, tarde)
 

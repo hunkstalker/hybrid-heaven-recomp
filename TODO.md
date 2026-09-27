@@ -5,6 +5,12 @@
 
 ## Ahora (priorizado)
 
+- [x] **Release sin volcados (v0.5.1) — HECHO (2026-09-27)**: el `.exe` release **solo** deja
+  `hh.log` (sobrescrito cada run). Pasaron a **opt-in**: `hh_audio.log`, `hh_tick.log`/`hh_slow.log`,
+  watchdog (`hh_state.log`/`hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), crash
+  (`hh_crash*.log`+RDRAM/DMEM) y `hh_pak.log` (fork NMR). Envs: `HH_DIAG=1`, `HH_CRASH_LOG=1`,
+  `HH_PAKLOG=1`. Detalle: `notes/2026-09-27-d-release-sin-volcados.md`; `docs/releases/v0.5.1.md`.
+
 - [x] **BUG resuelto (headless, 2026-09-25): cambiar de idioma aceleraba el juego (30→60)**. Causa:
   `hh_trans_reapply_language` reescribía el módulo entero y pisaba cambios del juego (relocs de código,
   buffers de trabajo). Fix: re-aplicar solo los bytes cuyo contenido coincide con el testigo `written`

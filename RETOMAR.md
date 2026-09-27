@@ -2,7 +2,8 @@
 
 > **Handoff para la próxima sesión.** Estado, siguiente tarea y métodos. **Diseño y técnica** viven en
 > `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
-> **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
+> **`main` = release** (v0.5.0 publicada; `menu-nativo` ya mergeada). Para la próxima feature grande
+> (editor de partida) **crear una rama** desde `main` (p. ej. `menu-edicion-partida`). Ver §Git.
 
 ## Estado (2026-09-27)
 
@@ -18,6 +19,13 @@
      columna **JA** en `kMenuTr` y fin del fallback a inglés; endónimo `ニホンゴ`.
   Detalle: `notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md`.
   **Pendiente**: verificar los textos JA contra la ROM japonesa (backlog; el mantenedor no lee japonés).
+
+- **`v0.5.0` PUBLICADA (2026-09-27)**: `main` = `c7d9698`, merge **fast-forward** de `menu-nativo`,
+  tag **`v0.5.0`** (`v0.5.0 - Native menu: multilingual UI & PC options`). `menu-nativo` ya mergeada.
+- **Release limpia sin volcados (`v0.5.1` en curso, 2026-09-27)**: el `.exe` release **solo** deja
+  `hh.log` (sobrescrito cada run); `hh_audio/tick/slow/state/slice/hang/flag/crash/pak` pasan a
+  **opt-in** (`HH_DIAG=1`, `HH_CRASH_LOG=1`, `HH_PAKLOG=1`; el fork NMR `39baeeb` cambia el default
+  del paklog). Detalle: `notes/2026-09-27-d-release-sin-volcados.md`.
 
 - **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
   (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
@@ -70,20 +78,42 @@
   puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
   `notes/2026-09-27-battle-mode-recon.md`.
 
-## PRÓXIMA TAREA (recomendada)
+## PRÓXIMA TAREA: `EDICIÓN DE PARTIDA` (editor de save, para tests)
 
-Los 3 temas de esta sesión ya están **validados en Windows (2026-09-27)**. Siguiente: **pulido del
-menú nativo** (lista de abajo) o preparar la **release v0.5.0**.
+**Objetivo del mantenedor (2026-09-27)**: un menú (empezó como motivo de `EXTRAS`) para **cargar una
+partida y editarla** y así probar el juego sin jugar horas: progreso (nivel-punto, p. ej. `1-0`), nivel
+del PJ, habilidades (toggle), estadísticas por parte del cuerpo (`BODY`: ESTADO como filtro →
+CABEZA/BRAZO IZQ/DER/PIERNA IZQ/DER/CUERPO), items (cantidad) y **GUARDAR** en un slot (reutilizando
+la UI nativa de la cápsula). Opción valorada: elegir nivel y **`JUGAR`** → pantalla de carga al nivel,
+sin cargar partida.
 
-Recomendación (1) + alternativas:
-1. **(recomendada) Fallos visuales** (item 3 de la lista): `DATA LOAD` (borde verde del cuadro de
-   selección pegado al borde superior; menú nativo, widescreen) y **combate** (cajas verdes/rojas con
-   recuadro negro que el original no lleva). Son bugs visibles, independientes y sin gameplay.
-2. **`VIBRACIÓN` ↔ guardado (Rumble Pak vs Controller Pak)** (item 11 de `TODO.md`, **bloqueante
-   jugable**): con `VIBRACIÓN=SÍ` no se puede cargar/guardar. Requiere investigar cómo lo resuelven
-   otros recompilados (Zelda64Recomp) o adaptar el PFS virtual.
-3. **Traducción — JUEGO/GAMEPLAY**: cablear la fuente 8×12 `color4` (`game_font_color4.h`) en
-   `src/hooks/text_glyphs.cpp` y extraer DE/FR/JA; es tarea grande.
+**Reconocimiento ya hecho (2026-09-27, ver `notes/` a escribir / este RETOMAR)**:
+- **Guardado**: el `.pak` es un contenedor propio `HHPK` (13595 B; data del juego a `0x1B`, 13568 B =
+  cabecera `0x100` + **4 slots `0xD00`**). Checksums en `0xFC` (cabecera) y `+0xCFC` (slot). El slot
+  vivo se serializa con **`func_80141F28`** y se deserializa con `func_80141D08`; buffers
+  `0x801BEC10` (0xD00) y **estado de partida `0x801BBBF0`**. `func_8014168C` (slot↔buffer) y
+  `func_80142450`/`func_80142350` (escritura PFS). El juego **ya trae un editor nativo** (`DATA EDIT`
+  del BATTLE MODE → `func_801406A4` → `func_8014168C`).
+- **Estado en RAM (módulo 8)**: stats del PJ base **`0x8017DC40`** (HP, offense/defense por 6 partes,
+  **hit count** `+0x68`, **damage count** `+0x76`, **nivel u8 `0x8017DC88`**); **items** `0x8017E004`
+  (45×8, cantidad `+4`); **técnicas** `0x80183CE0` (86×6; "aprendida/usos" en `+4`); flags de
+  progreso `0x8008DC18+8` (0x64 B). **DIFICULTAD** `0x801BBC0D`. El **campo exacto de progreso
+  (nivel-punto)** está en `0x801BBBF0` pero **sin confirmar** (la pantalla CONTINUE pinta
+  `+0x04`).
+- **UI de slots** (carga/guardado): file-select de `file_008` (`func_8013E700` init, `func_8013E850`
+  update LOAD, `func_8013EB2C` update SAVE, setup SAVE `func_8013EA94`, cursor `0x801BBF42`); la
+  cápsula lo lanza desde `func_8021D768` (file_011). Las etiquetas de ese file-select **no** están en
+  `kNativeRanges` (se ven completas).
+- **Recetario overlay**: añadir `ScreenId`/`Action` en `include/hh/menu.h` + `build_tree` (`menu.cpp`),
+  filas `make_selector`/`make_selector_with_action`/`make_submenu`/`make_option`; acciones en
+  `feed_menu_navigation` (`sections.cpp`); traducción en `kMenuTr`; si las etiquetas son largas,
+  añadir a `custom_layout` en `menu_overlay.cpp`.
+
+**Pendiente antes de codificar**: (1) confirmar el campo de **progreso** en `0x801BBBF0` (comparando
+saves con progreso real o `HH_*` de traza); (2) decidir **vía de guardado** (editar `0x801BEC10`/
+`0x801BBBF0` y dejar que el nativo serialice vs recomputar checksums del `.pak`); (3) cómo enganchar
+la UI nativa de slots para `GUARDAR` (propuesta (a): setup `func_8013EA94` + update `func_8013EB2C`).
+Relacionado con el **bloqueante `VIBRACIÓN` ↔ guardado** (item 11 de `TODO.md`).
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
@@ -258,12 +288,14 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
 
 ## Git
 
-- **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
-- **Release al fusionar**: `main` es **ancestro** de `menu-nativo` → merge **fast-forward**. La rama
-  añade 98 commits sobre v0.4.4 (menú inicial propio: navegación/acciones, `CONTINUAR`, `EMPEZAR
-  PARTIDA`/`DIFICULTAD`, `MODO COMBATE`, `CONTROLES`, `EXTRAS`+logos HD/código Konami, acentos e
-  idiomas **EN/ES/CA/FR/DE/JA**). Es **MINOR** (features, sin breaking) → **v0.5.0**. Título propuesto:
-  `v0.5.0 - Native menu: multilingual UI & PC options` (ver `docs/releases/v0.5.0.md`).
+- **`main` = release**: **v0.5.0 PUBLICADA y pusheada (2026-09-27)** — `main` = `c7d9698`, tag
+  `v0.5.0` (`v0.5.0 - Native menu: multilingual UI & PC options`), CI verde. Fue **fast-forward** de
+  `menu-nativo` (98 commits: menú inicial propio, `CONTINUAR`/`EMPEZAR PARTIDA`/`DIFICULTAD`,
+  `MODO COMBATE`, `CONTROLES`, `EXTRAS`+logos HD/código Konami, acentos e idiomas EN/ES/CA/FR/DE/JA).
+- **`v0.5.1` (en curso, 2026-09-27)**: release limpia sin volcados. En `main`: port + fork NMR
+  `39baeeb` (`NMR_COMMIT` en `runtime.lock`) + `docs/releases/v0.5.1.md` + bump `0.5.1`. **Orden de
+  push**: fork NMR primero (`git -C lib/N64ModernRuntime push fork hybrid-heaven`), luego `main`, y
+  el tag `v0.5.1` **tras CI verde**.
 - **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
   basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Commits limpios
   de 2026-09-26 **sin pushear**: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras, `CONTINUAR`,

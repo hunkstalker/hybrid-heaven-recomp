@@ -69,14 +69,15 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
 
 ## 5. Estado de avance
 
-**Estado actual (2026-09-26)**: **`main` = v0.4.4** con **issues #3 y #7 CERRADOS y validados en
+**Estado actual (2026-09-27)**: **`main` = v0.5.0** (publicada; v0.4.1–v0.4.4 siguen vigentes). Incluye
+el **menú inicial propio** (ver abajo) y, desde v0.4.4, los **issues #3 y #7 CERRADOS y validados en
 Windows** — el HUD de combate y el **minimapa** se anclan enteros en widescreen en todas las
 escenas/capítulos: POWER/STAMINA por hash de contenido (`d820d8e`), disco plateado del radial por
 hash+caja `27,19,59,51`, barra de combo (4 `G_FILLRECT` en `y=28..30`) y **stamina gastada**
 (`G_FILLRECT` en `y=34..38`) por posición, y **minimapa** por hash de contenido de su lista.
 Herramienta: **F7 = captura pareada** (traza + imagen).
 `notes/2026-09-25-f-hud-combate-contenido.md` · `notes/2026-09-26-fix-minimapa-contenido.md`.
-**`menu-nativo` (WIP, sincronizada con `main`; futura v0.5.0)**: menú inicial + idiomas
+**`menu-nativo` (mergeada en `main` → **v0.5.0**, 2026-09-27)**: menú inicial + idiomas
 HECHOS (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
 EN/ES/CA/FR/DE/**JA** + idioma del sistema); **BUG del reapply de idioma resuelto**
 (`notes/2026-09-25-e-fix-reapply-idioma.md`); **validado en Windows (2026-09-26, tras el merge con
@@ -89,6 +90,9 @@ intro HD KONAMI/KCEO + código Konami** implementados y **validados en Windows (
 `MANTENER EXTRAS`/`LOGOS ORIGINALES` persistidos, attract al ritmo original y "Press Start" centrado);
 queda ampliar el contenido de la pantalla `EXTRAS`. Próximas tareas del menú en `TODO.md`
 (contenido de `EXTRAS`, fallos visuales). Detalle: `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`.
+**`v0.5.1` (2026-09-27, en curso)**: release limpia — el `.exe` **solo** deja `hh.log`; los volcados
+(`hh_audio/tick/slow/state/slice/hang/flag/crash/pak`) pasan a **opt-in** (`HH_DIAG`/`HH_CRASH_LOG`/
+`HH_PAKLOG`). Próxima feature: **editor de partida** (`EDICIÓN DE PARTIDA`; ver `RETOMAR.md`).
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

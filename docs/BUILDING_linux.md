@@ -22,7 +22,9 @@ Arch/Steam Deck: `sudo pacman -S sdl2 gtk3 vulkan-icd-loader mesa`
 - La config del mando se crea como `config.ini` junto al binario (editable).
 - Los saves (Controller Pak) van a `saves/*.bin.pak` **junto al ejecutable** (portable). Si esa
   carpeta no es escribible se usa el directorio de datos del usuario; `HH_DATA_DIR=<ruta>` lo fuerza.
-- Logs: `hh.log` (setup), `boot.log` (arranque), y en crash/cuelgue `hh_crash*.log`, `hh_hang*.log`.
+- Logs: solo **`hh.log`** por defecto (se sobrescribe cada run). Los volcados de diagnóstico
+  (`hh_audio/tick/slow/state/slice/hang/flag/pak/crash*`) son **opt-in** (v0.5.1): `HH_DIAG=1`,
+  `HH_CRASH_LOG=1`, `HH_PAKLOG=1`.
 - Envs útiles: `HH_RES=original|2x|<n>`, `HH_INVERT_Y=1`, `HH_AUDIODRIVER`/`SDL_AUDIODRIVER`, y para
   pruebas sin mando `HH_PRESS*`/`HH_STICK`.
 
