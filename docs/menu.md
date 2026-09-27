@@ -18,7 +18,8 @@
    izquierda/derecha cambian el valor. **No hay "aplicar" con X**: los cambios son en vivo. Colores:
    las **etiquetas** del menú van en **blanco** (amarillo la del cursor); en las **opciones a
    configurar** (elementos de lista y valores de selector), la activa/aplicada en **verde** y el resto
-   en **gris**; las entradas **deshabilitadas** (p. ej. `MODO COMBATE`, por definir) van en **gris**.
+   en **gris**; las entradas **deshabilitadas** (p. ej. `CÁMARA LIBRE`/`APUNTADO LIBRE`, 2026-09-27) van
+   en **gris** (etiqueta y valor).
 4. **Control TOTAL del menú** (no reutilizar el del juego): el overlay moderno **desacopla** el menú
    inicial del juego para tener todo el control (ver §Input).
 5. **Sin entradas `ACEPTAR`**: el patrón **A/B** (punto 3) es común a **todas** las pantallas de
@@ -34,8 +35,8 @@ CONTINUAR                                  (arriba del todo: retomar partida dir
 NUEVA PARTIDA ->
       EMPEZAR PARTIDA              (inicia el juego con la config elegida)
       DIFICULTAD -> lista DEFINITIVO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
-      CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
-      APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
+      CÁMARA LIBRE   NO/SÍ         (selector DESHABILITADO: gris, el cursor no se posa)
+      APUNTADO LIBRE NO/SÍ         (selector DESHABILITADO: gris, el cursor no se posa)
 MODO COMBATE -> (recreado con nuestro menu; acciones nativas por cursor; ver §MODO COMBATE)
       MODO VS              (nativo: cursor 0)
       COMBATE DE CRIATURAS -> (nativo: cursor 1)
@@ -136,6 +137,10 @@ SALIR                                      (extra del port: cierra de forma orde
   **dentro de NUEVA PARTIDA**, debajo de DIFICULTAD (antes eran un submenú `AJUSTES EXPERIENCIA
   MODERNA`, cuya etiqueta larga se solapaba con los valores). El usuario las configura **antes** de
   pulsar `EMPEZAR PARTIDA`.
+  **DESHABILITADAS (2026-09-27)**: requieren modificar el juego, así que se pintan en **gris** (etiqueta,
+  valor activo y chevrons) y el **cursor no se posa** en ellas (`move_up`/`move_down` saltan las
+  entradas `!enabled`, con guarda si todas estuvieran deshabilitadas). Se reactivarán cuando el juego
+  soporte cámara/apuntado libres (ver `TODO.md`).
 - **MODO COMBATE**: **habilitado (2026-09-27)** y **recreado con nuestro menú** (mismos rótulos que
   el original, traducidos a en/ca/fr/de): `MODO VS` / `COMBATE DE CRIATURAS` / `EDITAR DATOS`. **No
   hay entrada `SALIR`**: se sale con **B** (atrás), que dispara el `EXIT` nativo (cursor 3).
@@ -183,8 +188,15 @@ SALIR                                      (extra del port: cierra de forma orde
 - **Idioma del sistema**: sin `[lang]` guardado, se usa el locale del SO (`GetUserDefaultLocaleName`
   en Windows; `LANG`/`LC_*` en Linux) **si es uno de `en/es/ca/fr/de/ja`**; si no, **inglés**.
   Prioridad: `HH_LANG` > `config.ini [lang]` > sistema > `en`.
-- **Japonés**: pendiente. `color0` JP tiene **kana** (no kanji); de momento JA cae a inglés en las
-  etiquetas del menú. El texto in-game sí soporta EUC-JP (kanji).
+- **Japonés (2026-09-27)**: el `color0` (idx107) del ROM JP es **byte-idéntico al US** (mismo
+  fichero, otra dirección): la **kana** vive en los valores **64..255** y ya está en la ROM que carga
+  el port
+  (no hay que extraerla de `jp.z64`). Mapping kana→glifo desde las tablas EUC→slot del `.resident`
+  del ELF (`tools/text/extract_jp_kana.py` → `include/hh/jp_kana.h`, 165 entradas). El atlas pasa a
+  **128×128** (+ franja de marcas); el overlay resuelve los codepoints kana con `jp_kana_value`. La
+  columna **JA** de `kMenuTr` va en **kana** (no hay kanji en `color0`) y `localized()` ya **no cae a
+  inglés**; el endónimo de la lista `IDIOMA` es `ニホンゴ`. El texto in-game (EUC-JP con kanji) sigue
+  por su propia vía (`assets/lang/ja.txt`, pendiente).
 
 ## Input — DECIDIDO: control total
 
@@ -220,17 +232,18 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | 1. Modelo `hh::menu` (estado) | **HECHO** (`include/hh/menu.h` + `src/subsystems/menu.cpp`) |
 | 2. Dibujo 1:1 (fuente + flecha nativa) | **HECHO** y **validado en Windows**. Listas con la aplicada en verde y el resto en gris; selectores (valores juntos o `< valor >` con flechas dibujadas); dígitos mapeados (2026-09-24) |
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
-| 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25)**: etiquetas localizadas (en/es/ca/fr/de) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. Falta **JA** (kana) y validar en Windows |
+| 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25 / 2026-09-27)**: etiquetas localizadas (en/es/ca/fr/de **/ja**) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. **JA en kana** (valores 64..255 de `color0`; `include/hh/jp_kana.h`) y atlas 128×140. Pendiente validar en Windows |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. **`MODO COMBATE`** habilitado con subpantallas propias (`MODO VS`/`COMBATE DE CRIATURAS`→`5 COMBATES`/`SUPERVIVENCIA`/`EDITAR DATOS`; se sale con B) y **despacho nativo** por cursor; **validado en Windows (2026-09-27)** salvo `MODO VS` (solo se reporta el puerto 0 de mando). Falta `CÁMARA LIBRE`/`APUNTADO LIBRE` |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. **`MODO COMBATE`** habilitado con subpantallas propias (`MODO VS`/`COMBATE DE CRIATURAS`→`5 COMBATES`/`SUPERVIVENCIA`/`EDITAR DATOS`; se sale con B) y **despacho nativo** por cursor; **validado en Windows (2026-09-27)** salvo `MODO VS` (solo se reporta el puerto 0 de mando). `CÁMARA LIBRE`/`APUNTADO LIBRE` **deshabilitados** (gris + no accesibles, 2026-09-27) hasta que el juego los soporte |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 
-**Orden seguido:** 5 → 6 → 7 → 4 (hechos). **Pendiente: 8 (validar en Windows)**; y el **JA** del menú
-(kana). Los submenús se pueden forzar con `HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA.
+**Orden seguido:** 5 → 6 → 7 → 4 (hechos; **JA incluido 2026-09-27**). **Pendiente: 8 (validar en
+Windows)**. Los submenús se pueden forzar con `HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA.
 
 La configuración de los selectores ya **persiste** (`config.ini`) y el idioma también (`[lang]`).
-Pendiente funcional: `CÁMARA LIBRE`/`APUNTADO LIBRE` (requieren modificar el juego).
+`CÁMARA LIBRE`/`APUNTADO LIBRE` **deshabilitados** (gris, el cursor no se posa) hasta que el juego
+los soporte (requieren modificar el juego).
 
 ## Acciones nativas (arranque/retomada de partida)
 

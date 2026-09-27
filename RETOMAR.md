@@ -4,7 +4,20 @@
 > `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
 > **Rama de trabajo: `menu-nativo`** (el `main` es la release; ver §Git).
 
-## Estado (2026-09-26)
+## Estado (2026-09-27)
+
+- **Sesión 2026-09-27 (rama `menu-nativo`)**: los tres temas del plan, implementados y compilando en
+  Linux; **pendiente validar en Windows** (lo hace el mantenedor):
+  1. **`CÁMARA LIBRE`/`APUNTADO LIBRE` deshabilitados** (gris + el cursor no se posa; `move_up/down`
+     saltan `!enabled`) — commit `d27dc54`.
+  2. **Tildes/marcas +1 px a la derecha** (global, en el overlay) — commit `12961d4`.
+  3. **Menú en JAPONÉS (kana)** — commit `0c5f50c`: `color0` del ROM JP **byte-idéntico al US** (la
+     kana ya está en la ROM cargada); mapping EUC→glifo de las tablas del `.resident` del ELF
+     (`tools/text/extract_jp_kana.py` → `include/hh/jp_kana.h`); atlas **128×140** (`kMaxValue` 256);
+     columna **JA** en `kMenuTr` y fin del fallback a inglés; endónimo `ニホンゴ`.
+  Detalle: `notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md`.
+
+
 
 - **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
   (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
@@ -56,43 +69,20 @@
   puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
   `notes/2026-09-27-battle-mode-recon.md`.
 
-## PRÓXIMA TAREA (sesión fresca, 2026-09-27) — orden acordado con el mantenedor
+## PRÓXIMA TAREA (recomendada)
 
-1. **Deshabilitar `CÁMARA LIBRE` y `APUNTADO LIBRE`** (gris + **no interactuables**: el cursor **no**
-   debe poder señalarlas). Detalle: son selectores de `NUEVA PARTIDA` en `build_tree`
-   (`src/subsystems/menu.cpp`: `make_selector("CÁMARA LIBRE", …)` / `…("APUNTADO LIBRE", …)`).
-   Pasos:
-   - Poner `enabled=false` en las dos entradas. `make_selector` **no** acepta `enabled`: añadirlo, o
-     fijar `e.enabled = false`. El overlay ya pinta en **gris** las deshabilitadas
-     (`src/hooks/menu_overlay.cpp:484`; `kGray`).
-   - **Navegación**: `hh::menu::move_up` / `move_down` (`src/subsystems/menu.cpp`) hoy recorren
-     **todas** las entradas; deben **saltar** las `!enabled` para que el cursor no se pose en ellas
-     (con guarda por si todas están deshabilitadas). `confirm()` ya ignora `!enabled`; los selectores
-     deshabilitados no se alcanzan → su `move_left/right` no aplica.
-   - Validar en Windows.
+**Validar en Windows los 3 temas de esta sesión** (selectores grises/no accesibles, tildes ES/CA/FR,
+`IDIOMA → NIHONGO`) y, después, seguir con el **pulido del menú nativo** (lista de abajo).
 
-2. **Mover las tildes +1 px a la derecha** (en algún momento se movieron 1 px a la izquierda). El
-   overlay **centra** la marca: `src/platform/overlay.cpp` (~línea 550),
-   `dx = pen_x + (cw - mw) * 0.5f * t.scale_x;` → sumar `+ 1.0f` (o `1.0f * t.scale_x`) a `dx` para
-   TODAS las marcas. Nota: `tools/text/menu_marks.py` aplica un `shift_left` a las marcas que tocan el
-   borde derecho para que quepa la sombra (`notes/2026-09-26-c-sombras-y-set-a.md` §2); si el ajuste
-   debe ser global, hacerlo en el overlay (no hace falta regenerar `include/hh/menu_marks.h`).
-   Validar en Windows (ES/CA/FR).
-
-3. **Traducción del MENÚ al JAPONÉS con la fuente extraída de la ROM japonesa** (siguiente tema).
-   - **Estado**: JA cae a inglés (`localized()`, `src/subsystems/menu.cpp`: `else if (c == "ja") lang
-     = 1;`) y `kMenuTr` **no** tiene columna JA. La fuente del menú es `color0` (Nisitenma idx **107**,
-     8×8, 2bpp) leída del ROM cargado a un atlas RGBA8 (`src/subsystems/font.cpp`:
-     `kFontRomOffset=0x6E3CD6`, `kFontRomSize=4096`, 64 valores 0..63 → atlas 128×32; marcas debajo).
-   - **JP**: el ROM `work/roms/jp.z64` trae **kana** en su `color0` (no kanji; ver `docs/menu.md`
-     §Japonés y `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`).
-   - **Plan**: localizar el `color0` del ROM JP (mismo idx 107; comparar por el primer bloque como
-     hace `tools/text/extract_eu_font.py` para EU) → mapear valores→glifo y decidir cómo conviven en
-     el atlas (ampliar `kMaxValue`/`kAtlasHeight` o una **región kana** aparte) → añadir columna **JA**
-     a `kMenuTr` (kana) y usar la fuente JP cuando el idioma sea `ja` → quitar el fallback a inglés.
-   - **Herramientas**: `tools/text/menu_marks.py` (marcas), `tools/text/font_dump.py`,
-     `tools/text/extract_eu_font.py` (precedente), `include/hh/font.h`, `src/subsystems/font.cpp`.
-   - Validar en Windows con `IDIOMA → NIHONGO`.
+Recomendación (1) + alternativas:
+1. **(recomendada) Fallos visuales** (item 3 de la lista): `DATA LOAD` (borde verde del cuadro de
+   selección pegado al borde superior; menú nativo, widescreen) y **combate** (cajas verdes/rojas con
+   recuadro negro que el original no lleva). Son bugs visibles, independientes y sin gameplay.
+2. **`VIBRACIÓN` ↔ guardado (Rumble Pak vs Controller Pak)** (item 11 de `TODO.md`, **bloqueante
+   jugable**): con `VIBRACIÓN=SÍ` no se puede cargar/guardar. Requiere investigar cómo lo resuelven
+   otros recompilados (Zelda64Recomp) o adaptar el PFS virtual.
+3. **Traducción — JUEGO/GAMEPLAY**: cablear la fuente 8×12 `color4` (`game_font_color4.h`) en
+   `src/hooks/text_glyphs.cpp` y extraer DE/FR/JA; es tarea grande.
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
@@ -277,8 +267,12 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
   (attract + timer de inactividad), `5e93d61` (centrado de traducciones `^`) y sus docs. Después,
   `1d790c7` (`chore(sfx)`: sonido de error + créditos Konami) y `74dd5a8` (`feat(config)`: pantalla
   `CONTROLES` con remapeo, ejes, D-PAD, `VIBRACIÓN`, `RESET`, layout/scroll) + su commit de docs.
+- **Sesión 2026-09-27** (sin pushear): `6e73337` (`COMBATE DE CRIATURAS`) y `f0a4256` (`MODO COMBATE`);
+  `94732b5`/`1dfd9ad` (docs); y los temas de hoy: `dc5f902` (docs del plan), `d27dc54` (selectores
+  `CÁMARA/APUNTADO LIBRE` off), `12961d4` (tildes +1 px) y `0c5f50c` (menú JA) + su commit de docs.
 - **`backup-sesion-intro-2026-09-26`**: respaldo del estado con el trabajo de logos/SFX; **CONSERVAR**.
-- **Estado del árbol**: limpio tras commitear (todo lo validado en Windows el 2026-09-26).
+- **Estado del árbol**: limpio tras commitear; lo de 2026-09-27 está **implementado y compila en Linux**
+  pero **sin validar en Windows**.
 - Commitear **solo** lo validado o la documentación, y **solo con permiso del mantenedor** (regla
   `AGENTS.md`). Las herramientas de volcado/pruebas y sus docs van **fuera del repo** (`/tmp` o `work/`).
 

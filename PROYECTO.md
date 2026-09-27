@@ -58,10 +58,12 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   básica, y **menú nativo oculto por defecto** (el juego tiene **varias copias** de las etiquetas del
   menú; el filtro cubría solo una). Diseño y estado: **`docs/menu.md`**; técnica:
   **`docs/architecture.md` §7**. `notes/2026-09-24-a2-ocultar-menu-nativo-dos-tablas.md`.
-  **Multi-idioma + acentos (2026-09-25)**: acentos del menú = **letra base `color0` + marca** (no se
-  deforma; `tools/text/menu_marks.py`); etiquetas localizadas **en/es/ca/fr/de** con `IDIOMA`
-  funcional (persiste `[lang]`) e **idioma del sistema** por defecto (fallback inglés); fuente in-game
-  **8×12 `color4`** preparada. **ADR 0012**; `docs/menu.md §Idiomas`.
+  **Multi-idioma + acentos (2026-09-25 / 2026-09-27)**: acentos del menú = **letra base `color0` +
+  marca** (no se deforma; `tools/text/menu_marks.py`); etiquetas localizadas **en/es/ca/fr/de/ja**
+  (JA en **kana**: el `color0` del ROM JP es idéntico al US, mapping en `include/hh/jp_kana.h`;
+  `tools/text/extract_jp_kana.py`) con `IDIOMA` funcional (persiste `[lang]`) e **idioma del sistema**
+  por defecto (fallback inglés); fuente in-game **8×12 `color4`** preparada. **ADR 0012**;
+  `docs/menu.md §Idiomas`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 
@@ -76,9 +78,10 @@ Herramienta: **F7 = captura pareada** (traza + imagen).
 `notes/2026-09-25-f-hud-combate-contenido.md` · `notes/2026-09-26-fix-minimapa-contenido.md`.
 **`menu-nativo` (WIP, sincronizada con `main`; futura v0.5.0)**: menú inicial + idiomas
 HECHOS (árbol, navegación, acciones video/audio, SFX, acentos por letra+marca,
-EN/ES/CA/FR/DE + idioma del sistema); **BUG del reapply de idioma resuelto**
+EN/ES/CA/FR/DE/**JA** + idioma del sistema); **BUG del reapply de idioma resuelto**
 (`notes/2026-09-25-e-fix-reapply-idioma.md`); **validado en Windows (2026-09-26, tras el merge con
-`main`)**; falta el **JA del menú**. **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)** y
+`main`)**; **JA del menú (kana) hecho (2026-09-27, pendiente validar en Windows)**.
+**`EMPEZAR PARTIDA` validado en Windows (2026-09-26)** y
 **`DIFICULTAD`** implementada (escritura de `0x801BBC0D`; efecto por comprobar jugando). **Logos de
 intro HD KONAMI/KCEO + código Konami** implementados y **validados en Windows (2026-09-26)** (assets en
 `assets/logos/`, fundido por grupo + clave de blanco, preload, skip START, `EXTRAS` con toggles
@@ -104,7 +107,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
-| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless; validado en Windows 2026-09-26)**. Falta: JA del menú (kana), cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
+| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless; validado en Windows 2026-09-26)** + **JA en kana (2026-09-27, pendiente validar en Windows)**. Falta: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 
 Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.
