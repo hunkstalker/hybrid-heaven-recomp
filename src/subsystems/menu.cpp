@@ -292,17 +292,14 @@ void build_tree() {
     root.push_back(make_item("SALIR", Action::Exit));
     g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, std::move(root)));
 
-    // NUEVA PARTIDA: iniciar, dificultad y los selectores de "experiencia moderna" (integrados aquí
-    // en vez de un submenú: la etiqueta larga no cabía y se solapaba con los valores). El valor de
-    // los selectores se cambia con izq/der y el real se enganchará en el paso 6.
-    // CÁMARA LIBRE / APUNTADO LIBRE: DESHABILITADOS (2026-09-27) hasta que el juego los soporte
-    // (requieren modificar el juego). Salen en gris y el cursor NO se posa en ellos (move_up/down
-    // saltan las entradas !enabled).
+    // NUEVA PARTIDA: iniciar la partida y elegir dificultad.
+    // CÁMARA LIBRE / APUNTADO LIBRE: OCULTOS (2026-09-27) hasta que el juego los soporte (requieren
+    // modificar el juego); por ahora no se muestran. La maquinaria de entradas deshabilitadas
+    // (`make_selector(..., enabled=false)` + el salto de `!enabled` en move_up/move_down) se conserva
+    // por si se deshabilitan otras entradas en el futuro.
     g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
         make_item("EMPEZAR PARTIDA", Action::StartGame),
         make_submenu("DIFICULTAD", Action::OpenDifficulty),
-        make_selector("CÁMARA LIBRE", {"NO", "SÍ"}, 0, /*enabled=*/false),
-        make_selector("APUNTADO LIBRE", {"NO", "SÍ"}, 0, /*enabled=*/false),
     }));
 
     // DIFICULTAD: lista (A marca la aplicada; el resto sale en gris). La opción marcada es el valor
