@@ -129,10 +129,12 @@ Dos vías, ambas requieren **acuerdo del mantenedor** (regla `AGENTS.md` / `docs
 ## 6. Implementado (2026-09-27, diseño confirmado por el mantenedor)
 
 Decisión del mantenedor: **recrear** los submenús de MODO COMBATE con nuestro menú (para traducir
-los rótulos), empezando por **habilitar** la entrada. Primer incremento:
+los rótulos), empezando por **habilitar** la entrada.
+
+### Incremento 1 (commiteado `f0a4256`)
 
 - `src/subsystems/menu.cpp` / `include/hh/menu.h`: `MODO COMBATE` **habilitado** (`make_submenu(…,
-  Action::BattleMode)`); pantalla `ScreenId::BattleMode` con `MODO VS` / `LUCHA DE CRIATURAS` /
+  Action::BattleMode)`); pantalla `ScreenId::BattleMode` con `MODO VS` / `COMBATE DE CRIATURAS` /
   `EDITAR DATOS` (`Action::BattleModeVs` / `…Creature` / `…DataEdit`). **Sin `SALIR`**: se sale con
   **B**, que dispara el `EXIT` nativo (cursor 3).
 - `kMenuTr`: traducciones en/ca/fr/de de los 3 rótulos nuevos.
@@ -152,11 +154,36 @@ los rótulos), empezando por **habilitar** la entrada. Primer incremento:
   headless aborta **al cerrar** por `vkDestroyDescriptorPool: Invalid device` (teardown Vulkan
   headless, reproducido también sin navegar), ajeno a este cambio.
 
-**Pendiente (siguiente incremento)**:
-1. **Recrear las pantallas internas**: `LUCHA DE CRIATURAS` (`func_801C43BC`/`func_801C44C4`, con
-   `5 MATCHES` / `SURVIVAL` en `0x801CEE44`/`0x801CEE50`) + `func_801C45C8`/`4640`/`4674`, y
-   `EDITAR DATOS` (`func_801C47D0..`). Hooks propios + etiquetas suprimidas + acciones por cursor.
-2. Validar en Windows (con/sin 2.º mando) y localizar/reproducir allí el SEGV original.
+### Incremento 2 (2026-09-27): pantalla interna COMBATE DE CRIATURAS
+
+- `kMenuTr` / modelo: `COMBATE DE CRIATURAS` (ES; CA `COMBAT DE CRIATURES`, FR `COMBAT DE CRÉATURES`,
+  DE `KREATURENKAMPF`, EN `CREATURE BATTLE`) y su subpantalla `ScreenId::BattleCreature` con
+  `5 COMBATES` (`5 MATCHES`) / `SUPERVIVENCIA` (`SURVIVAL`), traducidas. `menu.h` añade
+  `push(ScreenId)` (entrar a la hija sin pasar por `confirm()`, porque la entrada la controla el
+  nativo).
+- `sections.cpp`: al elegir `COMBATE DE CRIATURAS` (cursor 1) se fija el cursor de batalla y se
+  empuja `ScreenId::BattleCreature`; nuevo `hh_battle_creature_hook` envuelve `func_801C44C4`
+  (cursor `0x801CC8C8` `0..1` + A inyectada; `B` llama a `func_800058DC(obj, 0x801C56B8)` y vuelve a
+  la raíz). `menu_overlay.cpp` oculta las etiquetas/flecha internas (`0x801CEE24..+0x38`) con
+  longitudes de campo por etiqueta (cabecera 20 B, flecha/opciones 12 B).
+- **Verificado headless**: `[menu-nav] depth=3 screen=4` (`5 COMBATES` / `SUPERVIVENCIA`); `B` →
+  raíz con resincronización; `A` sobre `SUPERVIVENCIA` → `dispatch cursor=1` → `801C45C8` →
+  `801C4640` → `801C4674` (inicio de escena), sin SEGV.
+
+**Pendiente**:
+1. `EDITAR DATOS` (`func_801C47D0` → `4840` → `48A4` → `4954`): **no tiene pantalla de opciones**
+   (es una operación de carga/edición que acaba en stub), así que se deja como flujo nativo.
+2. `MODO VS`: no validado (ver §8).
+
+## 8. Validación en Windows (2026-09-27)
+
+- **Validado por el mantenedor**: `MODO COMBATE` (habilitado), `COMBATE DE CRIATURAS` con sus dos
+  opciones `5 COMBATES` / `SUPERVIVENCIA` y el despacho nativo — «funciona perfecto».
+- **NO validado — `MODO VS`**: no parece detectarse un **2.º mando** (¿o un 2.º **Controller Pak**?).
+  Causa probable (medida en código): el port **solo reporta el puerto 0** de mando
+  (`src/subsystems/input.cpp`: `return controller_num == 0`, porque reportar todos los puertos rompía
+  la detección de arranque). Hasta reportar un 2.º puerto conectado, `MODO VS` (2P) no se puede
+  probar. Anotado en `TODO.md` (backlog: 2.º mando / 2.º Controller Pak).
 
 ## 7. Comandos/artefactos
 

@@ -134,18 +134,19 @@
    - **`VIBRACIÓN` ↔ guardado** (tarea aparte, `TODO.md` item 11): con `VIBRACIÓN` en SÍ **no se puede
      cargar/guardar** (Rumble Pak vs Controller Pak comparten ranura) → hasta resolverlo, la
      `VIBRACIÓN` no es validable.
-8. **`MODO COMBATE` (BATTLE MODE) — SUBPANTALLA PROPIA + DESPACHO (2026-09-27); FALTA INTERNAS**:
+8. **`MODO COMBATE` (BATTLE MODE) — COMPLETO Y VALIDADO EN WINDOWS (2026-09-27)**:
    decisión del mantenedor: **recrear** los submenús con nuestro menú (traducidos). **Hecho**:
    (1) mapa de la secuencia nativa (todo en `file_024`: setup `0x801C40F8` → update `0x801C4200`;
    `VS MODE`→stub, `CREATURE BATTLE`→`0x801C43BC…`, `DATA EDIT`→`0x801C47D0…`, `EXIT`→`0x801C56B8`;
-   `DEMO SELECT` en `file_025`); (2) **SEGV `FUN_80026f58` NO reproducido** headless (validar en
-   Windows); (3) **`MODO COMBATE` habilitado** + pantalla propia `MODO VS` / `LUCHA DE CRIATURAS` /
-   `EDITAR DATOS` (en/ca/fr/de; sin `SALIR`, se sale con `B`); (4) **despacho nativo cableado**
-   (`hh_battle_menu_hook` envuelve `func_801C4200`: cursor `0x801CC8C8`+A inyectada, patrón `sel`+A;
-   etiquetas nativas del submenú suprimidas; resincronización al volver a la raíz). Verificado
-   headless sin SEGV.
-   **Falta**: recrear las **pantallas internas** de `LUCHA DE CRIATURAS` (`5 MATCHES`/`SURVIVAL`) y
-   `EDITAR DATOS` con nuestro menú, y validar en Windows (con/sin 2.º mando).
+   `DEMO SELECT` en `file_025`); (2) **SEGV `FUN_80026f58` NO reproducido** headless;
+   (3) **`MODO COMBATE` habilitado** + pantallas propias `MODO VS` / `COMBATE DE CRIATURAS` →
+   (`5 COMBATES` / `SUPERVIVENCIA`) / `EDITAR DATOS` (en/ca/fr/de; sin `SALIR`, se sale con `B`);
+   (4) **despacho nativo cableado** (`hh_battle_menu_hook`→`func_801C4200` y
+   `hh_battle_creature_hook`→`func_801C44C4`: cursor `0x801CC8C8`+A inyectada, patrón `sel`+A;
+   etiquetas nativas suprimidas; resincronización al volver a la raíz).
+   **Validado en Windows (2026-09-27)** salvo **`MODO VS`**: el port **solo reporta el puerto 0** de
+   mando (`src/subsystems/input.cpp`), así que no se detecta un **2.º mando** (¿o 2.º Controller Pak?)
+   → backlog (`TODO.md`). `EDITAR DATOS` no tiene pantalla de opciones propia (flujo nativo).
    Detalle: `notes/2026-09-27-battle-mode-recon.md`; `TODO.md` item 12.
 
 > **Hecho (2026-09-26)**: `EMPEZAR PARTIDA` **validado en Windows**; `DIFICULTAD` implementada

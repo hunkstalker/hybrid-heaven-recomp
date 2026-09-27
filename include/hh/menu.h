@@ -28,7 +28,8 @@ enum class ScreenId {
     Root,          // título (CONTINUAR / NUEVA PARTIDA / MODO COMBATE / CONFIGURACIÓN)
     NewGame,       // NUEVA PARTIDA (EMPEZAR PARTIDA / DIFICULTAD / selectores)
     Difficulty,    // DIFICULTAD (lista)
-    BattleMode,    // MODO COMBATE (por definir; de momento deshabilitado)
+    BattleMode,    // MODO COMBATE (MODO VS / COMBATE DE CRIATURAS / EDITAR DATOS)
+    BattleCreature,  // COMBATE DE CRIATURAS (5 COMBATES / SUPERVIVENCIA)
     Settings,      // CONFIGURACIÓN
     Language,      // IDIOMA (lista)
     Graphics,      // GRÁFICOS (RATIO / RESOLUCIÓN / P. COMPLETA / ANTIALIASING / VSYNC / FPS)
@@ -46,8 +47,10 @@ enum class Action {
     StartGame,       // EMPEZAR PARTIDA
     BattleMode,      // MODO COMBATE: submenu (recreado con nuestro menu; ver docs/menu.md)
     BattleModeVs,        // MODO COMBATE -> VS MODE
-    BattleModeCreature,  // MODO COMBATE -> CREATURE BATTLE
-    BattleModeDataEdit,  // MODO COMBATE -> DATA EDIT
+    BattleModeCreature,  // MODO COMBATE -> COMBATE DE CRIATURAS (entra a su subpantalla)
+    BattleModeDataEdit,  // MODO COMBATE -> EDITAR DATOS
+    BattleCreatureMatches,   // COMBATE DE CRIATURAS -> 5 COMBATES
+    BattleCreatureSurvival,  // COMBATE DE CRIATURAS -> SUPERVIVENCIA
     OpenNewGame,     // submenú NUEVA PARTIDA
     OpenDifficulty,  // submenú DIFICULTAD
     OpenSettings,    // submenú CONFIGURACIÓN
@@ -135,6 +138,11 @@ int depth();  // nº de pantallas en la pila (1 = raíz)
 // (feed_menu_navigation) para consultar el estado de OTRA pantalla; p. ej. la DIFICULTAD marcada al
 // pulsar EMPEZAR PARTIDA.
 const Screen* screen(ScreenId id);
+
+// Empuja una pantalla hija por id (sin pasar por `confirm()`). Lo usa la capa de acciones para
+// acompañar la navegación NATIVA cuando el overlay controla un submenú que no se entra desde nuestro
+// modelo (p. ej. COMBATE DE CRIATURAS). No hace nada si el id no existe.
+void push(ScreenId id);
 
 const Layout& layout();
 

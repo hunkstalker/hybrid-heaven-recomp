@@ -33,11 +33,13 @@ const MenuTr kMenuTr[] = {
     {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN"},
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
-    // MODO COMBATE (subpantalla recreada con nuestro menu; ver docs/menu.md)
+    // MODO COMBATE (subpantallas recreadas con nuestro menu; ver docs/menu.md)
     {"MODO VS", "VS MODE", "MODE VS", "MODE VS", "VS-MODUS"},
-    {"LUCHA DE CRIATURAS", "CREATURE BATTLE", "LLUITA DE CRIATURES", "COMBAT DE CRÉATURES",
+    {"COMBATE DE CRIATURAS", "CREATURE BATTLE", "COMBAT DE CRIATURES", "COMBAT DE CRÉATURES",
      "KREATURENKAMPF"},
     {"EDITAR DATOS", "DATA EDIT", "EDITAR DADES", "ÉDITER DONNÉES", "DATEN BEARBEITEN"},
+    {"5 COMBATES", "5 MATCHES", "5 COMBATS", "5 COMBATS", "5 KÄMPFE"},
+    {"SUPERVIVENCIA", "SURVIVAL", "SUPERVIVÈNCIA", "SURVIE", "ÜBERLEBEN"},
     {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION"},
     {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN"},
     {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
@@ -292,8 +294,15 @@ void build_tree() {
     // submenu de batalla (0x801C4200); ver docs/menu.md y notes/2026-09-27-battle-mode-recon.md.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {
         make_item("MODO VS", Action::BattleModeVs),
-        make_item("LUCHA DE CRIATURAS", Action::BattleModeCreature),
+        make_item("COMBATE DE CRIATURAS", Action::BattleModeCreature),
         make_item("EDITAR DATOS", Action::BattleModeDataEdit),
+    }));
+
+    // COMBATE DE CRIATURAS: subpantalla interna (el original: 5 MATCHES / SURVIVAL, cursor 0x801CC8C8
+    // en func_801C44C4). Se entra desde MODO COMBATE (nativo, cursor 1) y se sale con B (va a la raiz).
+    g_screens.push_back(make_screen(ScreenId::BattleCreature, ScreenKind::Menu, {
+        make_item("5 COMBATES", Action::BattleCreatureMatches),
+        make_item("SUPERVIVENCIA", Action::BattleCreatureSurvival),
     }));
 
     // CONFIGURACIÓN: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
@@ -502,6 +511,14 @@ const Screen& current_screen() {
 const Screen* screen(ScreenId id) {
     ensure();
     return find_screen(id);
+}
+
+void push(ScreenId id) {
+    ensure();
+    if (find_screen(id) == nullptr) {
+        return;
+    }
+    g_stack.push_back(id);
 }
 
 int depth() {

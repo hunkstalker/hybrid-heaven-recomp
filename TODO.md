@@ -83,24 +83,27 @@
      resolvieron otros proyectos** (p. ej. Zelda64Recomp / N64Recomp) — probablemente reportando o
      emulando un "pak combinado" (Rumble + Controller a la vez) o adaptando el PFS. Relacionado:
      `VIBRACIÓN` (item 10) y el PFS virtual (`lib/N64ModernRuntime/librecomp/src/pak.cpp`).
-   12. [•] **`MODO COMBATE` (BATTLE MODE) — RECONOCIDO + SUBPANTALLA PROPIA (2026-09-27); FALTA DESPACHO**:
+   12. [x] **`MODO COMBATE` (BATTLE MODE) — RECREADO CON NUESTRO MENÚ Y VALIDADO EN WINDOWS
+      (2026-09-27)**:
       el nativo la tiene como `sel=2` (`func_801C1DB8`, `0x801CC8C4`). **Hecho (2026-09-27)**:
       (1) mapa completo de la secuencia nativa (todo en `file_024`: setup `0x801C40F8` → update
       `0x801C4200`; `VS MODE`→stub `0x801C43B0`, `CREATURE BATTLE`→`0x801C43BC/44C4/…`, `DATA EDIT`→
       `0x801C47D0/…`, `EXIT`→`0x801C56B8` vuelve a la raíz; `DEMO SELECT` está en `file_025`);
-      (2) **SEGV `FUN_80026f58` NO reproducido** en la build Linux actual por ninguna de las 3 ramas
+      (2) **SEGV `FUN_80026f58` NO reproducido** en la build Linux actual por ninguna de las ramas
       (harness headless); pendiente validar en Windows;
-      (3) **`MODO COMBATE` habilitado** y **recreado con nuestro menú** (`MODO VS` / `LUCHA DE
-      CRIATURAS` / `EDITAR DATOS`, traducido en/ca/fr/de; navegación propia; sin `SALIR`, se sale
-      con `B`);
-      (4) **despacho nativo cableado** (`hh_battle_menu_hook` envuelve `func_801C4200`: cursor
-      `0x801CC8C8` + A inyectada, patrón `sel`+A; etiquetas/flecha nativas del submenú suprimidas;
-      resincronización al volver a la raíz). Verificado headless: `sel=2` → `801C40F8` → `801C4200` →
-      `dispatch cursor=1` → `801C43BC`→`801C44C4` → `B` → `801C56B8` → raíz, sin SEGV.
-      Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
-      **Falta**: (1) recrear las **pantallas internas** de `LUCHA DE CRIATURAS` (`func_801C43BC`/
-      `func_801C44C4`; `5 MATCHES`/`SURVIVAL`) y `EDITAR DATOS` (`func_801C47D0..`) con nuestro menú;
-      (2) validar en Windows (con/sin 2.º mando).
+      (3) **`MODO COMBATE` habilitado** y **recreado** (`MODO VS` / `COMBATE DE CRIATURAS` /
+      `EDITAR DATOS`, traducido en/ca/fr/de; navegación propia; sin `SALIR`, se sale con `B`);
+      (4) **despacho nativo cableado** (`hh_battle_menu_hook` envuelve `func_801C4200`): cursor
+      `0x801CC8C8` + A inyectada (patrón `sel`+A), etiquetas/flecha nativas suprimidas,
+      resincronización al volver a la raíz;
+      (5) **pantalla interna `COMBATE DE CRIATURAS` recreada** (`5 COMBATES` / `SUPERVIVENCIA`;
+      `hh_battle_creature_hook` envuelve `func_801C44C4`; `B` vuelve a la raíz).
+      Verificado headless sin SEGV (`801C4200` y `801C44C4`); **validado en Windows (2026-09-27)**.
+      **No validado**: `MODO VS` — el port **solo reporta el puerto 0** de mando
+      (`src/subsystems/input.cpp`: `return controller_num == 0`), así que el juego no detecta un
+      **2.º mando** (¿o un 2.º **Controller Pak**?); imposible probar 2P hasta resolverlo (ver backlog).
+      `EDITAR DATOS` no tiene pantalla de opciones propia (flujo nativo); si se quiere, se recrea tras
+      inspeccionarlo. Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
@@ -182,8 +185,17 @@
   jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
   influye). **Depende de desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
   Ver `RETOMAR.md` y `notes/2026-09-22-fps-y-present-early.md`.
+- [ ] **2.º mando / 2.º Controller Pak — `MODO VS` no validable (2026-09-27)**: `MODO COMBATE →
+  MODO VS` no se pudo validar; el port **solo reporta el puerto 0** de mando
+  (`src/subsystems/input.cpp`: `return controller_num == 0` por el arranque del juego), así que no se
+  detecta un **2.º mando** (¿o un 2.º **Controller Pak**?). Tarea: reportar un 2.º puerto conectado
+  (y el Controller Pak que corresponda) **sin** romper la detección de arranque (que dependía de
+  reportar `CONT_NO_RESPONSE_ERROR` en los puertos ausentes). Relacionado: item 11 (Rumble vs
+  Controller Pak) y el SEGV del menú multijugador (abajo).
 - [ ] **Menú multijugador: SEGV al entrar** (aparcado 2026-09-16): crash host ≈ `FUN_80026f58`;
   rama multijugador **fuera de alcance** (`notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado).
+  **No reproducido** en la build Linux actual (2026-09-27, ninguna rama del submenú de batalla);
+  confirmar en Windows si reaparece al conectar un 2.º mando.
 - [ ] **Docker smoke headless** (`HH_HEADLESS=1` + `rom/`): validar `docker compose` de punta a punta
   (`notes/2026-09-16-limpieza-rutas-referencias-y-pipeline-build.md` §104).
 - [ ] **Audio (futuro): desacoplar de los fps** — hoy el audio va atado al tick de 30 Hz, así que un

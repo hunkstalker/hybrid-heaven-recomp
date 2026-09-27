@@ -34,6 +34,7 @@ extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C4200_11BDCD0(uint8_t* rdram, recomp_context* ctx);  // update submenú BATTLE MODE
+extern "C" void func_801C44C4_11BDF94(uint8_t* rdram, recomp_context* ctx);  // update COMBATE DE CRIATURAS
 extern "C" void func_801C1508_11BAFD8(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80383AD4_12F4B04(uint8_t* rdram, recomp_context* ctx);  // estado de logos de ARRANQUE (file 055)
 extern "C" unsigned long long hh_get_vi_count(void);                          // diagnostico (VI)
@@ -53,6 +54,7 @@ extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
 extern "C" void unload_overlay_by_id(uint32_t id);
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);   // definido abajo
 extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
+extern "C" void hh_battle_creature_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 
 namespace {
 
@@ -418,6 +420,8 @@ void register_title_menu_hook() {
     // MODO COMBATE: update del submenú de batalla (también en file_024), para pilotar nuestra
     // subpantalla y despachar las entradas por su cursor.
     recomp::overlays::add_loaded_function(0x801C4200, hh_battle_menu_hook);
+    // COMBATE DE CRIATURAS: pantalla interna (5 COMBATES / SUPERVIVENCIA), mismo control.
+    recomp::overlays::add_loaded_function(0x801C44C4, hh_battle_creature_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
@@ -751,12 +755,14 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // hh_battle_menu_hook (envuelve func_801C4200). A = entrada resaltada; B = EXIT (cursor 3).
     if (hh::overlay::enabled() && screen_before == hh::menu::ScreenId::BattleMode) {
         int battle_idx = -1;
+        hh::menu::Action act = hh::menu::Action::None;
         if (ev == hh::menu::Event::Back) {
             battle_idx = 3;   // EXIT (el original vuelve a la raiz)
         } else if (ev == hh::menu::Event::Accept && same_screen) {
             const hh::menu::Screen& s = hh::menu::current_screen();
             if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
-                switch (s.entries[s.cursor].action) {
+                act = s.entries[s.cursor].action;
+                switch (act) {
                     case hh::menu::Action::BattleModeVs:       battle_idx = 0; break;
                     case hh::menu::Action::BattleModeCreature: battle_idx = 1; break;
                     case hh::menu::Action::BattleModeDataEdit: battle_idx = 2; break;
@@ -771,9 +777,34 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 while (hh::menu::depth() > 1) {
                     hh::menu::back();   // nuestra pila vuelve a la raiz (el nativo sale via EXIT)
                 }
+            } else if (act == hh::menu::Action::BattleModeCreature) {
+                hh::menu::push(hh::menu::ScreenId::BattleCreature);   // subpantalla interna
             }
             if (env_set("HH_MENU_TRACE")) {
                 hh::log("[menu] MODO COMBATE: dispatch cursor=%d\n", battle_idx);
+            }
+        }
+    }
+    // COMBATE DE CRIATURAS: pantalla interna (5 COMBATES / SUPERVIVENCIA). A = cursor (0/1) + A
+    // inyectada al nativo (func_801C44C4); B = vuelve a la RAIZ (el original va directo al titulo,
+    // no al submenu de batalla). La delegacion la hace hh_battle_creature_hook.
+    if (hh::overlay::enabled() && screen_before == hh::menu::ScreenId::BattleCreature) {
+        if (ev == hh::menu::Event::Back) {
+            recomp_context t = *ctx;
+            t.r4 = obj;
+            t.r5 = 0x801C56B8u;   // el original: func_800058DC(obj, 0x801C56B8) -> raiz
+            func_800058DC_64DC(rdram, &t);
+            while (hh::menu::depth() > 1) {
+                hh::menu::back();
+            }
+        } else if (ev == hh::menu::Event::Accept && same_screen) {
+            const hh::menu::Screen& s = hh::menu::current_screen();
+            if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+                rdram[(kBattleCursorAddr - 0x80000000u) ^ 3u] = static_cast<uint8_t>(s.cursor);
+                g_inject_native_a = true;
+                if (env_set("HH_MENU_TRACE")) {
+                    hh::log("[menu] COMBATE DE CRIATURAS: dispatch cursor=%d\n", s.cursor);
+                }
             }
         }
     }
@@ -852,13 +883,15 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     {
         const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
 
-        // MODO COMBATE: si el handler de la RAIZ corre con nuestra pila en la subpantalla de batalla,
-        // el nativo ya salio de ella por su cuenta (p. ej. B desde la pantalla interna de CREATURE
-        // BATTLE, que va directo a la raiz): sincronizamos la UI volviendo a la raiz.
-        if (hh::overlay::enabled() &&
-            hh::menu::current_screen().id == hh::menu::ScreenId::BattleMode) {
-            while (hh::menu::depth() > 1) {
-                hh::menu::back();
+        // MODO COMBATE: si el handler de la RAIZ corre con nuestra pila en una subpantalla de batalla,
+        // el nativo ya salio de ella por su cuenta (p. ej. B desde COMBATE DE CRIATURAS, que va
+        // directo a la raiz): sincronizamos la UI volviendo a la raiz.
+        if (hh::overlay::enabled()) {
+            const hh::menu::ScreenId cur = hh::menu::current_screen().id;
+            if (cur == hh::menu::ScreenId::BattleMode || cur == hh::menu::ScreenId::BattleCreature) {
+                while (hh::menu::depth() > 1) {
+                    hh::menu::back();
+                }
             }
         }
 
@@ -927,6 +960,25 @@ extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     func_801C4200_11BDCD0(rdram, ctx);   // comportamiento original con input neutralizado
     g_mute_native_input = false;
     g_inject_native_a = false;           // la inyeccion (cursor+A) es de un solo frame
+    const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
+    if (goto_after == goto_before) {
+        hh::menu_overlay::title_update(rdram);
+    }
+}
+
+// Overlay A2: envuelve el update de COMBATE DE CRIATURAS (func_801C44C4, file_024). Igual que el
+// submenú de batalla: nuestra subpantalla (5 COMBATES / SUPERVIVENCIA) y el original recibe cursor
+// (0x801CC8C8) + A inyectada. B lo gestiona feed_menu_navigation (vuelve a la raíz).
+extern "C" void hh_battle_creature_hook(uint8_t* rdram, recomp_context* ctx) {
+    hh::overlay::set_screen_blackout(false);
+    feed_menu_navigation(rdram, ctx);
+    hh::menu_overlay::suppress_native(rdram);
+    const bool controlling = hh::overlay::enabled();
+    const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
+    g_mute_native_input = controlling;
+    func_801C44C4_11BDF94(rdram, ctx);   // comportamiento original con input neutralizado
+    g_mute_native_input = false;
+    g_inject_native_a = false;
     const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
     if (goto_after == goto_before) {
         hh::menu_overlay::title_update(rdram);

@@ -52,11 +52,17 @@ constexpr unsigned kNativeLabelsLen = 7 * 16;         // idx0..6
 //   - etiquetas idx0..4: 0x801CEDA4 .. 0x801CEDF4, 20 B cada una (cabecera + VS MODE / CREATURE
 //     BATTLE / DATA EDIT / EXIT). Rango [0x801CEDA4, 0x801CEE08).
 //   - flecha/cursor que registra func_801C4200 cada frame: 0x801CEE10 (16 B).
-// NOTA: las etiquetas INTERNAS de CREATURE BATTLE (0x801CEE24...) y la de la raiz no se tocan.
 constexpr uint32_t kBattleLabelAddr = 0x801CEDA4u;
 constexpr unsigned kBattleLabelsLen = 5 * 20;         // 0x64
 constexpr uint32_t kBattleArrowAddr = 0x801CEE10u;
 constexpr unsigned kBattleArrowLen = 16;
+
+// COMBATE DE CRIATURAS (pantalla interna; func_801C43BC / func_801C44C4). Etiquetas y su campo:
+//   - 0x801CEE24 "%mCREATURE BATTLE" (cabecera, campo 20 B).
+//   - 0x801CEE38 flecha/cursor (campo 12 B); 0x801CEE44 " 5 MATCHES"; 0x801CEE50 " SURVIVAL ".
+// Rango [0x801CEE24, 0x801CEE5C) = 0x38.
+constexpr uint32_t kCreatureLabelAddr = 0x801CEE24u;
+constexpr unsigned kCreatureLabelsLen = 0x38;
 
 // Regiones de texto del menú nativo que se ocultan (espacios). Se guardan/restauran tal cual.
 struct NativeRange {
@@ -70,9 +76,10 @@ constexpr NativeRange kNativeRanges[] = {
     { kNativeArrowAddr - 0x801BF1A0u, 16 },                     // flecha del handler (0xFB5C)
     { kBattleLabelAddr - 0x801BF1A0u, kBattleLabelsLen },       // MODO COMBATE: etiquetas (0xFC04)
     { kBattleArrowAddr - 0x801BF1A0u, kBattleArrowLen },        // MODO COMBATE: flecha (0xFC70)
+    { kCreatureLabelAddr - 0x801BF1A0u, kCreatureLabelsLen },   // COMBATE DE CRIATURAS (0xFC84)
 };
-constexpr unsigned kNativeBackupSize =
-    3 * kNativeLabelsLen + 16 + kBattleLabelsLen + kBattleArrowLen;
+constexpr unsigned kNativeBackupSize = 3 * kNativeLabelsLen + 16 + kBattleLabelsLen +
+                                       kBattleArrowLen + kCreatureLabelsLen;
 
 bool g_visible = true;
 // Menú nativo del juego: oculto por defecto (F6 lo muestra/oculta para comparar). `HH_NATIVE=1` lo
@@ -322,25 +329,37 @@ void suppress_native(uint8_t* rdram) {
 // a su estructura interna. Si el menú está oculto, se meten espacios en el campo justo antes de que
 // lo lea: así el texto compuesto ya sale en blanco desde el primer frame (sin depender de cuándo se
 // ejecute el registro). Se llama desde el hook de 0x8001B204.
+// Longitud del campo de texto que hay que blankear para `a` (0 = no es texto del menú oculto).
+// Campos: raíz = 16 B; submenú de batalla = 20 B (5 campos, paso 0x14); COMBATE DE CRIATURAS:
+// cabecera 20 B, flecha/opciones 12 B; flechas = 16 B.
+unsigned hidden_field_len(uint32_t a) {
+    for (uint32_t base : kNativeLabelAddrs) {
+        if (a >= base && a < base + kNativeLabelsLen) {
+            return 16;
+        }
+    }
+    if (a >= kBattleLabelAddr && a < kBattleLabelAddr + kBattleLabelsLen &&
+        ((a - kBattleLabelAddr) % 0x14u) == 0) {
+        return 20;
+    }
+    if (a == kCreatureLabelAddr) {
+        return 20;
+    }
+    if (a == 0x801CEE38u || a == 0x801CEE44u || a == 0x801CEE50u) {
+        return 12;
+    }
+    if (a == kNativeArrowAddr || a == kBattleArrowAddr) {
+        return 16;
+    }
+    return 0;
+}
+
 void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
     if (rdram == nullptr || g_native_visible) {
         return;
     }
-    bool in_labels = false;
-    unsigned len = 16;
-    for (uint32_t base : kNativeLabelAddrs) {
-        if (text_addr >= base && text_addr < base + kNativeLabelsLen) {
-            in_labels = true;
-            break;
-        }
-    }
-    if (!in_labels && text_addr >= kBattleLabelAddr &&
-        text_addr < kBattleLabelAddr + kBattleLabelsLen) {
-        in_labels = true;   // MODO COMBATE: campos de 20 B
-        len = 20;
-    }
-    const bool is_arrow = text_addr == kNativeArrowAddr || text_addr == kBattleArrowAddr;
-    if (!in_labels && !is_arrow) {
+    const unsigned len = hidden_field_len(text_addr);
+    if (len == 0) {
         return;
     }
     static bool logged = false;
