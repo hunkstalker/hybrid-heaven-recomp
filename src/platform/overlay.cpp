@@ -547,11 +547,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                     int dy = 0;
                     if (mark >= 0 &&
                         hh::font::game::mark_info(mark, mx, my, mw, mh, dy) && mw > 0 && mh > 0) {
-                        // La marca se centra en la celda de la letra y se desplaza +1 px a la
-                        // derecha (global, todas las marcas): en algún momento quedaron 1 px a la
-                        // izquierda. Ver RETOMAR.md §Próxima tarea (2026-09-27).
+                        // La marca se centra en la celda de la letra y se desplaza +0.5 px a la
+                        // derecha (global, todas las marcas). El ajuste inicial de +1 px resultó
+                        // excesivo y se corrigió a la mitad (2026-09-27).
                         const float dx = pen_x + (cw - static_cast<float>(mw)) * 0.5f * t.scale_x +
-                                         1.0f * t.scale_x;
+                                         0.5f * t.scale_x;
                         const float dyy = t.y + static_cast<float>(dy) * t.scale_y;
                         const float u0 = static_cast<float>(mx) / g_atlas_w;
                         const float v0 = static_cast<float>(my) / g_atlas_h;
