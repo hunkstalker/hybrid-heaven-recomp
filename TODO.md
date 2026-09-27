@@ -64,13 +64,34 @@
      dibujan **debajo de la letra** (`src/platform/overlay.cpp`) para que la sombra no pise la tinta.
      Nombres `Set A`: `_base` (plantilla), `_ed` (diseño), `_blank` (lienzo de `--template`).
      Detalle: `notes/2026-09-26-c-sombras-y-set-a.md`.
-  10. [ ] **`CONTROLES` (remapeo + ejes + VIBRACIÓN) — IMPLEMENTADO (2026-09-26); pendiente validar
-     en Windows**: submenú con tabla de **acciones** y 2 columnas (**MANDO/TECLADO**), **scroll de 5
-     filas + flechas ↑/↓**, menús del port centrados. Reasignación a **cualquier botón (incl. D-PAD)
-     y/o tecla** (**1 botón + 1 tecla**), con bloqueo A/B 0.25 s al asignar; **movimiento** (4 ejes:
-     stick izq/der + tecla), **D-PAD** como botones (`MENÚ ...`), toggle **`VIBRACIÓN`** (Rumble Pak →
-     SDL; **comprobar que sigue guardando**) y **`RESET`**. Persiste en `[game]/[menu]` + `[keys]`.
-     `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
+  10. [x] **`CONTROLES` (remapeo + ejes + D-PAD + `RESET`) — VALIDADO en Windows (2026-09-26) y
+     commiteado (`74dd5a8`)**: submenú con tabla de **acciones** y 2 columnas (**MANDO/TECLADO**),
+     **scroll de 5 filas + flechas ↑/↓**, menús del port centrados. Reasignación a **cualquier botón
+     (incl. D-PAD) y/o tecla** (**1 botón + 1 tecla**), con bloqueo A/B 0.25 s al asignar; **movimiento**
+     (4 ejes: stick izq/der + tecla), **D-PAD** como botones (`MENÚ ...`) y **`RESET`**. Persiste en
+     `[game]/[menu]` + `[keys]`. `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
+     **La `VIBRACIÓN` no es validable hasta resolver el item 11** (con `VIBRACIÓN` en SÍ no se puede
+     cargar/guardar).
+  11. [ ] **VIBRACIÓN ↔ guardado (Rumble Pak vs Controller Pak) — BLOQUEANTE jugable**: en N64 ambos
+     comparten la **misma ranura**; Hybrid Heaven pide conectar el **Controller Pak** al guardar y el
+     **Rumble Pak** después. Con `VIBRACIÓN` en SÍ (CONTROLES) se reporta **Rumble Pak siempre** y nunca
+     hay Controller Pak → **no se puede cargar ni guardar** (in-game no hay forma de "quitar" el Rumble
+     Pak). **Tarea**: modificar el juego para que **vibración y guardado coexistan** (p. ej. que el PFS
+     virtual funcione aunque se reporte Rumble Pak, o permitir ambos a la vez); y, si ya no hace falta
+     conectar/desconectar dispositivos, **eliminar los mensajes** de conectar Controller/Rumble Pak.
+     **Es un problema común a los recompilados (pasa en el 100 % de los casos): investigar cómo lo
+     resolvieron otros proyectos** (p. ej. Zelda64Recomp / N64Recomp) — probablemente reportando o
+     emulando un "pak combinado" (Rumble + Controller a la vez) o adaptando el PFS. Relacionado:
+     `VIBRACIÓN` (item 10) y el PFS virtual (`lib/N64ModernRuntime/librecomp/src/pak.cpp`).
+  12. [ ] **`MODO COMBATE` (BATTLE MODE) — SIGUIENTE RECOMENDADA**: la entrada de la raíz está
+     **deshabilitada** (`make_submenu("MODO COMBATE", Action::BattleMode, enabled=false)`,
+     `src/subsystems/menu.cpp`); el nativo la tiene como `sel=2` (`func_801C1DB8`,
+     `0x801CC8C4`). Reconocer su **secuencia nativa** (submenús `CREATURE BATTLE` / `VS MODE` /
+     `DATA EDIT` / `DEMO SELECT`; overlays 262/303), **reproducir/acotar el SEGV
+     `FUN_80026f58`** (aparcado 2026-09-16) y decidir cómo exponerlo en el overlay (habilitar +
+     subpantalla propia, o **disparo puntual al flujo nativo**; confirmar diseño antes de dibujar UI).
+     Patrón: `sel` + A inyectada (`src/hooks/sections.cpp`), como `CONTINUAR`/`EMPEZAR PARTIDA`.
+     Notas: `notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado, `docs/menu.md` §Criterio de futuro.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de

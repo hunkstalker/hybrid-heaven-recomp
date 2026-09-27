@@ -129,10 +129,16 @@
    `assets/lang/*.txt`; redactar **ES/CA**; validar longitud variable/A1 en Windows.
 6. **Comprobar `DIFICULTAD` jugando**: verificar que el valor de `0x801BBC0D` se traduce en el **daño
    real** de los enemigos (requiere partida). La escritura está implementada (`0x801BBC0D`).
-7. **`CONTROLES` (remapeo + ejes + VIBRACIÓN)**: **implementado**; **pendiente validar en Windows**
-   (reasignación incl. tecla de "atrás" y stick, movimiento, D-PAD, `VIBRACIÓN` —¿vibra y **sigue
-   guardando**?—, `RESET`, centrado y scroll). Detalle:
-   `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
+7. **`CONTROLES` (remapeo + ejes + D-PAD + `RESET`)**: **VALIDADO en Windows (2026-09-26)** y
+   commiteado (`74dd5a8`). Detalle: `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
+   - **`VIBRACIÓN` ↔ guardado** (tarea aparte, `TODO.md` item 11): con `VIBRACIÓN` en SÍ **no se puede
+     cargar/guardar** (Rumble Pak vs Controller Pak comparten ranura) → hasta resolverlo, la
+     `VIBRACIÓN` no es validable.
+8. **`MODO COMBATE` (BATTLE MODE) — SIGUIENTE RECOMENDADA**: entrada **deshabilitada** (`sel=2` en el
+   nativo). Reconocer la secuencia nativa (`CREATURE BATTLE`/`VS MODE`/`DATA EDIT`/`DEMO SELECT`;
+   overlays 262/303), **reproducir/acotar el SEGV `FUN_80026f58`** y decidir cómo exponerlo en el
+   overlay (habilitar + subpantalla propia, o disparo puntual `sel`+A). Confirmar diseño antes de
+   dibujar UI. Ver `TODO.md` item 12.
 
 > **Hecho (2026-09-26)**: `EMPEZAR PARTIDA` **validado en Windows**; `DIFICULTAD` implementada
 > (`notes/2026-09-26-g-empezar-partida-y-dificultad.md`).
