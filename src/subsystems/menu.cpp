@@ -126,9 +126,11 @@ Entry make_submenu(const char* label, Action action, bool enabled = true) {
     return e;
 }
 
-Entry make_selector(const char* label, std::vector<std::string> options, int value = 0) {
+Entry make_selector(const char* label, std::vector<std::string> options, int value = 0,
+                    bool enabled = true) {
     Entry e;
     e.label = label;
+    e.enabled = enabled;
     e.kind = Kind::Selector;
     e.options = std::move(options);
     e.value = value;
@@ -274,11 +276,14 @@ void build_tree() {
     // NUEVA PARTIDA: iniciar, dificultad y los selectores de "experiencia moderna" (integrados aquí
     // en vez de un submenú: la etiqueta larga no cabía y se solapaba con los valores). El valor de
     // los selectores se cambia con izq/der y el real se enganchará en el paso 6.
+    // CÁMARA LIBRE / APUNTADO LIBRE: DESHABILITADOS (2026-09-27) hasta que el juego los soporte
+    // (requieren modificar el juego). Salen en gris y el cursor NO se posa en ellos (move_up/down
+    // saltan las entradas !enabled).
     g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
         make_item("EMPEZAR PARTIDA", Action::StartGame),
         make_submenu("DIFICULTAD", Action::OpenDifficulty),
-        make_selector("CÁMARA LIBRE", {"NO", "SÍ"}),
-        make_selector("APUNTADO LIBRE", {"NO", "SÍ"}),
+        make_selector("CÁMARA LIBRE", {"NO", "SÍ"}, 0, /*enabled=*/false),
+        make_selector("APUNTADO LIBRE", {"NO", "SÍ"}, 0, /*enabled=*/false),
     }));
 
     // DIFICULTAD: lista (A marca la aplicada; el resto sale en gris). La opción marcada es el valor
@@ -469,6 +474,26 @@ Screen* top() {
     return find_screen(g_stack.back());
 }
 
+// Índice de la entrada HABILITADA siguiente (dir=+1) o anterior (dir=-1) al cursor `from`,
+// envolviendo. Salta las entradas `!enabled` (p. ej. CÁMARA/APUNTADO LIBRE). Devuelve -1 si no hay
+// ninguna habilitada (guarda). Si solo hay una habilitada y es la actual, devuelve esa misma.
+int step_enabled(const Screen& s, int from, int dir) {
+    const int n = static_cast<int>(s.entries.size());
+    if (n == 0) {
+        return -1;
+    }
+    int i = from;
+    for (int k = 0; k < n; ++k) {
+        i += dir;
+        if (i < 0) i = n - 1;
+        if (i >= n) i = 0;
+        if (s.entries[i].enabled) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void ensure() {
     if (g_screens.empty()) {
         reset();
@@ -562,9 +587,8 @@ Event move_up() {
     if (s == nullptr || s->entries.empty()) {
         return Event::None;
     }
-    const int n = static_cast<int>(s->entries.size());
-    const int c = (s->cursor - 1 + n) % n;
-    if (c == s->cursor) {
+    const int c = step_enabled(*s, s->cursor, -1);
+    if (c < 0 || c == s->cursor) {
         return Event::None;
     }
     s->cursor = c;
@@ -577,9 +601,8 @@ Event move_down() {
     if (s == nullptr || s->entries.empty()) {
         return Event::None;
     }
-    const int n = static_cast<int>(s->entries.size());
-    const int c = (s->cursor + 1) % n;
-    if (c == s->cursor) {
+    const int c = step_enabled(*s, s->cursor, +1);
+    if (c < 0 || c == s->cursor) {
         return Event::None;
     }
     s->cursor = c;

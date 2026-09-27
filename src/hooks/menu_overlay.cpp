@@ -543,7 +543,11 @@ void title_update(uint8_t* rdram) {
                         ox += kSlashW + kSlashSep;
                     }
                     const std::string opt = hh::menu::localized(e.options[oi]);
-                    const uint32_t oc = (static_cast<int>(oi) == e.value) ? kGreen : kGray;
+                    // Entrada deshabilitada: TODO en gris (no solo la etiqueta); el valor activo
+                    // no se resalta en verde.
+                    const uint32_t oc = !e.enabled
+                                            ? kGray
+                                            : ((static_cast<int>(oi) == e.value) ? kGreen : kGray);
                     frame.texts.push_back({ ox, y, g_scale_x, g_scale_y, oc, opt });
                     ox += static_cast<float>(cp_count(opt)) * step;
                 }
@@ -551,10 +555,13 @@ void title_update(uint8_t* rdram) {
                 // Selector largo: solo el activo, alineado en la misma columna; el chevron izquierdo
                 // va a su izquierda y el derecho a 4 px del valor.
                 const std::string opt = hh::menu::localized(e.options[static_cast<size_t>(e.value)]);
-                append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, kWhite);
-                frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, kGreen, opt });
+                // Entrada deshabilitada: valor y chevrons en gris (consistente con la etiqueta).
+                const uint32_t vc = e.enabled ? kGreen : kGray;
+                const uint32_t cc = e.enabled ? kWhite : kGray;
+                append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, cc);
+                frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, vc, opt });
                 append_chevron(frame, value_x + static_cast<float>(cp_count(opt)) * step + kChevGap,
-                               y + 1.0f, false, kWhite);
+                               y + 1.0f, false, cc);
             }
         }
 
