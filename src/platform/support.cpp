@@ -882,6 +882,9 @@ static bool hh_open_audio_device(uint32_t freq) {
 // HH: diagnostico de audio siempre activo (ficheros en el CWD, tamano acotado). Permite ver
 // desde fuera la tasa efectiva de produccion, la cola y el estado del dispositivo.
 static void hh_audio_diag_log(size_t sample_count, size_t queued_frames, size_t reported_frames) {
+    // Opt-in (HH_DIAG=1): por defecto NO se escribe hh_audio.log (el .exe release no deja volcados).
+    static const bool enabled = getenv("HH_DIAG") != nullptr;
+    if (!enabled) return;
     static unsigned long calls = 0;
     static unsigned long long samples = 0;
     static double last_t = -1.0;

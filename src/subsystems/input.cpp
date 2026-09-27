@@ -1393,11 +1393,11 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     static bool cfg_logged = false;
     if (controller_num == 0) {
         hh_input_polls.fetch_add(1, std::memory_order_relaxed);
-        // HH: diagnostico de cuantizacion de tick (hh_tick.log, 1 linea/s): cuantos ticks caen en
-        // 1/2/3/4+ VI y el periodo maximo. Mide si la logica clava el presupuesto del original
-        // (2 VI/tick = 30,0/s) o pierde el deadline (3 VI = 50 ms). Ver notas de pacing y §5e de
-        // 2026-09-17-replay-mode-vi-vis-negativo.
-        {
+        // HH: diagnostico de cuantizacion de tick (hh_tick.log, 1 linea/s; hh_slow.log en ticks
+        // lentos). Opt-in con HH_DIAG=1: por defecto el .exe release no deja volcados. Mide si la
+        // logica clava el presupuesto del original (2 VI/tick = 30,0/s) o pierde el deadline
+        // (3 VI = 50 ms). Ver notas de pacing y §5e de 2026-09-17-replay-mode-vi-vis-negativo.
+        if (getenv("HH_DIAG") != nullptr) {
             static FILE* tf = fopen("hh_tick.log", "w");
             if (tf != nullptr) {
                 static uint64_t last_vi = 0;

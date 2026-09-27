@@ -698,14 +698,20 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
 #endif
 
 int main(int argc, char** argv) {
+    // Volcados de crash (hh_crash.log + RDRAM/DMEM): opt-in con HH_CRASH_LOG=1. Por defecto el
+    // .exe release no instala el handler (no deja ficheros). Ver install_crash_handlers().
 #if !defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
-    struct sigaction hh_sa{};
-    hh_sa.sa_sigaction = hh_segv_handler;
-    hh_sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGSEGV, &hh_sa, nullptr);
-    sigaction(SIGBUS, &hh_sa, nullptr);
+    if (getenv("HH_CRASH_LOG") != nullptr) {
+        struct sigaction hh_sa{};
+        hh_sa.sa_sigaction = hh_segv_handler;
+        hh_sa.sa_flags = SA_SIGINFO;
+        sigaction(SIGSEGV, &hh_sa, nullptr);
+        sigaction(SIGBUS, &hh_sa, nullptr);
+    }
 #elif !defined(__SANITIZE_ADDRESS__)
-    SetUnhandledExceptionFilter(hh_win_exc_handler);
+    if (getenv("HH_CRASH_LOG") != nullptr) {
+        SetUnhandledExceptionFilter(hh_win_exc_handler);
+    }
 #endif
 #ifdef _WIN32
     // HH: subir la resolucion del timer del proceso (por defecto ~15,6 ms). Necesario para que el
@@ -869,7 +875,11 @@ int main(int argc, char** argv) {
     recomp::start_game(game_id, "");
     hh::log("start_game issued\n");
 
-    hh_hang_watchdog();
+    // Watchdog de cuelgue (hh_state.log/hh_hang*.log/hh_slice.log/hh_flag.log y sus hilos): opt-in
+    // con HH_DIAG=1. Por defecto el .exe release no arranca esos hilos ni deja volcados.
+    if (getenv("HH_DIAG") != nullptr) {
+        hh_hang_watchdog();
+    }
     hh::log("calling recomp::start\n");
     recomp::start(configuration);
     hh::log("recomp::start returned\n");
