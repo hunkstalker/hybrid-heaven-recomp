@@ -33,6 +33,11 @@ const MenuTr kMenuTr[] = {
     {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN"},
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
+    // MODO COMBATE (subpantalla recreada con nuestro menu; ver docs/menu.md)
+    {"MODO VS", "VS MODE", "MODE VS", "MODE VS", "VS-MODUS"},
+    {"LUCHA DE CRIATURAS", "CREATURE BATTLE", "LLUITA DE CRIATURES", "COMBAT DE CRÉATURES",
+     "KREATURENKAMPF"},
+    {"EDITAR DATOS", "DATA EDIT", "EDITAR DADES", "ÉDITER DONNÉES", "DATEN BEARBEITEN"},
     {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION"},
     {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN"},
     {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
@@ -252,7 +257,7 @@ void build_tree() {
     std::vector<Entry> root = {
         make_item("CONTINUAR", Action::Continue),
         make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
-        make_submenu("MODO COMBATE", Action::BattleMode, /*enabled=*/false),
+        make_submenu("MODO COMBATE", Action::BattleMode),
         make_submenu("CONFIGURACIÓN", Action::OpenSettings),
     };
     // EXTRAS: solo aparece si se ha desbloqueado con el codigo Konami (arriba de SALIR).
@@ -282,8 +287,14 @@ void build_tree() {
         make_option("NORMAL", /*marked=*/true),
     }));
 
-    // MODO COMBATE: por definir; la entrada de la raíz sale deshabilitada.
-    g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {}));
+    // MODO COMBATE: subpantalla recreada con nuestro menu (mismos rotulos que el original),
+    // traduccida a todos los idiomas. El despacho nativo de cada entrada se cablea en el hook del
+    // submenu de batalla (0x801C4200); ver docs/menu.md y notes/2026-09-27-battle-mode-recon.md.
+    g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {
+        make_item("MODO VS", Action::BattleModeVs),
+        make_item("LUCHA DE CRIATURAS", Action::BattleModeCreature),
+        make_item("EDITAR DATOS", Action::BattleModeDataEdit),
+    }));
 
     // CONFIGURACIÓN: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
     g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {

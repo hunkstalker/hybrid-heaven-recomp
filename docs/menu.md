@@ -36,7 +36,11 @@ NUEVA PARTIDA ->
       DIFICULTAD -> lista DEFINITIVO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
       CÁMARA LIBRE   NO/SÍ         (selector; izq/der cambia; activo en verde, resto gris)
       APUNTADO LIBRE NO/SÍ         (selector; izq/der cambia)
-MODO COMBATE -> (por definir; de momento sale DESHABILITADO, en gris)
+MODO COMBATE -> (recreado con nuestro menu; acciones nativas por cursor; ver §MODO COMBATE)
+      MODO VS              (nativo: cursor 0)
+      LUCHA DE CRIATURAS   (nativo: cursor 1; pantallas internas 5 MATCHES / SURVIVAL pendientes)
+      EDITAR DATOS         (nativo: cursor 2)
+      (sin SALIR: se sale con B, que dispara el EXIT nativo = cursor 3)
 CONFIGURACIÓN ->
       IDIOMA -> lista ENGLISH/ESPAÑOL/CATALÀ/FRANÇAIS/DEUTSCH/NIHONGO (endónimos; activa en
             verde, resto gris; A fija). Cambia el idioma del MENÚ y del texto in-game; persiste.
@@ -130,7 +134,17 @@ SALIR                                      (extra del port: cierra de forma orde
   **dentro de NUEVA PARTIDA**, debajo de DIFICULTAD (antes eran un submenú `AJUSTES EXPERIENCIA
   MODERNA`, cuya etiqueta larga se solapaba con los valores). El usuario las configura **antes** de
   pulsar `EMPEZAR PARTIDA`.
-- **MODO COMBATE**: por definir; de momento aparece **deshabilitado en gris**.
+- **MODO COMBATE**: **habilitado (2026-09-27)** y **recreado con nuestro menú** (mismos rótulos que
+  el original, traducidos a en/ca/fr/de): `MODO VS` / `LUCHA DE CRIATURAS` / `EDITAR DATOS`. **No hay
+  entrada `SALIR`**: se sale con **B** (atrás), que dispara el `EXIT` nativo (cursor 3). Navegación
+  propia (A entra, B vuelve) y **despacho nativo cableado**: al confirmar una entrada, el overlay fija
+  el **cursor de batalla** (`0x801CC8C8`, `0..3`) y reenvía **A** al submenú nativo (`func_801C4200`),
+  igual que `sel`+A en la raíz. El overlay dibuja la subpantalla con sus rótulos traducidos
+  (etiquetas/flecha nativas suprimidas); al elegir `MODO VS`/`LUCHA DE CRIATURAS`/`EDITAR DATOS` el
+  juego toma el control de su pantalla interna. Al volver a la raíz, la pila del overlay se
+  resincroniza. **Pendiente**: recrear las **pantallas internas** de `LUCHA DE CRIATURAS`
+  (`5 MATCHES` / `SURVIVAL`) y validar en Windows. Detalle:
+  `../notes/2026-09-27-battle-mode-recon.md`.
 
 ### `SALIR`
 
@@ -201,7 +215,7 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25)**: etiquetas localizadas (en/es/ca/fr/de) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. Falta **JA** (kana) y validar en Windows |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO y validado headless** (2026-09-24). `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado**. Pendiente validar en Windows |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. Falta `CÁMARA LIBRE`/`APUNTADO LIBRE` |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. **`MODO COMBATE`** habilitado con subpantalla propia (`MODO VS`/`LUCHA DE CRIATURAS`/`EDITAR DATOS`; se sale con B) y **despacho nativo** por cursor; falta recrear las pantallas internas. Falta `CÁMARA LIBRE`/`APUNTADO LIBRE` |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO** (2026-09-25): `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado. Falta validar en Windows |
 | 8. Validar en Windows | pendiente |
 

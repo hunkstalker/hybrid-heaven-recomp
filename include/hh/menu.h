@@ -44,7 +44,10 @@ enum class Action {
     Continue,        // CONTINUAR: retomar partida
     Exit,            // SALIR (raíz): cierra el port de forma ordenada
     StartGame,       // EMPEZAR PARTIDA
-    BattleMode,      // MODO COMBATE (deshabilitado)
+    BattleMode,      // MODO COMBATE: submenu (recreado con nuestro menu; ver docs/menu.md)
+    BattleModeVs,        // MODO COMBATE -> VS MODE
+    BattleModeCreature,  // MODO COMBATE -> CREATURE BATTLE
+    BattleModeDataEdit,  // MODO COMBATE -> DATA EDIT
     OpenNewGame,     // submenú NUEVA PARTIDA
     OpenDifficulty,  // submenú DIFICULTAD
     OpenSettings,    // submenú CONFIGURACIÓN

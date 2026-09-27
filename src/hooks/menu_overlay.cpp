@@ -47,6 +47,17 @@ constexpr uint32_t kNativeLabelAddrs[] = {
 constexpr uint32_t kNativeArrowAddr = 0x801CECFCu;    // flecha del handler
 constexpr unsigned kNativeLabelsLen = 7 * 16;         // idx0..6
 
+// MODO COMBATE (submenu de batalla, tambien en file_024): etiquetas y flecha propias. Se ocultan
+// cuando el overlay controla el submenu (el port dibuja sus propios rotulos traducidos).
+//   - etiquetas idx0..4: 0x801CEDA4 .. 0x801CEDF4, 20 B cada una (cabecera + VS MODE / CREATURE
+//     BATTLE / DATA EDIT / EXIT). Rango [0x801CEDA4, 0x801CEE08).
+//   - flecha/cursor que registra func_801C4200 cada frame: 0x801CEE10 (16 B).
+// NOTA: las etiquetas INTERNAS de CREATURE BATTLE (0x801CEE24...) y la de la raiz no se tocan.
+constexpr uint32_t kBattleLabelAddr = 0x801CEDA4u;
+constexpr unsigned kBattleLabelsLen = 5 * 20;         // 0x64
+constexpr uint32_t kBattleArrowAddr = 0x801CEE10u;
+constexpr unsigned kBattleArrowLen = 16;
+
 // Regiones de texto del menú nativo que se ocultan (espacios). Se guardan/restauran tal cual.
 struct NativeRange {
     uint32_t off;
@@ -57,8 +68,11 @@ constexpr NativeRange kNativeRanges[] = {
     { kNativeLabelAddrs[1] - 0x801BF1A0u, kNativeLabelsLen },   // set B (0xFACC)
     { kNativeLabelAddrs[2] - 0x801BF1A0u, kNativeLabelsLen },   // set C (0xFF70)
     { kNativeArrowAddr - 0x801BF1A0u, 16 },                     // flecha del handler (0xFB5C)
+    { kBattleLabelAddr - 0x801BF1A0u, kBattleLabelsLen },       // MODO COMBATE: etiquetas (0xFC04)
+    { kBattleArrowAddr - 0x801BF1A0u, kBattleArrowLen },        // MODO COMBATE: flecha (0xFC70)
 };
-constexpr unsigned kNativeBackupSize = 3 * kNativeLabelsLen + 16;
+constexpr unsigned kNativeBackupSize =
+    3 * kNativeLabelsLen + 16 + kBattleLabelsLen + kBattleArrowLen;
 
 bool g_visible = true;
 // Menú nativo del juego: oculto por defecto (F6 lo muestra/oculta para comparar). `HH_NATIVE=1` lo
@@ -313,13 +327,19 @@ void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
         return;
     }
     bool in_labels = false;
+    unsigned len = 16;
     for (uint32_t base : kNativeLabelAddrs) {
         if (text_addr >= base && text_addr < base + kNativeLabelsLen) {
             in_labels = true;
             break;
         }
     }
-    const bool is_arrow = text_addr == kNativeArrowAddr;
+    if (!in_labels && text_addr >= kBattleLabelAddr &&
+        text_addr < kBattleLabelAddr + kBattleLabelsLen) {
+        in_labels = true;   // MODO COMBATE: campos de 20 B
+        len = 20;
+    }
+    const bool is_arrow = text_addr == kNativeArrowAddr || text_addr == kBattleArrowAddr;
     if (!in_labels && !is_arrow) {
         return;
     }
@@ -328,8 +348,8 @@ void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
         logged = true;
         hh::log("[native] filter first text=%08X\n", text_addr);
     }
-    for (unsigned i = 0; i < 16; ++i) {
-        rdram[((text_addr + i) - 0x80000000u) ^ 3u] = (i == 15u) ? 0x00u : 0x20u;
+    for (unsigned i = 0; i < len; ++i) {
+        rdram[((text_addr + i) - 0x80000000u) ^ 3u] = (i == len - 1) ? 0x00u : 0x20u;
     }
 }
 

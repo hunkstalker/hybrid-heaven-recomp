@@ -33,6 +33,7 @@
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C1DB8_11BB888(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_801C4200_11BDCD0(uint8_t* rdram, recomp_context* ctx);  // update submenú BATTLE MODE
 extern "C" void func_801C1508_11BAFD8(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80383AD4_12F4B04(uint8_t* rdram, recomp_context* ctx);  // estado de logos de ARRANQUE (file 055)
 extern "C" unsigned long long hh_get_vi_count(void);                          // diagnostico (VI)
@@ -50,7 +51,8 @@ extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
 extern "C" void unload_overlay_by_id(uint32_t id);
-extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
+extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);   // definido abajo
+extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 
 namespace {
 
@@ -69,6 +71,11 @@ bool g_mute_native_input = false;
 // inyecta una pulsacion de A una sola vez, para que el handler corra su rama real (carga de
 // partida). Ver `feed_menu_navigation` y `hh_title_menu_hook`.
 bool g_inject_native_a = false;
+
+// MODO COMBATE: cursor del submenú de batalla (byte global que usa func_801C4200; 0..3 =
+// VS MODE / CREATURE BATTLE / DATA EDIT / EXIT). El overlay lo fija y reenvía A cuando confirma una
+// entrada, igual que el `sel` de la raíz.
+constexpr uint32_t kBattleCursorAddr = 0x801CC8C8u;
 
 extern "C" void hh_native_dir_input(uint8_t* rdram, recomp_context* ctx) {
     if (g_mute_native_input) {
@@ -408,6 +415,9 @@ extern "C" void hh_boot_logo_hook(uint8_t* rdram, recomp_context* ctx) {
 // registro inicial en register_runtime_functions).
 void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x801C1DB8, hh_title_menu_hook);
+    // MODO COMBATE: update del submenú de batalla (también en file_024), para pilotar nuestra
+    // subpantalla y despachar las entradas por su cursor.
+    recomp::overlays::add_loaded_function(0x801C4200, hh_battle_menu_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
@@ -601,6 +611,15 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     if (!nav_block && (pressed & 0x8000u)) ev = hh::menu::confirm();   // A: entra / marca
     if (!nav_block && (pressed & 0x4000u)) ev = hh::menu::back();      // B: atras (en vivo, sin X)
     const bool same_screen = (hh::menu::current_screen().id == screen_before);
+    // MODO COMBATE: al confirmar la entrada de la raiz arrancamos TAMBIEN el submenu NATIVO
+    // (sel=2 + A inyectada) para que exista su estado (callback func_801C4200) y podamos despachar
+    // cada opcion por su cursor. El overlay dibuja la subpantalla propia (rotulos traducidos).
+    if (ev == hh::menu::Event::Accept && hh::overlay::enabled() &&
+        hh::menu::current_screen().id == hh::menu::ScreenId::BattleMode &&
+        screen_before == hh::menu::ScreenId::Root) {
+        rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 2;   // sel = BATTLE MODE
+        g_inject_native_a = true;
+    }
     // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
     // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
@@ -727,6 +746,37 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
+    // MODO COMBATE: nuestra subpantalla reenvia la accion al submenu NATIVO fijando su cursor
+    // (0x801CC8C8) y A inyectada, igual que el `sel` de la raiz. La delegacion la hace
+    // hh_battle_menu_hook (envuelve func_801C4200). A = entrada resaltada; B = EXIT (cursor 3).
+    if (hh::overlay::enabled() && screen_before == hh::menu::ScreenId::BattleMode) {
+        int battle_idx = -1;
+        if (ev == hh::menu::Event::Back) {
+            battle_idx = 3;   // EXIT (el original vuelve a la raiz)
+        } else if (ev == hh::menu::Event::Accept && same_screen) {
+            const hh::menu::Screen& s = hh::menu::current_screen();
+            if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+                switch (s.entries[s.cursor].action) {
+                    case hh::menu::Action::BattleModeVs:       battle_idx = 0; break;
+                    case hh::menu::Action::BattleModeCreature: battle_idx = 1; break;
+                    case hh::menu::Action::BattleModeDataEdit: battle_idx = 2; break;
+                    default: break;
+                }
+            }
+        }
+        if (battle_idx >= 0) {
+            rdram[(kBattleCursorAddr - 0x80000000u) ^ 3u] = static_cast<uint8_t>(battle_idx);
+            g_inject_native_a = true;
+            if (battle_idx == 3) {
+                while (hh::menu::depth() > 1) {
+                    hh::menu::back();   // nuestra pila vuelve a la raiz (el nativo sale via EXIT)
+                }
+            }
+            if (env_set("HH_MENU_TRACE")) {
+                hh::log("[menu] MODO COMBATE: dispatch cursor=%d\n", battle_idx);
+            }
+        }
+    }
     // SFX del menu desde los EVENTOS del modelo (paso 7): move/accept/back. Al sonar por el evento,
     // no suena si la pulsacion no hace nada (arriba en la 1.a entrada, B en la raiz, opcion gris, o
     // izquierda/derecha donde no hay selector). Solo cuando el overlay controla el menu: con
@@ -802,6 +852,16 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     {
         const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
 
+        // MODO COMBATE: si el handler de la RAIZ corre con nuestra pila en la subpantalla de batalla,
+        // el nativo ya salio de ella por su cuenta (p. ej. B desde la pantalla interna de CREATURE
+        // BATTLE, que va directo a la raiz): sincronizamos la UI volviendo a la raiz.
+        if (hh::overlay::enabled() &&
+            hh::menu::current_screen().id == hh::menu::ScreenId::BattleMode) {
+            while (hh::menu::depth() > 1) {
+                hh::menu::back();
+            }
+        }
+
         // A2 (paso 5, terreno): mueve nuestro cursor con el input del juego. Los SFX del menú suenan
         // dentro, desde los EVENTOS del modelo (paso 7); ver feed_menu_navigation.
         feed_menu_navigation(rdram, ctx);
@@ -848,6 +908,27 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     // Si la pantalla cambió (salimos de la raíz), no publicamos: `hide_now` ya la ocultó y el
     // siguiente frame lo decidirá el nuevo handler. Si seguimos en la raíz, publicamos normal.
     if (!screen_changed) {
+        hh::menu_overlay::title_update(rdram);
+    }
+}
+
+// Overlay A2: envuelve el update del submenú MODO COMBATE (func_801C4200, file_024). La subpantalla
+// es la NUESTRA (rótulos traducidos); el original corre con el input muteado y recibe el cursor
+// (0x801CC8C8) + A inyectada que fija feed_menu_navigation para ejecutar su rama real (VS MODE /
+// CREATURE BATTLE / DATA EDIT / EXIT). Al despachar, el callback cambia y nuestro hook deja de correr
+// (la pantalla interna la dibuja el juego); al volver a la raíz, `hh_title_menu_hook` resincroniza.
+extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx) {
+    hh::overlay::set_screen_blackout(false);
+    feed_menu_navigation(rdram, ctx);
+    hh::menu_overlay::suppress_native(rdram);
+    const bool controlling = hh::overlay::enabled();
+    const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
+    g_mute_native_input = controlling;
+    func_801C4200_11BDCD0(rdram, ctx);   // comportamiento original con input neutralizado
+    g_mute_native_input = false;
+    g_inject_native_a = false;           // la inyeccion (cursor+A) es de un solo frame
+    const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
+    if (goto_after == goto_before) {
         hh::menu_overlay::title_update(rdram);
     }
 }

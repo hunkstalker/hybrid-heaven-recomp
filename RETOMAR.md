@@ -134,11 +134,19 @@
    - **`VIBRACIÓN` ↔ guardado** (tarea aparte, `TODO.md` item 11): con `VIBRACIÓN` en SÍ **no se puede
      cargar/guardar** (Rumble Pak vs Controller Pak comparten ranura) → hasta resolverlo, la
      `VIBRACIÓN` no es validable.
-8. **`MODO COMBATE` (BATTLE MODE) — SIGUIENTE RECOMENDADA**: entrada **deshabilitada** (`sel=2` en el
-   nativo). Reconocer la secuencia nativa (`CREATURE BATTLE`/`VS MODE`/`DATA EDIT`/`DEMO SELECT`;
-   overlays 262/303), **reproducir/acotar el SEGV `FUN_80026f58`** y decidir cómo exponerlo en el
-   overlay (habilitar + subpantalla propia, o disparo puntual `sel`+A). Confirmar diseño antes de
-   dibujar UI. Ver `TODO.md` item 12.
+8. **`MODO COMBATE` (BATTLE MODE) — SUBPANTALLA PROPIA + DESPACHO (2026-09-27); FALTA INTERNAS**:
+   decisión del mantenedor: **recrear** los submenús con nuestro menú (traducidos). **Hecho**:
+   (1) mapa de la secuencia nativa (todo en `file_024`: setup `0x801C40F8` → update `0x801C4200`;
+   `VS MODE`→stub, `CREATURE BATTLE`→`0x801C43BC…`, `DATA EDIT`→`0x801C47D0…`, `EXIT`→`0x801C56B8`;
+   `DEMO SELECT` en `file_025`); (2) **SEGV `FUN_80026f58` NO reproducido** headless (validar en
+   Windows); (3) **`MODO COMBATE` habilitado** + pantalla propia `MODO VS` / `LUCHA DE CRIATURAS` /
+   `EDITAR DATOS` (en/ca/fr/de; sin `SALIR`, se sale con `B`); (4) **despacho nativo cableado**
+   (`hh_battle_menu_hook` envuelve `func_801C4200`: cursor `0x801CC8C8`+A inyectada, patrón `sel`+A;
+   etiquetas nativas del submenú suprimidas; resincronización al volver a la raíz). Verificado
+   headless sin SEGV.
+   **Falta**: recrear las **pantallas internas** de `LUCHA DE CRIATURAS` (`5 MATCHES`/`SURVIVAL`) y
+   `EDITAR DATOS` con nuestro menú, y validar en Windows (con/sin 2.º mando).
+   Detalle: `notes/2026-09-27-battle-mode-recon.md`; `TODO.md` item 12.
 
 > **Hecho (2026-09-26)**: `EMPEZAR PARTIDA` **validado en Windows**; `DIFICULTAD` implementada
 > (`notes/2026-09-26-g-empezar-partida-y-dificultad.md`).

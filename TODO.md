@@ -83,15 +83,24 @@
      resolvieron otros proyectos** (p. ej. Zelda64Recomp / N64Recomp) — probablemente reportando o
      emulando un "pak combinado" (Rumble + Controller a la vez) o adaptando el PFS. Relacionado:
      `VIBRACIÓN` (item 10) y el PFS virtual (`lib/N64ModernRuntime/librecomp/src/pak.cpp`).
-  12. [ ] **`MODO COMBATE` (BATTLE MODE) — SIGUIENTE RECOMENDADA**: la entrada de la raíz está
-     **deshabilitada** (`make_submenu("MODO COMBATE", Action::BattleMode, enabled=false)`,
-     `src/subsystems/menu.cpp`); el nativo la tiene como `sel=2` (`func_801C1DB8`,
-     `0x801CC8C4`). Reconocer su **secuencia nativa** (submenús `CREATURE BATTLE` / `VS MODE` /
-     `DATA EDIT` / `DEMO SELECT`; overlays 262/303), **reproducir/acotar el SEGV
-     `FUN_80026f58`** (aparcado 2026-09-16) y decidir cómo exponerlo en el overlay (habilitar +
-     subpantalla propia, o **disparo puntual al flujo nativo**; confirmar diseño antes de dibujar UI).
-     Patrón: `sel` + A inyectada (`src/hooks/sections.cpp`), como `CONTINUAR`/`EMPEZAR PARTIDA`.
-     Notas: `notes/2026-09-16-fix-menu-b-fisico-atras.md` §Aparcado, `docs/menu.md` §Criterio de futuro.
+   12. [•] **`MODO COMBATE` (BATTLE MODE) — RECONOCIDO + SUBPANTALLA PROPIA (2026-09-27); FALTA DESPACHO**:
+      el nativo la tiene como `sel=2` (`func_801C1DB8`, `0x801CC8C4`). **Hecho (2026-09-27)**:
+      (1) mapa completo de la secuencia nativa (todo en `file_024`: setup `0x801C40F8` → update
+      `0x801C4200`; `VS MODE`→stub `0x801C43B0`, `CREATURE BATTLE`→`0x801C43BC/44C4/…`, `DATA EDIT`→
+      `0x801C47D0/…`, `EXIT`→`0x801C56B8` vuelve a la raíz; `DEMO SELECT` está en `file_025`);
+      (2) **SEGV `FUN_80026f58` NO reproducido** en la build Linux actual por ninguna de las 3 ramas
+      (harness headless); pendiente validar en Windows;
+      (3) **`MODO COMBATE` habilitado** y **recreado con nuestro menú** (`MODO VS` / `LUCHA DE
+      CRIATURAS` / `EDITAR DATOS`, traducido en/ca/fr/de; navegación propia; sin `SALIR`, se sale
+      con `B`);
+      (4) **despacho nativo cableado** (`hh_battle_menu_hook` envuelve `func_801C4200`: cursor
+      `0x801CC8C8` + A inyectada, patrón `sel`+A; etiquetas/flecha nativas del submenú suprimidas;
+      resincronización al volver a la raíz). Verificado headless: `sel=2` → `801C40F8` → `801C4200` →
+      `dispatch cursor=1` → `801C43BC`→`801C44C4` → `B` → `801C56B8` → raíz, sin SEGV.
+      Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
+      **Falta**: (1) recrear las **pantallas internas** de `LUCHA DE CRIATURAS` (`func_801C43BC`/
+      `func_801C44C4`; `5 MATCHES`/`SURVIVAL`) y `EDITAR DATOS` (`func_801C47D0..`) con nuestro menú;
+      (2) validar en Windows (con/sin 2.º mando).
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
