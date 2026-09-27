@@ -50,6 +50,49 @@
   `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
 - **Traducción in-game (juego)**: charset + sustitución en runtime listos; **fuente 8×12 `color4`
   preparada pero sin cablear**.
+- **`MODO COMBATE` (BATTLE MODE) COMPLETO y VALIDADO EN WINDOWS (2026-09-27)**: habilitado y
+  recreado con nuestro menú (`MODO VS` / `COMBATE DE CRIATURAS` → `5 COMBATES` / `SUPERVIVENCIA` /
+  `EDITAR DATOS`), con despacho nativo por cursor. `MODO VS` **no validado** (el port solo reporta el
+  puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
+  `notes/2026-09-27-battle-mode-recon.md`.
+
+## PRÓXIMA TAREA (sesión fresca, 2026-09-27) — orden acordado con el mantenedor
+
+1. **Deshabilitar `CÁMARA LIBRE` y `APUNTADO LIBRE`** (gris + **no interactuables**: el cursor **no**
+   debe poder señalarlas). Detalle: son selectores de `NUEVA PARTIDA` en `build_tree`
+   (`src/subsystems/menu.cpp`: `make_selector("CÁMARA LIBRE", …)` / `…("APUNTADO LIBRE", …)`).
+   Pasos:
+   - Poner `enabled=false` en las dos entradas. `make_selector` **no** acepta `enabled`: añadirlo, o
+     fijar `e.enabled = false`. El overlay ya pinta en **gris** las deshabilitadas
+     (`src/hooks/menu_overlay.cpp:484`; `kGray`).
+   - **Navegación**: `hh::menu::move_up` / `move_down` (`src/subsystems/menu.cpp`) hoy recorren
+     **todas** las entradas; deben **saltar** las `!enabled` para que el cursor no se pose en ellas
+     (con guarda por si todas están deshabilitadas). `confirm()` ya ignora `!enabled`; los selectores
+     deshabilitados no se alcanzan → su `move_left/right` no aplica.
+   - Validar en Windows.
+
+2. **Mover las tildes +1 px a la derecha** (en algún momento se movieron 1 px a la izquierda). El
+   overlay **centra** la marca: `src/platform/overlay.cpp` (~línea 550),
+   `dx = pen_x + (cw - mw) * 0.5f * t.scale_x;` → sumar `+ 1.0f` (o `1.0f * t.scale_x`) a `dx` para
+   TODAS las marcas. Nota: `tools/text/menu_marks.py` aplica un `shift_left` a las marcas que tocan el
+   borde derecho para que quepa la sombra (`notes/2026-09-26-c-sombras-y-set-a.md` §2); si el ajuste
+   debe ser global, hacerlo en el overlay (no hace falta regenerar `include/hh/menu_marks.h`).
+   Validar en Windows (ES/CA/FR).
+
+3. **Traducción del MENÚ al JAPONÉS con la fuente extraída de la ROM japonesa** (siguiente tema).
+   - **Estado**: JA cae a inglés (`localized()`, `src/subsystems/menu.cpp`: `else if (c == "ja") lang
+     = 1;`) y `kMenuTr` **no** tiene columna JA. La fuente del menú es `color0` (Nisitenma idx **107**,
+     8×8, 2bpp) leída del ROM cargado a un atlas RGBA8 (`src/subsystems/font.cpp`:
+     `kFontRomOffset=0x6E3CD6`, `kFontRomSize=4096`, 64 valores 0..63 → atlas 128×32; marcas debajo).
+   - **JP**: el ROM `work/roms/jp.z64` trae **kana** en su `color0` (no kanji; ver `docs/menu.md`
+     §Japonés y `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`).
+   - **Plan**: localizar el `color0` del ROM JP (mismo idx 107; comparar por el primer bloque como
+     hace `tools/text/extract_eu_font.py` para EU) → mapear valores→glifo y decidir cómo conviven en
+     el atlas (ampliar `kMaxValue`/`kAtlasHeight` o una **región kana** aparte) → añadir columna **JA**
+     a `kMenuTr` (kana) y usar la fuente JP cuando el idioma sea `ja` → quitar el fallback a inglés.
+   - **Herramientas**: `tools/text/menu_marks.py` (marcas), `tools/text/font_dump.py`,
+     `tools/text/extract_eu_font.py` (precedente), `include/hh/font.h`, `src/subsystems/font.cpp`.
+   - Validar en Windows con `IDIOMA → NIHONGO`.
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 

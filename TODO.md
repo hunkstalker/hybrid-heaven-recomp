@@ -104,6 +104,20 @@
       **2.º mando** (¿o un 2.º **Controller Pak**?); imposible probar 2P hasta resolverlo (ver backlog).
       `EDITAR DATOS` no tiene pantalla de opciones propia (flujo nativo); si se quiere, se recrea tras
       inspeccionarlo. Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
+   13. [ ] **`CÁMARA LIBRE` / `APUNTADO LIBRE` deshabilitados (gris + no interactuables)** —
+      siguiente (2026-09-27): `enabled=false` en esos selectores de `NUEVA PARTIDA`
+      (`build_tree`, `src/subsystems/menu.cpp`); el overlay ya los pinta en gris
+      (`src/hooks/menu_overlay.cpp:484`). **El cursor no debe poder señalarlos**: `move_up`/`move_down`
+      deben **saltar** las entradas `!enabled` (guarda si todas lo están). Validar en Windows.
+   14. [ ] **Tildes +1 px a la derecha** — siguiente (2026-09-27): el overlay **centra** la marca en
+      `src/platform/overlay.cpp` (~línea 550, `dx = pen_x + (cw - mw)*0.5f*t.scale_x`); sumar
+      `+ 1.0f` (todas las marcas). En algún momento se movieron 1 px a la izquierda. Validar en Windows
+      (ES/CA/FR).
+   15. [ ] **Traducción del MENÚ al JAPONÉS** — siguiente (2026-09-27): extraer la fuente `color0`
+      del **ROM JP** (`work/roms/jp.z64`; kana, no kanji) y cablear la columna **JA** de `kMenuTr`
+      (hoy `localized()` cae a inglés). Punteros: `src/subsystems/font.cpp`
+      (`kFontRomOffset=0x6E3CD6`), `include/hh/font.h`, `tools/text/*`, `docs/menu.md` §Japonés,
+      `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`. Plan detallado en `RETOMAR.md` §Próxima tarea.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
