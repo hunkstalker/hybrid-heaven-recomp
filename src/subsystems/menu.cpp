@@ -24,91 +24,110 @@ Layout g_layout;
 bool g_extras_unlocked_state = false;
 
 // Traducciones de las etiquetas/opciones del menú. Clave = etiqueta canónica en ESPAÑOL (la del
-// modelo). Columnas: en, ca, fr, de. El JAPONÉS de momento cae a INGLÉS (sus etiquetas en kana
-// necesitan embeber la fuente JP; pendiente). Uppercase (la fuente del menú no tiene minúsculas
-// acentuadas). Las tildes salen de las marcas del overlay (A/N/C).
-struct MenuTr { const char* es; const char* en; const char* ca; const char* fr; const char* de; };
+// modelo). Columnas: en, ca, fr, de, ja. El JAPONÉS se escribe en KANA (la fuente color0 del juego
+// tiene kana en los valores 64..255; ver tools/text/extract_jp_kana.py e include/hh/jp_kana.h). No
+// hay kanji en esa fuente, así que todo va en katakana/hiragana. Uppercase (la fuente del menú no
+// tiene minúsculas acentuadas). Las tildes salen de las marcas del overlay (A/N/C).
+struct MenuTr {
+    const char* es;
+    const char* en;
+    const char* ca;
+    const char* fr;
+    const char* de;
+    const char* ja;
+};
 const MenuTr kMenuTr[] = {
     // Pantallas / entradas
-    {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN"},
-    {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL"},
-    {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS"},
+    {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN", "コンティニュー"},
+    {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL", "ニューゲーム"},
+    {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS", "バトルモード"},
     // MODO COMBATE (subpantallas recreadas con nuestro menu; ver docs/menu.md)
-    {"MODO VS", "VS MODE", "MODE VS", "MODE VS", "VS-MODUS"},
+    {"MODO VS", "VS MODE", "MODE VS", "MODE VS", "VS-MODUS", "タイセンモード"},
     {"COMBATE DE CRIATURAS", "CREATURE BATTLE", "COMBAT DE CRIATURES", "COMBAT DE CRÉATURES",
-     "KREATURENKAMPF"},
-    {"EDITAR DATOS", "DATA EDIT", "EDITAR DADES", "ÉDITER DONNÉES", "DATEN BEARBEITEN"},
-    {"5 COMBATES", "5 MATCHES", "5 COMBATS", "5 COMBATS", "5 KÄMPFE"},
-    {"SUPERVIVENCIA", "SURVIVAL", "SUPERVIVÈNCIA", "SURVIE", "ÜBERLEBEN"},
-    {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION"},
-    {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN"},
-    {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN"},
-    {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT"},
-    {"IDIOMA", "LANGUAGE", "IDIOMA", "LANGUE", "SPRACHE"},
-    {"GRÁFICOS", "GRAPHICS", "GRÀFICS", "GRAPHIQUES", "GRAFIK"},
-    {"SONIDO", "SOUND", "SO", "SON", "TON"},
-    {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG"},
-    {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS"},
-    {"MANTENER EXTRAS", "KEEP EXTRAS", "MANTENIR EXTRAS", "GARDER EXTRAS", "EXTRAS BEHALTEN"},
-    {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX",
-     "ORIGINAL-LOGOS"},
-    {"CONTROLES", "CONTROLS", "CONTROLS", "CONTRÔLES", "STEUERUNG"},
-    {"ARRIBA/ADELANTE", "UP/FORWARD", "AMUNT/ENDAVANT", "HAUT/AVANT", "HOCH/VORWÄRTS"},
-    {"ABAJO/ATRÁS", "DOWN/BACK", "AVALL/ENRERE", "BAS/ARRIÈRE", "RUNTER/ZURÜCK"},
-    {"IZQUIERDA", "LEFT", "ESQUERRA", "GAUCHE", "LINKS"},
-    {"DERECHA", "RIGHT", "DRETA", "DROITE", "RECHTS"},
-    {"MENÚ ARRIBA", "MENU UP", "MENÚ AMUNT", "MENU HAUT", "MENÜ HOCH"},
-    {"MENÚ ABAJO", "MENU DOWN", "MENÚ AVALL", "MENU BAS", "MENÜ RUNTER"},
-    {"MENÚ IZQUIERDA", "MENU LEFT", "MENÚ ESQUERRA", "MENU GAUCHE", "MENÜ LINKS"},
-    {"MENÚ DERECHA", "MENU RIGHT", "MENÚ DRETA", "MENU DROITE", "MENÜ RECHTS"},
-    {"ACCIÓN/ACEPTAR", "ACTION/ACCEPT", "ACCIÓ/ACCEPTAR", "ACTION/ACCEPTER", "AKTION/OK"},
-    {"MAPA/ATRÁS", "MAP/BACK", "MAPA/ENRERE", "CARTE/RETOUR", "KARTE/ZURÜCK"},
-    {"AGACHARSE", "CROUCH", "AJUPIR-SE", "S'ACCROUPIR", "DUCKEN"},
-    {"MENÚ", "MENU", "MENÚ", "MENU", "MENÜ"},
-    {"APUNTAR", "AIM", "APUNTAR", "VISER", "ZIELEN"},
-    {"VIBRACIÓN", "VIBRATION", "VIBRACIÓ", "VIBRATION", "VIBRATION"},
-    {"ALTURA CÁMARA", "CAMERA HEIGHT", "ALÇADA CÀMERA", "HAUTEUR CAMÉRA", "KAMERAHÖHE"},
-    {"PRIMERA PERSONA", "FIRST PERSON", "PRIMERA PERSONA", "PREMIÈRE PERSONNE", "ERSTE PERSON"},
-    {"PULSA...", "PRESS...", "PREM...", "APPUYEZ...", "DRÜCKEN..."},
-    {"D-PAD ARRIBA", "D-PAD UP", "D-PAD AMUNT", "D-PAD HAUT", "D-PAD HOCH"},
-    {"D-PAD ABAJO", "D-PAD DOWN", "D-PAD AVALL", "D-PAD BAS", "D-PAD RUNTER"},
-    {"D-PAD IZQ", "D-PAD LEFT", "D-PAD ESQ", "D-PAD GAUCHE", "D-PAD LINKS"},
-    {"D-PAD DER", "D-PAD RIGHT", "D-PAD DRETA", "D-PAD DROITE", "D-PAD RECHTS"},
-    {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA"},
-    {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN"},
-    {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO"},
-    {"RESOLUCIÓN", "RESOLUTION", "RESOLUCIÓ", "RÉSOLUTION", "AUFLÖSUNG"},
-    {"P. COMPLETA", "FULLSCREEN", "P. COMPLETA", "PLEIN ÉCRAN", "VOLLBILD"},
-    {"ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING"},
-    {"VSYNC", "VSYNC", "VSYNC", "VSYNC", "VSYNC"},
-    {"LÍMITE DE FPS", "FPS LIMIT", "LÍMIT DE FPS", "LIMITE FPS", "FPS-LIMIT"},
-    {"VENTANA DEBUG", "DEBUG WINDOW", "FINESTRA DEBUG", "FENÊTRE DEBUG", "DEBUG-FENSTER"},
-    {"MOSTRAR FPS", "SHOW FPS", "MOSTRAR FPS", "AFFICHER FPS", "FPS ANZEIGEN"},
-    {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE"},
-    {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE"},
-    {"MENÚ SFX", "MENU SFX", "MENÚ SFX", "MENU SFX", "MENÜ-SFX"},
+     "KREATURENKAMPF", "クリーチャーバトル"},
+    {"EDITAR DATOS", "DATA EDIT", "EDITAR DADES", "ÉDITER DONNÉES", "DATEN BEARBEITEN",
+     "データエディット"},
+    {"5 COMBATES", "5 MATCHES", "5 COMBATS", "5 COMBATS", "5 KÄMPFE", "5タイセン"},
+    {"SUPERVIVENCIA", "SURVIVAL", "SUPERVIVÈNCIA", "SURVIE", "ÜBERLEBEN", "サバイバル"},
+    {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION", "コンフィグ"},
+    {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN", "シュウリョウ"},
+    {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN",
+     "ゲームスタート"},
+    {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT", "ナンイド"},
+    {"IDIOMA", "LANGUAGE", "IDIOMA", "LANGUE", "SPRACHE", "ゲンゴ"},
+    {"GRÁFICOS", "GRAPHICS", "GRÀFICS", "GRAPHIQUES", "GRAFIK", "グラフィック"},
+    {"SONIDO", "SOUND", "SO", "SON", "TON", "サウンド"},
+    {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG", "デバッグ"},
+    {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "エクストラ"},
+    {"MANTENER EXTRAS", "KEEP EXTRAS", "MANTENIR EXTRAS", "GARDER EXTRAS", "EXTRAS BEHALTEN",
+     "エクストラホゾン"},
+    {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX", "ORIGINAL-LOGOS",
+     "オリジナルロゴ"},
+    {"CONTROLES", "CONTROLS", "CONTROLS", "CONTRÔLES", "STEUERUNG", "コントロール"},
+    {"ARRIBA/ADELANTE", "UP/FORWARD", "AMUNT/ENDAVANT", "HAUT/AVANT", "HOCH/VORWÄRTS",
+     "ウエ/ススム"},
+    {"ABAJO/ATRÁS", "DOWN/BACK", "AVALL/ENRERE", "BAS/ARRIÈRE", "RUNTER/ZURÜCK", "シタ/モドル"},
+    {"IZQUIERDA", "LEFT", "ESQUERRA", "GAUCHE", "LINKS", "ヒダリ"},
+    {"DERECHA", "RIGHT", "DRETA", "DROITE", "RECHTS", "ミギ"},
+    {"MENÚ ARRIBA", "MENU UP", "MENÚ AMUNT", "MENU HAUT", "MENÜ HOCH", "メニューウエ"},
+    {"MENÚ ABAJO", "MENU DOWN", "MENÚ AVALL", "MENU BAS", "MENÜ RUNTER", "メニューシタ"},
+    {"MENÚ IZQUIERDA", "MENU LEFT", "MENÚ ESQUERRA", "MENU GAUCHE", "MENÜ LINKS",
+     "メニューヒダリ"},
+    {"MENÚ DERECHA", "MENU RIGHT", "MENÚ DRETA", "MENU DROITE", "MENÜ RECHTS", "メニューミギ"},
+    {"ACCIÓN/ACEPTAR", "ACTION/ACCEPT", "ACCIÓ/ACCEPTAR", "ACTION/ACCEPTER", "AKTION/OK",
+     "ケッテイ"},
+    {"MAPA/ATRÁS", "MAP/BACK", "MAPA/ENRERE", "CARTE/RETOUR", "KARTE/ZURÜCK", "マップ/モドル"},
+    {"AGACHARSE", "CROUCH", "AJUPIR-SE", "S'ACCROUPIR", "DUCKEN", "シャガム"},
+    {"MENÚ", "MENU", "MENÚ", "MENU", "MENÜ", "メニュー"},
+    {"APUNTAR", "AIM", "APUNTAR", "VISER", "ZIELEN", "エイム"},
+    {"VIBRACIÓN", "VIBRATION", "VIBRACIÓ", "VIBRATION", "VIBRATION", "シンドウ"},
+    {"ALTURA CÁMARA", "CAMERA HEIGHT", "ALÇADA CÀMERA", "HAUTEUR CAMÉRA", "KAMERAHÖHE",
+     "カメラノタカサ"},
+    {"PRIMERA PERSONA", "FIRST PERSON", "PRIMERA PERSONA", "PREMIÈRE PERSONNE", "ERSTE PERSON",
+     "イチニンショウ"},
+    {"PULSA...", "PRESS...", "PREM...", "APPUYEZ...", "DRÜCKEN...", "オシテ..."},
+    {"D-PAD ARRIBA", "D-PAD UP", "D-PAD AMUNT", "D-PAD HAUT", "D-PAD HOCH", "ジュウジキウエ"},
+    {"D-PAD ABAJO", "D-PAD DOWN", "D-PAD AVALL", "D-PAD BAS", "D-PAD RUNTER", "ジュウジキシタ"},
+    {"D-PAD IZQ", "D-PAD LEFT", "D-PAD ESQ", "D-PAD GAUCHE", "D-PAD LINKS", "ジュウジキヒダリ"},
+    {"D-PAD DER", "D-PAD RIGHT", "D-PAD DRETA", "D-PAD DROITE", "D-PAD RECHTS", "ジュウジキミギ"},
+    {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA", "フリーカメラ"},
+    {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN",
+     "フリーエイム"},
+    {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO", "ガメンヒ"},
+    {"RESOLUCIÓN", "RESOLUTION", "RESOLUCIÓ", "RÉSOLUTION", "AUFLÖSUNG", "カイゾウド"},
+    {"P. COMPLETA", "FULLSCREEN", "P. COMPLETA", "PLEIN ÉCRAN", "VOLLBILD", "フルスクリーン"},
+    {"ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING",
+     "アンチエイリアス"},
+    {"VSYNC", "VSYNC", "VSYNC", "VSYNC", "VSYNC", "ブイシンク"},
+    {"LÍMITE DE FPS", "FPS LIMIT", "LÍMIT DE FPS", "LIMITE FPS", "FPS-LIMIT", "FPSセイゲン"},
+    {"VENTANA DEBUG", "DEBUG WINDOW", "FINESTRA DEBUG", "FENÊTRE DEBUG", "DEBUG-FENSTER",
+     "デバッグウインドウ"},
+    {"MOSTRAR FPS", "SHOW FPS", "MOSTRAR FPS", "AFFICHER FPS", "FPS ANZEIGEN", "FPSヒョウジ"},
+    {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE", "オンリョウ"},
+    {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE", "シュツリョク"},
+    {"MENÚ SFX", "MENU SFX", "MENÚ SFX", "MENU SFX", "MENÜ-SFX", "メニューオンセイ"},
     // Opciones (mismos valores en todos los idiomas si no cambian)
-    {"SÍ", "YES", "SÍ", "OUI", "JA"},
-    {"NO", "NO", "NO", "NON", "NEIN"},
-    {"AUTO", "AUTO", "AUTO", "AUTO", "AUTO"},
-    {"ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL"},
-    {"NATIVO", "NATIVE", "NATIU", "NATIF", "NATIV"},
-    {"MONO", "MONO", "MONO", "MONO", "MONO"},
-    {"ESTÉREO", "STEREO", "ESTÈREO", "STÉRÉO", "STEREO"},
-    {"AURICULARES", "HEADPHONES", "AURICULARS", "CASQUE", "KOPFHÖRER"},
-    {"DEFINITIVO", "ULTIMATE", "DEFINITIU", "SUPRÊME", "ULTIMATIV"},
-    {"DIFÍCIL", "HARD", "DIFÍCIL", "DIFFICILE", "SCHWER"},
-    {"NORMAL", "NORMAL", "NORMAL", "NORMAL", "NORMAL"},
+    {"SÍ", "YES", "SÍ", "OUI", "JA", "ハイ"},
+    {"NO", "NO", "NO", "NON", "NEIN", "イイエ"},
+    {"AUTO", "AUTO", "AUTO", "AUTO", "AUTO", "オート"},
+    {"ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "オリジナル"},
+    {"NATIVO", "NATIVE", "NATIU", "NATIF", "NATIV", "ネイティブ"},
+    {"MONO", "MONO", "MONO", "MONO", "MONO", "モノ"},
+    {"ESTÉREO", "STEREO", "ESTÈREO", "STÉRÉO", "STEREO", "ステレオ"},
+    {"AURICULARES", "HEADPHONES", "AURICULARS", "CASQUE", "KOPFHÖRER", "ヘッドホン"},
+    {"DEFINITIVO", "ULTIMATE", "DEFINITIU", "SUPRÊME", "ULTIMATIV", "アルティメット"},
+    {"DIFÍCIL", "HARD", "DIFÍCIL", "DIFFICILE", "SCHWER", "ハード"},
+    {"NORMAL", "NORMAL", "NORMAL", "NORMAL", "NORMAL", "ノーマル"},
 };
 
 // Endónimos de la lista IDIOMA: SIEMPRE en su propia lengua (no dependen del idioma activo). Clave =
 // nombre canónico en español; valor = endónimo a mostrar. Uppercase (la fuente del menú no tiene
-// minúsculas acentuadas: à/ñ/ç). JA en rōmaji (el endónimo real es 日本語, kanji, que color0 no
-// dibuja; pendiente TTF).
+// minúsculas acentuadas: à/ñ/ç). JA en kana (ニホンゴ): color0 no tiene kanji (日本語 sería imposible),
+// pero la kana sí (ver jp_kana.h).
 struct Endonym { const char* es; const char* shown; };
 const Endonym kEndonyms[] = {
     {"INGLÉS", "ENGLISH"},  {"ESPAÑOL", "ESPAÑOL"}, {"CATALÁN", "CATALÀ"},
-    {"FRANCÉS", "FRANÇAIS"}, {"ALEMÁN", "DEUTSCH"}, {"JAPONÉS", "NIHONGO"},
+    {"FRANCÉS", "FRANÇAIS"}, {"ALEMÁN", "DEUTSCH"}, {"JAPONÉS", "ニホンゴ"},
 };
 
 Entry make_item(const char* label, Action action, bool enabled = true) {
@@ -562,12 +581,12 @@ std::string localized(const std::string& label) {
         if (label == e.es) return e.shown;
     }
     const std::string& c = hh::text_current_language();
-    int lang = 0;   // 0=es, 1=en, 2=ca, 3=fr, 4=de
+    int lang = 0;   // 0=es, 1=en, 2=ca, 3=fr, 4=de, 5=ja
     if (c == "en") lang = 1;
     else if (c == "ca") lang = 2;
     else if (c == "fr") lang = 3;
     else if (c == "de") lang = 4;
-    else if (c == "ja") lang = 1;   // JA: de momento inglés (kana pendiente)
+    else if (c == "ja") lang = 5;
     for (const MenuTr& t : kMenuTr) {
         if (label != t.es) continue;
         switch (lang) {
@@ -575,6 +594,7 @@ std::string localized(const std::string& label) {
             case 2: return t.ca;
             case 3: return t.fr;
             case 4: return t.de;
+            case 5: return t.ja;
             default: return t.es;
         }
     }

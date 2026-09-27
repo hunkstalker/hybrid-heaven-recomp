@@ -568,14 +568,21 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }
-                } else if (hh::font::game::glyph_value(static_cast<unsigned char>(cp), value) &&
-                           hh::font::game::value_uv(value, gx, gy)) {
-                    const float u0 = static_cast<float>(gx) / g_atlas_w;
-                    const float v0 = static_cast<float>(gy) / g_atlas_h;
-                    const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
-                    const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
-                    append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
-                                t.color, u0, v0, u1, v1);
+                } else {
+                    // ASCII (digitos/letras) o KANA (japones; ver jp_kana.h). La kana se dibuja en
+                    // la misma celda 8x8, sin marca ni compensacion de bearing.
+                    const bool have = (cp < 0x80)
+                                          ? hh::font::game::glyph_value(
+                                                static_cast<unsigned char>(cp), value)
+                                          : hh::font::game::jp_kana_value(cp, value);
+                    if (have && hh::font::game::value_uv(value, gx, gy)) {
+                        const float u0 = static_cast<float>(gx) / g_atlas_w;
+                        const float v0 = static_cast<float>(gy) / g_atlas_h;
+                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
+                                    t.color, u0, v0, u1, v1);
+                    }
                 }
                 pen_x += cw * t.scale_x;
             }

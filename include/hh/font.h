@@ -10,8 +10,10 @@
 // bytes contiene DOS glifos empaquetados: valor PAR -> bits 2-3 de cada nibble (0xCC); valor IMPAR
 // -> bits 0-1 (0x33); `block = valor>>1`.
 //
-// El atlas es de 128x32 px (16 glifos por fila, valores 0..63). Cada pixel RGBA8:
-//   R = 255 tinta (nivel>=2, texto) / 0 sombra (nivel 1, desplazada en diagonal)
+// El atlas es de 128x(h+12) px (16 glifos por fila, valores 0..255): 128x128 para los glifos
+// (0..63 latino, 64..255 simbolos/kana/kanji) + una franja de marcas del menu debajo. Cada pixel
+// RGBA8:
+//   R = 255 tinta (nivel 1, glifo) / 0 sombra (nivel >=2, desplazada en diagonal)
 //   A = cobertura (0/255)
 // El PS pinta el color del vertice en la tinta y negro en la sombra (como el motor).
 
@@ -29,7 +31,7 @@ bool ready();
 // Atlas RGBA8: `atlas_width()*atlas_height()*4` bytes. Valido si ready().
 const uint8_t* atlas_rgba8();
 unsigned atlas_width();    // 128
-unsigned atlas_height();   // 32
+unsigned atlas_height();   // 128 (glifos) + franja de marcas (140 con el set actual)
 unsigned char_width();     // 8
 unsigned char_height();    // 8
 
@@ -51,8 +53,12 @@ int glyph_left_bearing(unsigned char c);
 // valor de la letra base (0 = sin letra, simbolo suelto) y `mark` = indice de marca. false si no.
 bool menu_char(unsigned cp, unsigned& value, int& mark);
 
-// UV de un glifo por su VALOR (0..63). false si esta fuera.
+// UV de un glifo por su VALOR (0..255). false si esta fuera.
 bool value_uv(unsigned value, unsigned& x, unsigned& y);
+
+// Valor de glifo del motor para un CODEPOINT kana (hiragana/katakana y 'ー'), segun la tabla
+// generada en include/hh/jp_kana.h. false si el codepoint no es kana de la fuente (p. ej. kanji).
+bool jp_kana_value(unsigned cp, unsigned& value);
 
 // Marca horneada en el atlas: UV, tamano y `dy` = offset vertical en px de glifo relativo al TOPE
 // de la letra (negativo = por encima). false si el indice no es valido.

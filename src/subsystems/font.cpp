@@ -3,6 +3,7 @@
 
 #include "hh.h"
 #include "hh/font.h"
+#include "hh/jp_kana.h"
 #include "hh/menu_marks.h"
 
 #include <cstdint>
@@ -19,10 +20,12 @@ constexpr uint32_t kFontRomSize = 4096;
 constexpr unsigned kGlyphW = 8;
 constexpr unsigned kGlyphH = 8;
 constexpr unsigned kBlockStride = 32;   // dos glifos 8x8 2bpp por bloque
-constexpr unsigned kMaxValue = 64;      // valores 0..63 (letras + espacio)
+// Valores 0..255: 0..63 = latino (espacio/digitos/letras) y 64..255 = simbolos, KANA y kanji (el
+// ROM JP y el US comparten este fichero color0; la kana esta tambien en el US). Ver jp_kana.h.
+constexpr unsigned kMaxValue = 256;
 constexpr unsigned kAtlasCols = 16;
 constexpr unsigned kAtlasWidth = kAtlasCols * kGlyphW;                 // 128
-constexpr unsigned kAtlasHeight = (kMaxValue / kAtlasCols) * kGlyphH;  // 32 (letras)
+constexpr unsigned kAtlasHeight = (kMaxValue / kAtlasCols) * kGlyphH;  // 128 (256 glifos)
 
 // Region de MARCAS (menu): sprites recortados, celda 8x12, debajo de las letras.
 constexpr unsigned kMarkTop = kAtlasHeight;
@@ -146,6 +149,16 @@ bool menu_char(unsigned cp, unsigned& value, int& mark) {
         if (hh::kMenuChars[i].cp == cp) {
             value = hh::kMenuChars[i].base_value;
             mark = static_cast<int>(hh::kMenuChars[i].mark);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool jp_kana_value(unsigned cp, unsigned& value) {
+    for (unsigned i = 0; i < hh::kJpKanaCount; ++i) {
+        if (hh::kJpKana[i].cp == cp) {
+            value = hh::kJpKana[i].value;
             return true;
         }
     }
