@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 157 | 2026-09-26 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 158 | 2026-09-27 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 311 | 2026-09-27 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 317 | 2026-09-27 |
 
 ## Técnico y guías (vivos)
 
@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 302 | 2026-09-24 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 275 | 2026-09-27 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 274 | 2026-09-27 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -31,6 +31,7 @@
 | [v0.4.2 - Combat HUD widescreen anchor fix](releases/v0.4.2.md) | El **HUD de combate** se ancla entero en widescreen también a partir del **2.º combate** (antes, | 10 | 2026-09-25 |
 | [v0.4.3 - Combat HUD: stamina depletion bar fix](releases/v0.4.3.md) | Arregla la porción **gastada** de la barra de **STAMINA** en widescreen: al ejecutar un ataque, la | 9 | 2026-09-25 |
 | [v0.4.4 - Minimap: anchoring fix (level 2-1)](releases/v0.4.4.md) | Arregla el **minimapa desanclado** en widescreen a partir del **nivel 2-1** (tras eliminar al primer | 9 | 2026-09-25 |
+| [v0.5.0 - Native menu: multilingual UI & PC options](releases/v0.5.0.md) | Primera release con el **menú inicial propio del port** (overlay moderno sobre RT64), que sustituye | 44 | 2026-09-27 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 265 | 2026-09-24 |
 
 ## Decisiones (ADR, inmutables)
@@ -54,7 +55,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +1 px y MENÚ en japonés (kana)](../notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md) | Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos, | 72 | 2026-09-27 |
+| [2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +0.5 px y MENÚ en japonés (kana)](../notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md) | Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos, | 92 | 2026-09-27 |
 | [2026-09-27 — `MODO COMBATE` (BATTLE MODE): reconocimiento nativo y reproducción del SEGV](../notes/2026-09-27-battle-mode-recon.md) | Sesión `menu-nativo`. Objetivo del mantenedor: reconocer la secuencia NATIVA de BATTLE MODE, | 194 | 2026-09-27 |
 | [CONTROLES: remapeo mando/teclado, ejes, D-PAD y VIBRACIÓN](../notes/2026-09-26-j-controles-remapeo-y-vibracion.md) | Tarea 2026-09-26, rama `menu-nativo`. Pantalla del port **`CONFIGURACIÓN → CONTROLES`**. | 94 | 2026-09-26 |
 | [Logos de intro HD + código Konami → `EXTRAS` (implementación)](../notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md) | Tarea 2026-09-26, rama `menu-nativo`. Continuación de | 162 | 2026-09-26 |

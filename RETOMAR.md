@@ -6,18 +6,18 @@
 
 ## Estado (2026-09-27)
 
-- **Sesión 2026-09-27 (rama `menu-nativo`)**: los tres temas del plan, implementados y compilando en
-  Linux; **pendiente validar en Windows** (lo hace el mantenedor):
-  1. **`CÁMARA LIBRE`/`APUNTADO LIBRE` deshabilitados** (gris + el cursor no se posa; `move_up/down`
-     saltan `!enabled`) — commit `d27dc54`.
-  2. **Tildes/marcas +1 px a la derecha** (global, en el overlay) — commit `12961d4`.
+- **Sesión 2026-09-27 (rama `menu-nativo`)**: los tres temas del plan, **HECHOS Y VALIDADOS en
+  Windows (2026-09-27)**:
+  1. **`CÁMARA LIBRE`/`APUNTADO LIBRE` ocultos** (decisión final: retirados del árbol; antes se
+     probaron deshabilitados en gris, `d27dc54`) — la maquinaria de deshabilitados se conserva.
+  2. **Tildes/marcas a la derecha** (global, en el overlay): **`+0.5 px`** (se probó `+1 px` en
+     `12961d4` y era **demasiado**) — commit `12961d4` + corrección final.
   3. **Menú en JAPONÉS (kana)** — commit `0c5f50c`: `color0` del ROM JP **byte-idéntico al US** (la
      kana ya está en la ROM cargada); mapping EUC→glifo de las tablas del `.resident` del ELF
      (`tools/text/extract_jp_kana.py` → `include/hh/jp_kana.h`); atlas **128×140** (`kMaxValue` 256);
      columna **JA** en `kMenuTr` y fin del fallback a inglés; endónimo `ニホンゴ`.
   Detalle: `notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md`.
-
-
+  **Pendiente**: verificar los textos JA contra la ROM japonesa (backlog; el mantenedor no lee japonés).
 
 - **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
   (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
@@ -28,8 +28,8 @@
     (`set_screen_image`); documentación en `54775c3`. Compila en Linux.
 - **Sincronización con `main` CERRADA y validada**: merge `main → menu-nativo` con v0.4.1–v0.4.4
   (HUD/minimapa #3/#7). Nota `notes/2026-09-26-a-sync-menu-nativo-con-main.md`; checkpoint pre-merge:
-  tag **`backup-menu-nativo-sync`**. **No** mergear `menu-nativo` → `main` todavía (es WIP; será la
-  **feature release v0.5.0**).
+  tag **`backup-menu-nativo-sync`**. El merge `menu-nativo` → `main` sería **fast-forward** (`main` es
+  ancestro) y sería la **feature release v0.5.0** (ver §Git / §Release).
 - **Menú inicial del port (`hh_menu`) COMPLETO y validado en Windows**:
   - Navegación propia (A/B, **control total**), **menú nativo oculto** (F6 alterna), SFX por eventos.
   - Acciones de **video** (`[video]`) y **audio** (`[audio]`) que aplican en vivo y persisten.
@@ -53,8 +53,9 @@
   (sin logos HD en el replay; timer de inactividad nativo → intro/demos al ritmo original) y del
   **centrado del "Press Start"** traducido. Detalle:
   `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`; §Git.
-- **`CONFIGURACIÓN → CONTROLES` (remapeo + ejes + VIBRACIÓN)**: **implementado** (rama `menu-nativo`);
-  **pendiente validar en Windows**. Tabla de **acciones** con 2 columnas (**MANDO/TECLADO**), lista
+- **`CONFIGURACIÓN → CONTROLES` (remapeo + ejes + VIBRACIÓN)**: **VALIDADO en Windows (2026-09-26) y
+  commiteado (`74dd5a8`)**. La `VIBRACIÓN` no es validable hasta resolver el item 11 (Rumble vs
+  Controller Pak). Tabla de **acciones** con 2 columnas (**MANDO/TECLADO**), lista
   larga con **scroll de 5 filas + flechas ↑/↓**, menús del port **centrados**. Reasignación de
   cualquier acción a **cualquier botón (incl. D-PAD) y/o tecla** (**1 botón + 1 tecla**), con bloqueo
   de A/B 0.25 s al asignar; **movimiento** (4 ejes: stick izq/der + tecla), **D-PAD** como botones
@@ -71,8 +72,8 @@
 
 ## PRÓXIMA TAREA (recomendada)
 
-**Validar en Windows los 3 temas de esta sesión** (selectores grises/no accesibles, tildes ES/CA/FR,
-`IDIOMA → NIHONGO`) y, después, seguir con el **pulido del menú nativo** (lista de abajo).
+Los 3 temas de esta sesión ya están **validados en Windows (2026-09-27)**. Siguiente: **pulido del
+menú nativo** (lista de abajo) o preparar la **release v0.5.0**.
 
 Recomendación (1) + alternativas:
 1. **(recomendada) Fallos visuales** (item 3 de la lista): `DATA LOAD` (borde verde del cuadro de
@@ -186,7 +187,8 @@ Recomendación (1) + alternativas:
 > (`notes/2026-09-26-g-empezar-partida-y-dificultad.md`).
 
 ### Aparcado
-- **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego). **Interacción con CONTROLES
+- **`CÁMARA LIBRE`/`APUNTADO LIBRE`** (requieren modificar el juego; **ocultos** en el menú desde
+  2026-09-27). **Interacción con CONTROLES
   (decidido 2026-09-26)**: el **stick derecho** simula los **botones C** por defecto (`STICK C`); con
   la **cámara libre activa**, el stick derecho pasa a ser **cámara** y se **desactivan todos los
   mapeados de los botones C**. Sin conflicto (la cámara libre no es un botón C).
@@ -257,6 +259,11 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
 ## Git
 
 - **`main` = release**: al día y pusheado, **v0.4.4** (v0.4.1–v0.4.4 publicadas).
+- **Release al fusionar**: `main` es **ancestro** de `menu-nativo` → merge **fast-forward**. La rama
+  añade 98 commits sobre v0.4.4 (menú inicial propio: navegación/acciones, `CONTINUAR`, `EMPEZAR
+  PARTIDA`/`DIFICULTAD`, `MODO COMBATE`, `CONTROLES`, `EXTRAS`+logos HD/código Konami, acentos e
+  idiomas **EN/ES/CA/FR/DE/JA**). Es **MINOR** (features, sin breaking) → **v0.5.0**. Título propuesto:
+  `v0.5.0 - Native menu: multilingual UI & PC options` (ver `docs/releases/v0.5.0.md`).
 - **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
   basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Commits limpios
   de 2026-09-26 **sin pushear**: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras, `CONTINUAR`,
@@ -269,10 +276,10 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
   `CONTROLES` con remapeo, ejes, D-PAD, `VIBRACIÓN`, `RESET`, layout/scroll) + su commit de docs.
 - **Sesión 2026-09-27** (sin pushear): `6e73337` (`COMBATE DE CRIATURAS`) y `f0a4256` (`MODO COMBATE`);
   `94732b5`/`1dfd9ad` (docs); y los temas de hoy: `dc5f902` (docs del plan), `d27dc54` (selectores
-  `CÁMARA/APUNTADO LIBRE` off), `12961d4` (tildes +1 px) y `0c5f50c` (menú JA) + su commit de docs.
+  `CÁMARA/APUNTADO LIBRE` off), `12961d4` (tildes), `0c5f50c` (menú JA) y `7d3f10f` (docs de cierre).
 - **`backup-sesion-intro-2026-09-26`**: respaldo del estado con el trabajo de logos/SFX; **CONSERVAR**.
-- **Estado del árbol**: limpio tras commitear; lo de 2026-09-27 está **implementado y compila en Linux**
-  pero **sin validar en Windows**.
+- **Estado del árbol**: la corrección de tildes `+1 px → +0.5 px` y este cierre de documentación están
+  **sin commitear** (validados en Windows; ver `notes/2026-09-27-c-…`). El resto, commiteado.
 - Commitear **solo** lo validado o la documentación, y **solo con permiso del mantenedor** (regla
   `AGENTS.md`). Las herramientas de volcado/pruebas y sus docs van **fuera del repo** (`/tmp` o `work/`).
 

@@ -1,23 +1,34 @@
-# 2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +1 px y MENÚ en japonés (kana)
+# 2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +0.5 px y MENÚ en japonés (kana)
 
 > Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos,
-> mover las marcas +1 px y traducir el menú al japonés). Commits `d27dc54`, `12961d4`, `0c5f50c`.
-> Linux compila; **validación visual en Windows pendiente** (la hace el mantenedor).
+> mover las marcas 1 px y traducir el menú al japonés). Commits `d27dc54`, `12961d4`, `0c5f50c`.
+> **Validado en Windows (2026-09-27)**: los tres temas. El ajuste de las tildes se estrenó como
+> `+1.0 px` (`12961d4`) y resultó **excesivo**: se dejó en **`+0.5 px`** (corrección final pendiente de
+> commit al cerrar).
 
-## 1. `CÁMARA LIBRE` / `APUNTADO LIBRE` deshabilitados (commit `d27dc54`)
+## 1. `CÁMARA LIBRE` / `APUNTADO LIBRE`: de deshabilitados a OCULTOS
 
-- `make_selector` acepta `enabled` y los dos selectores de `NUEVA PARTIDA` se crean con
-  `enabled=false` (`src/subsystems/menu.cpp`).
-- `move_up`/`move_down` ahora saltan las entradas `!enabled` (helper `step_enabled`, con guarda: si
-  no hay ninguna habilitada devuelve `-1` → no mueve). `confirm()` ya ignoraba `!enabled`.
-- El overlay pinta la etiqueta en gris desde antes; además ahora también el **valor activo y los
-  chevrons** del selector salen en gris cuando `!e.enabled` (`src/hooks/menu_overlay.cpp`).
+- **Primero deshabilitados** (commit `d27dc54`): `make_selector` acepta `enabled` y los dos selectores
+  de `NUEVA PARTIDA` se crearon con `enabled=false` (`src/subsystems/menu.cpp`). `move_up`/`move_down`
+  saltan las entradas `!enabled` (helper `step_enabled`, guarda: si no hay ninguna habilitada devuelve
+  `-1`). El overlay pinta en gris etiqueta, valor activo y chevrons cuando `!e.enabled`.
+- **DECISIÓN FINAL (2026-09-27, último cambio antes de v0.5.0)**: el mantenedor prefiere que **no se
+  vean**; se **retiran del árbol** (`build_tree`), así que `NUEVA PARTIDA` queda solo con
+  `EMPEZAR PARTIDA` + `DIFICULTAD`. La maquinaria de deshabilitados se **conserva** (por si se
+  deshabilita otra entrada), aunque hoy no haya ninguna.
 
-## 2. Tildes/marcas +1 px a la derecha (commit `12961d4`)
+## 2. Tildes/marcas a la derecha (commit `12961d4`, corregido a +0.5 px)
 
-- En `src/platform/overlay.cpp` (dibujo de la marca) el `dx` centrado se desplaza
-  `+ 1.0f * t.scale_x`. Es **global** para todas las marcas; **no** se regenera
-  `include/hh/menu_marks.h` (el ajuste va en el overlay, no en el asset).
+- En `src/platform/overlay.cpp` (dibujo de la marca) el `dx` centrado se desplaza a la derecha. Es
+  **global** para todas las marcas; **no** se regenera `include/hh/menu_marks.h` (el ajuste va en el
+  overlay, no en el asset).
+- **Historia del valor**: se probó `+1.0f * t.scale_x` (`12961d4`) y en Windows se vio **demasiado a
+  la derecha**; se dejó en **`+0.5f * t.scale_x`** (validado). El plan inicial decía "volver a la
+  posición anterior" (0 px), pero la posición buena es el punto medio.
+- **Aclaración** (por si se relee el hilo): el **centrado del submenú `EXTRAS`** (`x_shift` en
+  `src/hooks/menu_overlay.cpp`) **no** afecta a la posición relativa de la marca: desplaza la columna
+  de texto entera, y la marca va pegada a su letra. Solo el centrado + este offset mueven la marca
+  dentro de la celda.
 
 ## 3. Menú en japonés (commit `0c5f50c`)
 
@@ -65,8 +76,17 @@
   ROM JP ya daba la fuente mal antes de esta sesión; aquí no se ha cambiado (la kana del US basta).
   Queda como posible mejora futura detectar la región para el offset.
 
-## 4. Pendiente
+## 4. Validación en Windows (2026-09-27) y pendientes
 
-- **Validar en Windows**: los tres temas (selectores grises/no accesibles, tildes ES/CA/FR y
-  `IDIOMA → NIHONGO`).
-- `docs/menu.md` / `TODO.md` / `RETOMAR.md` actualizados.
+- **Validado en Windows (2026-09-27)**: los tres temas — `CÁMARA/APUNTADO LIBRE` (primero deshabilitados;
+  **decisión final: ocultos**); tildes ES/CA/FR a **+0.5 px**; y el menú en **japonés**
+  (`IDIOMA → NIHONGO`).
+- **Pendiente (tarea futura)**: el mantenedor **no lee japonés**; verificar los textos JA contra la
+  **ROM japonesa** (rótulos originales) más adelante. Ver `TODO.md` (backlog).
+- `docs/menu.md` / `TODO.md` / `RETOMAR.md` / `PROYECTO.md` actualizados.
+
+## 5. Release
+
+- Al fusionar `menu-nativo` con `main` (hoy **fast-forward**: `main` es ancestro), la release es
+  **v0.5.0** (MINOR: features del menú inicial, idiomas, modos de juego y opciones PC). Título
+  propuesto en `docs/releases/v0.5.0.md`.

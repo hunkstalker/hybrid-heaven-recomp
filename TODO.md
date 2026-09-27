@@ -104,16 +104,18 @@
       **2.º mando** (¿o un 2.º **Controller Pak**?); imposible probar 2P hasta resolverlo (ver backlog).
       `EDITAR DATOS` no tiene pantalla de opciones propia (flujo nativo); si se quiere, se recrea tras
       inspeccionarlo. Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
-   13. [x] **`CÁMARA LIBRE` / `APUNTADO LIBRE` deshabilitados (gris + no interactuables) — HECHO
-      (2026-09-27, commit `d27dc54`; validar en Windows)**: `enabled=false` en los dos selectores de
-      `NUEVA PARTIDA`; `make_selector` acepta `enabled`. `move_up`/`move_down` **saltan** las entradas
-      `!enabled` (helper `step_enabled`, guarda si todas lo están). El overlay pinta etiqueta, valor y
-      chevrons en gris (`src/hooks/menu_overlay.cpp`). Nota: `notes/2026-09-27-c-…`.
-   14. [x] **Tildes +1 px a la derecha — HECHO (2026-09-27, commit `12961d4`; validar en Windows)**: el
-      `dx` centrado de la marca en `src/platform/overlay.cpp` suma `+1.0f*t.scale_x` (global, todas las
-      marcas). No se regenera `include/hh/menu_marks.h`.
-   15. [x] **Traducción del MENÚ al JAPONÉS — HECHO (2026-09-27, commit `0c5f50c`; validar en
-      Windows)**: **hallazgo**: `color0` (idx107) del **ROM JP es byte-idéntico al US** → la kana
+   13. [x] **`CÁMARA LIBRE` / `APUNTADO LIBRE` ocultos — HECHO Y VALIDADO en Windows (2026-09-27)**:
+      decisión final del mantenedor (último cambio antes de v0.5.0): **no se muestran** en `NUEVA
+      PARTIDA` (se retiraron del árbol, `build_tree`). Antes se probaron como **deshabilitados** (gris,
+      cursor sin posarse) — se conserva la maquinaria (`make_selector(..., enabled=false)` + `move_up`/
+      `move_down` saltan `!enabled` con `step_enabled`, y el overlay los pinta en gris) por si se
+      deshabilitan otras entradas. Nota: `notes/2026-09-27-c-…`.
+   14. [x] **Tildes a la derecha — HECHO Y VALIDADO en Windows (2026-09-27, `12961d4` + corrección)**:
+      el `dx` centrado de la marca en `src/platform/overlay.cpp` suma un offset (global, todas las
+      marcas). Se probó `+1.0 px` y era **demasiado**; queda en **`+0.5 px`**. No se regenera
+      `include/hh/menu_marks.h`.
+   15. [x] **Traducción del MENÚ al JAPONÉS — HECHO Y VALIDADO en Windows (2026-09-27, commit
+      `0c5f50c`)**: **hallazgo**: `color0` (idx107) del **ROM JP es byte-idéntico al US** → la kana
       (valores 64..255) ya está en la ROM que carga el port; **no** hay que extraer nada de `jp.z64`.
       Mapping kana→glifo desde las tablas EUC→slot del `.resident` del ELF (filas A4/A5/A1) →
       `tools/text/extract_jp_kana.py` genera `include/hh/jp_kana.h` (165 entradas). Atlas 128×32 →
@@ -126,6 +128,10 @@
 
 ## Backlog (priorizado)
 
+- [ ] **Verificar los textos JA del menú contra la ROM japonesa** (2026-09-27): el menú ya sale en
+  kana (columna `ja` de `kMenuTr`, `include/hh/jp_kana.h`) pero el mantenedor **no lee japonés**; una
+  tarea futura debe **cotejar** los rótulos con los originales de `work/roms/jp.z64` (menús nativos,
+  EUC-JP) y corregir la redacción/terminología. La infraestructura (kana + mapping) ya está.
 - [ ] **Fallos visuales detectados por el mantenedor (2026-09-26; capturas en
   `work/gameplay screenshots/CONTINUAR/`)**: `work/` está gitignored; si hace falta conservar las
   capturas, copiar las relevantes al repo.
