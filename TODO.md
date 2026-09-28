@@ -5,6 +5,12 @@
 
 ## Ahora (priorizado)
 
+- [•] **`EDICIÓN DE PARTIDA` (editor de save) — HECHO en `menu-edicion-partida` (2026-09-27,
+  commit `14fa002`), pendiente validar en Windows**: menú en `EXTRAS` con `PROGRESO < N-P >`, `NIVEL`,
+  `HABILIDADES` (86, toggle), `BODY` (filtro `ESTADO` + 6 partes), `ITEMS` (45, cantidad) y
+  `GUARDAR`. Edita el `.pak` en disco (offsets/checksums medidos del slot `0xD00`), lee los nombres
+  de la ROM y recarga el pak del runtime (fork NMR `0ae2585`). **Fase 2**: `JUGAR`/viaje directo al
+  nivel. Detalle: `notes/2026-09-27-e-editor-partida-plan.md`.
 - [x] **Release sin volcados (v0.5.1) — HECHO (2026-09-27)**: el `.exe` release **solo** deja
   `hh.log` (sobrescrito cada run). Pasaron a **opt-in**: `hh_audio.log`, `hh_tick.log`/`hh_slow.log`,
   watchdog (`hh_state.log`/`hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), crash

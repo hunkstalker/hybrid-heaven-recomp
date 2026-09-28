@@ -26,6 +26,11 @@
   `hh.log` (sobrescrito cada run); `hh_audio/tick/slow/state/slice/hang/flag/crash/pak` pasan a
   **opt-in** (`HH_DIAG=1`, `HH_CRASH_LOG=1`, `HH_PAKLOG=1`; el fork NMR `39baeeb` cambia el default
   del paklog). Detalle: `notes/2026-09-27-d-release-sin-volcados.md`.
+- **`EDICIÓN DE PARTIDA` (editor de save) HECHO en la rama `menu-edicion-partida` (2026-09-27,
+  commit `14fa002`), pendiente validar en Windows**: menú en `EXTRAS` (`PROGRESO < N-P >`, `NIVEL`,
+  `HABILIDADES` toggle, `BODY` con filtro `ESTADO`, `ITEMS`, `GUARDAR`). Edita el `.pak` en disco
+  (offsets/checksums medidos) + recarga el runtime (fork NMR `0ae2585`). Fase 2: `JUGAR`/warp.
+  Detalle: `notes/2026-09-27-e-editor-partida-plan.md`.
 
 - **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
   (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
@@ -78,14 +83,17 @@
   puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
   `notes/2026-09-27-battle-mode-recon.md`.
 
-## PRÓXIMA TAREA: `EDICIÓN DE PARTIDA` (editor de save, para tests)
+## TAREA `EDICIÓN DE PARTIDA` (editor de save, para tests)
+
+**Estado: v1 HECHA (2026-09-27, rama `menu-edicion-partida`, commit `14fa002`)**. Pendiente:
+**validar en Windows** (escritura real del `.pak` + `CONTINUAR`), pulir y hacer la **fase 2** (`JUGAR`/
+viaje directo al nivel, sin pasar por guardar).
 
 **Objetivo del mantenedor (2026-09-27)**: un menú (empezó como motivo de `EXTRAS`) para **cargar una
 partida y editarla** y así probar el juego sin jugar horas: progreso (nivel-punto, p. ej. `1-0`), nivel
 del PJ, habilidades (toggle), estadísticas por parte del cuerpo (`BODY`: ESTADO como filtro →
-CABEZA/BRAZO IZQ/DER/PIERNA IZQ/DER/CUERPO), items (cantidad) y **GUARDAR** en un slot (reutilizando
-la UI nativa de la cápsula). Opción valorada: elegir nivel y **`JUGAR`** → pantalla de carga al nivel,
-sin cargar partida.
+CABEZA/BRAZO IZQ/DER/PIERNA IZQ/DER/CUERPO), items (cantidad) y **GUARDAR** en un slot. Opción
+valorada para fase 2: elegir nivel y **`JUGAR`** → pantalla de carga al nivel, sin cargar partida.
 
 **Reconocimiento ya hecho (2026-09-27, ver `notes/` a escribir / este RETOMAR)**:
 - **Guardado**: el `.pak` es un contenedor propio `HHPK` (13595 B; data del juego a `0x1B`, 13568 B =

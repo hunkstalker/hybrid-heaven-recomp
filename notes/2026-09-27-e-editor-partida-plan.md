@@ -80,8 +80,23 @@ Dos vías:
 **Elegida: (A)** por robustez y testeabilidad, con recarga del pak. `GUARDAR` escribe el slot elegido
 (checksum recalculado) y `CONTINUAR` carga la partida editada. Fase 2: `JUGAR`/warp por memoria.
 
-## 7. UI propuesta
+## 7. UI implementada (2026-09-27, commit `14fa002`)
 
 `EXTRAS → EDICIÓN DE PARTIDA`. Pantalla principal: `PARTIDA < 1..4 >` (slot), `PROGRESO < N-P >`,
 `NIVEL < n >`, `HABILIDADES ->` (86, toggle), `BODY ->` (selector `ESTADO` + 6 partes), `ITEMS ->`
 (45, cantidad), `GUARDAR`. Se sale con B.
+
+- Código: `include/hh/save_edit.h` + `src/subsystems/save_edit.cpp` (parseo/escritura del `.pak`,
+  offsets, checksums, nombres), `src/subsystems/menu.cpp` (pantallas + `rebuild_save_edit`),
+  `src/hooks/sections.cpp` (acciones), `src/hooks/menu_overlay.cpp` (dibujo `Number`/`Toggle`).
+- **Nombres**: se leen de la RDRAM del juego (módulo 8, arrays `0x80184140` / `0x8017DF50`),
+  aplicando el **word-swap** de la RDRAM (`byte[A]` vive en `rdram[(A-base)^3]`) y convirtiendo los
+  separadores EUC (`A1B8`) a espacio.
+- **GUARDAR** escribe el slot elegido con el checksum recalculado y llama a
+  `hh_pak_reload_from_disk()` (fork NMR `0ae2585`), que descarta el pak cacheado y lo relee: así
+  `CONTINUAR` carga lo editado.
+- **Validado en Linux** (headless con `HH_MENU_SCREEN=12` + START): el editor se construye, lee el
+  `.pak` (`progress=3 level=0 tech0='UPPER R PUNCH' item0='Life Charger S'`) y no rompe. **Pendiente
+  validar en Windows** (escritura real + `CONTINUAR`).
+- **Fase 2 (pendiente)**: `JUGAR`/viaje directo al nivel sin pasar por guardar (usar el campo de
+  progreso + cargador de escena `func_80125968`/`func_8012FE50`).
