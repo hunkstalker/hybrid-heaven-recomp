@@ -577,7 +577,8 @@ void title_update(uint8_t* rdram) {
                 width += static_cast<float>(cp_count(hh::menu::localized(e.options[oi]))) * step;
                 if (oi + 1 < e.options.size()) width += 2.0f * kSlashSep + kSlashW;
             }
-            const bool fits = value_x + width <= hh::overlay::kVirtualWidth - 4.0f;
+            // `e.stepper` fuerza el estilo < valor > aunque todas las opciones quepan (ANTIALIASING).
+            const bool fits = !e.stepper && value_x + width <= hh::overlay::kVirtualWidth - 4.0f;
             if (fits) {
                 float ox = value_x;
                 for (size_t oi = 0; oi < e.options.size(); ++oi) {

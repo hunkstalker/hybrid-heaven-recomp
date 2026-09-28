@@ -149,6 +149,8 @@ struct Entry {
     std::string remap_key;             // Binding: accion N64 a reasignar ("a","b","z",...)
     std::string prefix;                // Number: prefijo del valor (p. ej. "NIVEL " -> "< NIVEL 5 >")
     std::string suffix;                // Number: anotación a la derecha del valor (p. ej. "NIVEL 5")
+    bool stepper = false;              // Selector: forzar estilo < valor > (chevrons) aunque las
+                                       // opciones quepan enteras (p. ej. ANTIALIASING x0/x2/x4/x8)
 };
 
 struct Screen {

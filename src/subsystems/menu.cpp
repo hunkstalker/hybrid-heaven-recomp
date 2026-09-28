@@ -172,21 +172,22 @@ Entry make_submenu(const char* label, Action action, bool enabled = true) {
 }
 
 Entry make_selector(const char* label, std::vector<std::string> options, int value = 0,
-                    bool enabled = true) {
+                    bool enabled = true, bool stepper = false) {
     Entry e;
     e.label = label;
     e.enabled = enabled;
     e.kind = Kind::Selector;
     e.options = std::move(options);
     e.value = value;
+    e.stepper = stepper;   // fuerza el estilo < valor > (chevrons) aunque quepan todas las opciones
     return e;
 }
 
 // Selector con acción (p. ej. DEBUG -> ToggleDebug): el valor cambia con izq/der y el enganche lee
 // `action` para aplicar el efecto (ver feed_menu_navigation).
 Entry make_selector_with_action(const char* label, std::vector<std::string> options, Action action,
-                                int value = 0) {
-    Entry e = make_selector(label, std::move(options), value);
+                                int value = 0, bool stepper = false) {
+    Entry e = make_selector(label, std::move(options), value, true, stepper);
     e.action = action;
     return e;
 }
@@ -473,8 +474,9 @@ void build_tree() {
         // feed_menu_navigation). El valor inicial sale de la config (default: borderless/SÍ/NATIVO).
         make_selector_with_action("P. COMPLETA", {"NO", "SÍ"}, Action::ToggleFullscreen,
                                   fullscreen_default()),
+        // stepper=true: mostrar como < x2 > (solo el activo, con chevrons) en vez de x0/x2/x4/x8.
         make_selector_with_action("ANTIALIASING", {"x0", "x2", "x4", "x8"}, Action::MsaaSelect,
-                                  msaa_default()),
+                                  msaa_default(), true),
         make_selector_with_action("VSYNC", {"NO", "SÍ"}, Action::ToggleVsync, vsync_default()),
         // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate). Orden ascendente;
         // incluye 40 (Steam Deck), 90 (Deck/VR) y 75 (monitores antiguos). Se recorta al monitor.
