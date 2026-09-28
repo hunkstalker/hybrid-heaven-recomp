@@ -27,6 +27,25 @@ El resto de la tarea 6 (niveles/habilidades/items) ya está implementado en `src
   grupo `custom_layout`/`is_save_edit` de `src/hooks/menu_overlay.cpp`.
 - **Validar en Windows** todo el rediseño de esta sesión (sin validar): ATRIBUTOS/ESTADO, repeat de
   izq/der, ELIMINAR, ITEMS en mayúsculas, HABILIDADES `RESET`, MODO HEAVEN.
+- **"Release limpio" (trazas fuera del release)**. El runtime tiene la macro `HH_DEBUG_TOOLS` (default 1,
+  `lib/N64ModernRuntime/librecomp/src/recomp.cpp:26`) que envuelve toda la instrumentación; la idea es
+  compilar el release con `-DHH_DEBUG_TOOLS=0`. **PERO hoy está ROTO**: con `=0` no compila — los
+  símbolos `hh_diag_enabled` (`recomp.cpp:1149`) y `hh_guest_ra` (`recomp.cpp:1155`) se definen *dentro*
+  del `#if HH_DEBUG_TOOLS` y los usan **siempre** `pi.cpp`, `overlays.cpp`, `ultramodern/src/threads.cpp`,
+  `mesgqueue.cpp`, `scheduling.cpp` → *undefined reference*. **Arreglo**: mover esos símbolos (y el
+  `hh_schedlog`/otros usados fuera) FUERA del `#if`, o dar stubs. Hecho eso: cablear
+  `target_compile_definitions(librecomp PRIVATE "$<$<CONFIG:Release>:HH_DEBUG_TOOLS=0>")` en
+  `CMakeLists.txt` y dejar las trazas en Debug/RelWithDebInfo (y que `run_stats_capture.bat` use Debug).
+  Estado actual: la instrumentación se compila siempre pero está **env-gated** (`HH_TRACE`/`HH_CANARY`),
+  así que el release está "limpio" en **comportamiento** (no escribe nada sin las env).
+
+### Trazas en git (estado de esta sesión)
+
+- El fork NMR **ya está pusheado** (`fork/hybrid-heaven` = `8e99cc4`, con la traza `[STATEXP]`/`[ROW]`).
+- El repo principal **pinea `9b14604`** (sin trazas) en el gitlink + `runtime.lock`; el árbol local está
+  limpio. Para trazar en desarrollo: `git -C lib/N64ModernRuntime checkout 8e99cc4`.
+- Si se quiere el fork sin trazas: `git -C lib/N64ModernRuntime push --force-with-lease fork
+  9b14604:hybrid-heaven` (y opcionalmente guardar `8e99cc4` como rama `trace-combate`).
 
 ## HECHO en esta sesión (resumen)
 
