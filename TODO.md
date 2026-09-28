@@ -5,13 +5,23 @@
 
 ## Ahora (priorizado)
 
-- [•] **`MODO HEAVEN` (EXTRAS) — a medias (2026-09-28)**: toggle `MODO HEAVEN NO/SÍ` colocado; al SÍ
-  aplica al slot del editor **niveles 99 + todas las habilidades + items 99** (`Action::ToggleHeavenMode`
-  en `src/hooks/sections.cpp`). **PENDIENTE**: (1) invulnerabilidad (daño 0 siempre), (2) que los items
-  **no se gasten**, (3) decidir runtime (`0x8017DC40`) vs save / auto-GUARDAR. Detalle en `RETOMAR.md`
-  y `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
-- [ ] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (añadir sus `ScreenId` a
-  `custom_layout`/`is_save_edit` en `src/hooks/menu_overlay.cpp`).
+- [•] **`MODO HEAVEN` (EXTRAS) — modo GLOBAL persistente, sin validar en Windows (2026-09-28)**: NO
+  depende de la partida ni del editor (persiste en `config.ini [extras].heaven`). Al cargar/empezar
+  cualquier partida aplica al personaje vivo `0x8017DC40` **ATRIBUTOS/ESTADO 99 + 86 habilidades**
+  (`apply_heaven_runtime` vía hooks `func_80144E68`/`func_80152240`), y en runtime **daño 0 al PJ**
+  (`func_80232D08`) e **items que no se gastan** (`func_8013D520`; no se fuerzan a 99). El save normal
+  persiste el estado; apagar quita invuln/consumo pero conserva lo guardado. **PENDIENTE: validar** en
+  Windows. Detalle: `RETOMAR.md`, `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
+- [x] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (`menu_overlay.cpp`): `Graphics`
+  añadido a `custom_layout`; `scroll_cap5` solo para EXTRAS/CONTROLES/editor (GRÁFICOS conserva 6 filas).
+- [x] **SORPRESA/ventaja de combate ("back attack") — VALIDADO funcionalmente (2026-09-28)**: flag
+  `0x801BBBF0+0x1034 = 2` (dirección `0x801BCC24`; interno `gw.back_attack`), forzado en
+  `hh_battle_frame_hook` bajo `hh::menu::heaven_enabled()`. Confirmado por el mantenedor: la pelea
+  empieza con el POWER al máximo (no hace falta ver la palabra "ADVANTAGE"). Detalle en `RETOMAR.md`.
+- [ ] **Daño FUERA de combate (robots) — PENDIENTE (2026-09-28)**: en combate el daño al PJ es 0, pero
+  un robot en el campo sí baja la vida (escribe el sheet `0x8017DC40+0x02`). Reescribir HP a 9999 por-frame
+  no bloquea el daño real (se retiró). Falta localizar la función escritora (canary `run_stats_capture.bat
+  stats` + disparo) y hookearla a 0 bajo `heaven_enabled()`. Detalle en `RETOMAR.md`.
 - [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
   detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
   (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz

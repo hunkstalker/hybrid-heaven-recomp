@@ -79,28 +79,75 @@ procesado), de ahí salen flanco (`btn & ~prev`) y mantenido (`dir`). `rh16(a) =
 - **ELIMINAR**: `hh::save::delete_slot(slot)` vacía el slot y marca su registro de cabecera como no
   presente (`clear_save_header_record`). Queda efectivo al **GUARDAR**.
 
-## 6. MODO HEAVEN (EXTRAS) — PARCIAL, PENDIENTE
+## 6. MODO HEAVEN (EXTRAS) — modo GLOBAL persistente, pendiente de validar
 
-Añadido en la raíz de **EXTRAS** un selector `MODO HEAVEN NO/SÍ`. Al poner **SÍ** aplica, sobre el slot
-del editor, vía `hh::save`: **nivel de los 6 atributos = 99** (ESTADO+ATRIBUTOS), **todas las
-habilidades a SÍ**, **todos los items a 99**. Log `[heaven]`.
+> **Rediseño (misma sesión, a petición del mantenedor)**: MODO HEAVEN deja de estar atado al slot del
+> editor y pasa a ser un **modo global de juego**, **independiente de la partida** y **persistente**
+> (`config.ini [extras].heaven`). `EDICIÓN DE PARTIDA` vuelve a ser solo editor.
 
-**PENDIENTE (tarea para la próxima sesión)**:
-1. **Invulnerabilidad**: que el PJ reciba **daño 0 siempre**. Hay que localizar dónde se aplica el daño
-   al jugador (`func_8022F0E0` defensa / resolución de golpe) y parchear/forzar 0.
-2. **Items que NO se gasten**: localizar el consumo de item (resta de cantidad) y anularlo.
-3. **Aplicar en runtime** (no solo al save): decidir si MODO HEAVEN debe escribir la struct viva
-   `0x8017DC40` (efecto inmediato) además del slot, y si debe auto-GUARDAR.
+Selector `MODO HEAVEN NO/SÍ` en **EXTRAS**. `ToggleHeavenMode` solo persiste el flag
+(`hh::extras_set_heaven`); **no toca el `.pak`**. Los efectos, gateados por `hh::menu::heaven_enabled()`
+(config), los aplican cuatro hooks en `src/hooks/sections.cpp` (re-registrados con
+`register_title_menu_hook`):
+
+1. **Máximo al cargar/empezar partida** `[MEDIDO direcciones]`: post-original de `func_80144E68`
+   (deserializa el personaje) y `func_80152240` (monta las tablas de runtime; CONTINUE y partida
+   nueva) → `hh::save::apply_heaven_runtime(rdram)` lleva el **personaje vivo `0x8017DC40`**:
+   **ATRIBUTOS** (6 niveles) a 99 aplicando `kIncByPart` (stat + HP máx/NIVEL global), **ESTADO**
+   OFENSIVO/DEFENSIVO por parte a 99, y las **86 técnicas** aprendidas (`0x80183CE0` + espejo).
+   El save del juego serializa el mismo struct (`func_80144C40`), así que **se persiste al guardar**.
+2. **Invulnerabilidad** `[INFERIDO]`: `func_80232D08` es la **única** función que resta el daño ya
+   resuelto de las partes del cuerpo (`a0+0x2B8+part*2`); su único llamador es la resolución de golpe
+   `func_80232E94`. `hh_heaven_damage_hook` fuerza `a1=0` cuando el ente dañado (`a0`) es la partida
+   del jugador (`0x801BC03C`). No toca a los enemigos.
+3. **Items que no se gastan** `[INFERIDO]`: `func_8013D520(a0=item, a1=delta con signo, a2=party/enemy)`
+   suma/resta la cantidad de un item (u8, tope 99). Delta negativo = consumo. `hh_heaven_item_hook`
+   pone `a1=0` cuando el delta es negativo. **No** se fuerzan a 99: acumulan y se guardan normal.
+
+**Semántica acordada con el mantenedor**:
+- Guardar con HEAVEN ON deja en el `.pak` ATRIBUTOS/ESTADO máx y el inventario que se tenga.
+- Apagar HEAVEN y cargar ese save → conserva niveles/items (están en el fichero) pero **vuelve a
+  perder vida** y **los items se gastan**.
+- `extras_unlocked()` incluye `heaven=="si"` para poder apagarlo aunque MANTENER EXTRAS sea NO.
+
+### 6.1 SORPRESA/ventaja de combate ("back attack") — HECHO y validado funcionalmente
+
+Instrumenté una traza event-driven (`run_battle_trace.bat` + **F12**; ver `src/hooks/sections.cpp`
+`hh_battle_frame_hook`/`hh::battle_trace_toggle`) que registra cambios de campo/party/sheet. La traza
+**diferencial** normal vs por la espalda dio el flag: el byte **`0x801BBBF0+0x1034`** (dirección
+`0x801BCC24`) pasa a **2** solo en el combate con ventaja (`vi≈8315`, antes del setup); el `+0x1032=1`
+del setup normal sale en ambos. Nombre interno del juego: `gw.back_attack` (cadena de debug en
+`file_011`). Lo escriben `func_8021D8D0`/`func_801F5F5C`, así que se **fuerza por-frame** (0/1 → 2) bajo
+`heaven_enabled()`. **Validado por el mantenedor**: la pelea empieza con el **POWER al máximo** (no hace
+falta que aparezca la palabra "ADVANTAGE").
+
+> **Bug corregido**: la 1.ª versión forzaba `+0x1037` por un `bswap` de más al decodificar la traza. El
+> byte correcto es `+0x1034`; el watcher ya no hace `bswap` (la palabra guest se lee directa, `MEM_W`).
+
+### 6.2 Daño FUERA de combate (robots) — PENDIENTE
+
+En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Por traza F12: el disparo
+escribe el **sheet `0x8017DC40+0x02`** (p. ej. `0x1847→0x183D`, daño 10), la misma vida que
+STATUS/combate. Reescribir HP a 9999 por-frame **no** bloquea el daño (solo cambia el display; se
+retiró). El `live_ptr` `*(0x801BBCCC)=0x8024AD14` en la traza no lleva la vida (sus cambios son punteros
+de actualización). **Falta** localizar la función que escribe esa vida en el campo (probable copia de
+bloque/puntero) y hookearla a 0 bajo `heaven_enabled()`. Vía: `run_stats_capture.bat stats`
+(`HH_CANARY=0x8017DC40:9E`) mientras dispara un robot.
+
+> **[A VALIDAR en Windows]**: que los hooks cubran CONTINUE y partida nueva (si no, hook puntual); el
+> daño 0 en combate y el no-consumo de items; la ventaja (ya validada); y el daño de campo pendiente.
 
 ## 7. Otros pendientes
 
-- **Centrar los submenús `GRÁFICOS` y `CONTROLES`** (hoy no están en el grupo `custom_layout` del
-  overlay). Añadir sus `ScreenId` a `is_save_edit`/`custom_layout` en `src/hooks/menu_overlay.cpp`.
+- **Centrar los submenús `GRÁFICOS` y `CONTROLES`** — HECHO (`menu_overlay.cpp`): `ScreenId::Graphics`
+  añadido a `custom_layout`; `scroll_cap5` (ventana de 5 filas) solo para EXTRAS/CONTROLES/editor, así
+  GRÁFICOS no pierde su 6.ª fila. Tope de `x_shift` para que un binding largo de CONTROLES no saque el
+  contenido de `kVirtualWidth`.
 - **Validar en Windows** todo el rediseño (ATRIBUTOS/ESTADO, repeat, ELIMINAR, ITEMS mayúsculas,
   HABILIDADES RESET, MODO HEAVEN).
 
 ## Ficheros tocados esta sesión (sin commitear)
 
-`src/subsystems/menu.cpp`, `include/hh/menu.h`, `src/hooks/sections.cpp`,
-`src/hooks/menu_overlay.cpp`, `src/subsystems/save_edit.cpp`, `include/hh/save_edit.h`,
+`src/subsystems/menu.cpp`, `include/hh/menu.h`, `src/hooks/sections.cpp`, `src/hooks/menu_overlay.cpp`,
+`src/subsystems/save_edit.cpp`, `include/hh/save_edit.h`, `include/hh.h`, `src/platform/support.cpp`,
 `lib/N64ModernRuntime/librecomp/src/recomp.cpp` (traza `[STATEXP]`/`[ROW]`).
