@@ -246,6 +246,37 @@ puntual es ruidoso → el siguiente refinamiento es un **write-trace diff** (tra
   **`--target N64RecompCLI`** (`--target N64Recomp` no relinkea: “el cambio no se aplica”). Tras tocar
   `symbol_lists.cpp`: rebuild del tool → `python3 tools/regenerate.py`.
 
+### 6.3 Capturar quién ESCRIBE un struct (stats) en el port `[Windows]`
+
+`HH_DRWATCH=0xADDR[,0xADDR...]` arma hasta **4 watchpoints de hardware de 4 B** (solo Windows) sobre
+RDRAM y escribe `hh_drwatch.log` **solo cuando cambia el valor**: `guest old->new`, `rip=exe+offset`,
+`guest ra/sp/s0/a0..a3`, backtrace host y **call rings guest** (`hh_dump_thread_rings`), más un
+`hh_drwatch_rdram.bin` (8 MB) one-shot al primer hit. Implementación:
+`lib/N64ModernRuntime/librecomp/src/recomp.cpp` (`HH_DEBUG_TOOLS` por defecto 1). Alternativa que
+loguea **también lecturas** (más ruidosa): `HH_WATCH_ADDR=0x…` + `HH_WATCH_SIZE=…` → `hh_watch.log`
+(`lib/N64ModernRuntime/N64Recomp/include/recomp.h` `hh_mem_off`).
+
+El registro `0x8017DC40` es el **buffer del save** (se vuelca al guardar); el estado vivo del combate
+está en la lógica de batalla (`file_057`, `0x80358820..0x8038CFC0`). Por eso la captura traza
+**funciones de combate** además de cambios de memoria:
+
+- `HH_TRACE=0xADDR:label[,...]` (16 max) → `hh_trace.log`: cada llamada con `a0` (= struct vivo).
+- `HH_CANARY=0xADDR:SIZE[,...]` (4 max) → `hh_canary.log`: cualquier palabra cambiada de un rango,
+  una vez por VI, con la ventana de llamadas de los hilos (sin límite de 4 B ni de lecturas).
+
+```bat
+REM Sesion corta: entrar en partida, 1-2 combates, cerrar.
+run_stats_capture.bat combat     REM canary 0x8017DC40 + party + HH_DRWATCH + HH_TRACE de combate
+run_stats_capture.bat live       REM party 0x801BC03C/0x801BC3D8
+run_stats_capture.bat stats      REM struct guardado 0x8017DC40
+python tools\analysis\stats_watch_summary.py build\windows\bin\Release\hh_drwatch.log
+python tools\analysis\stats_watch_summary.py build\windows\bin\Release\hh_canary.log
+```
+
+Notas de endianness: en la palabra de 4 B vigilada, **los 16 bits altos = u16 guest en la base y los
+16 bajos = u16 en base+2** (ambos big-endian). `tools/analysis/stats_watch_summary.py` ya lo resuelve
+y agrupa por campo y por función escritora.
+
 ## 7. Documentación (índice y validación)
 
 `docs/INDEX.md` es **generado** (no editar a mano): agrupa todos los `.md` del proyecto (raíz,
