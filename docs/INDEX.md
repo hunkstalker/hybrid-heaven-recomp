@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 162 | 2026-09-27 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 329 | 2026-09-27 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 329 | 2026-09-28 |
 
 ## Técnico y guías (vivos)
 
@@ -56,7 +56,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)](../notes/2026-09-27-e-editor-partida-plan.md) | Sesión `menu-edicion-partida` (rama desde `main`/v0.5.1). Objetivo del mantenedor: un menú para | 102 | 2026-09-27 |
+| [2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)](../notes/2026-09-27-e-editor-partida-plan.md) | Sesión `menu-edicion-partida` (rama desde `main`/v0.5.1). Objetivo del mantenedor: un menú para | 128 | 2026-09-27 |
 | [2026-09-27 — Release limpia: diagnósticos y volcados desactivados por defecto (v0.5.1)](../notes/2026-09-27-d-release-sin-volcados.md) | Sesión `main`. Petición del mantenedor: el `.exe` de release **no debe dejar ficheros de volcado**. | 52 | 2026-09-27 |
 | [2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +0.5 px y MENÚ en japonés (kana)](../notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md) | Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos, | 92 | 2026-09-27 |
 | [2026-09-27 — `MODO COMBATE` (BATTLE MODE): reconocimiento nativo y reproducción del SEGV](../notes/2026-09-27-battle-mode-recon.md) | Sesión `menu-nativo`. Objetivo del mantenedor: reconocer la secuencia NATIVA de BATTLE MODE, | 194 | 2026-09-27 |
