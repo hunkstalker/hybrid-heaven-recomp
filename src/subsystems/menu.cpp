@@ -10,6 +10,7 @@
 #include <cstdlib>
 
 #include "hh.h"   // VideoConfig/AudioConfig: valores iniciales de los selectores
+#include "hh/save_edit.h"  // EDICIÓN DE PARTIDA
 
 namespace hh::menu {
 namespace {
@@ -106,6 +107,26 @@ const MenuTr kMenuTr[] = {
     {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE", "オンリョウ"},
     {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE", "シュツリョク"},
     {"MENÚ SFX", "MENU SFX", "MENÚ SFX", "MENU SFX", "MENÜ-SFX", "メニューオンセイ"},
+    // EDICIÓN DE PARTIDA (editor de save)
+    {"EDICIÓN DE PARTIDA", "SAVE EDIT", "EDICIÓ DE PARTIDA", "ÉDITION DE PARTIE",
+     "SPIELSTAND-EDITOR", "セーブエディット"},
+    {"PARTIDA", "SAVE", "PARTIDA", "PARTIE", "SPIELSTAND", "セーブ"},
+    {"PROGRESO", "PROGRESS", "PROGRÉS", "PROGRÈS", "FORTSCHRITT", "シンコウ"},
+    {"NIVEL", "LEVEL", "NIVELL", "NIVEAU", "LEVEL", "レベル"},
+    {"HABILIDADES", "ABILITIES", "HABILITATS", "CAPACITÉS", "FÄHIGKEITEN", "ノウリョク"},
+    {"BODY", "BODY", "COS", "CORPS", "KÖRPER", "ボディ"},
+    {"GUARDAR", "SAVE", "DESAR", "SAUVEGARDER", "SPEICHERN", "セーブ"},
+    {"ESTADO", "STATE", "ESTAT", "ÉTAT", "STATUS", "ジョウタイ"},
+    {"CABEZA", "HEAD", "CAP", "TÊTE", "KOPF", "アタマ"},
+    {"BRAZO IZQ", "LEFT ARM", "BRAÇ ESQ", "BRAS GAUCHE", "LINKER ARM", "ヒダリウデ"},
+    {"BRAZO DER", "RIGHT ARM", "BRAÇ DRET", "BRAS DROIT", "RECHTER ARM", "ミギウデ"},
+    {"PIERNA IZQ", "LEFT LEG", "CAMA ESQ", "JAMBE GAUCHE", "LINKES BEIN", "ヒダリアシ"},
+    {"PIERNA DER", "RIGHT LEG", "CAMA DRET", "JAMBE DROITE", "RECHTES BEIN", "ミギアシ"},
+    {"CUERPO", "BODY", "COS", "CORPS", "KÖRPER", "カラダ"},
+    {"OFENSIVO", "OFFENSIVE", "OFENSIU", "OFFENSIF", "OFFENSIV", "コウゲキ"},
+    {"DEFENSIVO", "DEFENSIVE", "DEFENSIU", "DÉFENSIF", "DEFENSIV", "ボウギョ"},
+    {"HIT COUNT", "HIT COUNT", "HIT COUNT", "HIT COUNT", "TREFFER", "ヒットスウ"},
+    {"DAMAGE COUNT", "DAMAGE COUNT", "DAMAGE COUNT", "DAMAGE COUNT", "SCHADEN", "ダメージスウ"},
     // Opciones (mismos valores en todos los idiomas si no cambian)
     {"SÍ", "YES", "SÍ", "OUI", "JA", "ハイ"},
     {"NO", "NO", "NO", "NON", "NEIN", "イイエ"},
@@ -249,6 +270,74 @@ Screen make_screen(ScreenId id, ScreenKind kind, std::vector<Entry> entries) {
     return s;
 }
 
+// Fila numérica (< valor >) y fila toggle (marca propia NO/SÍ) del editor de partida.
+Entry make_number(const char* label, int min, int max, int value, int index, Action action) {
+    Entry e;
+    e.label = label;
+    e.kind = Kind::Number;
+    e.value = value;
+    e.min = min;
+    e.max = max;
+    e.step = 1;
+    e.index = index;
+    e.action = action;
+    return e;
+}
+Entry make_toggle(const char* label, bool marked, int index, Action action) {
+    Entry e;
+    e.label = label;
+    e.kind = Kind::Toggle;
+    e.marked = marked;
+    e.index = index;
+    e.action = action;
+    return e;
+}
+
+// --- EDICIÓN DE PARTIDA: estado del editor y utilidades -------------------------------------------
+int g_edit_slot = 0;        // 0..3
+int g_edit_body_state = 0;  // 0 OFENSIVO, 1 DEFENSIVO, 2 HIT COUNT, 3 DAMAGE COUNT
+
+// Puntos de guardado válidos por nivel (0..29), de la tabla de escenas D_80175490 (ver nota
+// notes/2026-09-27-e-editor-partida-plan.md). `PROGRESO = nivel*10 + punto`.
+const int kValidPoints[30] = {7, 10, 9, 9, 10, 8, 6, 9, 6, 9, 6, 10, 10, 10, 10,
+                              10, 10, 10, 10, 7, 5, 10, 1, 1, 8, 10, 10, 1, 1, 1};
+
+std::vector<std::string> progress_options() {
+    std::vector<std::string> out;
+    for (int lvl = 0; lvl < 30; ++lvl) {
+        for (int p = 0; p < kValidPoints[lvl]; ++p) {
+            out.push_back(std::to_string(lvl) + "-" + std::to_string(p));
+        }
+    }
+    return out;
+}
+int progress_index_of(uint16_t value) {
+    int idx = 0;
+    for (int lvl = 0; lvl < 30; ++lvl) {
+        for (int p = 0; p < kValidPoints[lvl]; ++p, ++idx) {
+            if (value == static_cast<uint16_t>(lvl * 10 + p)) return idx;
+        }
+    }
+    return 0;
+}
+// Valor N*10+P del índice `idx` del selector PROGRESO.
+uint16_t progress_value_at(int idx) {
+    int i = 0;
+    for (int lvl = 0; lvl < 30; ++lvl) {
+        for (int p = 0; p < kValidPoints[lvl]; ++p, ++i) {
+            if (i == idx) return static_cast<uint16_t>(lvl * 10 + p);
+        }
+    }
+    return 0x0A;   // 1-0 por defecto
+}
+
+// Orden de las partes como las muestra el port (mapa al orden del juego en el struct).
+const int kPartIndex[6] = {0, 3, 2, 5, 4, 1};   // Cabeza, Brazo Izq, Brazo Der, Pierna Izq, Der, Cuerpo
+const char* const kPartLabels[6] = {"CABEZA", "BRAZO IZQ", "BRAZO DER", "PIERNA IZQ", "PIERNA DER",
+                                    "CUERPO"};
+
+void rebuild_save_edit();   // definida tras find_screen
+
 // Resoluciones (sin AUTO/ORIGINAL) adecuadas a cada RATIO: AUTO/ORIGINAL(4:3)/4X3/16X9/16X10/21X9.
 std::vector<std::string> ratio_resolutions(int ratio) {
     switch (ratio) {
@@ -386,6 +475,7 @@ void build_tree() {
                                   extras_persist_default()),
         make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
                                   original_logos_default()),
+        make_submenu("EDICIÓN DE PARTIDA", Action::OpenSaveEdit),
     }));
 
     // CONTROLES: Stick C + tabla del mapeado (accion N64 -> binding actual de mando/teclado). La
@@ -443,6 +533,14 @@ void build_tree() {
         make_selector_with_action("MENÚ SFX", {"NO", "SÍ"}, Action::MenuSfxToggle,
                                   menu_sfx_default()),
     }));
+
+    // EDICIÓN DE PARTIDA: pantallas propias (se rellenan en rebuild_save_edit con el .pak cargado y
+    // los nombres de la ROM). Vacías aquí; el contenido depende del slot seleccionado.
+    g_screens.push_back(make_screen(ScreenId::SaveEdit, ScreenKind::Menu, {}));
+    g_screens.push_back(make_screen(ScreenId::SaveEditAbilities, ScreenKind::Toggle, {}));
+    g_screens.push_back(make_screen(ScreenId::SaveEditBody, ScreenKind::Menu, {}));
+    g_screens.push_back(make_screen(ScreenId::SaveEditItems, ScreenKind::Menu, {}));
+    rebuild_save_edit();
 }
 
 Screen* find_screen(ScreenId id) {
@@ -452,6 +550,67 @@ Screen* find_screen(ScreenId id) {
         }
     }
     return nullptr;
+}
+
+// Reconstruye las pantallas del editor con los valores actuales del slot seleccionado. Se llama al
+// construir el árbol, al cambiar PARTIDA y al cambiar el ESTADO de BODY (lo demás se refleja en el
+// propio modelo). Necesita el `.pak` (hh::save::load); los nombres salen de la ROM (módulo 8).
+void rebuild_save_edit() {
+    hh::save::load();
+    const int slot = g_edit_slot;
+
+    if (Screen* s = find_screen(ScreenId::SaveEdit)) {
+        std::vector<Entry> e;
+        e.push_back(make_selector_with_action("PARTIDA", {"1", "2", "3", "4"}, Action::SaveEditSlot,
+                                              slot));
+        e.push_back(make_selector_with_action("PROGRESO", progress_options(), Action::SaveEditProgress,
+                                              progress_index_of(hh::save::progress(slot))));
+        std::vector<std::string> levels;
+        for (int i = 0; i < 100; ++i) levels.push_back(std::to_string(i));
+        e.push_back(make_selector_with_action("NIVEL", levels, Action::SaveEditLevel,
+                                              hh::save::level(slot)));
+        e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
+        e.push_back(make_submenu("BODY", Action::OpenSaveEditBody));
+        e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
+        e.push_back(make_item("GUARDAR", Action::SaveEditSave));
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
+
+    if (Screen* s = find_screen(ScreenId::SaveEditAbilities)) {
+        std::vector<Entry> e;
+        for (int id = 0; id < hh::save::kTechCount; ++id) {
+            e.push_back(make_toggle(hh::save::tech_name(id).c_str(),
+                                    hh::save::tech_learned(slot, id), id, Action::None));
+        }
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
+
+    if (Screen* s = find_screen(ScreenId::SaveEditBody)) {
+        std::vector<Entry> e;
+        e.push_back(make_selector_with_action(
+            "ESTADO", {"OFENSIVO", "DEFENSIVO", "HIT COUNT", "DAMAGE COUNT"},
+            Action::SaveEditBodyState, g_edit_body_state));
+        for (int i = 0; i < 6; ++i) {
+            const int part = kPartIndex[i];
+            e.push_back(make_number(kPartLabels[i], 0, 9999,
+                                    hh::save::body_stat(slot, part, g_edit_body_state), part,
+                                    Action::SaveEditBodyValue));
+        }
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
+
+    if (Screen* s = find_screen(ScreenId::SaveEditItems)) {
+        std::vector<Entry> e;
+        for (int id = 0; id < hh::save::kItemCount; ++id) {
+            e.push_back(make_number(hh::save::item_name(id).c_str(), 0, 99,
+                                    hh::save::item_count(slot, id), id, Action::SaveEditItem));
+        }
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
 }
 
 // Ajusta las opciones/valor de RESOLUCIÓN al RATIO: AUTO -> AUTO, ORIGINAL -> ORIGINAL, y los ratios
@@ -527,6 +686,10 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenDebug:      out = ScreenId::Debug;      return true;
         case Action::OpenExtras:     out = ScreenId::Extras;     return true;
         case Action::OpenControls:   out = ScreenId::Controls;   return true;
+        case Action::OpenSaveEdit:          out = ScreenId::SaveEdit;          return true;
+        case Action::OpenSaveEditAbilities: out = ScreenId::SaveEditAbilities; return true;
+        case Action::OpenSaveEditBody:      out = ScreenId::SaveEditBody;      return true;
+        case Action::OpenSaveEditItems:     out = ScreenId::SaveEditItems;     return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -633,6 +796,14 @@ Event move_left() {
         return Event::None;
     }
     Entry& e = s->entries[s->cursor];
+    if (e.kind == Kind::Number) {
+        const int v = e.value - e.step;
+        if (v < e.min || v == e.value) {
+            return Event::None;
+        }
+        e.value = v;
+        return Event::Move;
+    }
     if (e.kind != Kind::Selector || e.options.empty()) {
         return Event::None;
     }
@@ -655,6 +826,14 @@ Event move_right() {
         return Event::None;
     }
     Entry& e = s->entries[s->cursor];
+    if (e.kind == Kind::Number) {
+        const int v = e.value + e.step;
+        if (v > e.max || v == e.value) {
+            return Event::None;
+        }
+        e.value = v;
+        return Event::Move;
+    }
     if (e.kind != Kind::Selector || e.options.empty()) {
         return Event::None;
     }
@@ -680,6 +859,11 @@ Event confirm() {
     if (!e.enabled) {
         return Event::None;
     }
+    // Lista de toggles (HABILIDADES): A alterna la marca de esa fila sin tocar las demás.
+    if (s->kind == ScreenKind::Toggle) {
+        e.marked = !e.marked;
+        return Event::Accept;
+    }
     // Lista: A marca la opción resaltada (la activa pasa a ser esa).
     if (s->kind == ScreenKind::List) {
         for (Entry& x : s->entries) {
@@ -687,6 +871,11 @@ Event confirm() {
         }
         e.marked = true;
         return Event::Accept;
+    }
+    // Fila numérica: A incrementa (envuelve al llegar al máximo).
+    if (e.kind == Kind::Number) {
+        e.value = (e.value >= e.max) ? e.min : e.value + e.step;
+        return Event::Move;
     }
     // Submenú: A entra.
     if (e.kind == Kind::Submenu) {
@@ -715,7 +904,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::Controls)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::SaveEditItems)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);
@@ -735,7 +924,7 @@ std::string describe_current() {
     if (s == nullptr) {
         return "(sin pantalla)";
     }
-    static const char* kKindName[] = {"Menu", "List"};
+    static const char* kKindName[] = {"Menu", "List", "Toggle"};
     std::string out = "screen=" + std::to_string(static_cast<int>(s->id)) +
                       " kind=" + kKindName[static_cast<int>(s->kind)] +
                       " cursor=" + std::to_string(s->cursor) + "\n";
@@ -801,5 +990,17 @@ std::string describe_tree() {
     }
     return out;
 }
+
+// --- EDICIÓN DE PARTIDA: API pública -----------------------------------------------------------------
+int save_edit_slot() { return g_edit_slot; }
+void set_save_edit_slot(int slot) {
+    g_edit_slot = (slot < 0 || slot >= hh::save::kSlots) ? 0 : slot;
+}
+int save_edit_body_state() { return g_edit_body_state; }
+void set_save_edit_body_state(int state) {
+    g_edit_body_state = (state < 0 || state > 3) ? 0 : state;
+}
+uint16_t save_edit_progress_value(int index) { return progress_value_at(index); }
+void refresh_save_edit() { rebuild_save_edit(); }
 
 }  // namespace hh::menu

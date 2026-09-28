@@ -412,8 +412,14 @@ void title_update(uint8_t* rdram) {
     // Menus del PORT (EXTRAS, CONTROLES): layout propio -> contenido a la izquierda y columna de
     // valores calculada por la etiqueta mas larga (sus etiquetas/bindings no caben con la nativa).
     const bool is_controls = (screen.id == hh::menu::ScreenId::Controls);
-    // Los menus del PORT (EXTRAS, CONTROLES) se CENTRAN; los nativos conservan su margen original.
-    const bool custom_layout = is_controls || (screen.id == hh::menu::ScreenId::Extras);
+    const bool is_save_edit = (screen.id == hh::menu::ScreenId::SaveEdit ||
+                               screen.id == hh::menu::ScreenId::SaveEditAbilities ||
+                               screen.id == hh::menu::ScreenId::SaveEditBody ||
+                               screen.id == hh::menu::ScreenId::SaveEditItems);
+    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA) se CENTRAN; los nativos conservan su
+    // margen original.
+    const bool custom_layout =
+        is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit;
     float x_shift = 0.0f;
     float selector_col = kSelectorValueCol;   // EXTRAS: columna de valores; CONTROLES: columna MANDO
     float key_col = selector_col + kKeyColGap;  // CONTROLES: columna TECLADO
@@ -434,6 +440,10 @@ void title_update(uint8_t* rdram) {
                     if (oi + 1 < e.options.size()) w += 2.0f * kSlashSep2 + kSlashW2;
                 }
                 max_val_px = std::max(max_val_px, w);
+            } else if (e.kind == hh::menu::Kind::Number) {
+                max_val_px = std::max(max_val_px, 7.0f * step);   // "< 9999 >"
+            } else if (e.kind == hh::menu::Kind::Toggle) {
+                max_val_px = std::max(max_val_px, 4.0f * step);   // "SÍ"/"NO"
             }
         }
         float content_px = 0.0f;
@@ -563,6 +573,28 @@ void title_update(uint8_t* rdram) {
                 append_chevron(frame, value_x + static_cast<float>(cp_count(opt)) * step + kChevGap,
                                y + 1.0f, false, cc);
             }
+        }
+
+        // Fila numérica (EDICIÓN DE PARTIDA): < valor > en verde, con chevrons dibujados.
+        if (e.kind == hh::menu::Kind::Number) {
+            const float step = 8.0f * g_scale_x;
+            const float value_x = x + selector_col * step;
+            constexpr float kChevW = 2.0f;
+            constexpr float kChevGap = 4.0f;
+            const std::string opt = std::to_string(e.value);
+            const uint32_t vc = e.enabled ? kGreen : kGray;
+            const uint32_t cc = e.enabled ? kWhite : kGray;
+            append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, cc);
+            frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, vc, opt });
+            append_chevron(frame, value_x + static_cast<float>(cp_count(opt)) * step + kChevGap,
+                           y + 1.0f, false, cc);
+        }
+        // Toggle (HABILIDADES): valor NO/SÍ a la derecha (verde si activo), alineado con la columna.
+        if (e.kind == hh::menu::Kind::Toggle) {
+            const float step = 8.0f * g_scale_x;
+            const float value_x = x + selector_col * step;
+            frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, e.marked ? kGreen : kGray,
+                                    hh::menu::localized(e.marked ? "SÍ" : "NO") });
         }
 
         // Fila de mapeado (CONTROLES): el binding actual a la derecha, alineado con los selectores.

@@ -29,6 +29,7 @@
 #include "hh/file_table.h"
 #include "hh/menu.h"
 #include "hh/overlay.h"
+#include "hh/save_edit.h"
 
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
@@ -688,6 +689,46 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                         break;
                     }
                 }
+            } else if (cur.action == hh::menu::Action::SaveEditSlot) {
+                // Cambiar de PARTIDA: recarga el editor con los valores de ese slot.
+                hh::menu::set_save_edit_slot(cur.value);
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditProgress) {
+                hh::save::set_progress(hh::menu::save_edit_slot(),
+                                       hh::menu::save_edit_progress_value(cur.value));
+            } else if (cur.action == hh::menu::Action::SaveEditLevel) {
+                hh::save::set_level(hh::menu::save_edit_slot(), static_cast<uint8_t>(cur.value));
+            } else if (cur.action == hh::menu::Action::SaveEditBodyState) {
+                hh::menu::set_save_edit_body_state(cur.value);
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditBodyValue) {
+                hh::save::set_body_stat(hh::menu::save_edit_slot(), cur.index,
+                                        hh::menu::save_edit_body_state(),
+                                        static_cast<uint16_t>(cur.value));
+            } else if (cur.action == hh::menu::Action::SaveEditItem) {
+                hh::save::set_item_count(hh::menu::save_edit_slot(), cur.index,
+                                         static_cast<uint8_t>(cur.value));
+            }
+        }
+    }
+    // EDICIÓN DE PARTIDA: entrar (EXTRAS -> SaveEdit) refresca el editor con el `.pak` y los nombres.
+    if (ev == hh::menu::Event::Accept &&
+        hh::menu::current_screen().id == hh::menu::ScreenId::SaveEdit &&
+        screen_before == hh::menu::ScreenId::Extras) {
+        hh::save::unload();   // relee el `.pak` del disco (puede haber cambiado desde el arranque)
+        hh::save::load();
+        hh::menu::refresh_save_edit();
+    }
+    // EDICIÓN DE PARTIDA: HABILIDADES (toggle por fila) y GUARDAR (escribe el .pak + recarga runtime).
+    if (ev == hh::menu::Event::Accept && same_screen) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (s.id == hh::menu::ScreenId::SaveEditAbilities &&
+                cur.kind == hh::menu::Kind::Toggle) {
+                hh::save::set_tech_learned(hh::menu::save_edit_slot(), cur.index, cur.marked);
+            } else if (cur.action == hh::menu::Action::SaveEditSave) {
+                hh::save::save();
             }
         }
     }

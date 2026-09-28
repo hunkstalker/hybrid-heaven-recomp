@@ -18,6 +18,7 @@
 // Las acciones (`Action`) son solo descriptivas: la ejecución real (llamar a funciones del juego)
 // se enganchará en el paso 6.
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,10 @@ enum class ScreenId {
     Debug,         // DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     Extras,        // EXTRAS (desbloqueable con el codigo Konami)
     Controls,      // CONTROLES (mapeado de teclado/mando + Stick C)
+    SaveEdit,          // EDICIÓN DE PARTIDA (editor de save)
+    SaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES (toggles)
+    SaveEditBody,      // EDICIÓN DE PARTIDA -> BODY (estado + partes)
+    SaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS (cantidad)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -60,6 +65,17 @@ enum class Action {
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
     OpenControls,    // submenú CONTROLES (mapeado de teclado/mando)
+    OpenSaveEdit,          // EXTRAS -> EDICIÓN DE PARTIDA
+    SaveEditSlot,          // EDICIÓN DE PARTIDA: selector PARTIDA (slot 1..4)
+    SaveEditProgress,      // EDICIÓN DE PARTIDA: selector PROGRESO (N-P)
+    SaveEditLevel,         // EDICIÓN DE PARTIDA: selector NIVEL
+    OpenSaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES
+    OpenSaveEditBody,      // EDICIÓN DE PARTIDA -> BODY
+    SaveEditBodyState,     // BODY: selector ESTADO (ofensivo/defensivo/hit/damage)
+    SaveEditBodyValue,     // BODY: fila de valor por parte
+    OpenSaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS
+    SaveEditItem,          // ITEMS: fila de cantidad
+    SaveEditSave,          // EDICIÓN DE PARTIDA: GUARDAR
     ToggleVibration, // CONTROLES -> VIBRACIÓN: Rumble Pak / vibración del mando
     ResetControls,   // CONTROLES -> RESET: vuelve al mapeo por defecto (mando + teclado)
     ToggleExtrasPersist,  // EXTRAS -> MANTENER EXTRAS: SÍ = el menu EXTRAS persiste entre arranques
@@ -84,12 +100,15 @@ enum class Kind {
     Selector,  // selector lateral < valor >: izq/der cambian, X aplica
     Option,    // opción de una pantalla-lista: A la marca, X aplica
     Binding,   // fila de mapeado: etiqueta + binding actual a la derecha (A reasigna)
+    Number,    // fila numérica < valor >: izq/der suman/restan `step` (min..max)
+    Toggle,    // fila con estado propio NO/SÍ: A la alterna (varias a la vez)
 };
 
 // Tipo de pantalla.
 enum class ScreenKind {
-    Menu,  // entradas de menú (Item/Submenu/Selector)
-    List,  // lista de opciones (IDIOMA/DIFICULTAD/SONIDO)
+    Menu,    // entradas de menú (Item/Submenu/Selector/Number)
+    List,    // lista de opciones (IDIOMA/DIFICULTAD/SONIDO)
+    Toggle,  // lista de toggles independientes (HABILIDADES)
 };
 
 // Evento producido por una navegación (lo consumirá el SFX del paso 7).
@@ -106,8 +125,12 @@ struct Entry {
     Kind kind = Kind::Item;
     Action action = Action::None;
     std::vector<std::string> options;  // Selector: valores posibles
-    int value = 0;                     // Selector: índice activo
-    bool marked = false;               // List: opción activa (resaltada en verde)
+    int value = 0;                     // Selector/Number: valor activo
+    bool marked = false;               // List/Toggle: opción activa/marcada (verde)
+    int min = 0;                       // Number: mínimo
+    int max = 0;                       // Number: máximo
+    int step = 1;                      // Number: paso
+    int index = -1;                    // Number/Toggle: índice (parte, item, técnica...)
     std::string binding;               // Binding: texto del binding actual (derecha)
     std::string remap_key;             // Binding: accion N64 a reasignar ("a","b","z",...)
 };
@@ -166,6 +189,16 @@ std::string describe_current();
 // Diagnóstico (HH_MENU_SCREEN=<id>): coloca la pantalla indicada como activa para poder revisar su
 // dibujo sin navegar (el input llega en el paso 5). `screen_id` = valor de ScreenId.
 void debug_show(int screen_id);
+
+// --- EDICIÓN DE PARTIDA (editor de save; ver hh/save_edit.h) -------------------------------------
+// Slot seleccionado (0..3) y estado de BODY seleccionado (0..3); las pantallas del editor se
+// reconstruyen con refresh_save_edit() cuando cambian o cuando se edita un valor.
+int save_edit_slot();
+void set_save_edit_slot(int slot);
+int save_edit_body_state();
+void set_save_edit_body_state(int state);
+uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
+void refresh_save_edit();
 
 // EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. Se muestra si se
 // desbloqueo en esta sesion con el codigo o si el ajuste MANTENER EXTRAS esta en SI ([extras] en

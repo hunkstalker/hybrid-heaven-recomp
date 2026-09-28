@@ -130,6 +130,7 @@ add_executable(HybridHeavenRecomp
     src/subsystems/text.cpp
     src/subsystems/font.cpp
     src/subsystems/menu.cpp
+    src/subsystems/save_edit.cpp
     src/subsystems/firmware.c
 
     # Recompiled functions.
