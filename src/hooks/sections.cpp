@@ -14,6 +14,7 @@
 // Sustituye a `module_sources.inc` / `load_module_by_source` (registro por offset de ROM retail).
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -575,6 +576,32 @@ static int native_difficulty_value() {
 // (sin X/"aplicar"); las ACCIONES llegan en el paso 6 (de momento, solo DEBUG engancha el modo
 // desarrollador). La raíz no tiene "atrás" (el modelo lo ignora).
 static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
+    // Test headless (HH_SAVEEDIT_TEST=1): carga el slot 0, fija progreso/nivel, guarda y verifica el
+    // round-trip. Solo una vez. No requiere mando.
+    static const bool saveedit_test = env_set("HH_SAVEEDIT_TEST");
+    if (saveedit_test) {
+        static bool done = false;
+        if (!done) {
+            done = true;
+            // Prueba headless v3: abre el .pak, cambia progreso/nivel/técnica/item del slot 0, guarda
+            // y reabre para comprobar el round-trip en el fichero.
+            hh::save::load();
+            hh::save::set_progress_of(0, 0x0A);   // 1-0
+            hh::save::set_level_of(0, 0x12);      // 19 (mostrado 20 si +1)
+            hh::save::set_tech_learned_of(0, 0, true);
+            hh::save::set_item_count_of(0, 0, 7);
+            hh::log("[save-edit][test] antes: prog=%u lvl=%u tech0=%d item0=%u\n",
+                    (unsigned)hh::save::progress_of(0), (unsigned)hh::save::level_of(0),
+                    hh::save::tech_learned_of(0, 0) ? 1 : 0, (unsigned)hh::save::item_count_of(0, 0));
+            hh::save::save(0);
+            hh::save::unload();
+            hh::save::load();
+            hh::log("[save-edit][test] despues: prog=%u lvl=%u tech0=%d item0=%u\n",
+                    (unsigned)hh::save::progress_of(0), (unsigned)hh::save::level_of(0),
+                    hh::save::tech_learned_of(0, 0) ? 1 : 0, (unsigned)hh::save::item_count_of(0, 0));
+        }
+        return;   // en modo test no se procesa input
+    }
     // a0 del handler del menú de título = objeto del menú; lo necesita el disparo nativo de
     // GAME START (ver más abajo). Se lee ANTES de las copias que usa la lectura de botones.
     const uint32_t obj = static_cast<uint32_t>(ctx->r4);
@@ -609,10 +636,41 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // cursor (p. ej. al reentrar en IDIOMA tras senalarlo sin confirmar). Solo si seguimos en la
     // misma pantalla se aplican las acciones.
     const hh::menu::ScreenId screen_before = hh::menu::current_screen().id;
-    if (pressed & 0x800u) ev = hh::menu::move_up();
-    if (pressed & 0x400u) ev = hh::menu::move_down();
-    if (pressed & 0x200u) ev = hh::menu::move_left();
-    if (pressed & 0x100u) ev = hh::menu::move_right();
+    // Direcciones (up/down 0x800/0x400, left/right 0x200/0x100). El FLANCO (pressed) mueve al
+    // instante; el REPEAT (mantener) emite pasos extra tras ~0.4 s, acelerando (0.10 s -> 0.03 s).
+    // Se resuelve en un unico sitio para no pisar el evento con otra direccion.
+    uint32_t dir = pressed & (0x800u | 0x400u | 0x200u | 0x100u);
+    {
+        static uint32_t held = 0;
+        static double dir_next = 0.0;
+        static int dir_repeats = 0;
+        static bool emitted = false;   // ¿ya se movio en este frame (flanco o repeat)?
+        const double t = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (dir == 0) {
+            held = 0;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (dir != held) {
+            held = dir;               // direccion nueva: flanco inmediato
+            dir_next = t + 0.40;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (t >= dir_next) {   // direccion mantenida: repetir
+            dir_repeats++;
+            dir_next = t + std::max(0.03, 0.10 - 0.006 * dir_repeats);
+            emitted = false;
+        } else {
+            emitted = true;           // mantenida pero aun en el retardo: no emitir nada
+        }
+        if (!emitted) {
+            if (dir & 0x800u) ev = hh::menu::move_up();
+            else if (dir & 0x400u) ev = hh::menu::move_down();
+            else if (dir & 0x200u) ev = hh::menu::move_left();
+            else if (dir & 0x100u) ev = hh::menu::move_right();
+            emitted = (ev != hh::menu::Event::None);
+        }
+    }
     if (!nav_block && (pressed & 0x8000u)) ev = hh::menu::confirm();   // A: entra / marca
     if (!nav_block && (pressed & 0x4000u)) ev = hh::menu::back();      // B: atras (en vivo, sin X)
     const bool same_screen = (hh::menu::current_screen().id == screen_before);
@@ -625,14 +683,6 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 2;   // sel = BATTLE MODE
         g_inject_native_a = true;
     }
-    // EDICIÓN DE PARTIDA: mientras el editor esté visible, garantiza que hay una partida cargada en
-    // los globals (la primera vez) y refresca nombres/valores. La carga usa el ctx del handler (pila).
-    // (Antes del procesado de acciones: PARTIDA carga el slot y luego las acciones ya leen/escriben.)
-    if (hh::menu::current_screen().id == hh::menu::ScreenId::SaveEdit && !hh::save::loaded()) {
-        hh::save::load(hh::menu::save_edit_slot(), rdram, ctx);
-        hh::menu::refresh_save_edit();
-    }
-
     // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
     // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
@@ -698,22 +748,24 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                     }
                 }
             } else if (cur.action == hh::menu::Action::SaveEditSlot) {
-                // Cambiar de PARTIDA: carga ese slot en los globals y refresca el editor.
+                // CARGAR PARTIDA: cambia el slot que se edita y refresca (v3: se edita el .pak, no
+                // los globals del juego, así que "cargar" es solo releer el fichero).
                 hh::menu::set_save_edit_slot(cur.value);
-                hh::save::load(hh::menu::save_edit_slot(), rdram, ctx);
+                hh::log("[save-edit] CARGAR slot=%d\n", hh::menu::save_edit_slot());
+                hh::menu::capture_tech_baseline();
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditProgress) {
-                hh::save::set_progress(hh::menu::save_edit_progress_value(cur.value));
+                hh::save::set_progress_of(hh::menu::save_edit_slot(), hh::menu::save_edit_progress_value(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditLevel) {
-                hh::save::set_level(static_cast<uint8_t>(cur.value));
+                hh::save::set_level_of(hh::menu::save_edit_slot(), static_cast<uint8_t>(cur.value - 1));
             } else if (cur.action == hh::menu::Action::SaveEditBodyState) {
                 hh::menu::set_save_edit_body_state(cur.value);
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditBodyValue) {
-                hh::save::set_body_stat(cur.index, hh::menu::save_edit_body_state(),
+                hh::save::set_body_stat_of(hh::menu::save_edit_slot(), cur.index, hh::menu::save_edit_body_state(),
                                         static_cast<uint16_t>(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditItem) {
-                hh::save::set_item_count(cur.index, static_cast<uint8_t>(cur.value));
+                hh::save::set_item_count_of(hh::menu::save_edit_slot(), cur.index, static_cast<uint8_t>(cur.value));
             }
         }
     }
@@ -724,16 +776,27 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
             if (s.id == hh::menu::ScreenId::SaveEditAbilities &&
                 cur.kind == hh::menu::Kind::Toggle) {
-                hh::save::set_tech_learned(cur.index, cur.marked);
+                hh::save::set_tech_learned_of(hh::menu::save_edit_slot(), cur.index, cur.marked);
+            } else if (cur.action == hh::menu::Action::SaveEditAbilitiesBulk) {
+                // 0 SIN CAMBIOS (restaura la copia de la carga), 1 TODO SÍ, 2 TODO NO. Se guarda el
+                // estado en el modelo (g_edit_tech_bulk) para que el refresco no vuelva a SIN CAMBIOS.
+                const int mode = cur.value;
+                hh::menu::set_save_edit_tech_bulk(mode);
+                for (int id = 0; id < hh::save::kTechCount; ++id) {
+                    if (mode == 1) hh::save::set_tech_learned_of(hh::menu::save_edit_slot(), id, true);
+                    else if (mode == 2) hh::save::set_tech_learned_of(hh::menu::save_edit_slot(), id, false);
+                    else hh::menu::restore_tech_baseline(id);
+                }
+                hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditSave) {
-                // Guarda el slot seleccionado y CONTINÚA (carga lo recién guardado y arranca): así se
-                // prueba el resultado al momento. (v1: "guardar y jugar"; v2: guardar sin arrancar.)
-                const int sslot = hh::menu::save_edit_slot();
-                hh::log("[save-edit] GUARDAR slot=%d\n", sslot);
+                // GUARDAR PARTIDA: valor 0 = NUEVA PARTIDA (primer hueco libre), 1..N = slot concreto.
+                hh::menu::set_save_edit_save_target(cur.value);
+                const int sslot = hh::menu::save_edit_save_target_slot();
+                hh::log("[save-edit] GUARDAR destino=%d slot=%d progress=%u level=%u\n", cur.value,
+                        sslot, (unsigned)hh::save::progress_of(sslot),
+                        (unsigned)hh::save::level_of(sslot));
                 hh::save::save(sslot, rdram, ctx);
-                hh::menu::set_save_edit_slot(sslot);
-                rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
-                g_inject_native_a = true;
+                hh::menu::refresh_save_edit();
             }
         }
     }

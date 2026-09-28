@@ -511,6 +511,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                     append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 5.0f * t.scale_y,
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                 }
+                else if (cp == '-') {
+                    // Guion (p. ej. "1-0" de PROGRESO): la fuente no lo tiene, se dibuja con un rect.
+                    append_quad(vertices, indices, pen_x + 2.0f * t.scale_x, t.y + 3.5f * t.scale_y,
+                                4.0f * t.scale_x, 1.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                }
                 else if (cp == '%') {
                     // Porcentaje (la fuente no lo tiene): dos puntos 2x2 y una barra diagonal de 1 px.
                     append_quad(vertices, indices, pen_x + 1.0f * t.scale_x, t.y + 1.0f * t.scale_y,

@@ -884,5 +884,15 @@ int main(int argc, char** argv) {
     recomp::start(configuration);
     hh::log("recomp::start returned\n");
 
-    return 0;
+    // HH: el teardown ordenado del renderer (RT64/plume) es fragil y lento: Application::end()
+    // suelta el VkDevice antes que los objetos que lo usan (-> "Invalid device" / SEGV) y los hilos
+    // de trabajo tardan en drenar, asi que el proceso se quedaba parado varios segundos al cerrar
+    // (F11/SALIR). Hasta arreglar la secuencia de destruccion en el fork RT64, salimos del proceso
+    // aqui SIN ejecutar los destructores de recursos graficos (el SO recupera la memoria y el
+    // VkDevice se libera con el loader). _exit evita std::terminate por hilos joinables. El estado
+    // que importa (config.ini, saves) ya se persistio antes de llegar aqui (video_remember_window al
+    // pedir el cierre; NO liberamos RDRAM, ver nota M4c en recomp::start).
+    hh::log("cierre: salida directa (sin teardown grafico)\n");
+    std::fflush(nullptr);
+    _exit(0);
 }

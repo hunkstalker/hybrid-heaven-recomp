@@ -40,7 +40,7 @@ enum class ScreenId {
     Controls,      // CONTROLES (mapeado de teclado/mando + Stick C)
     SaveEdit,          // EDICIÓN DE PARTIDA (editor de save)
     SaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES (toggles)
-    SaveEditBody,      // EDICIÓN DE PARTIDA -> BODY (estado + partes)
+    SaveEditBody,      // EDICIÓN DE PARTIDA -> ESTADO (estado + partes del cuerpo)
     SaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS (cantidad)
 };
 
@@ -66,10 +66,11 @@ enum class Action {
     OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
     OpenControls,    // submenú CONTROLES (mapeado de teclado/mando)
     OpenSaveEdit,          // EXTRAS -> EDICIÓN DE PARTIDA
-    SaveEditSlot,          // EDICIÓN DE PARTIDA: selector PARTIDA (slot 1..4)
+    SaveEditSlot,          // EDICIÓN DE PARTIDA: selector CARGAR PARTIDA (slot; carga al cambiar)
     SaveEditProgress,      // EDICIÓN DE PARTIDA: selector PROGRESO (N-P)
     SaveEditLevel,         // EDICIÓN DE PARTIDA: selector NIVEL
     OpenSaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES
+    SaveEditAbilitiesBulk,   // HABILIDADES: selector SIN CAMBIOS / TODO SÍ / TODO NO
     OpenSaveEditBody,      // EDICIÓN DE PARTIDA -> BODY
     SaveEditBodyState,     // BODY: selector ESTADO (ofensivo/defensivo/hit/damage)
     SaveEditBodyValue,     // BODY: fila de valor por parte
@@ -195,10 +196,17 @@ void debug_show(int screen_id);
 // reconstruyen con refresh_save_edit() cuando cambian o cuando se edita un valor.
 int save_edit_slot();
 void set_save_edit_slot(int slot);
+int save_edit_save_target();          // 0 = NUEVA PARTIDA, 1..N = slot
+void set_save_edit_save_target(int t);
+int save_edit_save_target_slot();     // slot real destino (0..N-1); resuelve NUEVA PARTIDA
 int save_edit_body_state();
 void set_save_edit_body_state(int state);
 uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
 void refresh_save_edit();
+// HABILIDADES: guarda la copia de la carga y restaura una técnica desde ella (selector SIN CAMBIOS).
+void capture_tech_baseline();
+void restore_tech_baseline(int id);
+void set_save_edit_tech_bulk(int mode);   // 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO NO
 
 // EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. Se muestra si se
 // desbloqueo en esta sesion con el codigo o si el ajuste MANTENER EXTRAS esta en SI ([extras] en

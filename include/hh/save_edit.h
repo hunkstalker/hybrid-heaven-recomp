@@ -1,23 +1,21 @@
 #pragma once
 
-// hh_saveedit — editor de partida en MEMORIA (v2).
+// hh_saveedit — editor de partida sobre el `.pak` de guardado (v3).
 //
-// En vez de tocar el `.pak` en disco, carga un slot en los globals del juego, edita ahí (en caliente)
-// y guarda serializando los globals. Usa funciones NATIVAS del juego:
-//   - `func_801423C8(channel=0, slot)` lee el slot del PFS + deserializa a los globals (sin arrancar
-//     partida; es el mismo camino que usa el file-select).
-//   - `func_80142450(channel=0, slot)` serializa los globals + escribe el slot (vía PFS: actualiza el
-//     `.pak`), sin la UI nativa de guardado.
-// Ver notes/2026-09-27-e-editor-partida-plan.md.
+// Edita el slot del fichero de guardado (el que CONTINUE/la cápsula leen), no los globals del juego.
+// Layout del slot medido comparando `.pak` reales (ver notes/2026-09-27-e-editor-partida-plan.md):
+//   cabecera 0x100 + 4 slots 0xD00; checksum por slot en +0xCFC.
+//     PROGRESO u16 BE +0x366 (N*10+P) · NIVEL u8 +0x04B · TÉCNICAS 86x3 +0x09E (flag +0)
+//     ITEMS 45xu8 +0x1A0 · STATS por parte (u16 BE): offense +0x010, defense +0x01C, hit +0x068,
+//     damage +0x076. Orden de partes = el del juego (Cabeza, Cuerpo, Brazo Der, Izq, Pierna Der, Izq).
 //
-// Direcciones (módulo 8): progreso `0x801BBBF4` (u16 BE = N*10+P); nivel `0x8017DC88` (u8); técnicas
-// `0x80183CE0` (86×6; flag `+0` = aprendida); stats del PJ `0x8017DC40` (offense `+0x10`, defense
-// `+0x1C`, hit `+0x68`, damage `+0x76`; 6 partes × u16); items `0x8017E004` (45×8; cantidad `+4`).
+// `load()` abre el `.pak`; los `*_of(slot, …)` leen/escriben el slot en memoria; `save(slot)` escribe
+// el fichero (checksums recalculados). No requiere RDRAM salvo para nombres y la tabla de escenas.
 
 #include <cstdint>
 #include <string>
 
-#include "recomp.h"   // recomp_context (para llamar a las funciones nativas de carga/guardado)
+#include "recomp.h"
 
 namespace hh::save {
 
@@ -26,36 +24,34 @@ constexpr int kTechCount = 86;
 constexpr int kItemCount = 45;
 constexpr int kParts = 6;
 
-// Kinds de estadistica por parte (indice del array en el struct de stats).
+// Kinds de estadistica por parte.
 enum BodyStat { kOffense = 0, kDefense = 1, kHitCount = 2, kDamageCount = 3 };
 
-// Carga el slot `slot` (0..3) en los globals. Usa `base_ctx` (del handler del menú) para tomar una
-// pila válida (la función nativa usa sp). true si la operación tuvo éxito.
-bool load(int slot, uint8_t* rdram, recomp_context* base_ctx);
-// Serializa los globals y los escribe en el slot `slot`.
-bool save(int slot, uint8_t* rdram, recomp_context* base_ctx);
+// Abre el `.pak` (idempotente). Los args se mantienen por compatibilidad; no se usan.
+bool load(int slot = 0, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
+bool save(int slot, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
 bool loaded();
 void unload();
+int slot_count();
+bool slot_used(int slot);
 
-int slot_count();  // 4
+// Campos por slot.
+uint16_t progress_of(int slot);
+void set_progress_of(int slot, uint16_t v);
+uint8_t level_of(int slot);
+void set_level_of(int slot, uint8_t v);
+bool tech_learned_of(int slot, int id);
+void set_tech_learned_of(int slot, int id, bool on);
+uint16_t body_stat_of(int slot, int part, int kind);
+void set_body_stat_of(int slot, int part, int kind, uint16_t v);
+uint8_t item_count_of(int slot, int id);
+void set_item_count_of(int slot, int id, uint8_t v);
 
-// Campos (leen/escriben los globals vivos).
-uint16_t progress();                    // N*10+P
-void set_progress(uint16_t v);
-uint8_t level();                        // nivel de personaje (u8)
-void set_level(uint8_t v);
-
-bool tech_learned(int id);
-void set_tech_learned(int id, bool on);
-
-uint16_t body_stat(int part, int kind);
-void set_body_stat(int part, int kind, uint16_t v);
-
-uint8_t item_count(int id);
-void set_item_count(int id, uint8_t v);
-
-// Nombres (RDRAM del juego, módulo 8: arrays de punteros 0x80184140 / 0x8017DF50).
+// Nombres (RDRAM del juego, módulo 8).
 std::string tech_name(int id);
 std::string item_name(int id);
+
+// PROGRESO: puntos de guardado válidos por nivel según la tabla de escenas real D_80175490.
+void valid_points_by_level(int out_points[30]);
 
 }  // namespace hh::save

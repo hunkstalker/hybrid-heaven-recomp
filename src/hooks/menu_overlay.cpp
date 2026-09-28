@@ -492,6 +492,10 @@ void title_update(uint8_t* rdram) {
         const float x = layout.x + g_calib_x + x_shift;
         const float y = list_y0 + layout.dy * static_cast<float>(i - first) + g_calib_y;
         const bool selected = (i == screen.cursor);
+        // Fila-hueco (etiqueta vacía): no dibuja nada (ni flecha); deja un espacio vertical.
+        if (e.label.empty()) {
+            continue;
+        }
 
         // Las ETIQUETAS del menú van en blanco (amarillo la del cursor + flecha nativa). La regla
         // gris/verde es SOLO para las opciones a configurar: en una lista, la aplicada en verde y el

@@ -111,6 +111,9 @@ const MenuTr kMenuTr[] = {
     {"EDICIÓN DE PARTIDA", "SAVE EDIT", "EDICIÓ DE PARTIDA", "ÉDITION DE PARTIE",
      "SPIELSTAND-EDITOR", "セーブエディット"},
     {"PARTIDA", "SAVE", "PARTIDA", "PARTIE", "SPIELSTAND", "セーブ"},
+    {"CARGAR PARTIDA", "LOAD SAVE", "CARREGAR PARTIDA", "CHARGER PARTIE", "SPIELSTAND LADEN",
+     "ロードセーブ"},
+    {"GUARDAR PARTIDA", "SAVE GAME", "DESAR PARTIDA", "SAUVEGARDER", "SPEICHERN", "セーブする"},
     {"PROGRESO", "PROGRESS", "PROGRÉS", "PROGRÈS", "FORTSCHRITT", "シンコウ"},
     {"NIVEL", "LEVEL", "NIVELL", "NIVEAU", "LEVEL", "レベル"},
     {"HABILIDADES", "ABILITIES", "HABILITATS", "CAPACITÉS", "FÄHIGKEITEN", "ノウリョク"},
@@ -296,45 +299,61 @@ Entry make_toggle(const char* label, bool marked, int index, Action action) {
 // --- EDICIÓN DE PARTIDA: estado del editor y utilidades -------------------------------------------
 int g_edit_slot = 0;        // 0..3
 int g_edit_body_state = 0;  // 0 OFENSIVO, 1 DEFENSIVO, 2 HIT COUNT, 3 DAMAGE COUNT
+int g_edit_tech_bulk = 0;   // HABILIDADES: 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO NO
+int g_edit_save_target = 0; // GUARDAR PARTIDA: 0 = NUEVA PARTIDA (primer hueco libre), 1..4 = slot
+// Copia de las técnicas tal como estaban al CARGAR (para "SIN CAMBIOS").
+uint8_t g_tech_baseline[hh::save::kTechCount];
+bool g_tech_baseline_valid = false;
 
-// Puntos de guardado válidos por nivel (0..29), de la tabla de escenas D_80175490 (ver nota
-// notes/2026-09-27-e-editor-partida-plan.md). `PROGRESO = nivel*10 + punto`.
-const int kValidPoints[30] = {7, 10, 9, 9, 10, 8, 6, 9, 6, 9, 6, 10, 10, 10, 10,
-                              10, 10, 10, 10, 7, 5, 10, 1, 1, 8, 10, 10, 1, 1, 1};
-
+// Puntos de guardado validos por INDICE de escena interno (0..29), leidos de la tabla REAL
+// `D_80175490` en runtime (ver hh::save::valid_points_by_level). El valor del campo es
+// `idx*10 + punto`. El juego ARRANCA en el indice 1 (valor 0x0A), que muestra como "1-0": el nivel
+// mostrado es `idx` (1-based). El grupo 0 (interno) no es jugable.
 std::vector<std::string> progress_options() {
+    int pts[30] = {0};
+    hh::save::valid_points_by_level(pts);
     std::vector<std::string> out;
-    for (int lvl = 0; lvl < 30; ++lvl) {
-        for (int p = 0; p < kValidPoints[lvl]; ++p) {
-            out.push_back(std::to_string(lvl) + "-" + std::to_string(p));
+    for (int idx = 1; idx < 30; ++idx) {
+        for (int p = 0; p < pts[idx] && p < 10; ++p) {
+            out.push_back(std::to_string(idx) + "-" + std::to_string(p));
         }
     }
+    if (out.empty()) out.push_back("1-0");   // guarda si la tabla no está disponible
     return out;
 }
 int progress_index_of(uint16_t value) {
-    int idx = 0;
-    for (int lvl = 0; lvl < 30; ++lvl) {
-        for (int p = 0; p < kValidPoints[lvl]; ++p, ++idx) {
-            if (value == static_cast<uint16_t>(lvl * 10 + p)) return idx;
+    int pts[30] = {0};
+    hh::save::valid_points_by_level(pts);
+    int out = 0;
+    for (int idx = 1; idx < 30; ++idx) {
+        for (int p = 0; p < pts[idx] && p < 10; ++p, ++out) {
+            if (value == static_cast<uint16_t>(idx * 10 + p)) return out;
         }
     }
-    return 0;
+    return 0;   // 1-0
 }
-// Valor N*10+P del índice `idx` del selector PROGRESO.
-uint16_t progress_value_at(int idx) {
+// Valor N*10+P del indice `slot` del selector PROGRESO.
+uint16_t progress_value_at(int slot) {
+    int pts[30] = {0};
+    hh::save::valid_points_by_level(pts);
     int i = 0;
-    for (int lvl = 0; lvl < 30; ++lvl) {
-        for (int p = 0; p < kValidPoints[lvl]; ++p, ++i) {
-            if (i == idx) return static_cast<uint16_t>(lvl * 10 + p);
+    for (int idx = 1; idx < 30; ++idx) {
+        for (int p = 0; p < pts[idx] && p < 10; ++p, ++i) {
+            if (i == slot) return static_cast<uint16_t>(idx * 10 + p);
         }
     }
     return 0x0A;   // 1-0 por defecto
 }
+// Cadena "N-P" (nivel-punto) del valor N*10+P. La fuente no tiene '-': el overlay dibuja el guion.
+std::string progress_label(uint16_t value) {
+    return std::to_string(value / 10) + "-" + std::to_string(value % 10);
+}
 
-// Orden de las partes como las muestra el port (mapa al orden del juego en el struct).
-const int kPartIndex[6] = {0, 3, 2, 5, 4, 1};   // Cabeza, Brazo Izq, Brazo Der, Pierna Izq, Der, Cuerpo
-const char* const kPartLabels[6] = {"CABEZA", "BRAZO IZQ", "BRAZO DER", "PIERNA IZQ", "PIERNA DER",
-                                    "CUERPO"};
+// Orden de las partes como las muestra el port (mapa al orden del juego en el struct):
+// CABEZA, CUERPO, BRAZO IZQ, BRAZO DER, PIERNA IZQ, PIERNA DER.
+const int kPartIndex[6] = {0, 1, 3, 2, 5, 4};
+const char* const kPartLabels[6] = {"CABEZA", "CUERPO", "BRAZO IZQ", "BRAZO DER", "PIERNA IZQ",
+                                    "PIERNA DER"};
 
 void rebuild_save_edit();   // definida tras find_screen
 
@@ -556,30 +575,47 @@ Screen* find_screen(ScreenId id) {
 // Se llama al construir el árbol, al cambiar PARTIDA/ESTADO y tras GUARDAR (lo demás se refleja en el
 // propio modelo). Cargar un slot en los globals lo hace `hh::save::load(slot)` (en las acciones).
 void rebuild_save_edit() {
+    hh::save::load();
     const int slot = g_edit_slot;
 
     if (Screen* s = find_screen(ScreenId::SaveEdit)) {
         std::vector<Entry> e;
-        e.push_back(make_selector_with_action("PARTIDA", {"1", "2", "3", "4"}, Action::SaveEditSlot,
-                                              slot));
-        e.push_back(make_selector_with_action("PROGRESO", progress_options(), Action::SaveEditProgress,
-                                              progress_index_of(hh::save::progress())));
+        // CARGAR PARTIDA: selector < PARTIDA N >; al cambiar de valor se carga ese slot en los
+        // globals (rápido: leer 0xD00 del PFS cacheado + deserializar; no arranca escena).
+        // GUARDAR PARTIDA: selector < NUEVA PARTIDA / PARTIDA N >; NUEVA PARTIDA guarda en el primer
+        // slot libre (al final de los usados). A ejecuta el guardado. Un hueco separa del resto.
+        std::vector<std::string> slots;
+        for (int i = 1; i <= hh::save::kSlots; ++i) slots.push_back("PARTIDA " + std::to_string(i));
+        e.push_back(make_selector_with_action("CARGAR PARTIDA", slots, Action::SaveEditSlot, slot));
+        std::vector<std::string> save_slots{"NUEVA PARTIDA"};
+        for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
+        e.push_back(make_selector_with_action("GUARDAR PARTIDA", save_slots, Action::SaveEditSave,
+                                              g_edit_save_target));
+        e.push_back(make_item("", Action::None));   // hueco visual (fila vacía)
+        // PROGRESO: lista de N-P válidos; el guion lo dibuja el overlay (la fuente no tiene '-').
+        e.push_back(make_selector_with_action("PROGRESO", progress_options(),
+                                              Action::SaveEditProgress,
+                                              progress_index_of(hh::save::progress_of(slot))));
         std::vector<std::string> levels;
-        for (int i = 0; i < 100; ++i) levels.push_back(std::to_string(i));
+        for (int i = 1; i <= 99; ++i) levels.push_back(std::to_string(i));   // NIVEL = nivel+1
         e.push_back(make_selector_with_action("NIVEL", levels, Action::SaveEditLevel,
-                                              hh::save::level()));
+                                              hh::save::level_of(slot) + 1));
         e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
-        e.push_back(make_submenu("BODY", Action::OpenSaveEditBody));
+        e.push_back(make_submenu("ESTADO", Action::OpenSaveEditBody));   // antes "BODY"
         e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
-        e.push_back(make_item("GUARDAR", Action::SaveEditSave));
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
     }
 
     if (Screen* s = find_screen(ScreenId::SaveEditAbilities)) {
         std::vector<Entry> e;
+        // Cabecera: selector lateral < SIN CAMBIOS / TODO SÍ / TODO NO > (accion masiva sobre la
+        // lista; SIN CAMBIOS restaura las habilidades a como estaban al entrar, sin guardar).
+        e.push_back(make_selector_with_action("HABILIDADES", {"SIN CAMBIOS", "TODO SÍ", "TODO NO"},
+                                              Action::SaveEditAbilitiesBulk, g_edit_tech_bulk));
+        e.push_back(make_item("", Action::None));   // hueco visual
         for (int id = 0; id < hh::save::kTechCount; ++id) {
-            e.push_back(make_toggle(hh::save::tech_name(id).c_str(), hh::save::tech_learned(id), id,
+            e.push_back(make_toggle(hh::save::tech_name(id).c_str(), hh::save::tech_learned_of(slot, id), id,
                                     Action::None));
         }
         s->entries = std::move(e);
@@ -594,7 +630,7 @@ void rebuild_save_edit() {
         for (int i = 0; i < 6; ++i) {
             const int part = kPartIndex[i];
             e.push_back(make_number(kPartLabels[i], 0, 9999,
-                                    hh::save::body_stat(part, g_edit_body_state), part,
+                                    hh::save::body_stat_of(slot, part, g_edit_body_state), part,
                                     Action::SaveEditBodyValue));
         }
         s->entries = std::move(e);
@@ -605,7 +641,7 @@ void rebuild_save_edit() {
         std::vector<Entry> e;
         for (int id = 0; id < hh::save::kItemCount; ++id) {
             e.push_back(make_number(hh::save::item_name(id).c_str(), 0, 99,
-                                    hh::save::item_count(id), id, Action::SaveEditItem));
+                                    hh::save::item_count_of(slot, id), id, Action::SaveEditItem));
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -661,7 +697,8 @@ int step_enabled(const Screen& s, int from, int dir) {
         i += dir;
         if (i < 0) i = n - 1;
         if (i >= n) i = 0;
-        if (s.entries[i].enabled) {
+        const Entry& e = s.entries[i];
+        if (e.enabled && !e.label.empty()) {   // salta deshabilitadas y filas-hueco (label vacío)
             return i;
         }
     }
@@ -995,11 +1032,40 @@ int save_edit_slot() { return g_edit_slot; }
 void set_save_edit_slot(int slot) {
     g_edit_slot = (slot < 0 || slot >= hh::save::kSlots) ? 0 : slot;
 }
+int save_edit_save_target() { return g_edit_save_target; }
+void set_save_edit_save_target(int t) {
+    g_edit_save_target = (t < 0 || t > hh::save::kSlots) ? 0 : t;
+}
+// Slot real destino del guardado: target 0 (NUEVA PARTIDA) = primer hueco libre (el usado más bajo
+// que esté vacío, o el último slot si todos tienen datos); target 1..N = ese slot.
+int save_edit_save_target_slot() {
+    if (g_edit_save_target >= 1 && g_edit_save_target <= hh::save::kSlots) {
+        return g_edit_save_target - 1;
+    }
+    for (int i = 0; i < hh::save::kSlots; ++i) {
+        if (!hh::save::slot_used(i)) return i;
+    }
+    return hh::save::kSlots - 1;
+}
 int save_edit_body_state() { return g_edit_body_state; }
 void set_save_edit_body_state(int state) {
     g_edit_body_state = (state < 0 || state > 3) ? 0 : state;
 }
 uint16_t save_edit_progress_value(int index) { return progress_value_at(index); }
+void capture_tech_baseline() {
+    for (int id = 0; id < hh::save::kTechCount; ++id) {
+        g_tech_baseline[id] = hh::save::tech_learned_of(g_edit_slot, id) ? 1 : 0;
+    }
+    g_tech_baseline_valid = true;
+    g_edit_tech_bulk = 0;   // el selector vuelve a SIN CAMBIOS tras una carga
+}
+void restore_tech_baseline(int id) {
+    if (!g_tech_baseline_valid || id < 0 || id >= hh::save::kTechCount) return;
+    hh::save::set_tech_learned_of(g_edit_slot, id, g_tech_baseline[id] != 0);
+}
+void set_save_edit_tech_bulk(int mode) {
+    g_edit_tech_bulk = (mode < 0 || mode > 2) ? 0 : mode;
+}
 void refresh_save_edit() { rebuild_save_edit(); }
 
 }  // namespace hh::menu
