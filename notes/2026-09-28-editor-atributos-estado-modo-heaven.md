@@ -124,7 +124,7 @@ falta que aparezca la palabra "ADVANTAGE").
 > **Bug corregido**: la 1.ª versión forzaba `+0x1037` por un `bswap` de más al decodificar la traza. El
 > byte correcto es `+0x1034`; el watcher ya no hace `bswap` (la palabra guest se lee directa, `MEM_W`).
 
-### 6.2 Daño FUERA de combate (robots) — implementado (sin validar)
+### 6.2 Daño FUERA de combate (robots) — implementado y VALIDADO en Windows
 
 En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Medido:
 
@@ -134,9 +134,10 @@ En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Medido
 - **Escritor** (`HH_WATCH` sobre `0x8017DC40`, `run_field_watch.bat`): **`func_80379F04`** aplica
   `a0+0x2 (HP) = HP − *(s16*)0x80388A68`; el llamador pasa `a0` = objetivo (jugador `0x8017DC40`) y fija
   el daño en el scratch `0x80388A68`.
-- **Fix**: `hh_heaven_field_damage_hook` (hook de `func_80379F04`): con `heaven_enabled()` y
-  `a0==0x8017DC40` pone el scratch a 0 durante la llamada y lo restaura → daño de campo 0. **Una**
-  función común a todos los enemigos. **PENDIENTE validar en Windows**.
+- **Fix**: `hh_heaven_field_damage_hook` (hook de `func_80379F04`): con `heaven_enabled()` pone el
+  scratch a 0 durante la llamada y lo restaura → daño de campo 0. **Una** función común a todos los
+  enemigos. **Validado por el mantenedor**: con HEAVEN ON el robot no baja la vida. Ojo: el `a0` de
+  ENTRADA es el atacante; la función fija `a0=0x8017DC40` para el store del HP (no comprobar `a0`).
 - Nota: `HH_DRWATCH` (hardware) no disparó; se usó `HH_WATCH` (software, con `ra`/`val`/`ret`).
 
 > **[A VALIDAR en Windows]**: que los hooks cubran CONTINUE y partida nueva (si no, hook puntual); el

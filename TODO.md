@@ -18,11 +18,10 @@
   `0x801BBBF0+0x1034 = 2` (dirección `0x801BCC24`; interno `gw.back_attack`), forzado en
   `hh_battle_frame_hook` bajo `hh::menu::heaven_enabled()`. Confirmado por el mantenedor: la pelea
   empieza con el POWER al máximo (no hace falta ver la palabra "ADVANTAGE"). Detalle en `RETOMAR.md`.
-- [•] **Daño FUERA de combate (robots) — implementado, sin validar (2026-09-28)**: la vida de campo es
-  el sheet `0x8017DC40+0x02`; `func_80379F04` hace `HP -= *(s16*)0x80388A68` (a0=objetivo). Hook
-  `hh_heaven_field_damage_hook`: con HEAVEN y `a0==0x8017DC40` pone el scratch de daño a 0 durante la
-  llamada → no baja la vida. Una sola función para todos los robots. **PENDIENTE: validar en Windows.**
-  Detalle en `RETOMAR.md`.
+- [x] **Daño FUERA de combate (robots) — VALIDADO en Windows (2026-09-28)**: la vida de campo es el
+  sheet `0x8017DC40+0x02`; `func_80379F04` hace `HP -= *(s16*)0x80388A68`. Hook
+  `hh_heaven_field_damage_hook`: con HEAVEN pone el scratch de daño a 0 durante la llamada → no baja la
+  vida. Una sola función para todos los robots. Detalle en `RETOMAR.md`.
 - [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
   detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
   (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz

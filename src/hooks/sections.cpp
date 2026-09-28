@@ -139,22 +139,26 @@ extern "C" void hh_heaven_item_hook(uint8_t* rdram, recomp_context* ctx) {
     func_8013D520_1035CF0(rdram, ctx);
 }
 
-// DANO FUERA DE COMBATE (robots): `func_80379F04` aplica `a0+0x2 (HP) = HP - *(s16*)0x80388A68`.
-// El llamador pasa a0 = struct del objetivo (0x8017DC40 = jugador) y fija el dano en el scratch
-// 0x80388A68. Con MODO HEAVEN y objetivo = jugador, se pone el scratch a 0 durante la llamada (y se
-// restaura), asi el jugador no pierde vida. [MEDIDO con HH_WATCH]
+// DANO FUERA DE COMBATE (robots): `func_80379F04` aplica `0x8017DC40+0x2 (HP del jugador) = HP -
+// *(s16*)0x80388A68`; el a0 de ENTRADA es el atacante, pero la funcion fija `a0 = 0x8017DC40` para el
+// store del HP, asi que es una funcion (unica) de "el enemigo golpea al jugador". Con MODO HEAVEN se
+// pone el scratch de dano a 0 durante la llamada (y se restaura) -> el jugador no pierde vida.
+// [MEDIDO con HH_WATCH]
 constexpr uint32_t kFieldDamageScratch = 0x80388A68u;
 
 extern "C" void hh_heaven_field_damage_hook(uint8_t* rdram, recomp_context* ctx) {
-    if (hh::menu::heaven_enabled() && static_cast<uint32_t>(ctx->r4) == 0x8017DC40u) {
-        auto* dmg = reinterpret_cast<uint16_t*>(&rdram[(kFieldDamageScratch ^ 2u) & 0x7FFFFFu]);
-        const uint16_t saved = *dmg;
-        *dmg = 0;
+    if (!hh::menu::heaven_enabled()) {
         func_80379F04_1303514(rdram, ctx);
-        *dmg = saved;
-    } else {
-        func_80379F04_1303514(rdram, ctx);
+        return;
     }
+    auto* dmg = reinterpret_cast<uint16_t*>(&rdram[(kFieldDamageScratch ^ 2u) & 0x7FFFFFu]);
+    const uint16_t saved = *dmg;
+    if (saved != 0) {
+        hh::log("[heaven] dano de campo anulado (dmg=%u)\n", saved);
+    }
+    *dmg = 0;
+    func_80379F04_1303514(rdram, ctx);
+    *dmg = saved;
 }
 
 // Carga de partida: tras deserializar el personaje en `0x8017DC40`, aplicar el máximo.

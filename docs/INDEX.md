@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 162 | 2026-09-27 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 393 | 2026-09-28 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 392 | 2026-09-28 |
 
 ## Técnico y guías (vivos)
 
@@ -62,7 +62,7 @@
 | [2026-09-28 — Escalado de stats: corrección de dirección y funciones reales](../notes/2026-09-28-stats-recompute-correccion.md) | Sesión `menu-edicion-partida`, continuación del handoff `RETOMAR.md`. **Corrige un error de las | 317 | 2026-09-28 |
 | [2026-09-28 — Lógica de juego: técnicas, items y estadísticas (reconstrucción)](../notes/2026-09-28-logica-juego-tecnicas-items-y-stats.md) | Sesión `menu-edicion-partida`. Recopila la **lógica jugable** reconstruida para el editor de partida. | 232 | 2026-09-28 |
 | [2026-09-28 — Editor de partida: formato real del slot y lógica de juego (stats)](../notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md) | Sesión `menu-edicion-partida`. Documenta **toda** la lógica de guardado/estadísticas reconstruida | 208 | 2026-09-28 |
-| [Editor v3 — rediseño ATRIBUTOS/ESTADO, repeat de input y MODO HEAVEN (2026-09-28)](../notes/2026-09-28-editor-atributos-estado-modo-heaven.md) | Sesión sobre la rama **`menu-edicion-partida`** (submenú **EDICIÓN DE PARTIDA** del overlay + EXTRAS). | 158 | 2026-09-28 |
+| [Editor v3 — rediseño ATRIBUTOS/ESTADO, repeat de input y MODO HEAVEN (2026-09-28)](../notes/2026-09-28-editor-atributos-estado-modo-heaven.md) | Sesión sobre la rama **`menu-edicion-partida`** (submenú **EDICIÓN DE PARTIDA** del overlay + EXTRAS). | 159 | 2026-09-28 |
 | [2026-09-27 — Editor de partida v3 (sobre el `.pak`) y hallazgos](../notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md) | Sesión larga (`menu-edicion-partida`). Continúa `notes/2026-09-27-e-editor-partida-plan.md`. | 75 | 2026-09-27 |
 | [2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)](../notes/2026-09-27-e-editor-partida-plan.md) | **OJO (2026-09-27, posterior)**: este documento es el reconocimiento inicial. La **implementación | 133 | 2026-09-27 |
 | [2026-09-27 — Release limpia: diagnósticos y volcados desactivados por defecto (v0.5.1)](../notes/2026-09-27-d-release-sin-volcados.md) | Sesión `main`. Petición del mantenedor: el `.exe` de release **no debe dejar ficheros de volcado**. | 52 | 2026-09-27 |

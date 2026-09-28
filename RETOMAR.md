@@ -62,10 +62,10 @@ así que no vale con fotos periódicas: la instrumentación registra **cambios**
 > decodificación de la traza; el byte correcto es `+0x1034`. El `bswap` ya está quitado del watcher
 > (`hh_battle_frame_hook`).
 
-## HECHO (pendiente validar): daño FUERA de combate (robots)
+## HECHO (validado en Windows): daño FUERA de combate (robots)
 
 Dentro de combate el daño al PJ ya es 0 (hook `func_80232D08`). **Fuera de combate** un robot baja la
-vida; ya está anulado:
+vida; ya está anulado (validado por el mantenedor: con HEAVEN ON el robot no baja la vida):
 
 - **MEDIDO**: la vida de campo es el **sheet `0x8017DC40+0x02`** (misma que STATUS/combate); cada
   disparo resta 5 (`0x1847→0x1842→…`). No es la party (`0x801BC03C`) ni el struct vivo
@@ -73,10 +73,10 @@ vida; ya está anulado:
 - **Escritor localizado** con `HH_WATCH` (`run_field_watch.bat`, HH_WATCH_ADDR=0x8017DC40): la función
   **`func_80379F04`** aplica `a0+0x2 (HP) = HP − *(s16*)0x80388A68`; el llamador le pasa `a0` = objetivo
   (jugador `0x8017DC40`) y deja el daño en el scratch `0x80388A68`.
-- **Fix**: hook `hh_heaven_field_damage_hook` sobre `func_80379F04`. Con `heaven_enabled()` y
-  `a0 == 0x8017DC40`, pone el scratch de daño a **0** durante la llamada (y lo restaura) → el jugador no
-  pierde vida. Es **una** función común para todos los robots (no por enemigo). **PENDIENTE: validar
-  en Windows** que con HEAVEN ON el robot no baja la vida.
+- **Fix**: hook `hh_heaven_field_damage_hook` sobre `func_80379F04`. Con `heaven_enabled()` pone el
+  scratch de daño a **0** durante la llamada (y lo restaura) → el jugador no pierde vida. Es **una**
+  función común para todos los robots (no por enemigo). **Validado en Windows**. El `a0` de ENTRADA es
+  el atacante; la función fija `a0=0x8017DC40` para el store del HP (no hay que comprobar `a0`).
 
 > Notas de la investigación: `HH_DRWATCH` (watchpoints de hardware) **no dispara** en esta máquina;
 > `HH_WATCH` (software) sí, con `ra`/`val`/`ret`. El `ret` del exe no se pudo mapear a la función guest
