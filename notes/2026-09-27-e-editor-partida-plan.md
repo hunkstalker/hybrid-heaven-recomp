@@ -80,7 +80,33 @@ Dos vías:
 **Elegida: (A)** por robustez y testeabilidad, con recarga del pak. `GUARDAR` escribe el slot elegido
 (checksum recalculado) y `CONTINUAR` carga la partida editada. Fase 2: `JUGAR`/warp por memoria.
 
-## 7. UI implementada (2026-09-27, commit `14fa002`)
+## 7.b MEMORIA (v2, commit `6c917b0`) — vía elegida
+
+Decisión del mantenedor: **editar la memoria de la partida cargada** (resultados en caliente), no el
+fichero. El hallazgo que lo permite (pista del menú nativo `DATA EDIT`): el juego tiene funciones de
+carga/guardado de slot **sin arrancar partida**:
+- **`func_801423C8(channel, slot)`** = `func_800031EC(PFS read slot+0x100, 0xD00) → buffer →
+  func_80141D08(buffer)` → **deserializa a los globals** (progreso, nivel, técnicas, stats, items). Es
+  "cargar partida a memoria" sin arrancar. `func_801415C4` la envuelve.
+- **`func_80142450(channel, slot)`** = `func_80141F28(globals) → buffer → func_800032E0(PFS write)` =
+  "guardar los globals en el slot". `func_80141628` la envuelve.
+
+Detalle: `channel` = `a1` (0 = jugador 1), `slot` = `(a2-0x100)/0xD00`. **OJO**: hay que llamarlas con
+un `recomp_context` con `sp`/`r29` **válido** (se hereda el del handler del menú; con un ctx a cero la
+función no puede usar su pila y no hace nada).
+
+Cambios: `hh::save` pasa a leer/escribir los globals (`0x801BBBF4` progreso, `0x8017DC88` nivel,
+`0x80183CE0` técnicas flag `+0`, `0x8017DC40` stats, `0x8017E004` items); **ya no toca el `.pak`** ni
+necesita el fork (se revirtió `hh_pak_reload_from_disk` → sin cambios de runtime). `GUARDAR` guarda y
+lanza `CONTINUE` (guardar y jugar; v2: guardar sin arrancar). **Arreglo del "menú vacío"**: el cálculo
+de la columna de valores sumaba TODAS las opciones de los selectores largos (`PROGRESO` ~228, `NIVEL`
+100) y `x_shift` se iba a miles → contenido fuera de pantalla; ahora usa el ancho realmente dibujado.
+
+**Validado headless (Linux)**: entrar en el editor llama a la nativa y **carga el slot** (lectura
+`PFS read off=256 size=3328`; progreso `115 → 0`, el del slot) sin arrancar partida; el editor dibuja
+con `x_shift=-29`. **Pendiente validar en Windows** (edición en el menú + `GUARDAR` + `CONTINUE`).
+
+## 7. UI (v1, commit `14fa002`)
 
 `EXTRAS → EDICIÓN DE PARTIDA`. Pantalla principal: `PARTIDA < 1..4 >` (slot), `PROGRESO < N-P >`,
 `NIVEL < n >`, `HABILIDADES ->` (86, toggle), `BODY ->` (selector `ESTADO` + 6 partes), `ITEMS ->`

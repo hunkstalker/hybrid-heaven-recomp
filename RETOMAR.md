@@ -27,7 +27,7 @@
   **opt-in** (`HH_DIAG=1`, `HH_CRASH_LOG=1`, `HH_PAKLOG=1`; el fork NMR `39baeeb` cambia el default
   del paklog). Detalle: `notes/2026-09-27-d-release-sin-volcados.md`.
 - **`EDICIÓN DE PARTIDA` (editor de save) HECHO en la rama `menu-edicion-partida` (2026-09-27,
-  commit `14fa002`), pendiente validar en Windows**: menú en `EXTRAS` (`PROGRESO < N-P >`, `NIVEL`,
+  **v2 en MEMORIA, commit `6c917b0`**, pendiente validar en Windows): menú en `EXTRAS` (`PROGRESO < N-P >`, `NIVEL`,
   `HABILIDADES` toggle, `BODY` con filtro `ESTADO`, `ITEMS`, `GUARDAR`). Edita el `.pak` en disco
   (offsets/checksums medidos) + recarga el runtime (fork NMR `0ae2585`). Fase 2: `JUGAR`/warp.
   Detalle: `notes/2026-09-27-e-editor-partida-plan.md`.
