@@ -415,10 +415,15 @@ void title_update(uint8_t* rdram) {
                                screen.id == hh::menu::ScreenId::SaveEditItems ||
                                screen.id == hh::menu::ScreenId::SaveEditStats ||
                                is_combat_sim);
-    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA) se CENTRAN; los nativos conservan su
-    // margen original.
-    const bool custom_layout =
-        is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit;
+    // GRÁFICOS es una pantalla NATIVA de selectores, pero se CENTRA como los menus del PORT (misma
+    // columna de valores: su etiqueta mas larga, "LÍMITE DE FPS", mide lo mismo que kSelectorValueCol).
+    const bool is_graphics = (screen.id == hh::menu::ScreenId::Graphics);
+    // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES y el
+    // editor. GRÁFICOS no entra aqui: tiene 6 filas y caben todas (no debe scrollear).
+    const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit;
+    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA) y GRÁFICOS se CENTRAN; el resto de
+    // los nativos conserva su margen original.
+    const bool custom_layout = scroll_cap5 || is_graphics;
     float x_shift = 0.0f;
     float selector_col = kSelectorValueCol;   // EXTRAS: columna de valores; CONTROLES: columna MANDO
     float key_col = selector_col + kKeyColGap;  // CONTROLES: columna TECLADO
@@ -477,6 +482,10 @@ void title_update(uint8_t* rdram) {
             content_px = value_x + max_val_px;
         }
         x_shift = (hh::overlay::kVirtualWidth - content_px) * 0.5f - layout.x;
+        // Nunca empujar el contenido fuera del borde IZQUIERDO: si el calculo de ancho se queda corto
+        // (p. ej. un binding de CONTROLES muy largo), centrar daria x_shift muy negativo y el texto
+        // saldria de pantalla. En ese caso se alinea al margen de 2 px en vez de centrar.
+        x_shift = std::max(x_shift, 2.0f - layout.x);
     }
 
     hh::overlay::Frame frame;
@@ -490,7 +499,7 @@ void title_update(uint8_t* rdram) {
     // limita a 5: las filas se ocultan a partir de la 6ª y el cursor hace scrollear la ventana.
     constexpr float kListBottom = 188.0f;
     int max_visible = std::max(1, static_cast<int>((kListBottom - list_y0) / layout.dy));
-    if (custom_layout && !is_combat_sim) max_visible = std::min(max_visible, 5);
+    if (scroll_cap5 && !is_combat_sim) max_visible = std::min(max_visible, 5);
     int first = 0;
     if (n_entries > max_visible) {
         if (screen.cursor >= first + max_visible) first = screen.cursor - max_visible + 1;
