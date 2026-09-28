@@ -184,6 +184,13 @@ RESISTENCIA `0x801BC046←0x801BC044`) si **HEAVEN o** el toggle propio, con gua
 13x5 con sombra +1,+1), porque la fuente del juego no lo trae. Etiquetas a los 6 idiomas
 (`PODER ∞` / `RESISTENCIA ∞`); el mantenedor pidió **RESISTENCIA** completa (sin abreviar).
 
+**Quirk del COMBO (a afinar en el futuro)**: la barra de combo (4 segmentos) se alimenta del PODER
+(100 % → +1 segmento). Con `PODER ∞` no se gasta (queda llena), pero **en el 1.er combate arranca a 0**
+y solo se rellena desde el **2.º** (parece un gateo de estado al terminar/vaciar el PODER en el 1.º).
+No se localizó el contador (0..4) en las zonas vigiladas (`0x801BBBF0..0x801BDBF0`, entidad
+`0x801BC03C` y struct vivo `0x8024AD14`). Plan futuro: traza que cruce el fin del 1.er combate con el
+2.º para hallar el flag que lo habilita. De momento se deja (se autocorrige desde el 2.º combate).
+
 > **[A VALIDAR en Windows]**: que los hooks cubran CONTINUE y partida nueva (si no, hook puntual); el
 > daño 0 en combate y el no-consumo de items; el daño de campo (ya validado); y el nuevo toggle VENTAJA
 > independiente.

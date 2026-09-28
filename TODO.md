@@ -16,6 +16,11 @@
   idiomas y persistente en `config.ini [extras].advantage`. Fuerza `0x801BCC24 = 2` (POWER al máximo al
   empezar). **Independiente de MODO HEAVEN** (se le retiró: con PODER ∞ es redundante). Validado contra
   un enemigo que NO sale sorprendido: ON = POWER al máximo, OFF = no. Detalle: `RETOMAR.md`.
+- [ ] **Combo: no se rellena en el 1.er combate (a afinar en el futuro, 2026-09-28)**: la barra de
+  combo se alimenta del PODER (100 % → +1 segmento) y con `PODER ∞` queda llena, pero **arranca a 0 en
+  el 1.er combate** y solo se rellena desde el 2.º (parece un gateo de estado al terminar/vaciar el
+  PODER en el 1.er combate). **No** localizado el contador (0..4) en las zonas vigiladas. Plan: traza
+  que cruce el fin del 1.er combate con el 2.º para hallar el flag y forzarlo. Detalle: `RETOMAR.md`.
 - [x] **`PODER ∞` / `RESISTENCIA ∞` (EXTRAS) — VALIDADO en Windows (2026-09-28)**: dos selectores NO/SÍ
   (con símbolo vectorial `∞`) debajo de `VENTAJA`, persistentes en `config.ini [extras].infinite_power`
   / `[extras].infinite_stamina`. `hh_battle_frame_hook` pinnea `actual = max` cada frame (PODER

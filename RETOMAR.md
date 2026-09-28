@@ -108,6 +108,19 @@ toggles siguen siendo independientes. Validados por el mantenedor: los gauges no
 - **Traducción** (`kMenuTr`): `PODER ∞ / POWER ∞ / PODER ∞ / PUISSANCE ∞ / KRAFT ∞ / パワー∞` y
   `RESISTENCIA ∞ / STAMINA ∞ / RESISTÈNCIA ∞ / ENDURANCE ∞ / AUSDAUER ∞ / スタミナ∞`.
 
+## Combo — quirk conocido (a afinar en el futuro)
+
+La **barra de combo** (4 segmentos, y24..y30 del HUD) se alimenta del **PODER**: al llegar a 100 %
+reinicia y suma un segmento. Como `PODER ∞` mantiene el PODER al máximo, la barra **no se gasta** y se
+queda llena. **PERO en el 1.er combate arranca a 0** y solo se rellena a partir del **2.º** (parece un
+gateo de estado: al terminar/vaciar el PODER en el 1.er combate se habilita). No hemos localizado el
+contador (0..4) en las zonas vigiladas, así que de momento se deja como está: es del juego y se
+autocorrige desde el 2.º combate.
+
+- **A afinar en el futuro**: hallar el flag que habilita el combo (probable en el bloque de batalla
+  `0x801BBBF0..`) capturando una traza `run_battle_trace` que cruce el fin del 1.er combate y el 2.º, y
+  forzarlo al empezar (o pinear el contador 0..4 = `COMBO ∞`).
+
 ## HECHO (validado en Windows): daño FUERA de combate (robots)
 
 Dentro de combate el daño al PJ ya es 0 (hook `func_80232D08`). **Fuera de combate** un robot baja la
