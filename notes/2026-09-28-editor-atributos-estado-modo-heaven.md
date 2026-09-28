@@ -124,15 +124,20 @@ falta que aparezca la palabra "ADVANTAGE").
 > **Bug corregido**: la 1.ª versión forzaba `+0x1037` por un `bswap` de más al decodificar la traza. El
 > byte correcto es `+0x1034`; el watcher ya no hace `bswap` (la palabra guest se lee directa, `MEM_W`).
 
-### 6.2 Daño FUERA de combate (robots) — PENDIENTE
+### 6.2 Daño FUERA de combate (robots) — implementado (sin validar)
 
-En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Por traza F12: el disparo
-escribe el **sheet `0x8017DC40+0x02`** (p. ej. `0x1847→0x183D`, daño 10), la misma vida que
-STATUS/combate. Reescribir HP a 9999 por-frame **no** bloquea el daño (solo cambia el display; se
-retiró). El `live_ptr` `*(0x801BBCCC)=0x8024AD14` en la traza no lleva la vida (sus cambios son punteros
-de actualización). **Falta** localizar la función que escribe esa vida en el campo (probable copia de
-bloque/puntero) y hookearla a 0 bajo `heaven_enabled()`. Vía: `run_stats_capture.bat stats`
-(`HH_CANARY=0x8017DC40:9E`) mientras dispara un robot.
+En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Medido:
+
+- La vida de campo es el **sheet `0x8017DC40+0x02`** (misma que STATUS/combate); cada disparo resta 5
+  (`0x1847→0x1842→…`). El `live_ptr` `*(0x801BBCCC)=0x8024AD14` **no** lleva la vida (solo posición/
+  estado). Reescribir HP a 9999 por-frame no bloquea el daño real (se retiró).
+- **Escritor** (`HH_WATCH` sobre `0x8017DC40`, `run_field_watch.bat`): **`func_80379F04`** aplica
+  `a0+0x2 (HP) = HP − *(s16*)0x80388A68`; el llamador pasa `a0` = objetivo (jugador `0x8017DC40`) y fija
+  el daño en el scratch `0x80388A68`.
+- **Fix**: `hh_heaven_field_damage_hook` (hook de `func_80379F04`): con `heaven_enabled()` y
+  `a0==0x8017DC40` pone el scratch a 0 durante la llamada y lo restaura → daño de campo 0. **Una**
+  función común a todos los enemigos. **PENDIENTE validar en Windows**.
+- Nota: `HH_DRWATCH` (hardware) no disparó; se usó `HH_WATCH` (software, con `ra`/`val`/`ret`).
 
 > **[A VALIDAR en Windows]**: que los hooks cubran CONTINUE y partida nueva (si no, hook puntual); el
 > daño 0 en combate y el no-consumo de items; la ventaja (ya validada); y el daño de campo pendiente.

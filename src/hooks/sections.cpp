@@ -54,6 +54,7 @@ extern "C" void func_80232D08_10FCC28(uint8_t* rdram, recomp_context* ctx);  // 
 extern "C" void func_8013D520_1035CF0(uint8_t* rdram, recomp_context* ctx);  // suma/resta cantidad de item
 extern "C" void func_80144E68_103D638(uint8_t* rdram, recomp_context* ctx);  // deserializa el personaje
 extern "C" void func_80152240_104AA10(uint8_t* rdram, recomp_context* ctx);  // load: tablas de runtime
+extern "C" void func_80379F04_1303514(uint8_t* rdram, recomp_context* ctx);  // dano fuera de combate
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
@@ -136,6 +137,24 @@ extern "C" void hh_heaven_item_hook(uint8_t* rdram, recomp_context* ctx) {
         ctx->r5 = 0;   // no consumir el item
     }
     func_8013D520_1035CF0(rdram, ctx);
+}
+
+// DANO FUERA DE COMBATE (robots): `func_80379F04` aplica `a0+0x2 (HP) = HP - *(s16*)0x80388A68`.
+// El llamador pasa a0 = struct del objetivo (0x8017DC40 = jugador) y fija el dano en el scratch
+// 0x80388A68. Con MODO HEAVEN y objetivo = jugador, se pone el scratch a 0 durante la llamada (y se
+// restaura), asi el jugador no pierde vida. [MEDIDO con HH_WATCH]
+constexpr uint32_t kFieldDamageScratch = 0x80388A68u;
+
+extern "C" void hh_heaven_field_damage_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (hh::menu::heaven_enabled() && static_cast<uint32_t>(ctx->r4) == 0x8017DC40u) {
+        auto* dmg = reinterpret_cast<uint16_t*>(&rdram[(kFieldDamageScratch ^ 2u) & 0x7FFFFFu]);
+        const uint16_t saved = *dmg;
+        *dmg = 0;
+        func_80379F04_1303514(rdram, ctx);
+        *dmg = saved;
+    } else {
+        func_80379F04_1303514(rdram, ctx);
+    }
 }
 
 // Carga de partida: tras deserializar el personaje en `0x8017DC40`, aplicar el máximo.
@@ -497,6 +516,7 @@ void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x80152240, hh_heaven_load_hook);
     recomp::overlays::add_loaded_function(0x80232D08, hh_heaven_damage_hook);
     recomp::overlays::add_loaded_function(0x8013D520, hh_heaven_item_hook);
+    recomp::overlays::add_loaded_function(0x80379F04, hh_heaven_field_damage_hook);
     // Traza de combate (F12 / HH_BATTLE_TRACE): reloj por frame para el registro de cambios. Barato
     // y no-op si la traza esta apagada.
     recomp::overlays::add_loaded_function(0x800021B4, hh_battle_frame_hook);
@@ -592,7 +612,7 @@ extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
         uint32_t live = 0;
         std::memcpy(&live, base + (0x801BBCCCu - 0x80000000u), 4);   // MEM_W: ya es el valor guest
         static uint32_t last_live = 0;
-        static uint8_t live_shadow[0x40];
+        static uint8_t live_shadow[0x100];
         static bool live_valid = false;
         if (live != last_live && live >= 0x80000000u && live < 0x80400000u) {
             last_live = live;

@@ -24,19 +24,22 @@ if not exist "%HHBIN%\Hybrid Heaven Recomp.exe" (
 )
 
 cd /d "%HHBIN%"
+REM DRWATCH (hardware) puede no disparar; HH_WATCH (software) loguea ra+val de cada acceso.
 set "HH_DRWATCH=0x8017DC40,0x8017DC44"
-del /q hh_drwatch.log hh_drwatch_rdram.bin hh_field_stderr.log 2>nul
+set "HH_WATCH_ADDR=0x8017DC40"
+set "HH_WATCH_SIZE=4"
+del /q hh_drwatch.log hh_drwatch_rdram.bin hh_watch.log hh_ring.log hh_field_stderr.log 2>nul
 
 echo === Hybrid Heaven Recomp - WATCH dano de campo (robots) ===
 echo Config : %HHBIN%
-echo HH_DRWATCH=%HH_DRWATCH%
+echo HH_DRWATCH=%HH_DRWATCH%   HH_WATCH_ADDR=%HH_WATCH_ADDR%:%HH_WATCH_SIZE%
 echo.
 echo  1) Entra en partida (campo).
 echo  2) Deja que un robot te dispare varias veces.
-echo  3) Cierra y envia hh_drwatch.log
+echo  3) Cierra y envia hh_watch.log (y hh_drwatch.log si existe)
 echo.
 "Hybrid Heaven Recomp.exe" 2> hh_field_stderr.log
 echo (exit %ERRORLEVEL%)
 echo.
-echo Log: %HHBIN%\hh_drwatch.log
+echo Log: %HHBIN%\hh_watch.log
 pause

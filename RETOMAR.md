@@ -62,24 +62,25 @@ así que no vale con fotos periódicas: la instrumentación registra **cambios**
 > decodificación de la traza; el byte correcto es `+0x1034`. El `bswap` ya está quitado del watcher
 > (`hh_battle_frame_hook`).
 
-## PENDIENTE: daño FUERA de combate (robots)
+## HECHO (pendiente validar): daño FUERA de combate (robots)
 
-Dentro de combate el daño al PJ ya es 0 (hook `func_80232D08`). **Fuera de combate**, si un robot
-dispara, la vida **sí baja**; falta anularlo. Estado de la investigación:
+Dentro de combate el daño al PJ ya es 0 (hook `func_80232D08`). **Fuera de combate** un robot baja la
+vida; ya está anulado:
 
-- **MEDIDO por traza F12**: al recibir el disparo cambia el **sheet `0x8017DC40+0x02`** (la misma vida
-  que STATUS/combate), p. ej. `0x1847→0x183D` (daño 10). No es la party de combate (`0x801BC03C`) ni el
-  "struct vivo" `*(0x801BBCCC)` (en la traza `live_ptr=0x8024AD14`, cuyos cambios son punteros de
-  actualización, no vida).
-- **Falló**: reescribir HP/HPmax a 9999 por-frame (solo maquilla el display; el juego pisa el valor y
-  el daño real sigue). **Se retiró** ese top-up.
-- **Siguiente paso**: localizar la **función que escribe** esa vida en el campo. El escritor no aparece
-  como `sb`/`sh` directo con base `0x8017DC40` (puede ser copia de bloque o vía puntero). Opciones:
-  1. `run_stats_capture.bat stats` (`HH_CANARY=0x8017DC40:9E`) mientras te dispara un robot →
-     `hh_canary.log` da el cambio + la ventana de llamadas.
-  2. Hook al proyectil/impacto del robot (buscarlo en el módulo de campo `file_008`).
-- **Valor esperado**: dejar el daño de campo a **0** con `heaven_enabled()` (mismo patrón que el combate),
-  no maquillar el display.
+- **MEDIDO**: la vida de campo es el **sheet `0x8017DC40+0x02`** (misma que STATUS/combate); cada
+  disparo resta 5 (`0x1847→0x1842→…`). No es la party (`0x801BC03C`) ni el struct vivo
+  (`*(0x801BBCCC)=0x8024AD14`, ahí solo hay posición/estado).
+- **Escritor localizado** con `HH_WATCH` (`run_field_watch.bat`, HH_WATCH_ADDR=0x8017DC40): la función
+  **`func_80379F04`** aplica `a0+0x2 (HP) = HP − *(s16*)0x80388A68`; el llamador le pasa `a0` = objetivo
+  (jugador `0x8017DC40`) y deja el daño en el scratch `0x80388A68`.
+- **Fix**: hook `hh_heaven_field_damage_hook` sobre `func_80379F04`. Con `heaven_enabled()` y
+  `a0 == 0x8017DC40`, pone el scratch de daño a **0** durante la llamada (y lo restaura) → el jugador no
+  pierde vida. Es **una** función común para todos los robots (no por enemigo). **PENDIENTE: validar
+  en Windows** que con HEAVEN ON el robot no baja la vida.
+
+> Notas de la investigación: `HH_DRWATCH` (watchpoints de hardware) **no dispara** en esta máquina;
+> `HH_WATCH` (software) sí, con `ra`/`val`/`ret`. El `ret` del exe no se pudo mapear a la función guest
+> por el `.map`, pero la firma de la escritura (`a0=sheet`, `a1=0x80388A68`, resta a HP) la identifica.
 
 ## Traza de combate (herramienta, ya usada)
 
