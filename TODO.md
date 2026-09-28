@@ -5,6 +5,13 @@
 
 ## Ahora (priorizado)
 
+- [•] **`MODO HEAVEN` (EXTRAS) — a medias (2026-09-28)**: toggle `MODO HEAVEN NO/SÍ` colocado; al SÍ
+  aplica al slot del editor **niveles 99 + todas las habilidades + items 99** (`Action::ToggleHeavenMode`
+  en `src/hooks/sections.cpp`). **PENDIENTE**: (1) invulnerabilidad (daño 0 siempre), (2) que los items
+  **no se gasten**, (3) decidir runtime (`0x8017DC40`) vs save / auto-GUARDAR. Detalle en `RETOMAR.md`
+  y `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
+- [ ] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (añadir sus `ScreenId` a
+  `custom_layout`/`is_save_edit` en `src/hooks/menu_overlay.cpp`).
 - [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
   detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
   (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz
@@ -17,6 +24,46 @@
   no refleja lo editado. También: repeat up/down/izq/der y cierre F11 rápido. Detalle:
   `notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`. Ideas de sistema de guardado:
   `docs/ideas-edicion-partida.md`.
+  - **Sesión 2026-09-28** (`notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md`):
+    **formato real del slot documentado** (struct de personaje bswap32 / `u16 LE`; técnicas/items/progreso)
+    y **función del juego que escribe la cabecera** (`func_80142350`/`func_80141268`). Corregido:
+    `CONTINUAR` (recarga `g_pak` tras GUARDAR), `NIVEL` (u16 LE en `0x4A`), contadores `ESTADO`
+    (u16 LE, ya no 256), **items** (nombre real del registro `0x8017E004+id*8`; la **cantidad** va en
+    el slot de su familia invertido, S↔X/M↔L: `item_slot_of`), **cabecera de la lista de partidas**
+    (`update_save_header`: AREA/LEVEL/checksum del registro del slot → DATA LOAD refleja los cambios y
+    `NUEVA PARTIDA` crea entrada) y **pantalla `ATRIBUTOS`** (edición manual de
+    HP/HP MAX/STAMINA/OFENSIVO/DEFENSIVO/VELOCIDAD/REFLEJO). **Lógica de juego documentada**
+    (maestría, aprendizaje, partes) en `notes/2026-09-28-logica-juego-tecnicas-items-y-stats.md`.
+    **Escalado parte→stats: RESUELTO (2026-09-28)**. Lo hace **`func_80376D48`** al acabar el combate
+    (`func_803840A4`): 6 atributos con nivel+progreso+tablas independientes; HP sube con su parte
+    (`+0x04`) por `incremento_HP` 5,10,10,15…, DEFENSE con `+0x53` por 24,6,6…, OFFENSE `+0x52` por
+    36,8,8…, etc. El nivel global (`+0x48`) es la media de las 6 partes (`func_8037865C`) y **no**
+    entra en las fórmulas. **Modelo del progreso (traza `[STATEXP]`+`HH_CANARY`)**: `progreso_i +=
+     round(reward_i × ref_i / stat_i)`, divisor la **propia stat** → **rendimientos decrecientes** (con
+     OFFENSE=410 a mano, OFFENSE deja de subir). **CORRECCIÓN (2ª sesión 2026-09-28)**: la reward **NO
+     es fija** — es la **fila del ENEMIGO derrotado** (`func_8022CAFC` la elige en `0x8023C940` por
+     `a0+0x36`; `func_80376D48` 1 vez/combate); confirmado con `[STATEXP]`/`[ROW]` en 5 combates. Y el
+     **tope de nivel** por atributo depende de la dificultad (`func_80376D10`: 79/89/99). Detalle:
+     `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`. Corregida además la pista previa
+    (`0x800D425C`/`0x800D4260` era error de complemento a dos → `0x800CBDA4`/`0x800CBDA0`).
+    Detalle y tablas: `notes/2026-09-28-stats-recompute-correccion.md` §6 y referencia
+    `docs/stats-partes.md`. **Hecho en el editor (2026-09-28)**: (1) confirmado y corregido el
+    **word-swap 32-bit** del save (`swap16=r^2`, `swap8=r^3`): OFF/DEF y VEL/REF ya no salen
+    invertidos; (2) NIVEL global **solo lectura** (derivado); (3) **nivel y progreso por parte
+    editables** (`add_part_levels` aplica `incremento[nivel]`). **Lead** "dificultad dinámica":
+    `func_8022CAFC` cruza OFFENSE_ente←DEFENSE jugador (§8); confirmar identidad con oráculo.
+    **Pendiente**: **validar en Windows** (build + editar nivel de parte → ver stat/STATUS).
+    **Hecho (2026-09-28)**: pantalla **`SIM. COMBATE`** (selector COMBATES 1/2/5/10/25/50; A simula)
+    que aplica la fórmula EXACTA del juego (`save::simulate_combats`: `EXP_i += round(reward_i×ref_i/
+    stat_i)` con `ref_i=min(transformada, tope)` cruzada OFF↔DEF, + bucle de subida). Verificado: vanilla
+    2 combates → HP 100→105 y DEFENSE 50→74 (idéntico al juego). Abajo, filas de solo lectura
+    `NIVEL n  valor  EXP`. **ATRIBUTOS** sigue editable (raw). **Futuro**: barras de progreso.
+    **Corrección (2026-09-28, mantenedor)**: en ESTADO, **OFENSIVO/DEFENSIVO son NIVELES de la parte**
+    (suben al atacar / al **GUARDAR**, `+0x10`/`+0x1C`), y **HIT/DAMAGE COUNT son contadores**
+    (`+0x68`/`+0x76`). Alimentan la **potencia de combate** (`func_8022DB40`/`func_8022F0E0`);
+    `func_80232A80` incrementa el nivel defensivo de una parte (`entidad+0x8E+part*2`). **Pendiente**:
+    fórmula exacta del incremento de nivel de parte y si afecta al nº de golpes/combo; y el
+    **nivel de maestría** de técnicas (¿desbloquea niveles superiores?).
 - [x] **Release sin volcados (v0.5.1) — HECHO (2026-09-27)**: el `.exe` release **solo** deja
   `hh.log` (sobrescrito cada run). Pasaron a **opt-in**: `hh_audio.log`, `hh_tick.log`/`hh_slow.log`,
   watchdog (`hh_state.log`/`hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), crash

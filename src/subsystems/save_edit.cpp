@@ -15,12 +15,19 @@
 #include "hh.h"
 #include "hh/save_edit.h"
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <vector>
 
 #include "recomp.h"
+
+// Fork NMR (9b14604): descarta el pak cacheado del runtime y lo relee del disco. Tras escribir el
+// `.pak` hay que llamarlo, o el juego (CONTINUAR, previsualizacion de slots) seguira leyendo el
+// `g_pak` viejo en RAM (pak.cpp cachea el fichero en `g_pak` la primera vez).
+extern "C" void hh_pak_reload_from_disk(void);
 
 namespace hh::save {
 namespace {
@@ -31,25 +38,81 @@ constexpr size_t kSlotSize = 0xD00;
 constexpr size_t kSlot0 = kDataOff + kHeaderSize;
 
 // Offsets DENTRO del slot.
-constexpr size_t kLevelOff = 0x04B;
+// NIVEL: u16 little-endian en +0x04A (byte bajo en 0x4A, alto en 0x4B). Antes se trataba como u8
+// en 0x4B: escribir ahi dejaba el byte bajo intacto (0x01) y el display del juego combinaba
+// 0x4A|0x4B<<8 -> p. ej. 0x1201 = 4609. Ver notes/2026-09-28-editor-partida-offsets-reales.md.
+constexpr size_t kLevelOff = 0x04A;
 constexpr size_t kTechOff = 0x09E;      // 86 x 3
 constexpr size_t kItemOff = 0x1A0;      // 45 x u8
 constexpr size_t kProgressOff = 0x366;  // u16 BE
 constexpr size_t kChecksumOff = 0xCFC;
-// Stats por parte (u16 BE, 6 partes).
+// Stats por parte (contadores de uso, u16): offsets RUNTIME (los de func_8022C7A4 / struct
+// 0x8017DC40). El SAVE va **32-bit word-swapped** respecto al runtime (confirmado por el mantenedor:
+// OFENSIVO/DEFENSIVO y VELOCIDAD/REFLEJO salen invertidos, y los contadores por parejas de partes
+// cabeza<->cuerpo, brazo izq<->der). Regla: el campo runtime de offset `r` vive en el save en
+// `swap16(r)` (u16) o `swap8(r)` (u8). Ver notes/2026-09-28-stats-recompute-correccion.md §7.
+constexpr size_t swap16(size_t r) { return r ^ 2; }
+constexpr size_t swap8(size_t r) { return r ^ 3; }
 constexpr size_t kOffenseOff = 0x010;
 constexpr size_t kDefenseOff = 0x01C;
 constexpr size_t kHitOff = 0x068;
 constexpr size_t kDamageOff = 0x076;
 
+// Por parte (índice 0..5 = func_80378D84/80376D48): stat / nivel / progreso (offsets RUNTIME).
+//   parte0=HP, 1=STAMINA, 2=OFFENSE, 3=DEFENSE, 4=REFLEX, 5=SPEED.
+constexpr size_t kPartStatRuntime[kParts] = {0x00, 0x08, 0x40, 0x42, 0x46, 0x44};
+constexpr size_t kPartLevelRuntime[kParts] = {0x04, 0x0A, 0x52, 0x53, 0x55, 0x54};
+constexpr size_t kPartProgRuntime[kParts] = {0x06, 0x0C, 0x4A, 0x4C, 0x50, 0x4E};
+
+// Tablas de incremento por nivel (u16, `0x80388410+`) — `incremento[nivel]` al subir a nivel+1.
+static const uint16_t kIncHP[99] = {5,10,10,15,15,15,20,20,20,20,25,25,25,25,25,30,30,30,30,30,35,35,35,35,35,40,40,40,40,40,45,45,45,45,45,50,50,50,50,50,55,55,55,55,55,60,60,60,60,60,65,65,65,65,65,70,70,70,70,70,75,75,75,75,75,80,80,80,80,80,85,85,85,85,85,90,90,90,90,90,95,95,95,95,95,100,100,100,100,100,105,105,105,105,105,110,110,110,110};
+static const uint16_t kIncStamina[99] = {2,2,2,2,2,2,2,2,2,4,4,4,4,4,4,4,4,4,4,6,6,6,6,6,6,6,6,6,6,8,8,8,8,8,8,8,8,8,8,10,10,10,10,10,10,10,10,10,10,12,12,12,12,12,12,12,12,12,12,14,14,14,14,14,14,14,14,14,14,16,16,16,16,16,16,16,16,16,16,18,18,18,18,18,18,18,18,18,18,20,20,20,20,20,20,20,20,20,20};
+static const uint16_t kIncOffense[99] = {36,8,8,6,7,6,6,5,6,6,5,6,5,5,6,5,6,5,6,5,6,6,6,6,6,6,6,6,7,6,7,6,7,7,7,7,8,7,8,8,8,8,8,9,9,9,9,9,9,10,10,10,11,10,11,11,12,11,12,12,13,1,1,1,2,2,3,5,5,6,7,9,11,12,14,17,19,22,25,29,33,37,42,48,54,61,68,76,87,96,108,121,135,151,169,188,209,233,260};
+static const uint16_t kIncDefense[99] = {24,6,6,4,5,4,4,5,4,4,4,4,4,4,4,4,5,4,4,5,4,5,4,5,5,5,5,5,5,6,5,6,6,6,6,6,6,7,7,6,8,7,7,8,8,8,8,9,9,9,9,10,10,10,10,11,11,11,12,12,12,13,13,13,14,14,15,1,1,2,2,4,5,6,8,10,11,15,17,20,25,28,33,39,46,52,61,70,80,93,106,122,139,159,181,207,235,268,304};
+static const uint16_t kIncReflex[99] = {4,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,2,1,2,1,2,2,1,2,2,2,2,2,2,3,2,2,3,3,2,3,3,3,3,3,4,3,4,4,4,4,4,5,4,5,5,5,6,5,6,6,6,7,7,7,7,7,8,9,8,9,9,10,10,10,11,11,11,12,13,13,13,14,15,15,16,16,17,18,18,19};
+static const uint16_t kIncSpeed[99] = {10,5,5,6,6,6,6,7,7,7,7,8,8,8,9,9,9,10,10,11,11,11,12,12,13,13,14,15,15,15,17,16,18,18,19,20,20,22,22,23,24,25,26,27,28,29,31,31,33,34,36,37,38,40,42,43,45,47,49,50,53,54,57,60,61,64,67,69,72,75,78,81,84,88,91,94,99,102,107,111,115,120,125,129,135,141,145,152,158,164,171,177,185,192,199,208,216,224,234};
+static const uint16_t* const kIncByPart[kParts] = {kIncHP, kIncStamina, kIncOffense,
+                                                   kIncDefense, kIncReflex, kIncSpeed};
+
+// Tablas de UMBRAL (EXP acumulada, u16) por nivel. `progreso >= umbral[nivel]` -> sube de nivel.
+static const uint16_t kThrHP[99] = {2,3,5,6,8,10,12,14,16,19,21,24,28,31,35,39,44,49,54,60,67,74,81,90,99,109,120,132,144,159,174,191,209,229,250,274,300,328,358,391,428,467,510,557,609,664,725,792,864,943,1029,1122,1224,1336,1457,1589,1733,1890,2061,2248,2451,2673,2915,3178,3465,3778,4119,4491,4896,5338,5820,6344,6916,7540,8220,8961,9768,10648,11608,12653,13793,15036,16390,17866,19475,21229,23141,25224,27496,29971,32670,35611,38817,42312,46121,50273,54798,59731,65108};
+static const uint16_t kThrStamina[99] = {11,17,23,30,38,46,54,63,73,83,95,107,119,133,148,163,180,198,217,237,259,283,308,335,363,394,427,462,500,540,583,629,678,731,788,848,913,982,1056,1135,1220,1311,1408,1512,1623,1742,1869,2005,2151,2306,2473,2652,2842,3047,3265,3499,3749,4017,4304,4610,4938,5289,5665,6066,6496,6956,7449,7975,8539,9142,9787,10477,11216,12006,12852,13757,14725,15762,16870,18056,19326,20684,22137,23692,25355,27136,29040,31078,33259,35593,38089,40761,43620,46678,49951,53453,57200,61209,65499};
+static const uint16_t kThrOffense[99] = {51,79,108,139,171,204,240,277,316,357,400,445,492,542,594,649,706,767,830,897,966,1040,1117,1198,1283,1372,1466,1564,1668,1776,1890,2010,2135,2267,2405,2551,2704,2864,3032,3209,3394,3589,3794,4008,4234,4471,4719,4981,5255,5542,5845,6162,6495,6845,7212,7598,8003,8428,8875,9344,9836,10353,10896,11466,12064,12692,13352,14045,14772,15536,16338,17180,18064,18992,19967,20990,22065,23193,24378,25622,26928,28300,29740,31252,32839,34506,36257,38095,40025,42051,44179,46413,48758,51221,53808,56523,59374,62368,65512};
+static const uint16_t kThrDefense[99] = {24,37,51,65,81,97,115,133,153,174,196,219,244,270,298,327,359,392,427,464,503,545,589,636,686,739,795,854,917,984,1054,1129,1209,1293,1382,1476,1576,1683,1795,1915,2041,2175,2317,2468,2627,2797,2976,3166,3368,3582,3808,4048,4303,4572,4858,5161,5483,5823,6184,6567,6973,7403,7858,8341,8853,9396,9972,10582,11228,11913,12640,13410,14226,15091,16008,16980,18011,19103,20261,21488,22789,24168,25629,27179,28821,30562,32407,34363,36436,38634,40964,43433,46051,48826,51767,54884,58189,61692,65405};
+static const uint16_t kThrReflex[99] = {5,8,11,14,17,21,25,30,34,40,45,51,58,65,72,80,89,99,109,120,132,145,159,174,190,208,227,247,270,294,319,347,378,410,445,483,524,569,617,668,724,784,850,920,996,1078,1167,1262,1366,1477,1598,1728,1869,2020,2184,2362,2553,2760,2983,3224,3484,3765,4069,4396,4751,5133,5546,5992,6474,6994,7556,8163,8818,9526,10291,11116,12008,12971,14011,15134,16347,17657,19072,20601,22251,24033,25959,28038,30283,32708,35327,38156,41210,44510,48073,51921,56077,60566,65413};
+static const uint16_t kThrSpeed[99] = {108,165,225,287,351,418,487,560,635,713,795,880,968,1059,1155,1254,1357,1464,1575,1691,1812,1937,2067,2203,2344,2491,2643,2802,2967,3138,3317,3502,3695,3896,4105,4322,4548,4783,5027,5281,5545,5820,6105,6402,6711,7033,7367,7715,8076,8452,8843,9250,9673,10112,10570,11045,11540,12055,12590,13146,13725,14327,14953,15604,16281,16985,17717,18479,19271,20095,20951,21842,22769,23733,24735,25777,26861,27988,29161,30380,31648,32967,34339,35765,37249,38792,40396,42065,43800,45605,47482,49435,51465,53576,55772,58056,60431,62901,65470};
+static const uint16_t* const kThrByPart[kParts] = {kThrHP, kThrStamina, kThrOffense,
+                                                   kThrDefense, kThrReflex, kThrSpeed};
+
+// Fila 0 de `0x8023C940` (id 81 = jugador): reward de EXP y tope de la referencia por atributo.
+// Orden de parte 0..5 = HP, STAMINA, OFFENSE, DEFENSE, REFLEX, SPEED.
+static const uint16_t kRewardByPart[kParts] = {1, 2, 20, 14, 1, 10};
+// transformada de ref: 0=HP(×120/100),1=STAM(+0),2=OFF(DEF×84/100),3=DEF(OFF×100/100),
+//                       4=REF(+0),5=SPD(-15).  tope por parte:
+static const int kRefCap[kParts] = {300, 200, 160, 150, 120, 280};
+
 // Nombres (RDRAM, modulo 8).
 constexpr uint32_t kTechNamePtrs = 0x80184140;
 constexpr uint32_t kItemNamePtrs = 0x8017DF50;
+constexpr uint32_t kItemNameRecs = 0x8017E004;   // registros de item (u32 ptr nombre + u32 count)
 constexpr uint32_t kSceneTable = 0x80175490;
 
-std::vector<uint8_t> g_bytes;   // contenido completo del `.pak`
+std::vector<uint8_t> g_bytes;      // contenido completo del `.pak`
+std::vector<uint8_t> g_baseline;   // copia del `.pak` al cargar (origen de RESTAURAR)
 std::filesystem::path g_path;
 bool g_loaded = false;
+
+// Pila de deshacer de SIM. COMBATE: un snapshot por cada combate SIMULADO (estado PRE-combate). Al
+// simular en negativo (-N) se restauran los últimos N snapshots, deshaciendo EXACTAMENTE los combates
+// simulados (la fórmula depende de la stat, así que no es simétrica sin guardar el estado). Se guarda
+// por slot; se pierde al cerrar el port (es una ayuda de edición, no parte del save).
+struct SimSnap {
+    uint8_t level[kParts];
+    uint16_t prog[kParts];
+    uint16_t stat[kParts];
+    uint16_t hpmax;
+};
+std::map<int, std::vector<SimSnap>> g_sim_undo;
 
 size_t slot_off(int slot) { return kSlot0 + static_cast<size_t>(slot) * kSlotSize; }
 bool in_slot(size_t rel, size_t n) { return rel + n <= kSlotSize; }
@@ -66,6 +129,14 @@ uint16_t rd16(int slot, size_t rel) { return static_cast<uint16_t>((rd8(slot, re
 void wr16(int slot, size_t rel, uint16_t v) {
     wr8(slot, rel, static_cast<uint8_t>(v >> 8));
     wr8(slot, rel + 1, static_cast<uint8_t>(v & 0xFF));
+}
+// El bloque del PERSONAJE del slot es u16 LITTLE-ENDIAN (medido: HP=0x6400 -> bytes 64 00 = 100;
+// OFFENSE 32 00 = 50; contadores de parte 01 00 = 1). Leerlo como BE daba 0x0100 = 256. Las secciones
+// de progreso/escena SI van BE (ver rd16/wr16); de ahi el uso de helpers separados.
+uint16_t rd16le(int slot, size_t rel) { return static_cast<uint16_t>(rd8(slot, rel) | (rd8(slot, rel + 1) << 8)); }
+void wr16le(int slot, size_t rel, uint16_t v) {
+    wr8(slot, rel, static_cast<uint8_t>(v & 0xFF));
+    wr8(slot, rel + 1, static_cast<uint8_t>(v >> 8));
 }
 
 // RDRAM del guest (para nombres y tabla de escenas).
@@ -105,6 +176,58 @@ std::filesystem::path find_pak() {
     return {};
 }
 
+// Actualiza la CABECERA de la lista de partidas (AREA/LEVEL) del slot editado. La cabecera va
+// bswap32 (el magic "HYBRID HEAVEN" solo aparece al revertir palabras); su checksum es
+// `sum[0..0xFE]` en `0xFF`, sobre el buffer ya revertido. Registro del slot i = 0x10 + i*8:
+// +0 presente, +1 AREA N, +2 AREA P, +3 LEVEL, +4..5 TIME (se conserva). Ver
+// notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md.
+void update_save_header(int slot) {
+    if (g_bytes.size() < kDataOff + kHeaderSize) return;
+    uint8_t* h = g_bytes.data() + kDataOff;
+    auto bswap_header = [&]() {
+        for (size_t i = 0; i + 3 < kHeaderSize; i += 4) {
+            std::swap(h[i], h[i + 3]);
+            std::swap(h[i + 1], h[i + 2]);
+        }
+    };
+    bswap_header();
+    if (std::memcmp(h, "HYBRID HEAVEN", 13) != 0) { bswap_header(); return; }
+    const uint16_t prog = progress_of(slot);
+    const uint16_t lvl = static_cast<uint16_t>(global_level_of(slot));   // DERIVADO de las partes
+    const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
+    h[rec + 0] = 1;                                                    // presente
+    h[rec + 1] = static_cast<uint8_t>((prog / 10) & 0xFF);             // AREA N
+    h[rec + 2] = static_cast<uint8_t>((prog % 10) & 0xFF);             // AREA P
+    h[rec + 3] = static_cast<uint8_t>(lvl > 255 ? 255 : lvl);          // LEVEL
+    unsigned sum = 0;
+    for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
+    h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
+    bswap_header();
+    hh::log("[save-edit] cabecera: slot %d -> AREA %u-%u LEVEL %u\n", slot, (unsigned)(prog / 10),
+            (unsigned)(prog % 10), (unsigned)lvl);
+}
+
+// Marca el registro del slot como NO presente (para ELIMINAR). Misma cabecera bswap32 + checksum.
+void clear_save_header_record(int slot) {
+    if (g_bytes.size() < kDataOff + kHeaderSize) return;
+    uint8_t* h = g_bytes.data() + kDataOff;
+    auto bswap_header = [&]() {
+        for (size_t i = 0; i + 3 < kHeaderSize; i += 4) {
+            std::swap(h[i], h[i + 3]);
+            std::swap(h[i + 1], h[i + 2]);
+        }
+    };
+    bswap_header();
+    if (std::memcmp(h, "HYBRID HEAVEN", 13) != 0) { bswap_header(); return; }
+    const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
+    for (int i = 0; i < 8; ++i) h[rec + i] = 0;   // registro vacío (no presente, sin AREA/LEVEL)
+    unsigned sum = 0;
+    for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
+    h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
+    bswap_header();
+    hh::log("[save-edit] cabecera: slot %d -> NO presente\n", slot);
+}
+
 }  // namespace
 
 bool load(int slot, uint8_t* rdram, recomp_context* base_ctx) {
@@ -121,8 +244,29 @@ bool load(int slot, uint8_t* rdram, recomp_context* base_ctx) {
         return false;
     }
     g_loaded = true;
+    g_baseline = g_bytes;
     hh::log("[save-edit] .pak cargado (%zu B)\n", g_bytes.size());
     return true;
+}
+
+// RESTAURAR: devuelve el slot al estado que tenia el `.pak` al abrirlo (in-memory; GUARDAR lo escribe).
+void restore_slot(int slot) {
+    if (!g_loaded || g_baseline.size() != g_bytes.size() || slot < 0 || slot >= kSlots) return;
+    const size_t base = slot_off(slot);
+    std::copy(g_baseline.begin() + base, g_baseline.begin() + base + kSlotSize, g_bytes.begin() + base);
+    g_sim_undo.erase(slot);   // el estado cambió: la pila de deshacer de la sim ya no aplica
+    hh::log("[save-edit] RESTAURAR slot %d (estado al cargar)\n", slot);
+}
+
+// ELIMINAR: vacía el slot entero (todo 0) y marca su registro de cabecera como no presente. Que
+// quede efectivo en el fichero requiere GUARDAR (recalcula checksums y escribe el `.pak`).
+void delete_slot(int slot) {
+    if (!g_loaded || slot < 0 || slot >= kSlots) return;
+    const size_t base = slot_off(slot);
+    std::fill(g_bytes.begin() + base, g_bytes.begin() + base + kSlotSize, 0);
+    g_sim_undo.erase(slot);
+    clear_save_header_record(slot);
+    hh::log("[save-edit] ELIMINAR slot %d (vaciado)\n", slot);
 }
 
 bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
@@ -138,6 +282,8 @@ bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
         g_bytes[base + kChecksumOff + 2] = 0;
         g_bytes[base + kChecksumOff + 3] = 0;
     }
+    // Y la cabecera de la lista de partidas (AREA/LEVEL del slot) para que DATA LOAD lo refleje.
+    update_save_header(slot);
     const std::filesystem::path tmp = g_path.string() + ".tmp";
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
@@ -153,7 +299,10 @@ bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
                 ec.message().c_str());
         return false;
     }
-    hh::log("[save-edit] guardado slot %d (.pak)\n", slot);
+    // Resincroniza el pak en RAM del runtime con el fichero que acabamos de escribir; si no, el
+    // juego sigue viendo el `g_pak` cacheado (CONTINUAR cargaria el save sin los cambios).
+    hh_pak_reload_from_disk();
+    hh::log("[save-edit] guardado slot %d (.pak) + pak del runtime recargado\n", slot);
     return true;
 }
 
@@ -169,8 +318,8 @@ bool slot_used(int slot) {
 // Campos por slot.
 uint16_t progress_of(int slot) { return rd16(slot, kProgressOff); }
 void set_progress_of(int slot, uint16_t v) { wr16(slot, kProgressOff, v); }
-uint8_t level_of(int slot) { return rd8(slot, kLevelOff); }
-void set_level_of(int slot, uint8_t v) { wr8(slot, kLevelOff, v); }
+uint16_t level_of(int slot) { return rd16le(slot, kLevelOff); }
+void set_level_of(int slot, uint16_t v) { wr16le(slot, kLevelOff, v); }
 
 bool tech_learned_of(int slot, int id) {
     if (id < 0 || id >= kTechCount) return false;
@@ -184,12 +333,177 @@ void set_tech_learned_of(int slot, int id, bool on) {
 uint16_t body_stat_of(int slot, int part, int kind) {
     if (part < 0 || part >= kParts || kind < 0 || kind > 3) return 0;
     static const size_t kOff[4] = {kOffenseOff, kDefenseOff, kHitOff, kDamageOff};
-    return rd16(slot, kOff[kind] + static_cast<size_t>(part) * 2);
+    return rd16le(slot, swap16(kOff[kind] + static_cast<size_t>(part) * 2));
 }
 void set_body_stat_of(int slot, int part, int kind, uint16_t v) {
     if (part < 0 || part >= kParts || kind < 0 || kind > 3) return;
     static const size_t kOff[4] = {kOffenseOff, kDefenseOff, kHitOff, kDamageOff};
-    wr16(slot, kOff[kind] + static_cast<size_t>(part) * 2, v);
+    wr16le(slot, swap16(kOff[kind] + static_cast<size_t>(part) * 2), v);
+}
+
+// Nivel/progreso/stat por PARTE (índice 0..5 del juego). El progreso es el contador de EXP que, al
+// cruzar el umbral, sube el nivel y suma `incremento[nivel]` a la stat (func_80376D48).
+uint8_t part_level_of(int slot, int part) {
+    if (part < 0 || part >= kParts) return 0;
+    return rd8(slot, swap8(kPartLevelRuntime[part]));
+}
+void set_part_level_of(int slot, int part, uint8_t lvl) {
+    if (part < 0 || part >= kParts) return;
+    wr8(slot, swap8(kPartLevelRuntime[part]), lvl);
+}
+uint16_t part_progress_of(int slot, int part) {
+    if (part < 0 || part >= kParts) return 0;
+    return rd16le(slot, swap16(kPartProgRuntime[part]));
+}
+void set_part_progress_of(int slot, int part, uint16_t v) {
+    if (part < 0 || part >= kParts) return;
+    wr16le(slot, swap16(kPartProgRuntime[part]), v);
+}
+uint16_t part_stat_of(int slot, int part) {
+    if (part < 0 || part >= kParts) return 0;
+    return rd16le(slot, swap16(kPartStatRuntime[part]));
+}
+
+// Sube/baja `n` niveles a una parte aplicando la tabla REAL (suma/resta los incrementos al stat y a
+// HP máx si es la parte de HP), y recalcula el nivel global del save. `n` puede ser negativo.
+void add_part_levels(int slot, int part, int n) {
+    if (part < 0 || part >= kParts || n == 0) return;
+    const int lvl = part_level_of(slot, part);
+    int target = lvl + n;
+    if (target < 0) target = 0;
+    if (target > kPartLevelMax) target = kPartLevelMax;
+    if (target == lvl) return;
+    long delta = 0;
+    const uint16_t* inc = kIncByPart[part];
+    if (target > lvl) {
+        for (int l = lvl; l < target; ++l) delta += inc[l];
+    } else {
+        for (int l = target; l < lvl; ++l) delta -= inc[l];
+    }
+    int stat = static_cast<int>(part_stat_of(slot, part)) + static_cast<int>(delta);
+    if (stat < 0) stat = 0;
+    if (stat > 0x270F) stat = 0x270F;
+    wr16le(slot, swap16(kPartStatRuntime[part]), static_cast<uint16_t>(stat));
+    if (part == 0) {  // HP: la subida también aplica a HP máx (func_80376D48)
+        int mx = static_cast<int>(rd16le(slot, swap16(0x02))) + static_cast<int>(delta);
+        if (mx < 0) mx = 0;
+        if (mx > 0x270F) mx = 0x270F;
+        wr16le(slot, swap16(0x02), static_cast<uint16_t>(mx));
+    }
+    set_part_level_of(slot, part, static_cast<uint8_t>(target));
+    set_level_of(slot, static_cast<uint16_t>(global_level_of(slot)));
+}
+
+// Nivel global DERIVADO: round((suma de los 6 niveles + 6)/6) = (suma+9)/6 (func_8037865C).
+int global_level_of(int slot) {
+    int sum = 0;
+    for (int p = 0; p < kParts; ++p) sum += part_level_of(slot, p);
+    return (sum + 9) / 6;
+}
+
+uint16_t part_exp_of(int slot, int part) { return part_progress_of(slot, part); }
+
+// EXP acumulada (umbral) necesaria para pasar del nivel actual al siguiente.
+uint16_t part_exp_threshold(int slot, int part) {
+    if (part < 0 || part >= kParts) return 0;
+    const int lvl = part_level_of(slot, part);
+    if (lvl >= kPartLevelMax) return 0;
+    return kThrByPart[part][lvl];
+}
+
+// EXP que falta para el siguiente nivel (0 si ya está en el tope).
+uint16_t part_exp_to_next(int slot, int part) {
+    if (part < 0 || part >= kParts) return 0;
+    const int lvl = part_level_of(slot, part);
+    if (lvl >= kPartLevelMax) return 0;
+    const int thr = kThrByPart[part][lvl];
+    const int prog = part_progress_of(slot, part);
+    return (thr > prog) ? static_cast<uint16_t>(thr - prog) : 0;
+}
+
+// Aplica UN combate EXACTAMENTE como el juego (func_80376D48): por cada parte,
+//   EXP_i += round( reward_i * ref_i / stat_i )   (ref_i = min(transformada, tope), cruzada OFF<->DEF)
+// y luego el bucle de subida (stat += incremento[nivel] mientras EXP >= umbral[nivel]).
+static void sim_one_battle(int slot) {
+    int exp[kParts];
+    for (int p = 0; p < kParts; ++p) {
+        const int st = part_stat_of(slot, p);
+        int ref = 0;
+        switch (p) {
+            case 0: ref = st * 120 / 100; break;            // HP   <- HP * 1.20
+            case 1: ref = st; break;                        // STAM <- STAM
+            case 2: ref = part_stat_of(slot, 3) * 84 / 100; break;   // OFF <- DEF * 0.84
+            case 3: ref = part_stat_of(slot, 2) * 100 / 100; break;  // DEF <- OFF * 1.00
+            case 4: ref = st; break;                        // REF  <- REF
+            default: ref = st - 15; break;                  // SPD  <- SPD - 15
+        }
+        if (ref > kRefCap[p]) ref = kRefCap[p];
+        if (ref < 0) ref = 0;
+        const int div = st > 0 ? st : 1;
+        long e = static_cast<long>(kRewardByPart[p]) * ref;
+        e = (e + div / 2) / div;   // round-to-nearest
+        exp[p] = e > 0 ? static_cast<int>(e) : 0;
+    }
+    for (int p = 0; p < kParts; ++p) {
+        int prog = static_cast<int>(part_progress_of(slot, p)) + exp[p];
+        if (prog > 0xFFFF) prog = 0xFFFF;
+        int lvl = part_level_of(slot, p);
+        long delta = 0;
+        while (lvl < kPartLevelMax && prog >= kThrByPart[p][lvl]) {
+            delta += kIncByPart[p][lvl];
+            lvl++;
+        }
+        if (delta > 0) {
+            long st = static_cast<int>(part_stat_of(slot, p)) + delta;
+            if (st > 0x270F) st = 0x270F;
+            wr16le(slot, swap16(kPartStatRuntime[p]), static_cast<uint16_t>(st));
+            if (p == 0) {  // HP: también HP máx
+                long mx = static_cast<int>(rd16le(slot, swap16(0x02))) + delta;
+                if (mx > 0x270F) mx = 0x270F;
+                wr16le(slot, swap16(0x02), static_cast<uint16_t>(mx));
+            }
+        }
+        wr16le(slot, swap16(kPartProgRuntime[p]), static_cast<uint16_t>(prog));
+        set_part_level_of(slot, p, static_cast<uint8_t>(lvl));
+    }
+    set_level_of(slot, static_cast<uint16_t>(global_level_of(slot)));
+}
+
+// `n` > 0: simula n combates (guarda un snapshot PRE-combate por cada uno, para poder deshacer).
+// `n` < 0: DESHACE |n| combates restaurando los snapshots (no es simétrico: la fórmula depende de la
+//          stat, así que la resta se hace revirtiendo el estado, no recalculando).
+void simulate_combats(int slot, int n) {
+    if (n == 0) return;
+    if (n < 0) {
+        auto it = g_sim_undo.find(slot);
+        if (it == g_sim_undo.end()) return;
+        std::vector<SimSnap>& stack = it->second;
+        for (int k = 0; k < -n && !stack.empty(); ++k) {
+            const SimSnap s = stack.back();
+            stack.pop_back();
+            for (int p = 0; p < kParts; ++p) {
+                set_part_level_of(slot, p, s.level[p]);
+                set_part_progress_of(slot, p, s.prog[p]);
+                wr16le(slot, swap16(kPartStatRuntime[p]), s.stat[p]);
+            }
+            wr16le(slot, swap16(0x02), s.hpmax);
+        }
+        set_level_of(slot, static_cast<uint16_t>(global_level_of(slot)));
+        hh::log("[save-edit] SIM COMBATE resta %d (quedan %zu)\n", -n, stack.size());
+        return;
+    }
+    std::vector<SimSnap>& stack = g_sim_undo[slot];
+    for (int k = 0; k < n; ++k) {
+        SimSnap s;
+        for (int p = 0; p < kParts; ++p) {
+            s.level[p] = part_level_of(slot, p);
+            s.prog[p] = part_progress_of(slot, p);
+            s.stat[p] = part_stat_of(slot, p);
+        }
+        s.hpmax = rd16le(slot, swap16(0x02));
+        stack.push_back(s);
+        sim_one_battle(slot);
+    }
 }
 
 uint8_t item_count_of(int slot, int id) {
@@ -199,6 +513,25 @@ uint8_t item_count_of(int slot, int id) {
 void set_item_count_of(int slot, int id, uint8_t v) {
     if (id < 0 || id >= kItemCount) return;
     wr8(slot, kItemOff + static_cast<size_t>(id), v);
+}
+
+// Atributos globales del personaje (offsets RUNTIME; el save va word-swapped -> swap16).
+static const size_t kGlobalStatRuntime[kGlobalStatCount] = {
+    0x00,  // HP
+    0x02,  // HP MAX
+    0x08,  // STAMINA
+    0x40,  // OFFENSE
+    0x42,  // DEFENSE
+    0x44,  // SPEED
+    0x46,  // REFLEX
+};
+uint16_t global_stat_of(int slot, int which) {
+    if (which < 0 || which >= kGlobalStatCount) return 0;
+    return rd16le(slot, swap16(kGlobalStatRuntime[which]));
+}
+void set_global_stat_of(int slot, int which, uint16_t v) {
+    if (which < 0 || which >= kGlobalStatCount) return;
+    wr16le(slot, swap16(kGlobalStatRuntime[which]), v);
 }
 
 void valid_points_by_level(int out_points[30]) {
@@ -225,9 +558,36 @@ std::string tech_name(int id) {
 }
 std::string item_name(int id) {
     if (id < 0 || id >= kItemCount) return std::string();
-    std::string s = guest_str(guest_u32(kItemNamePtrs + static_cast<uint32_t>(id) * 4));
+    // Cada item tiene su registro en `0x8017E004 + id*8`; el primer campo es un puntero a la entrada
+    // de la tabla de nombres de ESE item (nombre en `*(u32)ptr`). Usamos ese puntero en vez de indexar
+    // la tabla `0x8017DF50` directamente: si el juego reordena los registros en runtime, el puntero del
+    // registro sigue siendo el correcto. Ver notes/2026-09-28-logica-juego-tecnicas-items-y-stats.md §2.
+    const uint32_t entry_rec = guest_u32(kItemNameRecs + static_cast<uint32_t>(id) * 8);
+    const uint32_t entry = (entry_rec >= 0x80000000u) ? entry_rec
+                                                      : kItemNamePtrs + static_cast<uint32_t>(id) * 4;
+    std::string s = guest_str(guest_u32(entry));
     if (s.empty()) s = "ITEM " + std::to_string(id + 1);
     return s;
+}
+
+// Nombre sin la variante final (" S"," M"," L"," X"," SP"), para agrupar familias.
+std::string item_base_name(const std::string& n) {
+    static const char* kSuf[] = { " SP", " S", " M", " L", " X" };
+    for (const char* suf : kSuf) {
+        const size_t sl = std::strlen(suf);
+        if (n.size() > sl && n.compare(n.size() - sl, sl, suf) == 0) return n.substr(0, n.size() - sl);
+    }
+    return n;
+}
+
+int item_slot_of(int display) {
+    if (display < 0 || display >= kItemCount) return display;
+    const std::string base = item_base_name(item_name(display));
+    int start = display;
+    int last = display;
+    while (start > 0 && item_base_name(item_name(start - 1)) == base) --start;
+    while (last + 1 < kItemCount && item_base_name(item_name(last + 1)) == base) ++last;
+    return start + (last - display);   // inversion dentro de la familia
 }
 
 }  // namespace hh::save

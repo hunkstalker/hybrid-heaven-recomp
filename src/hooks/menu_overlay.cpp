@@ -408,10 +408,13 @@ void title_update(uint8_t* rdram) {
     // Menus del PORT (EXTRAS, CONTROLES): layout propio -> contenido a la izquierda y columna de
     // valores calculada por la etiqueta mas larga (sus etiquetas/bindings no caben con la nativa).
     const bool is_controls = (screen.id == hh::menu::ScreenId::Controls);
+    const bool is_combat_sim = (screen.id == hh::menu::ScreenId::SaveEditCombatSim);
     const bool is_save_edit = (screen.id == hh::menu::ScreenId::SaveEdit ||
                                screen.id == hh::menu::ScreenId::SaveEditAbilities ||
                                screen.id == hh::menu::ScreenId::SaveEditBody ||
-                               screen.id == hh::menu::ScreenId::SaveEditItems);
+                               screen.id == hh::menu::ScreenId::SaveEditItems ||
+                               screen.id == hh::menu::ScreenId::SaveEditStats ||
+                               is_combat_sim);
     // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA) se CENTRAN; los nativos conservan su
     // margen original.
     const bool custom_layout =
@@ -457,7 +460,16 @@ void title_update(uint8_t* rdram) {
                     const bool fits = value_x + sum <= hh::overlay::kVirtualWidth - 4.0f;
                     max_val_px = std::max(max_val_px, fits ? sum : (single + 12.0f));
                 } else if (e.kind == hh::menu::Kind::Number) {
-                    max_val_px = std::max(max_val_px, 7.0f * step);   // "< 9999 >"
+                    // Grupo `< [prefijo]NNN >`: prefijo + 3 dígitos + chevrons. Si hay valor (suffix),
+                    // se dibuja en columna fija (selector_col+12) -> el ancho es 12 + |suffix|.
+                    const float group = static_cast<float>(cp_count(e.prefix) + 3) * step +
+                                        (4.0f + 2.0f);
+                    const float w =
+                        e.suffix.empty()
+                            ? group
+                            : std::max(group, 12.0f * step +
+                                                  static_cast<float>(cp_count(e.suffix)) * step);
+                    max_val_px = std::max(max_val_px, w);
                 } else if (e.kind == hh::menu::Kind::Toggle) {
                     max_val_px = std::max(max_val_px, 4.0f * step);   // "SÍ"/"NO"
                 }
@@ -478,7 +490,7 @@ void title_update(uint8_t* rdram) {
     // limita a 5: las filas se ocultan a partir de la 6ª y el cursor hace scrollear la ventana.
     constexpr float kListBottom = 188.0f;
     int max_visible = std::max(1, static_cast<int>((kListBottom - list_y0) / layout.dy));
-    if (custom_layout) max_visible = std::min(max_visible, 5);
+    if (custom_layout && !is_combat_sim) max_visible = std::min(max_visible, 5);
     int first = 0;
     if (n_entries > max_visible) {
         if (screen.cursor >= first + max_visible) first = screen.cursor - max_visible + 1;
@@ -516,6 +528,8 @@ void title_update(uint8_t* rdram) {
         // resto (p. ej. "MODO COMBATE"). El menú nativo solo usa inicios de columna 1, por eso se ve
         // uniforme; compensamos el primer carácter a esa columna de referencia (1) para igualarlo.
         float x_text = x;
+        // Compensación del primer glifo (fuente no uniforme): todas las etiquetas empiezan a la misma
+        // columna, sin importar la letra inicial.
         {
             size_t bi = 0;
             while (bi < text.size()) {
@@ -560,7 +574,7 @@ void title_update(uint8_t* rdram) {
                 for (size_t oi = 0; oi < e.options.size(); ++oi) {
                     if (oi != 0) {
                         ox += kSlashSep;
-                        append_slash(frame, ox, y + 1.0f, kGray);
+                        append_slash(frame, ox, y + 1.0f, kWhite);   // separador entre opciones en blanco
                         ox += kSlashW + kSlashSep;
                     }
                     const std::string opt = hh::menu::localized(e.options[oi]);
@@ -592,13 +606,23 @@ void title_update(uint8_t* rdram) {
             const float value_x = x + selector_col * step;
             constexpr float kChevW = 2.0f;
             constexpr float kChevGap = 4.0f;
-            const std::string opt = std::to_string(e.value);
+            // Número con ancho FIJO (3 cifras, con hueco para el signo): el grupo `< NIVEL n >` no se
+            // mueve aunque el nivel tenga 1/2 dígitos, así no descuadra el resto de la fila.
+            std::string num = std::to_string(e.value);
+            while (num.size() < 3) num.insert(num.begin(), ' ');
+            const std::string opt = e.prefix + num;
             const uint32_t vc = e.enabled ? kGreen : kGray;
             const uint32_t cc = e.enabled ? kWhite : kGray;
             append_chevron(frame, value_x - (kChevW + kChevGap), y + 1.0f, true, cc);
             frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, vc, opt });
-            append_chevron(frame, value_x + static_cast<float>(cp_count(opt)) * step + kChevGap,
-                           y + 1.0f, false, cc);
+            const float chev_r = value_x + static_cast<float>(cp_count(opt)) * step + kChevGap;
+            append_chevron(frame, chev_r, y + 1.0f, false, cc);
+            // Valor del stat en COLUMNA FIJA (independiente del chevron): los dígitos cuadran aunque
+            // el valor tenga 1/2/3/4 cifras. `suffix` ya viene rellenado a la izquierda en menu.cpp.
+            if (!e.suffix.empty()) {
+                frame.texts.push_back({ x + (selector_col + 12.0f) * step, y, g_scale_x, g_scale_y,
+                                        kWhite, e.suffix });
+            }
         }
         // Toggle (HABILIDADES): valor NO/SÍ a la derecha (verde si activo), alineado con la columna.
         if (e.kind == hh::menu::Kind::Toggle) {

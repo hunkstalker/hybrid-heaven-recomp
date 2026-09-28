@@ -6,6 +6,7 @@
 #include "hh/menu.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 
@@ -298,9 +299,10 @@ Entry make_toggle(const char* label, bool marked, int index, Action action) {
 
 // --- EDICIÓN DE PARTIDA: estado del editor y utilidades -------------------------------------------
 int g_edit_slot = 0;        // 0..3
-int g_edit_body_state = 0;  // 0 OFENSIVO, 1 DEFENSIVO, 2 HIT COUNT, 3 DAMAGE COUNT
+int g_edit_body_state = 0;  // ESTADO (nivel de parte): 0 OFENSIVO, 1 DEFENSIVO
 int g_edit_tech_bulk = 0;   // HABILIDADES: 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO NO
-int g_edit_save_target = 0; // GUARDAR PARTIDA: 0 = NUEVA PARTIDA (primer hueco libre), 1..4 = slot
+int g_edit_save_target = 0; // GUARDAR: 0 = NUEVA PARTIDA (primer hueco libre), 1..4 = slot
+int g_edit_delete_target = 1; // ELIMINAR: 1..4 = slot a borrar (valor del selector)
 // Copia de las técnicas tal como estaban al CARGAR (para "SIN CAMBIOS").
 uint8_t g_tech_baseline[hh::save::kTechCount];
 bool g_tech_baseline_valid = false;
@@ -490,6 +492,10 @@ void build_tree() {
     // entre arranques; LOGOS ORIGINALES elige el set de logos de la intro por defecto. Ambos
     // persisten en config.ini [extras].
     g_screens.push_back(make_screen(ScreenId::Extras, ScreenKind::Menu, {
+        // MODO HEAVEN: al poner SÍ aplica el "modo trampa" al slot del editor (niveles 99, todas las
+        // habilidades, items 99). PENDIENTE: invulnerabilidad (daño 0) y que los items no se gasten
+        // (parches runtime; ver RETOMAR.md).
+        make_selector_with_action("MODO HEAVEN", {"NO", "SÍ"}, Action::ToggleHeavenMode, 0),
         make_selector_with_action("MANTENER EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
                                   extras_persist_default()),
         make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
@@ -559,6 +565,8 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::SaveEditAbilities, ScreenKind::Toggle, {}));
     g_screens.push_back(make_screen(ScreenId::SaveEditBody, ScreenKind::Menu, {}));
     g_screens.push_back(make_screen(ScreenId::SaveEditItems, ScreenKind::Menu, {}));
+    g_screens.push_back(make_screen(ScreenId::SaveEditStats, ScreenKind::Menu, {}));
+    g_screens.push_back(make_screen(ScreenId::SaveEditCombatSim, ScreenKind::Menu, {}));
     rebuild_save_edit();
 }
 
@@ -586,22 +594,31 @@ void rebuild_save_edit() {
         // slot libre (al final de los usados). A ejecuta el guardado. Un hueco separa del resto.
         std::vector<std::string> slots;
         for (int i = 1; i <= hh::save::kSlots; ++i) slots.push_back("PARTIDA " + std::to_string(i));
-        e.push_back(make_selector_with_action("CARGAR PARTIDA", slots, Action::SaveEditSlot, slot));
+        e.push_back(make_selector_with_action("CARGAR", slots, Action::SaveEditSlot, slot));
         std::vector<std::string> save_slots{"NUEVA PARTIDA"};
         for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
-        e.push_back(make_selector_with_action("GUARDAR PARTIDA", save_slots, Action::SaveEditSave,
+        e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
                                               g_edit_save_target));
+        // ELIMINAR: mismo selector de partidas; A borra el slot elegido (se aplica al GUARDAR).
+        e.push_back(make_selector_with_action("ELIMINAR", slots, Action::SaveEditDelete,
+                                              g_edit_delete_target));
+        // RESTAURAR: backup del slot tal como estaba al abrir el `.pak` (estado vanilla). Descarta
+        // TODOS los cambios en memoria de este slot. No escribe: hay que GUARDAR después.
+        e.push_back(make_item("RESTAURAR", Action::SaveEditRestore));
         e.push_back(make_item("", Action::None));   // hueco visual (fila vacía)
         // PROGRESO: lista de N-P válidos; el guion lo dibuja el overlay (la fuente no tiene '-').
         e.push_back(make_selector_with_action("PROGRESO", progress_options(),
                                               Action::SaveEditProgress,
                                               progress_index_of(hh::save::progress_of(slot))));
-        std::vector<std::string> levels;
-        for (int i = 1; i <= 99; ++i) levels.push_back(std::to_string(i));   // NIVEL = nivel+1
-        e.push_back(make_selector_with_action("NIVEL", levels, Action::SaveEditLevel,
-                                              hh::save::level_of(slot) + 1));
-        e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
+        // NIVEL GLOBAL: DERIVADO de los niveles de las 6 partes (func_8037865C = media redondeada
+        // +1). NO se puede editar: subirlo a mano no cambia ninguna stat (ver docs/stats-partes.md).
+        // Solo lectura (cursor-able, sin acción).
+        const int lvl = hh::save::global_level_of(slot);
+        const std::string lvl_label = "NIVEL " + std::to_string(lvl >= 1 ? lvl : 1);
+        e.push_back(make_item(lvl_label.c_str(), Action::None, /*enabled=*/true));
+        e.push_back(make_submenu("ATRIBUTOS", Action::OpenSaveEditCombatSim));
         e.push_back(make_submenu("ESTADO", Action::OpenSaveEditBody));   // antes "BODY"
+        e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
         e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -609,9 +626,9 @@ void rebuild_save_edit() {
 
     if (Screen* s = find_screen(ScreenId::SaveEditAbilities)) {
         std::vector<Entry> e;
-        // Cabecera: selector lateral < SIN CAMBIOS / TODO SÍ / TODO NO > (accion masiva sobre la
-        // lista; SIN CAMBIOS restaura las habilidades a como estaban al entrar, sin guardar).
-        e.push_back(make_selector_with_action("HABILIDADES", {"SIN CAMBIOS", "TODO SÍ", "TODO NO"},
+        // Cabecera: selector lateral < RESET / TODO SÍ / TODO NO > (accion masiva sobre la lista;
+        // RESET restaura las habilidades a como estaban al entrar, sin guardar).
+        e.push_back(make_selector_with_action("HABILIDADES", {"RESET", "TODO SÍ", "TODO NO"},
                                               Action::SaveEditAbilitiesBulk, g_edit_tech_bulk));
         e.push_back(make_item("", Action::None));   // hueco visual
         for (int id = 0; id < hh::save::kTechCount; ++id) {
@@ -624,14 +641,27 @@ void rebuild_save_edit() {
 
     if (Screen* s = find_screen(ScreenId::SaveEditBody)) {
         std::vector<Entry> e;
+        // ESTADO del cuerpo: SOLO los niveles de parte (OFENSIVO/DEFENSIVO), con `< NIVEL n >`. Fuera
+        // HIT/DAMAGE (contadores de uso sin efecto util) y NIVEL/PROGRESO (son de ATRIBUTO, ya en
+        // ATRIBUTOS). Los niveles de parte no tienen tabla: se editan en crudo.
         e.push_back(make_selector_with_action(
-            "ESTADO", {"OFENSIVO", "DEFENSIVO", "HIT COUNT", "DAMAGE COUNT"},
-            Action::SaveEditBodyState, g_edit_body_state));
+            "TIPO", {"OFENSIVO", "DEFENSIVO"}, Action::SaveEditBodyState, g_edit_body_state));
+        // TODOS: fija las 6 partes del eje activo al nivel elegido (0..99). El valor mostrado es el
+        // nivel actual más alto; izq/der lo cambian y aplican a las 6.
+        int maxp = 0;
+        for (int i = 0; i < 6; ++i)
+            maxp = std::max(maxp, static_cast<int>(hh::save::body_stat_of(slot, kPartIndex[i],
+                                                                         g_edit_body_state)));
+        Entry all = make_number("TODOS", 0, 99, maxp, -1, Action::SaveEditBodyBulk);
+        all.prefix = "NIVEL ";
+        e.push_back(std::move(all));
         for (int i = 0; i < 6; ++i) {
             const int part = kPartIndex[i];
-            e.push_back(make_number(kPartLabels[i], 0, 9999,
-                                    hh::save::body_stat_of(slot, part, g_edit_body_state), part,
-                                    Action::SaveEditBodyValue));
+            Entry n = make_number(kPartLabels[i], 0, 99,
+                                  hh::save::body_stat_of(slot, part, g_edit_body_state), part,
+                                  Action::SaveEditBodyValue);
+            n.prefix = "NIVEL ";
+            e.push_back(std::move(n));
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -640,8 +670,57 @@ void rebuild_save_edit() {
     if (Screen* s = find_screen(ScreenId::SaveEditItems)) {
         std::vector<Entry> e;
         for (int id = 0; id < hh::save::kItemCount; ++id) {
-            e.push_back(make_number(hh::save::item_name(id).c_str(), 0, 99,
-                                    hh::save::item_count_of(slot, id), id, Action::SaveEditItem));
+            // El nombre se muestra en orden natural (S,M,L,X...); la cantidad vive en el slot de su
+            // familia invertido (item_slot_of): el juego guarda S↔X, M↔L.
+            const int slot_id = hh::save::item_slot_of(id);
+            std::string nm = hh::save::item_name(id);   // el juego los guarda "Mayús Inicial"; a MAYÚS
+            for (char& ch : nm) ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            e.push_back(make_number(nm.c_str(), 0, 99,
+                                    hh::save::item_count_of(slot, slot_id), slot_id,
+                                    Action::SaveEditItem));
+        }
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
+
+    if (Screen* s = find_screen(ScreenId::SaveEditCombatSim)) {
+        // ATRIBUTOS: cabecera NIVEL global (derivado, solo lectura); TODOS (nudge relativo ±1 a los 6
+        // atributos, se resetea a 0); y una fila por atributo con `< NIVEL n >` editable (izq/der
+        // aplican la tabla real, stat += incremento[nivel]) + el valor del stat (sin EXP).
+        std::vector<Entry> e;
+        const int gl = hh::save::global_level_of(slot);
+        e.push_back(make_item(("NIVEL " + std::to_string(gl >= 1 ? gl : 1)).c_str(), Action::None,
+                              /*enabled=*/true));
+        e.push_back(make_item("", Action::None));   // hueco visual
+        // TODOS: fija TODOS los atributos al nivel elegido (0..99). El valor mostrado es el nivel
+        // actual más alto; izq/der lo cambian y aplican a los 6.
+        {
+            int maxl = 0;
+            for (int p = 0; p < hh::save::kParts; ++p)
+                maxl = std::max(maxl, static_cast<int>(hh::save::part_level_of(slot, p)));
+            Entry all = make_number("TODOS", 0, hh::save::kPartLevelMax, maxl, -1,
+                                    Action::SaveEditAttrBulk);
+            all.prefix = "NIVEL ";
+            e.push_back(std::move(all));
+        }
+        auto padl = [](const std::string& s, size_t n) {
+            return std::string(n > s.size() ? n - s.size() : 0, ' ') + s;
+        };
+        struct Attr { const char* label; int part; int gstat; };
+        static const Attr kAttrs[] = {
+            {"HP", 0, hh::save::gHpMax},            {"RESISTENCIA", 1, hh::save::gStamina},
+            {"OFENSA", 2, hh::save::gOffense},      {"DEFENSA", 3, hh::save::gDefense},
+            {"REFLEJOS", 4, hh::save::gReflex},     {"VELOCIDAD", 5, hh::save::gSpeed},
+        };
+        for (const Attr& a : kAttrs) {
+            Entry n = make_number(a.label, 0, hh::save::kPartLevelMax,
+                                  hh::save::part_level_of(slot, a.part), a.part,
+                                  Action::SaveEditAttrLevel);
+            n.prefix = "NIVEL ";
+            // Valor del stat, rellenado a la izquierda: el overlay lo dibuja en columna FIJA -> los
+            // dígitos quedan alineados aunque el stat tenga 1/2/3/4 cifras.
+            n.suffix = padl(std::to_string(hh::save::global_stat_of(slot, a.gstat)), 5);
+            e.push_back(std::move(n));
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -726,6 +805,8 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenSaveEditAbilities: out = ScreenId::SaveEditAbilities; return true;
         case Action::OpenSaveEditBody:      out = ScreenId::SaveEditBody;      return true;
         case Action::OpenSaveEditItems:     out = ScreenId::SaveEditItems;     return true;
+        case Action::OpenSaveEditStats:     out = ScreenId::SaveEditStats;     return true;
+        case Action::OpenSaveEditCombatSim: out = ScreenId::SaveEditCombatSim; return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -1036,6 +1117,11 @@ int save_edit_save_target() { return g_edit_save_target; }
 void set_save_edit_save_target(int t) {
     g_edit_save_target = (t < 0 || t > hh::save::kSlots) ? 0 : t;
 }
+int save_edit_delete_target() { return g_edit_delete_target; }
+void set_save_edit_delete_target(int t) {
+    g_edit_delete_target = (t < 1 || t > hh::save::kSlots) ? 1 : t;
+}
+int save_edit_delete_slot() { return g_edit_delete_target - 1; }   // slot real 0..N-1
 // Slot real destino del guardado: target 0 (NUEVA PARTIDA) = primer hueco libre (el usado más bajo
 // que esté vacío, o el último slot si todos tienen datos); target 1..N = ese slot.
 int save_edit_save_target_slot() {
@@ -1049,8 +1135,9 @@ int save_edit_save_target_slot() {
 }
 int save_edit_body_state() { return g_edit_body_state; }
 void set_save_edit_body_state(int state) {
-    g_edit_body_state = (state < 0 || state > 3) ? 0 : state;
+    g_edit_body_state = (state < 0 || state > 1) ? 0 : state;
 }
+
 uint16_t save_edit_progress_value(int index) { return progress_value_at(index); }
 void capture_tech_baseline() {
     for (int id = 0; id < hh::save::kTechCount; ++id) {

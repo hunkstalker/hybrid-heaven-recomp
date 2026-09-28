@@ -42,6 +42,8 @@ enum class ScreenId {
     SaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES (toggles)
     SaveEditBody,      // EDICIÓN DE PARTIDA -> ESTADO (estado + partes del cuerpo)
     SaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS (cantidad)
+    SaveEditStats,     // EDICIÓN DE PARTIDA -> ATRIBUTOS (HP/OFFENSE/... globales)
+    SaveEditCombatSim, // EDICIÓN DE PARTIDA -> SIM. COMBATE (simula N combates)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -72,15 +74,26 @@ enum class Action {
     OpenSaveEditAbilities, // EDICIÓN DE PARTIDA -> HABILIDADES
     SaveEditAbilitiesBulk,   // HABILIDADES: selector SIN CAMBIOS / TODO SÍ / TODO NO
     OpenSaveEditBody,      // EDICIÓN DE PARTIDA -> BODY
-    SaveEditBodyState,     // BODY: selector ESTADO (ofensivo/defensivo/hit/damage)
-    SaveEditBodyValue,     // BODY: fila de valor por parte
+    SaveEditBodyState,     // BODY/ESTADO: selector OFENSIVO/DEFENSIVO (nivel de parte)
+    SaveEditBodyValue,     // BODY/ESTADO: fila nivel de parte (`< NIVEL n >`)
+    SaveEditBodyBulk,      // BODY/ESTADO: TODOS = nudge ±1 a las 6 partes del eje activo
+    SaveEditBodyLevel,     // (sin uso) BODY: fila de nivel de atributo
+    SaveEditBodyProgress,  // (sin uso) BODY: fila de progreso/EXP
     OpenSaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS
     SaveEditItem,          // ITEMS: fila de cantidad
+    OpenSaveEditStats,     // EDICIÓN DE PARTIDA -> ATRIBUTOS (HP/atributos globales)
+    SaveEditStat,          // ATRIBUTOS: fila de valor (cur.index = cual)
+    OpenSaveEditCombatSim, // EDICIÓN DE PARTIDA -> SIM. COMBATE
+    SaveEditAttrLevel,     // ATRIBUTOS: nivel por atributo (izq/der cambian y aplican incrementos)
+    SaveEditAttrBulk,      // ATRIBUTOS -> TODOS: sube/baja el mismo delta a los 6 atributos
     SaveEditSave,          // EDICIÓN DE PARTIDA: GUARDAR
+    SaveEditDelete,        // EDICIÓN DE PARTIDA: ELIMINAR slot (A sobre el selector)
+    SaveEditRestore,       // EDICIÓN DE PARTIDA: RESTAURAR el slot al estado al cargar el `.pak`
     ToggleVibration, // CONTROLES -> VIBRACIÓN: Rumble Pak / vibración del mando
     ResetControls,   // CONTROLES -> RESET: vuelve al mapeo por defecto (mando + teclado)
     ToggleExtrasPersist,  // EXTRAS -> MANTENER EXTRAS: SÍ = el menu EXTRAS persiste entre arranques
     ToggleOriginalLogos,  // EXTRAS -> LOGOS ORIGINALES: SÍ = clasicos (blanco), NO = modernos (negro)
+    ToggleHeavenMode,     // EXTRAS -> MODO HEAVEN: SÍ = aplica el "modo trampa" (niveles/hab/items)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
     ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
@@ -134,6 +147,8 @@ struct Entry {
     int index = -1;                    // Number/Toggle: índice (parte, item, técnica...)
     std::string binding;               // Binding: texto del binding actual (derecha)
     std::string remap_key;             // Binding: accion N64 a reasignar ("a","b","z",...)
+    std::string prefix;                // Number: prefijo del valor (p. ej. "NIVEL " -> "< NIVEL 5 >")
+    std::string suffix;                // Number: anotación a la derecha del valor (p. ej. "NIVEL 5")
 };
 
 struct Screen {
@@ -199,8 +214,12 @@ void set_save_edit_slot(int slot);
 int save_edit_save_target();          // 0 = NUEVA PARTIDA, 1..N = slot
 void set_save_edit_save_target(int t);
 int save_edit_save_target_slot();     // slot real destino (0..N-1); resuelve NUEVA PARTIDA
+int save_edit_delete_target();        // ELIMINAR: 1..N = slot a borrar (valor del selector)
+void set_save_edit_delete_target(int t);
+int save_edit_delete_slot();          // slot real a borrar (0..N-1)
 int save_edit_body_state();
 void set_save_edit_body_state(int state);
+
 uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
 void refresh_save_edit();
 // HABILIDADES: guarda la copia de la carga y restaura una técnica desde ella (selector SIN CAMBIOS).

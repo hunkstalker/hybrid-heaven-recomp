@@ -605,11 +605,16 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // a0 del handler del menú de título = objeto del menú; lo necesita el disparo nativo de
     // GAME START (ver más abajo). Se lee ANTES de las copias que usa la lectura de botones.
     const uint32_t obj = static_cast<uint32_t>(ctx->r4);
-    recomp_context td = *ctx;
-    func_801C1340_11BAE10(rdram, &td);   // direcciones
-    recomp_context ta = *ctx;
-    func_801C1334_11BAE04(rdram, &ta);   // A/B/START
-    const uint32_t btn = static_cast<uint32_t>(td.r2) | static_cast<uint32_t>(ta.r2);
+    // Estado de input MANTENIDO (lo escribe el poll del juego, func_800021B4, con s0=0x80089474):
+    //   +0x2 = muestra cruda (A/B/START + D-pad)   -> 0x80089476
+    //   +0xA = procesado (solo stick->D-pad, arranca de 0) -> 0x8008947E
+    // Las funciones 801C1340/801C1334 leen los registros de FLANCOS (+0xC/+0x4), NO el mantenido: con
+    // ellas `dir` se anulaba al frame siguiente y el repeat nunca disparaba. OR de ambos = mantenido
+    // completo (botones + direcciones de D-pad y de stick).
+    auto rh16 = [&](uint32_t a) -> uint16_t {
+        return *reinterpret_cast<uint16_t*>(&rdram[(a ^ 2u) & 0x7FFFFFu]);
+    };
+    const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
     // CONTROLES: mientras se captura un input para reasignar, se consume el frame y NO se navega
     // (el input va a la captura; ESC cancela). El handler nativo sigue corriendo (muteado).
@@ -618,11 +623,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // "atras", que si no volveria un menu).
     if (hh::pad_capture_active()) {
         hh::pad_capture_poll();
-        recomp_context td2 = *ctx;
-        func_801C1340_11BAE10(rdram, &td2);
-        recomp_context ta2 = *ctx;
-        func_801C1334_11BAE04(rdram, &ta2);
-        prev = static_cast<uint32_t>(td2.r2) | static_cast<uint32_t>(ta2.r2);
+        prev = rh16(0x80089476u) | rh16(0x8008947Eu);   // el nuevo binding entra en `prev`
         return;
     }
     const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
@@ -636,10 +637,14 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // cursor (p. ej. al reentrar en IDIOMA tras senalarlo sin confirmar). Solo si seguimos en la
     // misma pantalla se aplican las acciones.
     const hh::menu::ScreenId screen_before = hh::menu::current_screen().id;
-    // Direcciones (up/down 0x800/0x400, left/right 0x200/0x100). El FLANCO (pressed) mueve al
-    // instante; el REPEAT (mantener) emite pasos extra tras ~0.4 s, acelerando (0.10 s -> 0.03 s).
-    // Se resuelve en un unico sitio para no pisar el evento con otra direccion.
-    uint32_t dir = pressed & (0x800u | 0x400u | 0x200u | 0x100u);
+    // Direcciones (up/down 0x800/0x400, left/right 0x200/0x100) tomadas del estado MANTENIDO (`btn`),
+    // no del flanco: el FLANCO es la primera vez que `dir != held` (mueve al instante) y el REPEAT
+    // (mantener) emite pasos extra tras ~0.4 s, acelerando (0.10 s -> 0.03 s). Con `pressed` el repeat
+    // NO funcionaba: la direccion se anulaba al frame siguiente (no habia flanco).
+    uint32_t dir = btn & (0x800u | 0x400u | 0x200u | 0x100u);
+    // ¿cambió un valor con izquierda/derecha en ESTE frame (flanco o repeat)? -> hay que ejecutar la
+    // accion del selector (izq/der cambian valor; el repeat antes no la ejecutaba).
+    bool moved_h = false;
     {
         static uint32_t held = 0;
         static double dir_next = 0.0;
@@ -666,8 +671,8 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         if (!emitted) {
             if (dir & 0x800u) ev = hh::menu::move_up();
             else if (dir & 0x400u) ev = hh::menu::move_down();
-            else if (dir & 0x200u) ev = hh::menu::move_left();
-            else if (dir & 0x100u) ev = hh::menu::move_right();
+            else if (dir & 0x200u) { ev = hh::menu::move_left(); moved_h = true; }
+            else if (dir & 0x100u) { ev = hh::menu::move_right(); moved_h = true; }
             emitted = (ev != hh::menu::Event::None);
         }
     }
@@ -688,7 +693,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
     // cursor por encima.
     if (ev != hh::menu::Event::None && same_screen &&
-        (pressed & (0x100u | 0x200u | 0x8000u))) {
+        (moved_h || (pressed & 0x8000u))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -724,6 +729,26 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::input_set_vibration(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ResetControls) {
                 hh::pad_reset_defaults();
+            } else if (cur.action == hh::menu::Action::ToggleHeavenMode) {
+                // MODO HEAVEN (SÍ): aplica al slot del editor niveles 99 (ESTADO+ATRIBUTOS), todas las
+                // habilidades y items 99. PENDIENTE (ver RETOMAR.md): invulnerabilidad (daño 0) y que
+                // los items NO se gasten (parches runtime). Los cambios quedan en memoria: GUARDAR.
+                if (cur.value != 0) {
+                    hh::save::load();
+                    const int hs = hh::menu::save_edit_slot();
+                    for (int p = 0; p < hh::save::kParts; ++p) {
+                        const int d = hh::save::kPartLevelMax - hh::save::part_level_of(hs, p);
+                        if (d > 0) hh::save::add_part_levels(hs, p, d);
+                    }
+                    for (int id = 0; id < hh::save::kTechCount; ++id)
+                        hh::save::set_tech_learned_of(hs, id, true);
+                    for (int id = 0; id < hh::save::kItemCount; ++id)
+                        hh::save::set_item_count_of(hs, id, 99);
+                    hh::log("[heaven] MODO HEAVEN SI: slot %d -> niv 99 + habilidades SI + items 99 "
+                            "(PENDIENTE: invulnerable / items infinitos)\n", hs);
+                } else {
+                    hh::log("[heaven] MODO HEAVEN NO\n");
+                }
             } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
                 hh::extras_set_persist(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {
@@ -757,15 +782,53 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             } else if (cur.action == hh::menu::Action::SaveEditProgress) {
                 hh::save::set_progress_of(hh::menu::save_edit_slot(), hh::menu::save_edit_progress_value(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditLevel) {
-                hh::save::set_level_of(hh::menu::save_edit_slot(), static_cast<uint8_t>(cur.value - 1));
+                hh::save::set_level_of(hh::menu::save_edit_slot(), static_cast<uint16_t>(cur.value + 1));
             } else if (cur.action == hh::menu::Action::SaveEditBodyState) {
                 hh::menu::set_save_edit_body_state(cur.value);
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditAttrLevel) {
+                // NIVEL de un atributo: aplica la tabla real (stat += incremento[nivel]) y recalcula el
+                // nivel global. `cur.value` es el nivel objetivo; aplicamos la diferencia con el actual.
+                const int slot = hh::menu::save_edit_slot();
+                const int delta = cur.value - static_cast<int>(hh::save::part_level_of(slot, cur.index));
+                if (delta != 0) {
+                    hh::save::add_part_levels(slot, cur.index, delta);
+                    hh::menu::refresh_save_edit();
+                }
+            } else if (cur.action == hh::menu::Action::SaveEditAttrBulk) {
+                // TODOS: fija los 6 atributos al nivel `cur.value` (0..99).
+                const int slot = hh::menu::save_edit_slot();
+                for (int p = 0; p < hh::save::kParts; ++p) {
+                    const int d = cur.value - static_cast<int>(hh::save::part_level_of(slot, p));
+                    if (d != 0) hh::save::add_part_levels(slot, p, d);
+                }
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditBodyBulk) {
+                // TODOS de ESTADO: fija las 6 partes del eje activo (OFENSIVO/DEFENSIVO) a `cur.value`.
+                const int slot = hh::menu::save_edit_slot();
+                const int kind = hh::menu::save_edit_body_state();
+                for (int part = 0; part < hh::save::kParts; ++part)
+                    hh::save::set_body_stat_of(slot, part, kind, static_cast<uint16_t>(cur.value));
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditBodyValue) {
                 hh::save::set_body_stat_of(hh::menu::save_edit_slot(), cur.index, hh::menu::save_edit_body_state(),
                                         static_cast<uint16_t>(cur.value));
+            } else if (cur.action == hh::menu::Action::SaveEditBodyLevel) {
+                // NIVEL de la parte: aplica la tabla real (stat += incremento[nivel]) y recalcula el
+                // nivel global. `cur.value` es el nivel objetivo; aplicamos la diferencia.
+                const int slot = hh::menu::save_edit_slot();
+                const int delta = cur.value - static_cast<int>(hh::save::part_level_of(slot, cur.index));
+                if (delta != 0) {
+                    hh::save::add_part_levels(slot, cur.index, delta);
+                    hh::menu::refresh_save_edit();
+                }
+            } else if (cur.action == hh::menu::Action::SaveEditBodyProgress) {
+                hh::save::set_part_progress_of(hh::menu::save_edit_slot(), cur.index,
+                                               static_cast<uint16_t>(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditItem) {
                 hh::save::set_item_count_of(hh::menu::save_edit_slot(), cur.index, static_cast<uint8_t>(cur.value));
+            } else if (cur.action == hh::menu::Action::SaveEditStat) {
+                hh::save::set_global_stat_of(hh::menu::save_edit_slot(), cur.index, static_cast<uint16_t>(cur.value));
             }
         }
     }
@@ -796,6 +859,18 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                         sslot, (unsigned)hh::save::progress_of(sslot),
                         (unsigned)hh::save::level_of(sslot));
                 hh::save::save(sslot, rdram, ctx);
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditDelete) {
+                // ELIMINAR: A sobre el selector borra en memoria el slot elegido. Queda efectivo al
+                // GUARDAR (que recalcula checksums y reescribe el `.pak`).
+                hh::menu::set_save_edit_delete_target(cur.value);
+                const int dslot = hh::menu::save_edit_delete_slot();
+                hh::save::delete_slot(dslot);
+                hh::log("[save-edit] ELIMINAR slot %d\n", dslot);
+                hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::SaveEditRestore) {
+                // RESTAURAR: descarta los cambios en memoria del slot (vuelve al estado al cargar).
+                hh::save::restore_slot(hh::menu::save_edit_slot());
                 hh::menu::refresh_save_edit();
             }
         }
