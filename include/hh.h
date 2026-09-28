@@ -163,12 +163,18 @@ namespace hh {
         std::string original_logos = "si";  // si = clasicos de fondo blanco; no = modernos de fondo negro
         std::string persist = "no";         // si = la entrada EXTRAS se mantiene entre arranques
         std::string heaven = "no";          // si = MODO HEAVEN activo (modo global, persiste)
+        std::string advantage = "no";       // si = VENTAJA de combate (back attack) siempre, persiste
+        std::string infinite_power = "no";  // si = PODER de combate al max (no se gasta), persiste
+        std::string infinite_stamina = "no";// si = RESISTENCIA de combate al max (no se gasta), persiste
     };
     const ExtrasConfig& extras_config();
     ExtrasConfig& extras_config_mutable();
     void extras_set_original_logos(bool enabled);  // menu EXTRAS -> LOGOS ORIGINALES
     void extras_set_persist(bool enabled);         // menu EXTRAS -> MANTENER EXTRAS
     void extras_set_heaven(bool enabled);          // menu EXTRAS -> MODO HEAVEN (global, persiste)
+    void extras_set_advantage(bool enabled);       // menu EXTRAS -> VENTAJA (persiste)
+    void extras_set_infinite_power(bool enabled);    // menu EXTRAS -> PODER ∞ (persiste)
+    void extras_set_infinite_stamina(bool enabled);  // menu EXTRAS -> RESIS. ∞ (persiste)
     void extras_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El

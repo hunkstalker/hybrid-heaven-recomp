@@ -79,7 +79,7 @@ procesado), de ahí salen flanco (`btn & ~prev`) y mantenido (`dir`). `rh16(a) =
 - **ELIMINAR**: `hh::save::delete_slot(slot)` vacía el slot y marca su registro de cabecera como no
   presente (`clear_save_header_record`). Queda efectivo al **GUARDAR**.
 
-## 6. MODO HEAVEN (EXTRAS) — modo GLOBAL persistente, pendiente de validar
+## 6. MODO HEAVEN (EXTRAS) — modo GLOBAL persistente, VALIDADO en Windows
 
 > **Rediseño (misma sesión, a petición del mantenedor)**: MODO HEAVEN deja de estar atado al slot del
 > editor y pasa a ser un **modo global de juego**, **independiente de la partida** y **persistente**
@@ -132,16 +132,61 @@ En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Medido
   (`0x1847→0x1842→…`). El `live_ptr` `*(0x801BBCCC)=0x8024AD14` **no** lleva la vida (solo posición/
   estado). Reescribir HP a 9999 por-frame no bloquea el daño real (se retiró).
 - **Escritor** (`HH_WATCH` sobre `0x8017DC40`, `run_field_watch.bat`): **`func_80379F04`** aplica
-  `a0+0x2 (HP) = HP − *(s16*)0x80388A68`; el llamador pasa `a0` = objetivo (jugador `0x8017DC40`) y fija
-  el daño en el scratch `0x80388A68`.
+  `0x8017DC40+0x2 (HP del jugador) = HP − *(s16*)0x80388A68`. El `a0` de ENTRADA es el **atacante**; la
+  función **fija `a0=0x8017DC40`** para el store del HP, así que es (una única) función de "el enemigo
+  golpea al jugador". El daño se lee del scratch `0x80388A68`.
 - **Fix**: `hh_heaven_field_damage_hook` (hook de `func_80379F04`): con `heaven_enabled()` pone el
   scratch a 0 durante la llamada y lo restaura → daño de campo 0. **Una** función común a todos los
-  enemigos. **Validado por el mantenedor**: con HEAVEN ON el robot no baja la vida. Ojo: el `a0` de
-  ENTRADA es el atacante; la función fija `a0=0x8017DC40` para el store del HP (no comprobar `a0`).
+  enemigos. **Validado por el mantenedor**: con HEAVEN ON el robot no baja la vida. Ojo: **no** comprobar
+  el `a0` de entrada (es el atacante, no el objetivo), que fue el motivo de que la 1.ª versión no entrara.
 - Nota: `HH_DRWATCH` (hardware) no disparó; se usó `HH_WATCH` (software, con `ra`/`val`/`ret`).
 
+### 6.3 `VENTAJA` (EXTRAS) — toggle propio, independiente de MODO HEAVEN
+
+Petición del mantenedor: poder activar **solo** la ventaja de combate, sin el resto del MODO HEAVEN.
+Selector `VENTAJA NO/SÍ` en **EXTRAS**, **debajo de `EDICIÓN DE PARTIDA`**, traducido a los 6 idiomas
+(tabla `kMenuTr`): `VENTAJA / ADVANTAGE / AVANTATGE / AVANTAGE / VORTEIL / アドバンテージ`.
+
+- **Independiente de HEAVEN**: `hh_battle_frame_hook` aplica el forzado de `0x801BCC24` **solo** si
+  `advantage_enabled()`. Se le **retiró** a HEAVEN: con PODER ∞ (que HEAVEN incluye) la ventaja es
+  redundante, así no se pisan.
+- **Validado por el mantenedor (2026-09-28)**: contra un enemigo que **no** sale sorprendido, VENTAJA
+  ON → POWER al máximo; OFF → no. La validación previa estaba confundida porque cierto enemigo entraba
+  siempre por sorpresa.
+- **Persistencia**: `config.ini [extras].advantage = si/no` (como `heaven`); `extras_unlocked()` también
+  da EXTRAS visible si VENTAJA está en SÍ (aunque MANTENER EXTRAS sea NO), para poder apagarla.
+- **Código**: `Action::ToggleAdvantage` (`include/hh/menu.h`), `advantage_default()` + selector +
+  `advantage_enabled()/set_advantage_enabled()` (caché atómica, `src/subsystems/menu.cpp`),
+  `hh::extras_set_advantage` + `[extras].advantage` (`include/hh.h`, `src/platform/support.cpp`),
+  handler del menú + condición del forzado (`src/hooks/sections.cpp`).
+
+### 6.4 `PODER ∞` / `RESISTENCIA ∞` (EXTRAS) — gauges de combate que no se gastan `[VALIDADO]`
+
+Dos selectores NO/SÍ en **EXTRAS** debajo de `VENTAJA`, persistentes en `config.ini
+[extras].infinite_power` / `[extras].infinite_stamina`. **MODO HEAVEN los incluye** (condición superior
+a la ventaja); sus toggles siguen siendo independientes. Validados: los gauges no se gastan.
+
+**Medición (traza F12, palabra = [max][actual], alta = max, baja = actual)** sobre el bloque de batalla
+base `0x801BBBF0` (entidad jugador `0x801BC03C`):
+
+- `0x801BC03C` = **HP** (`0073 0073`); **no** se toca.
+- `0x801BC040`/`0x801BC042` = **PODER** max/actual (`0064 0000` → la actual sube al atacar). La
+  **ventaja** hace `[baja] = [alta]` (o sea `[0x801BC042]=[0x801BC040]`), confirmando que este gauge
+  es el que la ventaja llena.
+- `0x801BC044`/`0x801BC046` = **RESISTENCIA** max/actual (`0064 0064`; baja a `005A` al atacar y
+  regenera a `0064`).
+
+**Fix**: `hh_battle_frame_hook` pinnea `[actual] = [max]` cada frame (PODER `0x801BC042←0x801BC040`,
+RESISTENCIA `0x801BC046←0x801BC044`) si **HEAVEN o** el toggle propio, con guarda de rango (`1..9999`)
+→ no-op fuera de combate. Acceso `guest_h16()` = `MEM_H` (`(dir^2)`). O(1) (nada pesado por frame).
+
+**UI**: el `∞` (U+221E) se dibuja vectorial en `src/platform/overlay.cpp` (caso `cp == 0x221E`, patrón
+13x5 con sombra +1,+1), porque la fuente del juego no lo trae. Etiquetas a los 6 idiomas
+(`PODER ∞` / `RESISTENCIA ∞`); el mantenedor pidió **RESISTENCIA** completa (sin abreviar).
+
 > **[A VALIDAR en Windows]**: que los hooks cubran CONTINUE y partida nueva (si no, hook puntual); el
-> daño 0 en combate y el no-consumo de items; la ventaja (ya validada); y el daño de campo pendiente.
+> daño 0 en combate y el no-consumo de items; el daño de campo (ya validado); y el nuevo toggle VENTAJA
+> independiente.
 
 ## 7. Otros pendientes
 
@@ -152,8 +197,11 @@ En combate el daño es 0, pero **un robot en el campo sí baja la vida**. Medido
 - **Validar en Windows** todo el rediseño (ATRIBUTOS/ESTADO, repeat, ELIMINAR, ITEMS mayúsculas,
   HABILIDADES RESET, MODO HEAVEN).
 
-## Ficheros tocados esta sesión (sin commitear)
+## Ficheros tocados esta sesión
 
 `src/subsystems/menu.cpp`, `include/hh/menu.h`, `src/hooks/sections.cpp`, `src/hooks/menu_overlay.cpp`,
-`src/subsystems/save_edit.cpp`, `include/hh/save_edit.h`, `include/hh.h`, `src/platform/support.cpp`,
-`lib/N64ModernRuntime/librecomp/src/recomp.cpp` (traza `[STATEXP]`/`[ROW]`).
+`src/platform/overlay.cpp`, `src/subsystems/save_edit.cpp`, `include/hh/save_edit.h`, `include/hh.h`,
+`src/platform/support.cpp`, `run_battle_trace.bat`, `run_field_watch.bat`,
+`tools/analysis/diff_battle_watch.py`.
+(La traza puntual `[STATEXP]`/`[ROW]` en `lib/N64ModernRuntime/librecomp/src/recomp.cpp` se usó para
+medir y **no** forma parte del cambio.)

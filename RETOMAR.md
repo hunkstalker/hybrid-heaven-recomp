@@ -6,7 +6,7 @@
 > **Detalle de la sesión de hoy**: `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
 > Modelo de stats (histórico, ya resuelto): `docs/stats-partes.md`.
 
-## `MODO HEAVEN` — modo GLOBAL, implementado, PENDIENTE DE VALIDAR (Windows)
+## `MODO HEAVEN` — modo GLOBAL (validado en Windows)
 
 En **EXTRAS → `MODO HEAVEN NO/SÍ`**. Es un **modo global de juego, independiente de la partida** y del
 editor de saves; **persiste** en `config.ini [extras].heaven` (como MANTENER EXTRAS). Al poner **SÍ**:
@@ -27,9 +27,11 @@ editor de saves; **persiste** en `config.ini [extras].heaven` (como MANTENER EXT
    - **Items que no se gastan**: `func_8013D520` suma/resta la cantidad de un item (u8, tope 99); con
      delta negativo = consumo. `hh_heaven_item_hook` pone `a1=0` si el delta es negativo. (Los items
      **no** se fuerzan a 99: acumulan con normalidad y se guardan; simplemente no bajan al usarlos.)
-   - **Ventaja/back attack** `[VALIDADO funcionalmente]`: `hh_battle_frame_hook` fuerza `0x801BCC24`
-     (`0x801BBBF0+0x1034`) a 2 → los combates empiezan con el POWER al máximo. Ver sección propia.
-   - **Daño fuera de combate (robots)** `[PENDIENTE]`: ver sección propia; el daño de combate ya es 0.
+    - **PODER/RESISTENCIA infinitos** `[VALIDADO en Windows]`: `hh_battle_frame_hook` pinnea ambos
+      gauges a su max cada frame → no se gastan. Ver sección propia. **NO incluye VENTAJA**: con el
+      PODER infinito la ventaja es redundante, así que HEAVEN no la fuerza (solo su propio toggle).
+    - **Daño fuera de combate (robots)** `[VALIDADO en Windows]`: `hh_heaven_field_damage_hook`
+      anula el daño de campo. Ver sección propia.
 
 **Decisiones**:
 - **Independiente del editor**: `ToggleHeavenMode` ya **no toca el `.pak`/slot**; `EDICIÓN DE PARTIDA`
@@ -61,6 +63,50 @@ así que no vale con fotos periódicas: la instrumentación registra **cambios**
 > **OJO (bug corregido)**: la primera versión forzaba `+0x1037` por un `bswap` de más en la
 > decodificación de la traza; el byte correcto es `+0x1034`. El `bswap` ya está quitado del watcher
 > (`hh_battle_frame_hook`).
+
+## `VENTAJA` — toggle propio en EXTRAS (independiente de MODO HEAVEN) `[VALIDADO]`
+
+En **EXTRAS → `VENTAJA NO/SÍ`**. Da la **ventaja de combate ("back attack")**: `hh_battle_frame_hook`
+fuerza el byte `0x801BCC24` (`0x801BBBF0+0x1034`) a 2 → los combates empiezan con el POWER al máximo.
+
+- **Independiente de HEAVEN**: se aplica **solo** si `advantage_enabled()` (`hh_battle_frame_hook`).
+  Antes HEAVEN también la forzaba, pero se **retiró**: con PODER ∞ (que HEAVEN incluye) la ventaja es
+  redundante, así no se pisan.
+- **Validado por el mantenedor (2026-09-28)**: contra un enemigo que **no** sale sorprendido, con
+  VENTAJA ON el POWER empieza al máximo; con OFF, no. (La validación previa estaba confundida porque
+  cierto enemigo entraba siempre por sorpresa.)
+- **Persistencia**: `config.ini [extras].advantage = si/no`. `extras_unlocked()` también da EXTRAS
+  visible si VENTAJA está en SÍ (aunque MANTENER EXTRAS sea NO), para poder apagarla.
+- **Código**: `Action::ToggleAdvantage`, `advantage_enabled()/set_advantage_enabled()` (caché atómica),
+  `extras_set_advantage` + `[extras].advantage`, handler y forzado en `src/hooks/sections.cpp`.
+- **Traducción** (tabla `kMenuTr`): `VENTAJA / ADVANTAGE / AVANTATGE / AVANTAGE / VORTEIL / アドバンテージ`.
+
+## `PODER ∞` / `RESISTENCIA ∞` — gauges de combate que no se gastan `[VALIDADO en Windows]`
+
+En **EXTRAS**, debajo de `VENTAJA`: **`PODER ∞ NO/SÍ`** y **`RESISTENCIA ∞ NO/SÍ`** (el `∞` es un
+símbolo vectorial: la fuente no lo trae). Persistentes en `config.ini [extras].infinite_power` /
+`[extras].infinite_stamina`. **MODO HEAVEN los incluye** (condición superior a la ventaja); sus
+toggles siguen siendo independientes. Validados por el mantenedor: los gauges no se gastan.
+
+**Direcciones MEDIDAS con la traza F12** (bloque de batalla base `0x801BBBF0`, entidad del jugador
+`0x801BC03C`; palabra = [mitad alta][mitad baja], la alta es el **max** y la baja el **actual**):
+
+| dirección | qué es | arranque normal |
+|---|---|---|
+| `0x801BC03C` | HP (max/actual) | `0073 0073` → no se toca |
+| `0x801BC040` (alta) / `0x801BC042` (baja) | **PODER** max / actual | `0064 0000` (0 → sube al atacar) |
+| `0x801BC044` (alta) / `0x801BC046` (baja) | **RESISTENCIA** max / actual | `0064 0064` (llena; baja al atacar y regenera) |
+
+- **Fix**: `hh_battle_frame_hook` pone `[actual] = [max]` cada frame (misma operación que hacía la
+  ventaja con PODER: `[0x801BC042] = [0x801BC040]`). Se activa con **HEAVEN o** el toggle propio. O(1):
+  dos lecturas + dos escrituras con chequeo de rango (`1..9999`); **no-op fuera de combate** (max = 0).
+  Se accede con `guest_h16()` (mismo criterio que `MEM_H`: `(dir^2)`); ver `src/hooks/sections.cpp`.
+- **Código**: `Action::ToggleInfinitePower/ToggleInfiniteStamina`, `infinite_power_enabled()` /
+  `infinite_stamina_enabled()` (caché atómica), selectores en EXTRAS, `extras_set_infinite_*` +
+  `[extras].*` (`src/platform/support.cpp`), handler + pinning (`src/hooks/sections.cpp`), `∞` en
+  `src/platform/overlay.cpp` (`cp == 0x221E`, 13x5 px con sombra +1,+1).
+- **Traducción** (`kMenuTr`): `PODER ∞ / POWER ∞ / PODER ∞ / PUISSANCE ∞ / KRAFT ∞ / パワー∞` y
+  `RESISTENCIA ∞ / STAMINA ∞ / RESISTÈNCIA ∞ / ENDURANCE ∞ / AUSDAUER ∞ / スタミナ∞`.
 
 ## HECHO (validado en Windows): daño FUERA de combate (robots)
 

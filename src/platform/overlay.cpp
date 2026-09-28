@@ -528,6 +528,38 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                                     1.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                     }
                 }
+                else if (cp == 0x221E) {
+                    // Infinito (PODER ∞ / RESIS. ∞): la fuente no lo trae; 13x5 px vectorial (dos
+                    // bucles). Mismo trazo con sombra +1,+1 (negro) que las letras del atlas.
+                    static const int kInf[5][8] = {
+                        { 1, 2, 3, 4,  8, 9, 10, 11 },
+                        { 0, 1,  5, 7, 11, 12, -1, -1 },
+                        { 0,  6, 12, -1, -1, -1, -1, -1 },
+                        { 0, 1,  5, 7, 11, 12, -1, -1 },
+                        { 1, 2, 3, 4,  8, 9, 10, 11 },
+                    };
+                    const uint32_t shadow =
+                        hh::overlay::rgba(0, 0, 0, static_cast<uint8_t>((t.color >> 24) & 0xFFu));
+                    // 1.ª pasada: sombra (+1,+1). 2.ª: tinta encima. El ∞ va al final de la etiqueta,
+                    // asi que sus 13 px (celda de 8) no pisan nada a la derecha.
+                    const float oy = 1.0f;  // alinea el centro del ∞ (fila 2) con el de las letras
+                    for (int r = 0; r < 5; ++r) {
+                        for (int k = 0; k < 8 && kInf[r][k] >= 0; ++k) {
+                            append_quad(vertices, indices,
+                                        pen_x + (static_cast<float>(kInf[r][k]) + 1.0f) * t.scale_x,
+                                        t.y + (oy + static_cast<float>(r) + 1.0f) * t.scale_y,
+                                        t.scale_x, t.scale_y, shadow, 0.5f, 0.5f, 0.5f, 0.5f);
+                        }
+                    }
+                    for (int r = 0; r < 5; ++r) {
+                        for (int k = 0; k < 8 && kInf[r][k] >= 0; ++k) {
+                            append_quad(vertices, indices,
+                                        pen_x + static_cast<float>(kInf[r][k]) * t.scale_x,
+                                        t.y + (oy + static_cast<float>(r)) * t.scale_y,
+                                        t.scale_x, t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                        }
+                    }
+                }
                 pen_x += cw * t.scale_x;
             }
         }

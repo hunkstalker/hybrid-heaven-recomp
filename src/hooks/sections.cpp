@@ -108,8 +108,8 @@ extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// MODO HEAVEN (EXTRAS): modo GLOBAL (no depende de la partida ni del editor). Cuatro hooks, todos
-// gateados por `hh::menu::heaven_enabled()` (config.ini [extras].heaven):
+// MODO HEAVEN (EXTRAS): modo GLOBAL (no depende de la partida ni del editor). Efectos gateados por
+// `hh::menu::heaven_enabled()` (config.ini [extras].heaven):
 //   - AL CARGAR PARTIDA: tras deserializar el personaje (`func_80144E68`) o montar las tablas de
 //     runtime (`func_80152240`, CONTINUE / partida nueva) se aplica `hh::save::apply_heaven_runtime`:
 //     ATRIBUTOS y ESTADO al máximo + las 86 habilidades. El save del juego serializa ese mismo
@@ -119,6 +119,9 @@ extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
 //     `func_80232E94`. Si el ente dañado (`a0`) es la PARTIDA del jugador (`0x801BC03C`), daño 0.
 //   - Items que no se gastan: `func_8013D520` suma/resta la cantidad de un item (u8, tope 99) segun
 //     `a1` (delta con signo). Con MODO HEAVEN se anula la RESTA (`a1=0`), asi el contador no baja.
+//   - Daño fuera de combate: `func_80379F04` resta el daño de campo al jugador; con HEAVEN se anula.
+//   - PODER/RESISTENCIA INFINITOS (`hh_battle_frame_hook`): pinnea ambos gauges a su max cada frame.
+//     **NO** incluye la VENTAJA (con el PODER infinito es redundante): la ventaja es solo su toggle.
 //
 // [DIRECCIONES MEDIDAS del C recompilado (0x8017DC40 es el struct del personaje: lo deserializa
 // `func_80144E68`, lo serializa `func_80144C40` y lo leen `func_80378D84/E3C`); efectos pendientes de
@@ -582,11 +585,37 @@ void battle_watch_capture() {
     }
 }
 
+// Media palabra guest (mismo criterio que MEM_H: `(reg+off)^2`). `addr` es la direccion GUEST ya
+// sumada, p. ej. 0x801BC042 = base 0x801BBBF0 + 0x452. Sirve para leer/escribir gauges de combate.
+static inline uint16_t& guest_h16(uint8_t* rdram, uint32_t addr) {
+    return *reinterpret_cast<uint16_t*>(&rdram[(addr ^ 2u) & 0x7FFFFFu]);
+}
+
 // Reloj por frame (poll de input func_800021B4): registra la primera variacion de cada palabra vigilada.
 extern "C" void func_800021B4_2DB4(uint8_t* rdram, recomp_context* ctx);
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
     func_800021B4_2DB4(rdram, ctx);
-    if (hh::menu::heaven_enabled()) {
+    // PODER / RESISTENCIA INFINITOS [MEDIDO con la traza F12]: gauges de la entidad del jugador en
+    // el bloque de batalla (base 0x801BBBF0, entidad 0x801BC03C):
+    //   0x801BC040: alta = PODER max   / baja = PODER actual (arranca a 0, sube al atacar)
+    //   0x801BC044: alta = RESIS. max  / baja = RESIS. actual (llena, baja al atacar y regenera)
+    // Poner `actual = max` cada frame = no se gasta (misma operacion que hace la ventaja con PODER:
+    // `[0x801BC042] = [0x801BC040]`). O(1): dos lecturas + dos escrituras con chequeo de rango; no-op
+    // fuera de combate (max = 0). MODO HEAVEN los incluye (condicion superior a la ventaja).
+    // HH_NO_INF_GAUGES=1: desactiva SOLO este pinning (para instrumentar el combo sin el PODER
+    // congelado, ya que la barra de combo parece ir ligada al PODER). Solo para diagnostico.
+    const bool inf_gauges = !env_set("HH_NO_INF_GAUGES");
+    if (inf_gauges && (hh::menu::heaven_enabled() || hh::menu::infinite_power_enabled())) {
+        const uint16_t pmax = guest_h16(rdram, 0x801BC040u);
+        if (pmax >= 1u && pmax <= 9999u) guest_h16(rdram, 0x801BC042u) = pmax;
+    }
+    if (inf_gauges && (hh::menu::heaven_enabled() || hh::menu::infinite_stamina_enabled())) {
+        const uint16_t smax = guest_h16(rdram, 0x801BC044u);
+        if (smax >= 1u && smax <= 9999u) guest_h16(rdram, 0x801BC046u) = smax;
+    }
+    // VENTAJA ("back attack"): ya NO la incluye MODO HEAVEN (con HEAVEN el PODER es infinito, que es
+    // superior; forzar la ventaja ademas seria redundante). Solo se fuerza con VENTAJA = SI.
+    if (hh::menu::advantage_enabled()) {
         // SORPRESA/ventaja ("back attack") siempre [VALIDADO funcionalmente]: el byte de estado
         // 0x801BBBF0+0x1034 (0x801BCC24) pasa a 2 en un combate con ventaja; al forzarlo la pelea
         // empieza con el POWER al máximo desde el inicio. Si esta en 0/1 lo forzamos.
@@ -983,6 +1012,21 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 // `hh::menu::heaven_enabled()`. No toca el `.pak` (eso es EDICIÓN DE PARTIDA).
                 hh::menu::set_heaven_enabled(cur.value != 0);
                 hh::log("[heaven] MODO HEAVEN %s\n", cur.value != 0 ? "SI (global)" : "NO");
+            } else if (cur.action == hh::menu::Action::ToggleAdvantage) {
+                // VENTAJA: ventaja de combate ("back attack") siempre, INDEPENDIENTE de MODO HEAVEN.
+                // Persiste el flag; el forzado por-frame lo hace `hh_battle_frame_hook` si HEAVEN o
+                // VENTAJA estan en SI. No toca el `.pak`.
+                hh::menu::set_advantage_enabled(cur.value != 0);
+                hh::log("[heaven] VENTAJA %s\n", cur.value != 0 ? "SI" : "NO");
+            } else if (cur.action == hh::menu::Action::ToggleInfinitePower) {
+                // PODER ∞: `hh_battle_frame_hook` pinnea el PODER (0x801BC042) a su max (0x801BC040)
+                // cada frame -> no se gasta. Independiente de MODO HEAVEN/VENTAJA.
+                hh::menu::set_infinite_power_enabled(cur.value != 0);
+                hh::log("[heaven] PODER infinito %s\n", cur.value != 0 ? "SI" : "NO");
+            } else if (cur.action == hh::menu::Action::ToggleInfiniteStamina) {
+                // RESIS. ∞: pinnea la RESISTENCIA (0x801BC046) a su max (0x801BC044) cada frame.
+                hh::menu::set_infinite_stamina_enabled(cur.value != 0);
+                hh::log("[heaven] RESISTENCIA infinita %s\n", cur.value != 0 ? "SI" : "NO");
             } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
                 hh::extras_set_persist(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {

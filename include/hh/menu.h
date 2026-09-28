@@ -94,6 +94,9 @@ enum class Action {
     ToggleExtrasPersist,  // EXTRAS -> MANTENER EXTRAS: SÍ = el menu EXTRAS persiste entre arranques
     ToggleOriginalLogos,  // EXTRAS -> LOGOS ORIGINALES: SÍ = clasicos (blanco), NO = modernos (negro)
     ToggleHeavenMode,     // EXTRAS -> MODO HEAVEN: SÍ = aplica el "modo trampa" (niveles/hab/items)
+    ToggleAdvantage,      // EXTRAS -> VENTAJA: SÍ = ventaja de combate (back attack) siempre
+    ToggleInfinitePower,    // EXTRAS -> PODER ∞: SÍ = el PODER de combate no se gasta
+    ToggleInfiniteStamina,  // EXTRAS -> RESIS. ∞: SÍ = la RESISTENCIA de combate no se gasta
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
     ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
@@ -234,6 +237,20 @@ void set_save_edit_tech_bulk(int mode);   // 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO N
 // y el consumo de items (hooks de `src/hooks/sections.cpp`). Ver RETOMAR.md.
 bool heaven_enabled();
 void set_heaven_enabled(bool on);   // persiste el flag (equivale a extras_set_heaven)
+
+// EXTRAS -> VENTAJA: ventaja de combate ("back attack") siempre, INDEPENDIENTE de MODO HEAVEN (puede
+// ir sola). Persiste en config.ini [extras].advantage. La ventaja se aplica si HEAVEN **o** VENTAJA
+// estan en SI (`src/hooks/sections.cpp`), asi que activar HEAVEN la incluye y no hay conflicto.
+bool advantage_enabled();
+void set_advantage_enabled(bool on);   // persiste el flag (equivale a extras_set_advantage)
+
+// EXTRAS -> PODER ∞ / RESIS. ∞: gauges de combate del jugador que no se gastan (los pinnea
+// `hh_battle_frame_hook` a max cada frame). Persistentes en config.ini [extras].infinite_power y
+// [extras].infinite_stamina. Direcciones/medio del gauge MEDIDOS con la traza F12 (ver RETOMAR.md).
+bool infinite_power_enabled();
+void set_infinite_power_enabled(bool on);
+bool infinite_stamina_enabled();
+void set_infinite_stamina_enabled(bool on);
 
 // EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. Se muestra si se
 // desbloqueo en esta sesion con el codigo o si el ajuste MANTENER EXTRAS esta en SI ([extras] en

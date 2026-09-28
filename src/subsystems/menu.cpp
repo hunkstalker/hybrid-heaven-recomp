@@ -66,6 +66,10 @@ const MenuTr kMenuTr[] = {
      "エクストラホゾン"},
     {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX", "ORIGINAL-LOGOS",
      "オリジナルロゴ"},
+    {"VENTAJA", "ADVANTAGE", "AVANTATGE", "AVANTAGE", "VORTEIL", "アドバンテージ"},
+    // ∞ = simbolo vectorial (la fuente no lo trae); se dibuja en overlay.cpp.
+    {"PODER ∞", "POWER ∞", "PODER ∞", "PUISSANCE ∞", "KRAFT ∞", "パワー∞"},
+    {"RESISTENCIA ∞", "STAMINA ∞", "RESISTÈNCIA ∞", "ENDURANCE ∞", "AUSDAUER ∞", "スタミナ∞"},
     {"CONTROLES", "CONTROLS", "CONTROLS", "CONTRÔLES", "STEUERUNG", "コントロール"},
     {"ARRIBA/ADELANTE", "UP/FORWARD", "AMUNT/ENDAVANT", "HAUT/AVANT", "HOCH/VORWÄRTS",
      "ウエ/ススム"},
@@ -233,6 +237,15 @@ int extras_persist_default() { return hh::extras_config().persist == "si" ? 1 : 
 // EXTRAS -> MODO HEAVEN: SÍ (1) = modo global activo (ATRIBUTOS/ESTADO máx + invulnerabilidad +
 // items no consumibles). Persiste en config.ini [extras].heaven.
 int heaven_default() { return hh::extras_config().heaven == "si" ? 1 : 0; }
+
+// EXTRAS -> VENTAJA: SÍ (1) = ventaja de combate ("back attack") siempre, sin activar MODO HEAVEN.
+// Persiste en config.ini [extras].advantage.
+int advantage_default() { return hh::extras_config().advantage == "si" ? 1 : 0; }
+
+// EXTRAS -> PODER ∞ / RESIS. ∞: SÍ (1) = el gauge correspondiente no se gasta (al max cada frame).
+// Persisten en config.ini [extras].infinite_power / [extras].infinite_stamina.
+int infinite_power_default() { return hh::extras_config().infinite_power == "si" ? 1 : 0; }
+int infinite_stamina_default() { return hh::extras_config().infinite_stamina == "si" ? 1 : 0; }
 // RATIO: índice en {"AUTO","ORIGINAL","4:3","16:9","16:10","21:9"} según `[video].aspect`.
 int ratio_default() {
     const std::string a = hh::video_config().aspect;
@@ -508,6 +521,16 @@ void build_tree() {
         make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
                                   original_logos_default()),
         make_submenu("EDICIÓN DE PARTIDA", Action::OpenSaveEdit),
+        // VENTAJA: independiente de MODO HEAVEN (permite la ventaja de combate sola). Persiste en
+        // config.ini [extras].advantage. La ventaja se aplica si HEAVEN **o** VENTAJA estan en SÍ.
+        make_selector_with_action("VENTAJA", {"NO", "SÍ"}, Action::ToggleAdvantage,
+                                  advantage_default()),
+        // PODER ∞ / RESIS. ∞: el gauge de combate no se gasta (se pinnea a max por frame). El ∞ se
+        // dibuja como simbolo vectorial (la fuente no lo trae). Persisten en config.ini [extras].
+        make_selector_with_action("PODER ∞", {"NO", "SÍ"}, Action::ToggleInfinitePower,
+                                  infinite_power_default()),
+        make_selector_with_action("RESISTENCIA ∞", {"NO", "SÍ"}, Action::ToggleInfiniteStamina,
+                                  infinite_stamina_default()),
     }));
 
     // CONTROLES: Stick C + tabla del mapeado (accion N64 -> binding actual de mando/teclado). La
@@ -1079,11 +1102,13 @@ bool extras_code_unlocked() {
 }
 
 // Visible si se tecleo el codigo en esta sesion o si MANTENER EXTRAS esta en SI (persistencia
-// explicita). Tambien si MODO HEAVEN esta activo: aunque MANTENER EXTRAS sea NO, el usuario debe
-// poder volver a entrar a EXTRAS para apagarlo.
+// explicita). Tambien si MODO HEAVEN o VENTAJA estan activos: aunque MANTENER EXTRAS sea NO, el
+// usuario debe poder volver a entrar a EXTRAS para apagarlos.
 bool extras_unlocked() {
     return g_extras_unlocked_state || hh::extras_config().persist == "si" ||
-           hh::extras_config().heaven == "si";
+           hh::extras_config().heaven == "si" || hh::extras_config().advantage == "si" ||
+           hh::extras_config().infinite_power == "si" ||
+           hh::extras_config().infinite_stamina == "si";
 }
 
 // Copia cacheada en atomico del flag MODO HEAVEN: los hooks de runtime lo consultan CADA frame (p.
@@ -1103,6 +1128,56 @@ void set_heaven_enabled(bool on) {
     g_heaven_cache.store(on);
     g_heaven_cache_init.store(true);
     hh::extras_set_heaven(on);
+}
+
+// Igual que MODO HEAVEN: cache atomico del flag VENTAJA (independiente). La ventaja de combate se
+// aplica si HEAVEN **o** VENTAJA estan en SI, asi que no hay conflicto entre ambos.
+std::atomic<bool> g_advantage_cache{ false };
+std::atomic<bool> g_advantage_cache_init{ false };
+
+bool advantage_enabled() {
+    if (!g_advantage_cache_init.exchange(true)) {
+        g_advantage_cache.store(hh::extras_config().advantage == "si");
+    }
+    return g_advantage_cache.load();
+}
+
+void set_advantage_enabled(bool on) {
+    g_advantage_cache.store(on);
+    g_advantage_cache_init.store(true);
+    hh::extras_set_advantage(on);
+}
+
+// Igual que VENTAJA: caches atomicos de PODER ∞ / RESIS. ∞ (independientes entre si).
+std::atomic<bool> g_inf_power_cache{ false };
+std::atomic<bool> g_inf_power_cache_init{ false };
+std::atomic<bool> g_inf_stamina_cache{ false };
+std::atomic<bool> g_inf_stamina_cache_init{ false };
+
+bool infinite_power_enabled() {
+    if (!g_inf_power_cache_init.exchange(true)) {
+        g_inf_power_cache.store(hh::extras_config().infinite_power == "si");
+    }
+    return g_inf_power_cache.load();
+}
+
+void set_infinite_power_enabled(bool on) {
+    g_inf_power_cache.store(on);
+    g_inf_power_cache_init.store(true);
+    hh::extras_set_infinite_power(on);
+}
+
+bool infinite_stamina_enabled() {
+    if (!g_inf_stamina_cache_init.exchange(true)) {
+        g_inf_stamina_cache.store(hh::extras_config().infinite_stamina == "si");
+    }
+    return g_inf_stamina_cache.load();
+}
+
+void set_infinite_stamina_enabled(bool on) {
+    g_inf_stamina_cache.store(on);
+    g_inf_stamina_cache_init.store(true);
+    hh::extras_set_infinite_stamina(on);
 }
 
 void unlock_extras() {

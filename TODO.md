@@ -5,13 +5,22 @@
 
 ## Ahora (priorizado)
 
-- [•] **`MODO HEAVEN` (EXTRAS) — modo GLOBAL persistente, sin validar en Windows (2026-09-28)**: NO
+- [x] **`MODO HEAVEN` (EXTRAS) — modo GLOBAL persistente, VALIDADO en Windows (2026-09-28)**: NO
   depende de la partida ni del editor (persiste en `config.ini [extras].heaven`). Al cargar/empezar
   cualquier partida aplica al personaje vivo `0x8017DC40` **ATRIBUTOS/ESTADO 99 + 86 habilidades**
   (`apply_heaven_runtime` vía hooks `func_80144E68`/`func_80152240`), y en runtime **daño 0 al PJ**
   (`func_80232D08`) e **items que no se gastan** (`func_8013D520`; no se fuerzan a 99). El save normal
-  persiste el estado; apagar quita invuln/consumo pero conserva lo guardado. **PENDIENTE: validar** en
-  Windows. Detalle: `RETOMAR.md`, `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
+  persiste el estado; apagar quita invuln/consumo pero conserva lo guardado. Detalle: `RETOMAR.md`,
+  `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
+- [x] **`VENTAJA` (EXTRAS) — VALIDADO en Windows (2026-09-28)**: selector NO/SÍ, traducido a los 6
+  idiomas y persistente en `config.ini [extras].advantage`. Fuerza `0x801BCC24 = 2` (POWER al máximo al
+  empezar). **Independiente de MODO HEAVEN** (se le retiró: con PODER ∞ es redundante). Validado contra
+  un enemigo que NO sale sorprendido: ON = POWER al máximo, OFF = no. Detalle: `RETOMAR.md`.
+- [x] **`PODER ∞` / `RESISTENCIA ∞` (EXTRAS) — VALIDADO en Windows (2026-09-28)**: dos selectores NO/SÍ
+  (con símbolo vectorial `∞`) debajo de `VENTAJA`, persistentes en `config.ini [extras].infinite_power`
+  / `[extras].infinite_stamina`. `hh_battle_frame_hook` pinnea `actual = max` cada frame (PODER
+  `0x801BC042←0x801BC040`, RESISTENCIA `0x801BC046←0x801BC044`) → no se gastan. **MODO HEAVEN los
+  incluye.** O(1), no-op fuera de combate. Detalle: `RETOMAR.md`.
 - [x] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (`menu_overlay.cpp`): `Graphics`
   añadido a `custom_layout`; `scroll_cap5` solo para EXTRAS/CONTROLES/editor (GRÁFICOS conserva 6 filas).
 - [x] **SORPRESA/ventaja de combate ("back attack") — VALIDADO funcionalmente (2026-09-28)**: flag

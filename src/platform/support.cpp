@@ -510,6 +510,9 @@ hh::ExtrasConfig& hh::extras_config_mutable() {
             if (k == "original_logos" || k == "logos_originales") c.original_logos = v;
             else if (k == "persist" || k == "mantener") c.persist = v;
             else if (k == "heaven" || k == "modo_heaven") c.heaven = v;
+            else if (k == "advantage" || k == "ventaja") c.advantage = v;
+            else if (k == "infinite_power" || k == "poder_infinito") c.infinite_power = v;
+            else if (k == "infinite_stamina" || k == "resis_infinita") c.infinite_stamina = v;
         }
         fclose(f);
         return c;
@@ -539,10 +542,35 @@ void hh::extras_set_heaven(bool enabled) {
     fprintf(stderr, "[EXTRAS] MODO HEAVEN -> %s\n", hh::extras_config().heaven.c_str());
 }
 
+// Menu EXTRAS -> VENTAJA: ventaja de combate ("back attack") siempre; persiste entre arranques.
+void hh::extras_set_advantage(bool enabled) {
+    hh::extras_config_mutable().advantage = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] VENTAJA -> %s\n", hh::extras_config().advantage.c_str());
+}
+
+// Menu EXTRAS -> PODER ∞: el PODER de combate no se gasta; persiste entre arranques.
+void hh::extras_set_infinite_power(bool enabled) {
+    hh::extras_config_mutable().infinite_power = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] PODER infinito -> %s\n", hh::extras_config().infinite_power.c_str());
+}
+
+// Menu EXTRAS -> RESIS. ∞: la RESISTENCIA de combate no se gasta; persiste entre arranques.
+void hh::extras_set_infinite_stamina(bool enabled) {
+    hh::extras_config_mutable().infinite_stamina = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] RESISTENCIA infinita -> %s\n",
+            hh::extras_config().infinite_stamina.c_str());
+}
+
 void hh::extras_config_save() {
     hh::config_ini_set("extras", {{"original_logos", hh::extras_config().original_logos},
                                   {"persist", hh::extras_config().persist},
-                                  {"heaven", hh::extras_config().heaven}});
+                                  {"heaven", hh::extras_config().heaven},
+                                  {"advantage", hh::extras_config().advantage},
+                                  {"infinite_power", hh::extras_config().infinite_power},
+                                  {"infinite_stamina", hh::extras_config().infinite_stamina}});
 }
 
 // ===== Config de INPUT (config.ini [input]) =====
