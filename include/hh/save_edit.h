@@ -86,4 +86,9 @@ int item_slot_of(int display_index);
 // PROGRESO: puntos de guardado válidos por nivel según la tabla de escenas real D_80175490.
 void valid_points_by_level(int out_points[30]);
 
+// MODO HEAVEN (runtime, modo GLOBAL): lleva el personaje VIVO `0x8017DC40` al máximo (ATRIBUTOS
+// 99 + ESTADO 99 + 86 habilidades). Lo llama el hook de carga de partida cuando
+// `hh::menu::heaven_enabled()`. No toca items (esos solo son "no consumibles" por hook).
+void apply_heaven_runtime(uint8_t* rdram);
+
 }  // namespace hh::save

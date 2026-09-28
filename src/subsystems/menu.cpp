@@ -6,6 +6,7 @@
 #include "hh/menu.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -228,6 +229,9 @@ int original_logos_default() { return hh::extras_config().original_logos == "si"
 // EXTRAS -> MANTENER EXTRAS: SÍ (1) = el menu EXTRAS persiste entre arranques; NO (0) = solo tras
 // teclear el codigo Konami.
 int extras_persist_default() { return hh::extras_config().persist == "si" ? 1 : 0; }
+// EXTRAS -> MODO HEAVEN: SÍ (1) = modo global activo (ATRIBUTOS/ESTADO máx + invulnerabilidad +
+// items no consumibles). Persiste en config.ini [extras].heaven.
+int heaven_default() { return hh::extras_config().heaven == "si" ? 1 : 0; }
 // RATIO: índice en {"AUTO","ORIGINAL","4:3","16:9","16:10","21:9"} según `[video].aspect`.
 int ratio_default() {
     const std::string a = hh::video_config().aspect;
@@ -492,10 +496,11 @@ void build_tree() {
     // entre arranques; LOGOS ORIGINALES elige el set de logos de la intro por defecto. Ambos
     // persisten en config.ini [extras].
     g_screens.push_back(make_screen(ScreenId::Extras, ScreenKind::Menu, {
-        // MODO HEAVEN: al poner SÍ aplica el "modo trampa" al slot del editor (niveles 99, todas las
-        // habilidades, items 99). PENDIENTE: invulnerabilidad (daño 0) y que los items no se gasten
-        // (parches runtime; ver RETOMAR.md).
-        make_selector_with_action("MODO HEAVEN", {"NO", "SÍ"}, Action::ToggleHeavenMode, 0),
+        // MODO HEAVEN: modo GLOBAL (no depende de la partida ni del editor). Al poner SÍ persiste y,
+        // al cargar/empezar cualquier partida, se aplica al personaje vivo ATRIBUTOS/ESTADO al máx +
+        // las 86 habilidades, y en runtime invulnerabilidad + items no consumibles (ver RETOMAR.md).
+        make_selector_with_action("MODO HEAVEN", {"NO", "SÍ"}, Action::ToggleHeavenMode,
+                                  heaven_default()),
         make_selector_with_action("MANTENER EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
                                   extras_persist_default()),
         make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
@@ -1072,9 +1077,30 @@ bool extras_code_unlocked() {
 }
 
 // Visible si se tecleo el codigo en esta sesion o si MANTENER EXTRAS esta en SI (persistencia
-// explicita).
+// explicita). Tambien si MODO HEAVEN esta activo: aunque MANTENER EXTRAS sea NO, el usuario debe
+// poder volver a entrar a EXTRAS para apagarlo.
 bool extras_unlocked() {
-    return g_extras_unlocked_state || hh::extras_config().persist == "si";
+    return g_extras_unlocked_state || hh::extras_config().persist == "si" ||
+           hh::extras_config().heaven == "si";
+}
+
+// Copia cacheada en atomico del flag MODO HEAVEN: los hooks de runtime lo consultan CADA frame (p.
+// ej. el forzado de la ventaja), asi evitamos comparar la cadena de config en cada llamada. Se
+// inicializa desde config la primera vez y se actualiza en set_heaven_enabled (toggle).
+std::atomic<bool> g_heaven_cache{ false };
+std::atomic<bool> g_heaven_cache_init{ false };
+
+bool heaven_enabled() {
+    if (!g_heaven_cache_init.exchange(true)) {
+        g_heaven_cache.store(hh::extras_config().heaven == "si");
+    }
+    return g_heaven_cache.load();
+}
+
+void set_heaven_enabled(bool on) {
+    g_heaven_cache.store(on);
+    g_heaven_cache_init.store(true);
+    hh::extras_set_heaven(on);
 }
 
 void unlock_extras() {

@@ -1060,6 +1060,11 @@ void hh::poll_input() {
                 else if (k.sym == SDLK_KP_MINUS || k.sym == SDLK_MINUS) {
                     hh::hudrewrite::map_crop_add(-1);
                 }
+                else if (k.sym == SDLK_F12) {
+                    // Traza de combate: activa/desactiva el registro de cambios de RDRAM para
+                    // localizar el estado de SORPRESA (entrar en combate por la espalda).
+                    hh::battle_trace_toggle();
+                }
                 else if (k.sym == SDLK_F11) {
                     // Cierre rapido (comodo a pantalla completa, sin Alt+F4).
                     std::fprintf(stderr, "[HH] F11 -> ultramodern::quit()\n");

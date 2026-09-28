@@ -162,11 +162,13 @@ namespace hh {
     struct ExtrasConfig {
         std::string original_logos = "si";  // si = clasicos de fondo blanco; no = modernos de fondo negro
         std::string persist = "no";         // si = la entrada EXTRAS se mantiene entre arranques
+        std::string heaven = "no";          // si = MODO HEAVEN activo (modo global, persiste)
     };
     const ExtrasConfig& extras_config();
     ExtrasConfig& extras_config_mutable();
     void extras_set_original_logos(bool enabled);  // menu EXTRAS -> LOGOS ORIGINALES
     void extras_set_persist(bool enabled);         // menu EXTRAS -> MANTENER EXTRAS
+    void extras_set_heaven(bool enabled);          // menu EXTRAS -> MODO HEAVEN (global, persiste)
     void extras_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El
@@ -180,6 +182,10 @@ namespace hh {
     void set_developer_mode(bool enabled);
     void video_toggle_present_early();   // F8 (diagnostico: PresentEarly <-> SkipBuffering)
     void video_toggle_interpolation();   // F9 (diagnostico: RefreshRate Display <-> Original)
+
+    // Traza de combate (F12): activa/desactiva el registro de cambios de RDRAM para localizar el
+    // estado de SORPRESA (antes de entrar en combate). Definido en src/hooks/sections.cpp.
+    void battle_trace_toggle();
 
     // Widescreen: snap del scissor de overscan a full-frame (adaptado de la referencia, Phase 07).
     bool full_frame_enabled();

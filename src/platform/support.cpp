@@ -509,6 +509,7 @@ hh::ExtrasConfig& hh::extras_config_mutable() {
             const std::string v = hh_video_lower(hh_video_trim(s.substr(eq + 1)));
             if (k == "original_logos" || k == "logos_originales") c.original_logos = v;
             else if (k == "persist" || k == "mantener") c.persist = v;
+            else if (k == "heaven" || k == "modo_heaven") c.heaven = v;
         }
         fclose(f);
         return c;
@@ -531,9 +532,17 @@ void hh::extras_set_persist(bool enabled) {
     fprintf(stderr, "[EXTRAS] MANTENER EXTRAS -> %s\n", hh::extras_config().persist.c_str());
 }
 
+// Menu EXTRAS -> MODO HEAVEN: modo global (no depende de la partida); persiste entre arranques.
+void hh::extras_set_heaven(bool enabled) {
+    hh::extras_config_mutable().heaven = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] MODO HEAVEN -> %s\n", hh::extras_config().heaven.c_str());
+}
+
 void hh::extras_config_save() {
     hh::config_ini_set("extras", {{"original_logos", hh::extras_config().original_logos},
-                                  {"persist", hh::extras_config().persist}});
+                                  {"persist", hh::extras_config().persist},
+                                  {"heaven", hh::extras_config().heaven}});
 }
 
 // ===== Config de INPUT (config.ini [input]) =====

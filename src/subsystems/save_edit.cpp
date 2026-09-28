@@ -401,6 +401,64 @@ int global_level_of(int slot) {
     return (sum + 9) / 6;
 }
 
+// MODO HEAVEN (runtime, modo GLOBAL independiente de la partida): lleva el personaje VIVO
+// (`0x8017DC40`) al máximo. Se llama tras cargar una partida (CONTINUE / nueva) si
+// `hh::menu::heaven_enabled()`. El propio save del juego serializa ESTE struct (`func_80144C40`),
+// así que el estado queda persistido en la partida al guardar.
+//   - ATRIBUTOS: los 6 niveles de parte a 99 aplicando las tablas REALES de incremento a su stat
+//     (y a HP máx en la parte 0); recalcula el NIVEL global derivado.
+//   - ESTADO: OFENSIVO/DEFENSIVO por parte a 99 (tope del editor).
+//   - HABILIDADES: las 86 técnicas marcadas como aprendidas en la tabla viva `0x80183CE0` (+espejo).
+void apply_heaven_runtime(uint8_t* rdram) {
+    if (rdram == nullptr) return;
+    constexpr uint32_t kChar = 0x8017DC40u;
+    auto r8 = [&](uint32_t addr) -> uint8_t { return rdram[(addr - 0x80000000u) ^ 3u]; };
+    auto w8 = [&](uint32_t addr, uint8_t v) { rdram[(addr - 0x80000000u) ^ 3u] = v; };
+    // u16 BIG-endian del guest (byte alto en `addr`, bajo en `addr+1`).
+    auto r16 = [&](uint32_t addr) -> uint16_t {
+        return static_cast<uint16_t>((static_cast<uint16_t>(r8(addr)) << 8) | r8(addr + 1u));
+    };
+    auto w16 = [&](uint32_t addr, uint16_t v) {
+        w8(addr, static_cast<uint8_t>(v >> 8));
+        w8(addr + 1u, static_cast<uint8_t>(v & 0xFFu));
+    };
+
+    // ATRIBUTOS: subir cada parte al 99 aplicando el incremento real (como add_part_levels, en vivo).
+    for (int p = 0; p < kParts; ++p) {
+        const int lvl = r8(kChar + static_cast<uint32_t>(kPartLevelRuntime[p]));
+        if (lvl >= kPartLevelMax) continue;
+        long delta = 0;
+        for (int l = lvl; l < kPartLevelMax; ++l) delta += kIncByPart[p][l];
+        int stat = static_cast<int>(r16(kChar + static_cast<uint32_t>(kPartStatRuntime[p]))) +
+                   static_cast<int>(delta);
+        if (stat > 0x270F) stat = 0x270F;
+        w16(kChar + static_cast<uint32_t>(kPartStatRuntime[p]), static_cast<uint16_t>(stat));
+        if (p == 0) {  // HP: la subida también aplica a HP máx (func_80376D48)
+            int mx = static_cast<int>(r16(kChar + 0x02u)) + static_cast<int>(delta);
+            if (mx > 0x270F) mx = 0x270F;
+            w16(kChar + 0x02u, static_cast<uint16_t>(mx));
+        }
+        w8(kChar + static_cast<uint32_t>(kPartLevelRuntime[p]), static_cast<uint8_t>(kPartLevelMax));
+    }
+    // ESTADO: niveles OFENSIVO/DEFENSIVO por parte al tope del editor (99), u16 por parte.
+    constexpr uint16_t kBodyMax = 99;
+    for (int p = 0; p < kParts; ++p) {
+        w16(kChar + static_cast<uint32_t>(kOffenseOff) + static_cast<uint32_t>(p) * 2u, kBodyMax);
+        w16(kChar + static_cast<uint32_t>(kDefenseOff) + static_cast<uint32_t>(p) * 2u, kBodyMax);
+    }
+    // NIVEL global derivado (misma fórmula que global_level_of).
+    int sum = 0;
+    for (int p = 0; p < kParts; ++p) sum += r8(kChar + static_cast<uint32_t>(kPartLevelRuntime[p]));
+    w16(kChar + 0x48u, static_cast<uint16_t>((sum + 9) / 6));
+    // HABILIDADES: las 86 aprendidas en la tabla viva y su espejo; limpiar la marca de novedad.
+    for (int id = 0; id < kTechCount; ++id) {
+        w8(0x80183CE0u + static_cast<uint32_t>(id) * 6u, 1);
+        w8(0x80183EE4u + static_cast<uint32_t>(id) * 6u, 1);
+        w8(0x801840E8u + static_cast<uint32_t>(id), 0);
+    }
+    hh::log("[heaven] runtime: 0x8017DC40 al max (ATRIBUTOS/ESTADO 99) + 86 habilidades\n");
+}
+
 uint16_t part_exp_of(int slot, int part) { return part_progress_of(slot, part); }
 
 // EXP acumulada (umbral) necesaria para pasar del nivel actual al siguiente.

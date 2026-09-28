@@ -227,6 +227,12 @@ void capture_tech_baseline();
 void restore_tech_baseline(int id);
 void set_save_edit_tech_bulk(int mode);   // 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO NO
 
+// EXTRAS -> MODO HEAVEN: modo GLOBAL de juego (persiste en config.ini [extras].heaven). Al cargar
+// cualquier partida aplica ATRIBUTOS/ESTADO máx + habilidades, y en runtime anula el daño al jugador
+// y el consumo de items (hooks de `src/hooks/sections.cpp`). Ver RETOMAR.md.
+bool heaven_enabled();
+void set_heaven_enabled(bool on);   // persiste el flag (equivale a extras_set_heaven)
+
 // EXTRAS: pantalla desbloqueable con el codigo Konami durante el logo KONAMI. Se muestra si se
 // desbloqueo en esta sesion con el codigo o si el ajuste MANTENER EXTRAS esta en SI ([extras] en
 // config.ini). Al desbloquear se rehace el arbol para anadir la entrada EXTRAS (encima de SALIR).

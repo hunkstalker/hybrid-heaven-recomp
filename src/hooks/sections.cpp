@@ -50,6 +50,10 @@ extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // ca
 extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
 extern "C" void func_801C1340_11BAE10(uint8_t* rdram, recomp_context* ctx);  // lee botones (direcciones)
 extern "C" void func_801C1334_11BAE04(uint8_t* rdram, recomp_context* ctx);  // lee botones (A/START)
+extern "C" void func_80232D08_10FCC28(uint8_t* rdram, recomp_context* ctx);  // aplica el daño por parte
+extern "C" void func_8013D520_1035CF0(uint8_t* rdram, recomp_context* ctx);  // suma/resta cantidad de item
+extern "C" void func_80144E68_103D638(uint8_t* rdram, recomp_context* ctx);  // deserializa el personaje
+extern "C" void func_80152240_104AA10(uint8_t* rdram, recomp_context* ctx);  // load: tablas de runtime
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
@@ -57,6 +61,7 @@ extern "C" void unload_overlay_by_id(uint32_t id);
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);   // definido abajo
 extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 extern "C" void hh_battle_creature_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
+extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx);  // traza de combate
 
 namespace {
 
@@ -99,6 +104,51 @@ extern "C" void hh_native_ab_input(uint8_t* rdram, recomp_context* ctx) {
         return;
     }
     func_801C1334_11BAE04(rdram, ctx);
+}
+
+// ---------------------------------------------------------------------------------------------
+// MODO HEAVEN (EXTRAS): modo GLOBAL (no depende de la partida ni del editor). Cuatro hooks, todos
+// gateados por `hh::menu::heaven_enabled()` (config.ini [extras].heaven):
+//   - AL CARGAR PARTIDA: tras deserializar el personaje (`func_80144E68`) o montar las tablas de
+//     runtime (`func_80152240`, CONTINUE / partida nueva) se aplica `hh::save::apply_heaven_runtime`:
+//     ATRIBUTOS y ESTADO al máximo + las 86 habilidades. El save del juego serializa ese mismo
+//     personaje (`func_80144C40`), así que el estado queda persistido al guardar.
+//   - Invulnerabilidad: `func_80232D08` es la UNICA funcion que resta el daño ya resuelto de las
+//     partes del cuerpo (`+0x2B8+part*2`); su unico llamador es la resolucion de golpe
+//     `func_80232E94`. Si el ente dañado (`a0`) es la PARTIDA del jugador (`0x801BC03C`), daño 0.
+//   - Items que no se gastan: `func_8013D520` suma/resta la cantidad de un item (u8, tope 99) segun
+//     `a1` (delta con signo). Con MODO HEAVEN se anula la RESTA (`a1=0`), asi el contador no baja.
+//
+// [DIRECCIONES MEDIDAS del C recompilado (0x8017DC40 es el struct del personaje: lo deserializa
+// `func_80144E68`, lo serializa `func_80144C40` y lo leen `func_80378D84/E3C`); efectos pendientes de
+// validar en Windows: ver RETOMAR.md]
+constexpr uint32_t kPlayerPartyAddr = 0x801BC03Cu;
+
+extern "C" void hh_heaven_damage_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (hh::menu::heaven_enabled() && static_cast<uint32_t>(ctx->r4) == kPlayerPartyAddr) {
+        ctx->r5 = 0;   // daño 0 al jugador
+    }
+    func_80232D08_10FCC28(rdram, ctx);
+}
+
+extern "C" void hh_heaven_item_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (hh::menu::heaven_enabled() && static_cast<int8_t>(ctx->r5 & 0xFFu) < 0) {
+        ctx->r5 = 0;   // no consumir el item
+    }
+    func_8013D520_1035CF0(rdram, ctx);
+}
+
+// Carga de partida: tras deserializar el personaje en `0x8017DC40`, aplicar el máximo.
+extern "C" void hh_heaven_char_hook(uint8_t* rdram, recomp_context* ctx) {
+    func_80144E68_103D638(rdram, ctx);
+    if (hh::menu::heaven_enabled()) hh::save::apply_heaven_runtime(rdram);
+}
+
+// Carga de partida: tras montar las tablas de runtime (técnicas/items), reaplicar el máximo (cubre
+// partida nueva y cualquier recomposición posterior del personaje).
+extern "C" void hh_heaven_load_hook(uint8_t* rdram, recomp_context* ctx) {
+    func_80152240_104AA10(rdram, ctx);
+    if (hh::menu::heaven_enabled()) hh::save::apply_heaven_runtime(rdram);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -440,11 +490,171 @@ void register_title_menu_hook() {
     // Paso 5: lectores de botones del handler nativo (direcciones y A/B/START), muteables.
     recomp::overlays::add_loaded_function(0x801C1340, hh_native_dir_input);
     recomp::overlays::add_loaded_function(0x801C1334, hh_native_ab_input);
+    // MODO HEAVEN (EXTRAS): modo global. Al cargar partida se aplica el máximo al personaje vivo
+    // (ATRIBUTOS/ESTADO + habilidades) y en runtime invulnerabilidad + items no consumibles. Los
+    // hooks consultan `hh::menu::heaven_enabled()` y se re-registran aquí en cada carga de módulo.
+    recomp::overlays::add_loaded_function(0x80144E68, hh_heaven_char_hook);
+    recomp::overlays::add_loaded_function(0x80152240, hh_heaven_load_hook);
+    recomp::overlays::add_loaded_function(0x80232D08, hh_heaven_damage_hook);
+    recomp::overlays::add_loaded_function(0x8013D520, hh_heaven_item_hook);
+    // Traza de combate (F12 / HH_BATTLE_TRACE): reloj por frame para el registro de cambios. Barato
+    // y no-op si la traza esta apagada.
+    recomp::overlays::add_loaded_function(0x800021B4, hh_battle_frame_hook);
 }
 
 bool env_set(const char* name) {
     const char* v = std::getenv(name);
     return v != nullptr && *v != '\0' && *v != '0';
+}
+
+// ---------------------------------------------------------------------------------------------
+// TRAZA DE COMBATE (F12 o HH_BATTLE_TRACE=1): localizar el estado de SORPRESA (entrar en combate a
+// la espalda del enemigo) para integrarlo en MODO HEAVEN.
+//
+// La sorpresa es un EVENTO puntual de ANTES del combate, asi que no vale hacer fotos periodicas:
+// mientras la traza esta activa se registra la **PRIMERA variacion de cada palabra** de las zonas de
+// campo/objetos y de estado de batalla/party en `hh_battle_watch.log` (`vi addr host_old->new` ->
+// valor guest big-endian). Asi, un combate normal registra el cambio del flag del enemigo al
+// detectarte y uno por la espalda NO (o al reves): la direccion que aparece en una traza y no en la
+// otra es la del flag; luego se busca quien la escribe en el C recompilado. Ver RETOMAR.md.
+struct BattleWatchRange { uint32_t addr; uint32_t size; bool all = false; };
+constexpr BattleWatchRange kBattleWatchRanges[] = {
+    { 0x801B5520u, 0xD80u },          // objetos de campo (16 x 0xD8): estado/deteccion del enemigo
+    { 0x801BBBF0u, 0x2000u },         // bloque de progresion/estado de batalla
+    // Struct del personaje y party: TODAS las transiciones (para ver el daño de campo, que baja la
+    // vida viva; la meta es anular tambien ese daño bajo MODO HEAVEN).
+    { 0x8017DC40u, 0x100u, true },
+    { 0x801BC03Cu, 0x40u, true },
+    { 0x801BC3D8u, 0x40u, true },
+    // Bytes de estado de la transicion a combate (0x801BBBF0+0x1030..): todas las transiciones.
+    { 0x801BCC20u, 0x20u, true },
+};
+constexpr size_t kBattleWatchCount = sizeof(kBattleWatchRanges) / sizeof(kBattleWatchRanges[0]);
+std::vector<uint8_t> g_battle_watch_shadow[kBattleWatchCount];
+std::vector<uint8_t> g_battle_watch_seen[kBattleWatchCount];   // 1 byte por palabra ya registrada (1.er cambio)
+FILE* g_battle_watch_fp = nullptr;
+unsigned g_battle_watch_lines = 0;
+unsigned g_battle_watch_seq = 0;   // cada activacion (F12 ON) -> hh_battle_watch_<seq>.log
+std::atomic<bool> g_battle_trace{ false };
+std::atomic<bool> g_battle_trace_inited{ false };
+std::atomic<bool> g_battle_watch_reinit{ false };   // pide recapturar sombras (lo hace el hilo de juego)
+
+bool battle_trace_active() {
+    if (!g_battle_trace_inited.exchange(true)) {
+        if (env_set("HH_BATTLE_TRACE")) g_battle_trace.store(true);
+    }
+    return g_battle_trace.load();
+}
+
+// (Re)captura las sombras al activar la traza: la primera comparacion posible es la del frame siguiente.
+void battle_watch_capture() {
+    uint8_t* base = hh::get_game_rdram();
+    if (base == nullptr) return;
+    for (size_t i = 0; i < kBattleWatchCount; ++i) {
+        const uint32_t o = kBattleWatchRanges[i].addr - 0x80000000u;
+        const uint32_t n = kBattleWatchRanges[i].size;
+        g_battle_watch_shadow[i].assign(base + o, base + o + n);
+        g_battle_watch_seen[i].assign(n / 4u, 0);
+    }
+}
+
+// Reloj por frame (poll de input func_800021B4): registra la primera variacion de cada palabra vigilada.
+extern "C" void func_800021B4_2DB4(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
+    func_800021B4_2DB4(rdram, ctx);
+    if (hh::menu::heaven_enabled()) {
+        // SORPRESA/ventaja ("back attack") siempre [VALIDADO funcionalmente]: el byte de estado
+        // 0x801BBBF0+0x1034 (0x801BCC24) pasa a 2 en un combate con ventaja; al forzarlo la pelea
+        // empieza con el POWER al máximo desde el inicio. Si esta en 0/1 lo forzamos.
+        uint8_t* b = &rdram[((0x801BCC24u - 0x80000000u) ^ 3u)];
+        if (*b < 2u) {
+            *b = 2u;
+        }
+    }
+    if (!battle_trace_active()) return;
+    if (g_battle_watch_reinit.exchange(false)) {
+        battle_watch_capture();
+        // Cada activacion (F12 ON) escribe su propio fichero: hh_battle_watch_<seq>.log. Asi no hay
+        // que copiar/renombrar a mano: el 1.er ON (combate normal) es _0 y el 2.º (sorpresa) es _1.
+        if (g_battle_watch_fp != nullptr) { std::fclose(g_battle_watch_fp); g_battle_watch_fp = nullptr; }
+        char name[64];
+        std::snprintf(name, sizeof name, "hh_battle_watch_%u.log", g_battle_watch_seq++);
+        g_battle_watch_fp = std::fopen(name, "w");
+        g_battle_watch_lines = 0;
+        hh::log("[battle] watch log -> %s\n", name);
+        return;
+    }
+    uint8_t* base = hh::get_game_rdram();
+    if (base == nullptr) return;
+    // Puntero al struct VIVO del jugador (*(0x801BBCCC)) y vigilancia de sus primeros 0x40 bytes:
+    // la vida de campo (robots) vive ahí, no en la party de combate.
+    {
+        uint32_t live = 0;
+        std::memcpy(&live, base + (0x801BBCCCu - 0x80000000u), 4);   // MEM_W: ya es el valor guest
+        static uint32_t last_live = 0;
+        static uint8_t live_shadow[0x40];
+        static bool live_valid = false;
+        if (live != last_live && live >= 0x80000000u && live < 0x80400000u) {
+            last_live = live;
+            std::memcpy(live_shadow, base + (live - 0x80000000u), sizeof(live_shadow));
+            live_valid = true;
+            hh::log("[battle] live_ptr=%08X\n", live);
+        } else if (live_valid) {
+            uint8_t* p = base + (live - 0x80000000u);
+            if (g_battle_watch_fp == nullptr) g_battle_watch_fp = std::fopen("hh_battle_watch.log", "w");
+            for (uint32_t b = 0; b + 4 <= sizeof(live_shadow); b += 4) {
+                uint32_t now, old;
+                std::memcpy(&now, p + b, 4);
+                std::memcpy(&old, live_shadow + b, 4);
+                if (now != old) {
+                    if (g_battle_watch_fp != nullptr && g_battle_watch_lines < 200000) {
+                        g_battle_watch_lines++;
+                        std::fprintf(g_battle_watch_fp, "LIVE vi=%llu addr=%08X %08X->%08X\n",
+                                     (unsigned long long)hh_get_vi_count(), live + b, old, now);
+                        std::fflush(g_battle_watch_fp);
+                    }
+                    std::memcpy(live_shadow + b, &now, 4);
+                }
+            }
+        }
+    }
+    const uint64_t vi = hh_get_vi_count();
+    for (size_t i = 0; i < kBattleWatchCount; ++i) {
+        const uint32_t o = kBattleWatchRanges[i].addr - 0x80000000u;
+        const uint32_t n = kBattleWatchRanges[i].size;
+        auto& sh = g_battle_watch_shadow[i];
+        auto& seen = g_battle_watch_seen[i];
+        if (sh.size() != n || seen.size() != n / 4u) { battle_watch_capture(); return; }
+        uint8_t* p = base + o;
+        for (uint32_t b = 0; b + 4 <= n; b += 4) {
+            uint32_t now, old;
+            std::memcpy(&now, p + b, 4);
+            std::memcpy(&old, sh.data() + b, 4);
+            if (now == old) continue;
+            // Rango "all": registra cada transicion (hasta 64 por palabra); el resto, solo la primera.
+            bool do_log;
+            if (kBattleWatchRanges[i].all) {
+                do_log = seen[b / 4u] < 64u;
+                if (do_log) seen[b / 4u]++;
+            } else {
+                do_log = (seen[b / 4u] == 0);
+                if (do_log) seen[b / 4u] = 1;
+            }
+            if (do_log) {
+                if (g_battle_watch_fp == nullptr) g_battle_watch_fp = std::fopen("hh_battle_watch.log", "w");
+                if (g_battle_watch_fp != nullptr && g_battle_watch_lines < 200000) {
+                    g_battle_watch_lines++;
+                    // La palabra guest se lee directa (MEM_W = *(int32_t*)); sin bswap.
+                    std::fprintf(g_battle_watch_fp, "%svi=%llu addr=%08X %08X->%08X\n",
+                                 kBattleWatchRanges[i].all ? "STATE " : "",
+                                 (unsigned long long)vi, kBattleWatchRanges[i].addr + b,
+                                 old, now);
+                    std::fflush(g_battle_watch_fp);
+                }
+            }
+            std::memcpy(sh.data() + b, &now, 4);
+        }
+    }
 }
 
 std::mutex g_load_mutex;
@@ -530,6 +740,19 @@ void file_load_streamed_hook(uint8_t* rdram, recomp_context* ctx) {
 }
 
 }  // namespace
+
+// F12: activa/desactiva la traza de combate (registro de cambios). Al activarla se captura el estado
+// actual como sombra para que la primera comparacion sea la del frame siguiente.
+void hh::battle_trace_toggle() {
+    (void)battle_trace_active();   // inicializa desde HH_BATTLE_TRACE si es la primera vez
+    const bool on = !g_battle_trace.load();
+    g_battle_trace.store(on);
+    if (on) {
+        // La recaptura la hace el hilo de juego (evita tocar las sombras desde el hilo de input).
+        g_battle_watch_reinit.store(true);
+    }
+    hh::log("[battle] watch %s\n", on ? "ON" : "OFF");
+}
 
 void hh::register_overlays() {
     recomp::overlays::overlay_section_table_data_t sections{
@@ -730,25 +953,12 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             } else if (cur.action == hh::menu::Action::ResetControls) {
                 hh::pad_reset_defaults();
             } else if (cur.action == hh::menu::Action::ToggleHeavenMode) {
-                // MODO HEAVEN (SÍ): aplica al slot del editor niveles 99 (ESTADO+ATRIBUTOS), todas las
-                // habilidades y items 99. PENDIENTE (ver RETOMAR.md): invulnerabilidad (daño 0) y que
-                // los items NO se gasten (parches runtime). Los cambios quedan en memoria: GUARDAR.
-                if (cur.value != 0) {
-                    hh::save::load();
-                    const int hs = hh::menu::save_edit_slot();
-                    for (int p = 0; p < hh::save::kParts; ++p) {
-                        const int d = hh::save::kPartLevelMax - hh::save::part_level_of(hs, p);
-                        if (d > 0) hh::save::add_part_levels(hs, p, d);
-                    }
-                    for (int id = 0; id < hh::save::kTechCount; ++id)
-                        hh::save::set_tech_learned_of(hs, id, true);
-                    for (int id = 0; id < hh::save::kItemCount; ++id)
-                        hh::save::set_item_count_of(hs, id, 99);
-                    hh::log("[heaven] MODO HEAVEN SI: slot %d -> niv 99 + habilidades SI + items 99 "
-                            "(PENDIENTE: invulnerable / items infinitos)\n", hs);
-                } else {
-                    hh::log("[heaven] MODO HEAVEN NO\n");
-                }
+                // MODO HEAVEN: modo GLOBAL (no depende de la partida ni del editor). Persiste el flag;
+                // los efectos de runtime (invulnerabilidad + items no consumibles) y la aplicación de
+                // ATRIBUTOS/ESTADO al cargar partida los hacen los hooks, gateados por
+                // `hh::menu::heaven_enabled()`. No toca el `.pak` (eso es EDICIÓN DE PARTIDA).
+                hh::menu::set_heaven_enabled(cur.value != 0);
+                hh::log("[heaven] MODO HEAVEN %s\n", cur.value != 0 ? "SI (global)" : "NO");
             } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
                 hh::extras_set_persist(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {
@@ -1281,6 +1491,12 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     if (env_set("HH_MENU_TRACE")) {
         hh::log("[menu] goto pantalla=%08X (obj=%08X)\n", static_cast<uint32_t>(ctx->r5),
                 static_cast<uint32_t>(ctx->r4));
+    }
+    // Traza de combate: registra el cambio de pantalla con su CALLER (ra) para localizar la
+    // bifurcacion que decide la sorpresa. Ver `battle_trace_active`/`hh_battle_frame_hook`.
+    if (battle_trace_active()) {
+        hh::log("[battle] goto target=%08X obj=%08X ra=%08X\n", target,
+                static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r31));
     }
     // A2: cambio de pantalla -> oculta el overlay al instante (el handler nativo puede seguir
     // publicando el frame de la raíz durante la transición; ver menu_overlay::hide_now).
