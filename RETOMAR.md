@@ -26,11 +26,15 @@
   `hh.log` (sobrescrito cada run); `hh_audio/tick/slow/state/slice/hang/flag/crash/pak` pasan a
   **opt-in** (`HH_DIAG=1`, `HH_CRASH_LOG=1`, `HH_PAKLOG=1`; el fork NMR `39baeeb` cambia el default
   del paklog). Detalle: `notes/2026-09-27-d-release-sin-volcados.md`.
-- **`EDICIÓN DE PARTIDA` (editor de save) HECHO en la rama `menu-edicion-partida` (2026-09-27,
-  **v2 en MEMORIA, commit `6c917b0`**, pendiente validar en Windows): menú en `EXTRAS` (`PROGRESO < N-P >`, `NIVEL`,
-  `HABILIDADES` toggle, `BODY` con filtro `ESTADO`, `ITEMS`, `GUARDAR`). Edita el `.pak` en disco
-  (offsets/checksums medidos) + recarga el runtime (fork NMR `0ae2585`). Fase 2: `JUGAR`/warp.
-  Detalle: `notes/2026-09-27-e-editor-partida-plan.md`.
+- **`EDICIÓN DE PARTIDA` (editor de save) — v3 sobre el `.pak`, rama `menu-edicion-partida`,
+  commit `77d2ad6` (2026-09-27)**. **Funciona**: `GUARDAR PARTIDA` escribe el `.pak` correctamente
+  (offsets/checksum verificados headless). **UI**: `CARGAR PARTIDA < PARTIDA N >`,
+  `GUARDAR PARTIDA < NUEVA PARTIDA / PARTIDA N >`, `PROGRESO < N-P >`, `NIVEL`, `HABILIDADES`
+  (`< SIN CAMBIOS / TODO SÍ / TODO NO >`), `ESTADO` (CUERPO bajo CABEZA), `ITEMS`. Además: repeat
+  up/down/izq/der, y **cierre F11/SALIR rápido** (`_exit` + fix en el submódulo plume).
+  **ABIERTO**: `CONTINUAR` **no refleja lo editado** (carga el save sin cambios; hipótesis:
+  caché/selección de slot del runtime). Detalle y offsets reales:
+  `notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`.
 
 - **Limpieza de commits CERRADA (2026-09-26)**: `menu-nativo` parte de **`4759bd0`**
   (`origin/menu-nativo`); los 13 commits con basura (dumpeo/decodificador/bats/diagnóstico) se
@@ -83,45 +87,43 @@
   puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
   `notes/2026-09-27-battle-mode-recon.md`.
 
-## TAREA `EDICIÓN DE PARTIDA` (editor de save, para tests)
+## PRÓXIMA TAREA: cerrar `EDICIÓN DE PARTIDA` (rama `menu-edicion-partida`)
 
-**Estado: v1 HECHA (2026-09-27, rama `menu-edicion-partida`, commit `14fa002`)**. Pendiente:
-**validar en Windows** (escritura real del `.pak` + `CONTINUAR`), pulir y hacer la **fase 2** (`JUGAR`/
-viaje directo al nivel, sin pasar por guardar).
+**Estado: v3 sobre el `.pak`, commit `77d2ad6`.** El editor compila, la UI está montada y
+`GUARDAR PARTIDA` escribe el `.pak` con offsets/checksum correctos (verificado headless). **Falta
+resolver que `CONTINUAR` no refleja lo editado** y afinar detalles. Nota completa:
+`notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`.
 
-**Objetivo del mantenedor (2026-09-27)**: un menú (empezó como motivo de `EXTRAS`) para **cargar una
-partida y editarla** y así probar el juego sin jugar horas: progreso (nivel-punto, p. ej. `1-0`), nivel
-del PJ, habilidades (toggle), estadísticas por parte del cuerpo (`BODY`: ESTADO como filtro →
-CABEZA/BRAZO IZQ/DER/PIERNA IZQ/DER/CUERPO), items (cantidad) y **GUARDAR** en un slot. Opción
-valorada para fase 2: elegir nivel y **`JUGAR`** → pantalla de carga al nivel, sin cargar partida.
+### Offset reales del slot (MEDIDOS; ver la nota)
+`PROGRESO` u16 BE `+0x366` · `NIVEL` u8 `+0x04B` · `TÉCNICAS` flag `+0x09E` + id*3 · `ITEMS` `+0x1A0`
++ id · stats por parte (u16 BE) offense `+0x010`, defense `+0x01C`, hit `+0x068`, damage `+0x076`.
+Checksum del slot en `+0xCFC`. Contenedor `HHPK`: data a `0x1B`; cabecera `0x100` + **4 slots `0xD00`**.
 
-**Reconocimiento ya hecho (2026-09-27, ver `notes/` a escribir / este RETOMAR)**:
-- **Guardado**: el `.pak` es un contenedor propio `HHPK` (13595 B; data del juego a `0x1B`, 13568 B =
-  cabecera `0x100` + **4 slots `0xD00`**). Checksums en `0xFC` (cabecera) y `+0xCFC` (slot). El slot
-  vivo se serializa con **`func_80141F28`** y se deserializa con `func_80141D08`; buffers
-  `0x801BEC10` (0xD00) y **estado de partida `0x801BBBF0`**. `func_8014168C` (slot↔buffer) y
-  `func_80142450`/`func_80142350` (escritura PFS). El juego **ya trae un editor nativo** (`DATA EDIT`
-  del BATTLE MODE → `func_801406A4` → `func_8014168C`).
-- **Estado en RAM (módulo 8)**: stats del PJ base **`0x8017DC40`** (HP, offense/defense por 6 partes,
-  **hit count** `+0x68`, **damage count** `+0x76`, **nivel u8 `0x8017DC88`**); **items** `0x8017E004`
-  (45×8, cantidad `+4`); **técnicas** `0x80183CE0` (86×6; "aprendida/usos" en `+4`); flags de
-  progreso `0x8008DC18+8` (0x64 B). **DIFICULTAD** `0x801BBC0D`. El **campo exacto de progreso
-  (nivel-punto)** está en `0x801BBBF0` pero **sin confirmar** (la pantalla CONTINUE pinta
-  `+0x04`).
-- **UI de slots** (carga/guardado): file-select de `file_008` (`func_8013E700` init, `func_8013E850`
-  update LOAD, `func_8013EB2C` update SAVE, setup SAVE `func_8013EA94`, cursor `0x801BBF42`); la
-  cápsula lo lanza desde `func_8021D768` (file_011). Las etiquetas de ese file-select **no** están en
-  `kNativeRanges` (se ven completas).
-- **Recetario overlay**: añadir `ScreenId`/`Action` en `include/hh/menu.h` + `build_tree` (`menu.cpp`),
-  filas `make_selector`/`make_selector_with_action`/`make_submenu`/`make_option`; acciones en
-  `feed_menu_navigation` (`sections.cpp`); traducción en `kMenuTr`; si las etiquetas son largas,
-  añadir a `custom_layout` en `menu_overlay.cpp`.
+### Trabajo pendiente (por orden)
+1. **`CONTINUAR` no refleja lo editado** (bloqueante): el `.pak` cambia en disco pero `CONTINUAR` no
+   lo ve (previsualización y carga sin cambios). Hipótesis a comprobar **en Windows con `HH_PAKLOG=1`**:
+   - ¿El juego lee el `.pak` **antes** de que editemos, o **cachea** la copia? Se añadió
+     `hh_pak_reload_from_disk` (fork NMR `9b14604`); probar a llamarlo **también al entrar/salir del
+     editor** y comprobar si el log muestra `osPfsReadWriteFile READ` tras el GUARDAR.
+   - ¿`CONTINUAR` lee el **slot `+0x100`** que editamos o **otro** (cabecera/otro fichero/slot)? Comparar
+     el `.pak` en disco con lo que muestra CONTINUE.
+   - ¿La **previsualización** (cabecera de slots) viene de la **cabecera** (`0x0x10..`) y no del slot?
+     (entonces hay que actualizar también cabecera/metadatos de slot).
+2. **`ESTADO` (OFENSIVO/DEFENSIVO) muestra 256** en todas las partes: offsets de las stats **mal**.
+   Deben ser "counts" (~1). **Identificar los offsets reales** (no fiarse del mapa del struct en RAM;
+   comparar `.pak` reales o escribir centinelas y ver dónde aterrizan).
+3. **Numeración de `PROGRESO`**: ahora lista 224 **escenas** de `D_80175490`; decidir si se listan solo
+   los **puntos de guardado** (`D_801DC930`, 56). El mantenedor puede **mapear** numeración↔nivel si
+   logramos que un punto cargue.
+4. **`NIVEL` +1**: aplicado; confirmar en partida si el valor mostrado es `guardado+1`.
+5. **Limpieza**: quitar argumentos ya sin uso de `hh::save::load/save`, el `HH_SAVEEDIT_TEST`, y cerrar
+   si `CARGAR PARTIDA` debe recargar algo.
+6. **Fase 2** (aparcada): `JUGAR`/viaje directo al nivel sin pasar por guardar (progreso + cargador de
+   escena `func_80125968`/`func_8012FE50`).
 
-**Pendiente antes de codificar**: (1) confirmar el campo de **progreso** en `0x801BBBF0` (comparando
-saves con progreso real o `HH_*` de traza); (2) decidir **vía de guardado** (editar `0x801BEC10`/
-`0x801BBBF0` y dejar que el nativo serialice vs recomputar checksums del `.pak`); (3) cómo enganchar
-la UI nativa de slots para `GUARDAR` (propuesta (a): setup `func_8013EA94` + update `func_8013EB2C`).
-Relacionado con el **bloqueante `VIBRACIÓN` ↔ guardado** (item 11 de `TODO.md`).
+### Relacionado
+- **`VIBRACIÓN` ↔ guardado** (item 11 de `TODO.md`): Rumble vs Controller Pak; afecta a la cápsula.
+- **Sistema de guardado moderno** (ideas): `docs/ideas-edicion-partida.md`.
 
 ## SIGUIENTE TAREA: menú nativo — funcionales y pulido (orden recomendado)
 
@@ -304,6 +306,12 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
   `39baeeb` (`NMR_COMMIT` en `runtime.lock`) + `docs/releases/v0.5.1.md` + bump `0.5.1`. **Orden de
   push**: fork NMR primero (`git -C lib/N64ModernRuntime push fork hybrid-heaven`), luego `main`, y
   el tag `v0.5.1` **tras CI verde**.
+- **`menu-edicion-partida`** (rama de trabajo actual, desde `main`): commits **sin pushear** —
+  `14fa002` (editor v1), `61885f2`/`f20f71b` (docs), `6c917b0` (v2 memoria), `622fe98` (docs v2),
+  `c27d60d` (ideas de guardado), `77d2ad6` (**v3 sobre el `.pak` + UI + repeat + cierre F11**).
+  **Forks**: NMR local = **`9b14604`** (`hh_pak_reload_from_disk`; `39baeeb` ya en remoto) y RT64
+  local = **`5b11988`** (apunta al fork plume `71fd344`, fix de shutdown). **Ninguno pusheado**; para
+  clon limpio/CI habría que pushear `lib/N64ModernRuntime` y `lib/rt64` (y el fork `plume`).
 - **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
   basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Commits limpios
   de 2026-09-26 **sin pushear**: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras, `CONTINUAR`,

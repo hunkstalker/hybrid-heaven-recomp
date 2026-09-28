@@ -9,12 +9,14 @@
   detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
   (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz
   (copia al último slot); **`EDITAR DATOS` → ordenar slots** (no copiar entre paks).
-- [•] **`EDICIÓN DE PARTIDA` (editor de save) — HECHO en `menu-edicion-partida` (2026-09-27,
-  commit `14fa002`), pendiente validar en Windows**: menú en `EXTRAS` con `PROGRESO < N-P >`, `NIVEL`,
-  `HABILIDADES` (86, toggle), `BODY` (filtro `ESTADO` + 6 partes), `ITEMS` (45, cantidad) y
-  `GUARDAR`. Edita el `.pak` en disco (offsets/checksums medidos del slot `0xD00`), lee los nombres
-  de la ROM y recarga el pak del runtime (fork NMR `0ae2585`). **Fase 2**: `JUGAR`/viaje directo al
-  nivel. Detalle: `notes/2026-09-27-e-editor-partida-plan.md`.
+- [•] **`EDICIÓN DE PARTIDA` (editor de save) — v3 sobre el `.pak`, rama `menu-edicion-partida`,
+  commit `77d2ad6` (2026-09-27)**: menú en `EXTRAS` con `CARGAR PARTIDA < PARTIDA N >`,
+  `GUARDAR PARTIDA < NUEVA PARTIDA / PARTIDA N >`, `PROGRESO < N-P >`, `NIVEL`, `HABILIDADES`
+  (`< SIN CAMBIOS / TODO SÍ / TODO NO >`), `ESTADO` (CUERPO bajo CABEZA), `ITEMS`. `GUARDAR` escribe
+  el `.pak` con offsets/checksum correctos (verificado headless). **ABIERTO (bloqueante)**: `CONTINUAR`
+  no refleja lo editado. También: repeat up/down/izq/der y cierre F11 rápido. Detalle:
+  `notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`. Ideas de sistema de guardado:
+  `docs/ideas-edicion-partida.md`.
 - [x] **Release sin volcados (v0.5.1) — HECHO (2026-09-27)**: el `.exe` release **solo** deja
   `hh.log` (sobrescrito cada run). Pasaron a **opt-in**: `hh_audio.log`, `hh_tick.log`/`hh_slow.log`,
   watchdog (`hh_state.log`/`hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), crash
