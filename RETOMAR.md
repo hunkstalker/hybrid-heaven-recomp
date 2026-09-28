@@ -134,10 +134,13 @@ pantalla (`func_800058DC`) y el `live_ptr`. Análisis: `tools/analysis/diff_batt
 
 ## PENDIENTE SECUNDARIO
 
-- **Centrar los submenús `GRÁFICOS` y `CONTROLES`** — HECHO: `ScreenId::Graphics` añadido a
-  `custom_layout` (`src/hooks/menu_overlay.cpp`); CONTROLES y GRÁFICOS se centran y `scroll_cap5`
-  (ventana de 5 filas) solo aplica a EXTRAS/CONTROLES/editor, así GRÁFICOS conserva sus 6 filas.
-  Añadido un tope de `x_shift` para que bindings largos no saquen el contenido de `kVirtualWidth`.
+- **Centrar los submenús `GRÁFICOS`, `CONTROLES` y `DEBUG`** — HECHO: `ScreenId::Graphics` y
+  `ScreenId::Debug` añadidos a `custom_layout` (`src/hooks/menu_overlay.cpp`); CONTROLES y GRÁFICOS se
+  centran y `scroll_cap5` (ventana de 5 filas) solo aplica a EXTRAS/CONTROLES/editor, así GRÁFICOS
+  conserva sus 6 filas. Tope de `x_shift` para que bindings largos no saquen el contenido.
+- **Arreglos de UI (2026-09-28)**: sombra sintetizada para los **kana** (la fuente no la trae;
+  `src/subsystems/font.cpp`) y **cedilla `Ç` dibujada delante** de la `C` (`src/platform/overlay.cpp`,
+  `mark_front = dy > 0`). Detalle: `notes/2026-09-28-*` §8.
 - **Rediseño de esta sesión — VALIDADO en Windows (2026-09-28)**: ATRIBUTOS/ESTADO, repeat de izq/der,
   ELIMINAR, ITEMS en mayúsculas, HABILIDADES `RESET`, MODO HEAVEN, `VENTAJA`, `PODER ∞`/`RESISTENCIA ∞`
   y el daño de campo (robots).

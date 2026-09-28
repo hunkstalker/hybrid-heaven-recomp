@@ -211,7 +211,9 @@ SALIR                                      (extra del port: cierra de forma orde
   deformar**) + una **marca** (agudo, grave, circunflejo, diéresis, virgulilla, cedilla, punto medio)
   dibujada por el propio overlay (`kMarkShapes` en `src/platform/overlay.cpp`) con la **forma que
   dibuja el mantenedor** (`tools/text/menu_marks.py`: plantilla editable → import →
-  `include/hh/menu_marks.h`). Evita comprimir mayúsculas. `¿ ¡` se generan girando `? !`.
+  `include/hh/menu_marks.h`). Evita comprimir mayúsculas. `¿ ¡` se generan girando `? !`. Las marcas
+  van **detrás** de la letra (z-order, para que su sombra +1,+1 no la pise); **excepción: la cedilla**
+  (`Ç`), que va **delante** (se dibuja después) por ir debajo de la letra (`mark_front = dy > 0`).
 - **Texto in-game**: los acentos del texto in-game usan la fuente real **8×12 (`color4`)** compuesta
   (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE). **Pendiente cablearla**
   (hoy `src/hooks/text_glyphs.cpp` sirve un set 8×8 propio).
@@ -226,7 +228,10 @@ SALIR                                      (extra del port: cierra de forma orde
   **128×128** (+ franja de marcas); el overlay resuelve los codepoints kana con `jp_kana_value`. La
   columna **JA** de `kMenuTr` va en **kana** (no hay kanji en `color0`) y `localized()` ya **no cae a
   inglés**; el endónimo de la lista `IDIOMA` es `ニホンゴ`. El texto in-game (EUC-JP con kanji) sigue
-  por su propia vía (`assets/lang/ja.txt`, pendiente).
+  por su propia vía (`assets/lang/ja.txt`, pendiente). Como `color0` **no trae sombra fiable** en los
+  valores **>=64** (kana/símbolos), `hh::font::game::bake_atlas` la **descarta** y el overlay dibuja la
+  sombra de la kana como **copia negra del glifo +1,+1** (puede salir de la celda de 8 px, sin
+  recortes); el latino (0..63) no se toca (ya la trae).
 
 ## Input — DECIDIDO: control total
 

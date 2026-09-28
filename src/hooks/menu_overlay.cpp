@@ -418,12 +418,14 @@ void title_update(uint8_t* rdram) {
     // GRÁFICOS es una pantalla NATIVA de selectores, pero se CENTRA como los menus del PORT (misma
     // columna de valores: su etiqueta mas larga, "LÍMITE DE FPS", mide lo mismo que kSelectorValueCol).
     const bool is_graphics = (screen.id == hh::menu::ScreenId::Graphics);
+    // DEBUG es un submenú nativo corto (2 filas) que se CENTRA como GRÁFICOS.
+    const bool is_debug = (screen.id == hh::menu::ScreenId::Debug);
     // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES y el
     // editor. GRÁFICOS no entra aqui: tiene 6 filas y caben todas (no debe scrollear).
     const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit;
-    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA) y GRÁFICOS se CENTRAN; el resto de
-    // los nativos conserva su margen original.
-    const bool custom_layout = scroll_cap5 || is_graphics;
+    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS y DEBUG se CENTRAN; el
+    // resto de los nativos conserva su margen original.
+    const bool custom_layout = scroll_cap5 || is_graphics || is_debug;
     float x_shift = 0.0f;
     float selector_col = kSelectorValueCol;   // EXTRAS: columna de valores; CONTROLES: columna MANDO
     float key_col = selector_col + kKeyColGap;  // CONTROLES: columna TECLADO

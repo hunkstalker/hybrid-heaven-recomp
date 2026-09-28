@@ -44,22 +44,37 @@ void bake_atlas(const uint8_t* font) {
         const unsigned block = v >> 1;
         const unsigned parity = v & 1u;
         const uint8_t* g = font + block * kBlockStride;
-        const unsigned gx = (v % kAtlasCols) * kGlyphW;
-        const unsigned gy = (v / kAtlasCols) * kGlyphH;
+        // Niveles del glifo (0..3): 1 = tinta principal; >=2 = sombra (copia +1,+1, como el motor).
+        unsigned lvl[kGlyphH][kGlyphW];
         for (unsigned y = 0; y < kGlyphH; ++y) {
             for (unsigned x = 0; x < kGlyphW; ++x) {
                 const unsigned i = y * kGlyphW + x;   // pixel del glifo (fila a fila)
                 const uint8_t byte = g[i >> 1];
                 const uint8_t nibble = (i & 1u) ? (byte & 0x0Fu) : ((byte >> 4) & 0x0Fu);
-                const unsigned lvl = (parity == 0) ? ((nibble >> 2) & 3u) : (nibble & 3u);
+                lvl[y][x] = (parity == 0) ? ((nibble >> 2) & 3u) : (nibble & 3u);
+            }
+        }
+        // Los valores >=64 (simbolos/kana) **no** traen sombra fiable en la fuente (solo 25 de 192, y a
+        // veces parcial), asi que en el atlas se dejan **sin sombra**: la del port se dibuja aparte, en
+        // el overlay, como copia negra del glifo +1,+1 (ver `src/platform/overlay.cpp`). Hacerlo en el
+        // atlas no vale: la kana con dakuten lleva la "comilla" en la columna 7 y la sombra se
+        // recortaria al salir de la celda de 8 px. El latin (0..63) si trae su sombra y no se toca.
+        if (v >= 64) {
+            for (unsigned y = 0; y < kGlyphH; ++y)
+                for (unsigned x = 0; x < kGlyphW; ++x)
+                    if (lvl[y][x] >= 2) lvl[y][x] = 0;
+        }
+        const unsigned gx = (v % kAtlasCols) * kGlyphW;
+        const unsigned gy = (v / kAtlasCols) * kGlyphH;
+        for (unsigned y = 0; y < kGlyphH; ++y) {
+            for (unsigned x = 0; x < kGlyphW; ++x) {
+                const unsigned l = lvl[y][x];
                 const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
-                // Nivel 1 = glifo principal (texto); nivel >=2 = sombra (copia desplazada abajo-
-                // derecha, como en el motor). R=255 -> color de vertice; R=0 -> negro (sombra).
-                // A = cobertura (solida).
-                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;    // R = tinta (1) / sombra (>=2)
+                // R=255 -> color de vertice (tinta); R=0 -> negro (sombra). A = cobertura (solida).
+                g_atlas[p + 0] = (l == 1) ? 255u : 0u;      // R = tinta (1) / sombra (>=2)
                 g_atlas[p + 1] = 255;                       // G
                 g_atlas[p + 2] = 255;                       // B
-                g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;    // A = cobertura
+                g_atlas[p + 3] = (l != 0) ? 255u : 0u;      // A = cobertura
             }
         }
     }

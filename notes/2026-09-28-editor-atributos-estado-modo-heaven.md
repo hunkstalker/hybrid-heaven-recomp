@@ -204,6 +204,22 @@ No se localizó el contador (0..4) en las zonas vigiladas (`0x801BBBF0..0x801BDB
 - **Validar en Windows** todo el rediseño (ATRIBUTOS/ESTADO, repeat, ELIMINAR, ITEMS mayúsculas,
   HABILIDADES RESET, MODO HEAVEN).
 
+## 8. Arreglos de UI (misma sesión)
+
+1. **Sombra de los KANA**: el latino (valores 0..63) lleva su sombra en **nivel 3** (copia +1,+1); los
+   valores **>=64** (símbolos/kana) **no** la traen fiable (solo 25 de 192, y a veces **parcial**). En
+   `hh::font::game::bake_atlas` (`src/subsystems/font.cpp`), para **v >= 64** se **descarta** la sombra
+   de la fuente (el atlas se queda solo con la tinta). La sombra de las kana la dibuja el **overlay**
+   como **copia negra del glifo +1,+1** (`src/platform/overlay.cpp`), **antes** de la kana → así no se
+   recorta al salir de la celda de 8 px (**el dakuten `゛` va en la columna 7 y la base toca la fila 7**;
+   hornearla en el atlas se cortaba por derecha y por abajo). El latino no se toca.
+2. **Cedilla `Ç` delante de la `C`**: las marcas del menú (acentos) se dibujan **debajo** (z-order) de
+   la letra base para que su sombra +1,+1 no la pise; pero la **cedilla** va **debajo de la letra**
+   (`dy > 0`), así que se dibuja **después** (delante) para montar sobre la base de la `C` en vez de
+   quedar tapada. Regla en `src/platform/overlay.cpp`: `mark_front = dy > 0`.
+3. **Submenú `DEBUG` centrado**: `ScreenId::Debug` añadido a `custom_layout` en
+   `src/hooks/menu_overlay.cpp` (como `GRÁFICOS`), así se centra con la columna de valores.
+
 ## Ficheros tocados esta sesión
 
 `src/subsystems/menu.cpp`, `include/hh/menu.h`, `src/hooks/sections.cpp`, `src/hooks/menu_overlay.cpp`,

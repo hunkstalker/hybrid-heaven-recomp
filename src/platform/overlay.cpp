@@ -577,16 +577,19 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 unsigned value = 0, gx = 0, gy = 0;
                 int mark = -1;
                 if (hh::font::game::menu_char(cp, value, mark)) {
-                    // La MARCA se dibuja DEBAJO de la letra (z-order): así su sombra (+1,+1) no pisa
-                    // los píxeles de la letra al proyectarse sobre ella. Primero la marca, luego la
-                    // letra base (si la hay).
+                    // La MARCA (acentos) se dibuja DEBAJO de la letra en z-order: asi su sombra
+                    // (+1,+1) no pisa los pixeles de la letra al proyectarse sobre ella. EXCEPCION: la
+                    // CEDILLA va DEBAJO de la letra (dy > 0), asi que se dibuja DELANTE (despues de la
+                    // letra) para montar sobre la base de la C en vez de quedar tapada por ella.
                     unsigned mx = 0, my = 0, mw = 0, mh = 0;
                     int dy = 0;
-                    if (mark >= 0 &&
-                        hh::font::game::mark_info(mark, mx, my, mw, mh, dy) && mw > 0 && mh > 0) {
-                        // La marca se centra en la celda de la letra y se desplaza +0.5 px a la
-                        // derecha (global, todas las marcas). El ajuste inicial de +1 px resultó
-                        // excesivo y se corrigió a la mitad (2026-09-27).
+                    const bool have_mark =
+                        mark >= 0 &&
+                        hh::font::game::mark_info(mark, mx, my, mw, mh, dy) && mw > 0 && mh > 0;
+                    const bool mark_front = have_mark && dy > 0;   // cedilla (debajo) -> delante
+                    // La marca se centra en la celda de la letra y se desplaza +0.5 px a la derecha
+                    // (global, todas las marcas; el +1 px inicial era excesivo, 2026-09-27).
+                    auto draw_mark = [&]() {
                         const float dx = pen_x + (cw - static_cast<float>(mw)) * 0.5f * t.scale_x +
                                          0.5f * t.scale_x;
                         const float dyy = t.y + static_cast<float>(dy) * t.scale_y;
@@ -596,7 +599,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         const float v1 = static_cast<float>(my + mh) / g_atlas_h;
                         append_quad(vertices, indices, dx, dyy, static_cast<float>(mw) * t.scale_x,
                                     static_cast<float>(mh) * t.scale_y, t.color, u0, v0, u1, v1);
-                    }
+                    };
+                    if (have_mark && !mark_front) draw_mark();
                     if (value != 0 && hh::font::game::value_uv(value, gx, gy)) {
                         const float u0 = static_cast<float>(gx) / g_atlas_w;
                         const float v0 = static_cast<float>(gy) / g_atlas_h;
@@ -605,18 +609,31 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }
+                    if (have_mark && mark_front) draw_mark();
                 } else {
                     // ASCII (digitos/letras) o KANA (japones; ver jp_kana.h). La kana se dibuja en
                     // la misma celda 8x8, sin marca ni compensacion de bearing.
-                    const bool have = (cp < 0x80)
-                                          ? hh::font::game::glyph_value(
-                                                static_cast<unsigned char>(cp), value)
-                                          : hh::font::game::jp_kana_value(cp, value);
+                    const bool is_kana = (cp >= 0x80);
+                    const bool have = is_kana
+                                          ? hh::font::game::jp_kana_value(cp, value)
+                                          : hh::font::game::glyph_value(
+                                                static_cast<unsigned char>(cp), value);
                     if (have && hh::font::game::value_uv(value, gx, gy)) {
                         const float u0 = static_cast<float>(gx) / g_atlas_w;
                         const float v0 = static_cast<float>(gy) / g_atlas_h;
                         const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
                         const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                        if (is_kana) {
+                            // La fuente no trae sombra para las kana y en el atlas no cabe (la
+                            // "comilla" del dakuten va en la columna 7): se dibuja aqui como copia
+                            // NEGRA del glifo +1,+1, que puede salir de la celda de 8 px sin
+                            // recortarse. Se pinta antes de la kana (queda detras).
+                            const uint32_t sh = hh::overlay::rgba(
+                                0, 0, 0, static_cast<uint8_t>((t.color >> 24) & 0xFFu));
+                            append_quad(vertices, indices, pen_x + 1.0f * t.scale_x,
+                                        t.y + 1.0f * t.scale_y, cw * t.scale_x, ch * t.scale_y, sh,
+                                        u0, v0, u1, v1);
+                        }
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }
