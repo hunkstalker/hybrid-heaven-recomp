@@ -2,8 +2,8 @@
 
 > **Handoff para la próxima sesión.** Estado, siguiente tarea y métodos. **Diseño y técnica** viven en
 > `docs/` y `notes/`; aquí solo se enlazan. Reglas: `AGENTS.md`.
-> **`main` = release** (v0.5.0 publicada; `menu-nativo` ya mergeada). Para la próxima feature grande
-> (editor de partida) **crear una rama** desde `main` (p. ej. `menu-edicion-partida`). Ver §Git.
+> **`main` = release** (v0.5.0 publicada). La rama de trabajo es **`menu-edicion-partida`** (editor de
+> partida, sin pushear). Ver §Git y §Decisión pendiente (forks).
 
 ## Estado (2026-09-27)
 
@@ -87,39 +87,75 @@
   puerto 0 de mando). Commits `f0a4256` + `6e73337`; detalle en
   `notes/2026-09-27-battle-mode-recon.md`.
 
-## PRÓXIMA TAREA: cerrar `EDICIÓN DE PARTIDA` (rama `menu-edicion-partida`)
+## PRÓXIMA SESIÓN — empezar por aquí
 
-**Estado: v3 sobre el `.pak`, commit `77d2ad6`.** El editor compila, la UI está montada y
-`GUARDAR PARTIDA` escribe el `.pak` con offsets/checksum correctos (verificado headless). **Falta
-resolver que `CONTINUAR` no refleja lo editado** y afinar detalles. Nota completa:
-`notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`.
+> **Punto de arranque único.** Rama de trabajo: **`menu-edicion-partida`** (desde `main`/v0.5.0).
+> Nota de referencia de esta tanda: **`notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`** (el
+> plan inicial `e-…` quedó superado para las vías v1/v2; su §7 lleva un aviso).
+> **Árbol limpio; nada pusheado.** Compila en Linux.
 
-### Offset reales del slot (MEDIDOS; ver la nota)
-`PROGRESO` u16 BE `+0x366` · `NIVEL` u8 `+0x04B` · `TÉCNICAS` flag `+0x09E` + id*3 · `ITEMS` `+0x1A0`
-+ id · stats por parte (u16 BE) offense `+0x010`, defense `+0x01C`, hit `+0x068`, damage `+0x076`.
-Checksum del slot en `+0xCFC`. Contenedor `HHPK`: data a `0x1B`; cabecera `0x100` + **4 slots `0xD00`**.
+### 0. ⚠️ DECISIÓN PENDIENTE (hacerlo primero): forks sin pushear
 
-### Trabajo pendiente (por orden)
-1. **`CONTINUAR` no refleja lo editado** (bloqueante): el `.pak` cambia en disco pero `CONTINUAR` no
-   lo ve (previsualización y carga sin cambios). Hipótesis a comprobar **en Windows con `HH_PAKLOG=1`**:
-   - ¿El juego lee el `.pak` **antes** de que editemos, o **cachea** la copia? Se añadió
-     `hh_pak_reload_from_disk` (fork NMR `9b14604`); probar a llamarlo **también al entrar/salir del
-     editor** y comprobar si el log muestra `osPfsReadWriteFile READ` tras el GUARDAR.
-   - ¿`CONTINUAR` lee el **slot `+0x100`** que editamos o **otro** (cabecera/otro fichero/slot)? Comparar
-     el `.pak` en disco con lo que muestra CONTINUE.
-   - ¿La **previsualización** (cabecera de slots) viene de la **cabecera** (`0x0x10..`) y no del slot?
-     (entonces hay que actualizar también cabecera/metadatos de slot).
-2. **`ESTADO` (OFENSIVO/DEFENSIVO) muestra 256** en todas las partes: offsets de las stats **mal**.
-   Deben ser "counts" (~1). **Identificar los offsets reales** (no fiarse del mapa del struct en RAM;
-   comparar `.pak` reales o escribir centinelas y ver dónde aterrizan).
-3. **Numeración de `PROGRESO`**: ahora lista 224 **escenas** de `D_80175490`; decidir si se listan solo
-   los **puntos de guardado** (`D_801DC930`, 56). El mantenedor puede **mapear** numeración↔nivel si
-   logramos que un punto cargue.
-4. **`NIVEL` +1**: aplicado; confirmar en partida si el valor mostrado es `guardado+1`.
-5. **Limpieza**: quitar argumentos ya sin uso de `hh::save::load/save`, el `HH_SAVEEDIT_TEST`, y cerrar
-   si `CARGAR PARTIDA` debe recargar algo.
+La rama depende de **2 submódulos con commits locales** (no en remoto). Una sesión fresca debe
+**decidir A o B**:
+
+- **Opción A — conservar** (recomendada; son fixes reales):
+  - `lib/N64ModernRuntime` → **`9b14604`** (`hh_pak_reload_from_disk`; el remoto está en `39baeeb`).
+  - `lib/rt64` → **`5b11988`** → submódulo anidado `lib/rt64/src/contrib/plume` en **`71fd344`**
+    (fix del cierre: no destruir el `VkDevice` en `release()`); el remoto de plume/rt64 no lo tiene.
+  - Implica **pushear 3 forks** (ver §Git) para que un clon limpio/CI resuelva. `runtime.lock` ya
+    apunta a `NMR_COMMIT=9b14604` y `RT64_COMMIT=5b11988`.
+- **Opción B — revertir para no tocar forks**:
+  - Quitar el fix de plume/rt64 (`_exit(0)` en `main.cpp` ya deja el cierre rápido; se pierde el
+    arreglo fino del orden de destrucción) y, si se quiere, el `hh_pak_reload_from_disk` de NMR.
+  - `runtime.lock` y los gitlinks vuelven a `39baeeb` / `a8f0a70`.
+
+### 1. Estado del editor (`EDICIÓN DE PARTIDA`) — commit `77d2ad6`
+
+**Funciona**: `GUARDAR PARTIDA` escribe el `.pak` con offsets/checksum **correctos** (verificado
+headless). **UI**: `CARGAR PARTIDA < PARTIDA N >`, `GUARDAR PARTIDA < NUEVA PARTIDA / PARTIDA N >`,
+`PROGRESO < N-P >`, `NIVEL`, `HABILIDADES` (`< SIN CAMBIOS / TODO SÍ / TODO NO >`), `ESTADO` (CUERPO
+bajo CABEZA), `ITEMS`. Extras: **repeat** up/down/izq/der (retardo + aceleración) y **cierre
+F11/SALIR rápido**.
+
+**Offsets reales del slot (MEDIDOS; no re-investigar)**: `PROGRESO` u16 BE `+0x366` · `NIVEL` u8
+`+0x04B` · `TÉCNICAS` flag `+0x09E` + id*3 · `ITEMS` `+0x1A0` + id · stats por parte (u16 BE) offense
+`+0x010`, defense `+0x01C`, hit `+0x068`, damage `+0x076`. Checksum en `+0xCFC`. Contenedor `HHPK`:
+data a `0x1B`; cabecera `0x100` + **4 slots `0xD00`**.
+
+### 2. Trabajo pendiente (por orden)
+
+1. **`CONTINUAR` no refleja lo editado** (BLOQUEANTE, reportado en Windows 2026-09-27): el `.pak`
+   cambia en disco pero `CONTINUAR` **no previsualiza** los cambios y **carga el save sin cambios**.
+   Hipótesis a comprobar en Windows con **`HH_PAKLOG=1`**:
+   - ¿El runtime/el juego **cachean** el `.pak`? (`hh_pak_reload_from_disk` ya se llama en `save()`;
+     probar a llamarlo **al entrar/salir** del editor y ver si aparece `osPfsReadWriteFile READ` tras
+     GUARDAR.)
+   - ¿`CONTINUAR` lee el **slot `+0x100`** que editamos o **otro** (cabecera/otro fichero)? Comparar el
+     `.pak` en disco con lo que muestra CONTINUE.
+   - ¿La **previsualización** (cabecera de la lista de slots) sale de la **cabecera** (registros de
+     `0x10`) y no del slot? → habría que actualizarla también al GUARDAR.
+2. **`ESTADO` (OFENSIVO/DEFENSIVO) muestra 256** en todas las partes (deberían ser counts ~1):
+   offsets de stats **mal**. **Identificarlos** con centinelas (escribir valor único por campo,
+   guardar y ver dónde aterriza en el `.pak`) o comparando `.pak` reales; **no fiarse** del mapa del
+   struct en RAM.
+3. **Numeración de `PROGRESO`**: ahora lista las **224 escenas** de `D_80175490` (mostrado = idx/p).
+   Decidir si listar solo **puntos de guardado** (`D_801DC930`, 56). El mantenedor se ofreció a
+   **mapear** numeración↔nivel en cuanto un punto cargue.
+4. **`NIVEL` +1**: aplicado (guardado = mostrado−1); **confirmar en partida** si el mostrado es
+   `guardado+1`.
+5. **Limpieza**: quitar argumentos ya sin uso de `hh::save::load/save`, el modo `HH_SAVEEDIT_TEST`, y
+   código muerto.
 6. **Fase 2** (aparcada): `JUGAR`/viaje directo al nivel sin pasar por guardar (progreso + cargador de
    escena `func_80125968`/`func_8012FE50`).
+
+### 3. Instrumentación de la sesión (para validar en Windows)
+
+- **`HH_SAVEEDIT_TEST=1`**: tras el primer frame de título, abre el `.pak`, escribe progreso/nivel/
+  tech/item del slot 0, guarda, reabre e imprime `[save-edit][test] antes/despues` en `hh.log`
+  (valida escritura sin mando). **Quitar al cerrar la tarea.**
+- **`HH_PAKLOG=1`**: log del Controller Pak (READ/WRITE) en `hh_pak.log`.
+- **`HH_MENU_SCREEN=12`**: fuerza la pantalla del editor ( + `HH_PRESS_SEQ` para llegar al título).
 
 ### Relacionado
 - **`VIBRACIÓN` ↔ guardado** (item 11 de `TODO.md`): Rumble vs Controller Pak; afecta a la cápsula.
@@ -308,10 +344,22 @@ stamina) a la izquierda y minimapa a la derecha, anclados y persistentes entre c
   el tag `v0.5.1` **tras CI verde**.
 - **`menu-edicion-partida`** (rama de trabajo actual, desde `main`): commits **sin pushear** —
   `14fa002` (editor v1), `61885f2`/`f20f71b` (docs), `6c917b0` (v2 memoria), `622fe98` (docs v2),
-  `c27d60d` (ideas de guardado), `77d2ad6` (**v3 sobre el `.pak` + UI + repeat + cierre F11**).
-  **Forks**: NMR local = **`9b14604`** (`hh_pak_reload_from_disk`; `39baeeb` ya en remoto) y RT64
-  local = **`5b11988`** (apunta al fork plume `71fd344`, fix de shutdown). **Ninguno pusheado**; para
-  clon limpio/CI habría que pushear `lib/N64ModernRuntime` y `lib/rt64` (y el fork `plume`).
+  `c27d60d` (ideas de guardado), `77d2ad6` (**v3 sobre el `.pak` + UI + repeat + cierre F11**),
+  `a92b90c`/`8cdc60c` (handoff).
+- **Forks SIN PUSHEAR (ver §Decisión pendiente, opción A/B)**:
+  - `lib/N64ModernRuntime` (`hybrid-heaven`) → local **`9b14604`**; remoto `fork/hybrid-heaven` =
+    `39baeeb`. Añade `hh_pak_reload_from_disk`.
+  - `lib/rt64` (`hybrid-heaven`) → local **`5b11988`**; remoto `a8f0a70`. Apunta al **fork plume**
+    `src/contrib/plume` → local **`71fd344`** (rama nueva `hybrid-heaven`); sin remoto propio aún.
+  - **Comandos de push si se elige A** (`fork` = `hunkstalker/…`; añadir remoto `fork` en plume si
+    falta: `git -C lib/rt64/src/contrib/plume remote add fork https://github.com/hunkstalker/plume.git`):
+    ```
+    git -C lib/rt64/src/contrib/plume push -u fork hybrid-heaven
+    git -C lib/rt64 push -u fork hybrid-heaven
+    git -C lib/N64ModernRuntime push -u fork hybrid-heaven
+    git -C <repo> push -u origin menu-edicion-partida
+    ```
+    (El orden importa: **plume antes que rt64**, porque rt64 apunta a ese commit.)
 - **`menu-nativo`** (WIP del menú): basado en **`4759bd0`** (`origin/menu-nativo`; los 13 commits con
   basura se deshicieron y **nunca llegaron a `origin`**). Merge con `main` ya incluido. Commits limpios
   de 2026-09-26 **sin pushear**: sync, backlog/docs, IDIOMA/CONFIGURACIÓN, sombras, `CONTINUAR`,
