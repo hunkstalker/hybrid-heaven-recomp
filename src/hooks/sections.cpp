@@ -625,6 +625,14 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 2;   // sel = BATTLE MODE
         g_inject_native_a = true;
     }
+    // EDICIÓN DE PARTIDA: mientras el editor esté visible, garantiza que hay una partida cargada en
+    // los globals (la primera vez) y refresca nombres/valores. La carga usa el ctx del handler (pila).
+    // (Antes del procesado de acciones: PARTIDA carga el slot y luego las acciones ya leen/escriben.)
+    if (hh::menu::current_screen().id == hh::menu::ScreenId::SaveEdit && !hh::save::loaded()) {
+        hh::save::load(hh::menu::save_edit_slot(), rdram, ctx);
+        hh::menu::refresh_save_edit();
+    }
+
     // Selectores con acción: DEBUG (modo desarrollador de RT64, Inspector con F1), P. COMPLETA
     // (ventana borderless/windowed), VSYNC, LÍMITE DE FPS y MOSTRAR FPS. Todos persisten en
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
@@ -690,45 +698,42 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                     }
                 }
             } else if (cur.action == hh::menu::Action::SaveEditSlot) {
-                // Cambiar de PARTIDA: recarga el editor con los valores de ese slot.
+                // Cambiar de PARTIDA: carga ese slot en los globals y refresca el editor.
                 hh::menu::set_save_edit_slot(cur.value);
+                hh::save::load(hh::menu::save_edit_slot(), rdram, ctx);
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditProgress) {
-                hh::save::set_progress(hh::menu::save_edit_slot(),
-                                       hh::menu::save_edit_progress_value(cur.value));
+                hh::save::set_progress(hh::menu::save_edit_progress_value(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditLevel) {
-                hh::save::set_level(hh::menu::save_edit_slot(), static_cast<uint8_t>(cur.value));
+                hh::save::set_level(static_cast<uint8_t>(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditBodyState) {
                 hh::menu::set_save_edit_body_state(cur.value);
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditBodyValue) {
-                hh::save::set_body_stat(hh::menu::save_edit_slot(), cur.index,
-                                        hh::menu::save_edit_body_state(),
+                hh::save::set_body_stat(cur.index, hh::menu::save_edit_body_state(),
                                         static_cast<uint16_t>(cur.value));
             } else if (cur.action == hh::menu::Action::SaveEditItem) {
-                hh::save::set_item_count(hh::menu::save_edit_slot(), cur.index,
-                                         static_cast<uint8_t>(cur.value));
+                hh::save::set_item_count(cur.index, static_cast<uint8_t>(cur.value));
             }
         }
     }
-    // EDICIÓN DE PARTIDA: entrar (EXTRAS -> SaveEdit) refresca el editor con el `.pak` y los nombres.
-    if (ev == hh::menu::Event::Accept &&
-        hh::menu::current_screen().id == hh::menu::ScreenId::SaveEdit &&
-        screen_before == hh::menu::ScreenId::Extras) {
-        hh::save::unload();   // relee el `.pak` del disco (puede haber cambiado desde el arranque)
-        hh::save::load();
-        hh::menu::refresh_save_edit();
-    }
-    // EDICIÓN DE PARTIDA: HABILIDADES (toggle por fila) y GUARDAR (escribe el .pak + recarga runtime).
+    // EDICIÓN DE PARTIDA: HABILIDADES (toggle por fila), GUARDAR (serializa los globals al slot).
     if (ev == hh::menu::Event::Accept && same_screen) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
             if (s.id == hh::menu::ScreenId::SaveEditAbilities &&
                 cur.kind == hh::menu::Kind::Toggle) {
-                hh::save::set_tech_learned(hh::menu::save_edit_slot(), cur.index, cur.marked);
+                hh::save::set_tech_learned(cur.index, cur.marked);
             } else if (cur.action == hh::menu::Action::SaveEditSave) {
-                hh::save::save();
+                // Guarda el slot seleccionado y CONTINÚA (carga lo recién guardado y arranca): así se
+                // prueba el resultado al momento. (v1: "guardar y jugar"; v2: guardar sin arrancar.)
+                const int sslot = hh::menu::save_edit_slot();
+                hh::log("[save-edit] GUARDAR slot=%d\n", sslot);
+                hh::save::save(sslot, rdram, ctx);
+                hh::menu::set_save_edit_slot(sslot);
+                rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
+                g_inject_native_a = true;
             }
         }
     }

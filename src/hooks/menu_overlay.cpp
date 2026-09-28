@@ -362,11 +362,7 @@ void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
     if (len == 0) {
         return;
     }
-    static bool logged = false;
-    if (!logged) {
-        logged = true;
-        hh::log("[native] filter first text=%08X\n", text_addr);
-    }
+    hh::log("[native] filter text=%08X len=%u\n", text_addr, len);
     for (unsigned i = 0; i < len; ++i) {
         rdram[((text_addr + i) - 0x80000000u) ^ 3u] = (i == len - 1) ? 0x00u : 0x20u;
     }
@@ -426,24 +422,11 @@ void title_update(uint8_t* rdram) {
     if (custom_layout) {
         const float step = 8.0f * g_scale_x;
         size_t max_label = 0, max_gp = 0, max_key = 0;
-        float max_val_px = 0.0f;
-        constexpr float kSlashSep2 = 2.0f, kSlashW2 = 5.0f;
         for (const hh::menu::Entry& e : screen.entries) {
             max_label = std::max(max_label, cp_count(hh::menu::localized(e.label)));
             if (e.kind == hh::menu::Kind::Binding) {
                 max_gp = std::max(max_gp, cp_count(hh::pad_binding_gamepad(e.remap_key)));
                 max_key = std::max(max_key, cp_count(hh::pad_binding_key(e.remap_key)));
-            } else if (e.kind == hh::menu::Kind::Selector && !e.options.empty()) {
-                float w = 0.0f;
-                for (size_t oi = 0; oi < e.options.size(); ++oi) {
-                    w += static_cast<float>(cp_count(hh::menu::localized(e.options[oi]))) * step;
-                    if (oi + 1 < e.options.size()) w += 2.0f * kSlashSep2 + kSlashW2;
-                }
-                max_val_px = std::max(max_val_px, w);
-            } else if (e.kind == hh::menu::Kind::Number) {
-                max_val_px = std::max(max_val_px, 7.0f * step);   // "< 9999 >"
-            } else if (e.kind == hh::menu::Kind::Toggle) {
-                max_val_px = std::max(max_val_px, 4.0f * step);   // "SÍ"/"NO"
             }
         }
         float content_px = 0.0f;
@@ -455,7 +438,31 @@ void title_update(uint8_t* rdram) {
         } else {
             selector_col = static_cast<float>(max_label + 1) + kExtrasValueGap;
             key_col = selector_col + kKeyColGap;
-            content_px = selector_col * step + max_val_px;
+            // Ancho de la columna de valores: el que REALMENTE se dibuja. Un selector con muchas
+            // opciones no cabe y sale en forma larga (< valor >); sumar TODAS las opciones (p. ej.
+            // PROGRESO con ~228) mandaba el contenido fuera de pantalla (menú "vacío").
+            constexpr float kSlashSep2 = 2.0f, kSlashW2 = 5.0f;
+            const float value_x = selector_col * step;
+            float max_val_px = 0.0f;
+            for (const hh::menu::Entry& e : screen.entries) {
+                if (e.kind == hh::menu::Kind::Selector && !e.options.empty()) {
+                    float sum = 0.0f, single = 0.0f;
+                    for (size_t oi = 0; oi < e.options.size(); ++oi) {
+                        const float ow =
+                            static_cast<float>(cp_count(hh::menu::localized(e.options[oi]))) * step;
+                        single = std::max(single, ow);
+                        sum += ow;
+                        if (oi + 1 < e.options.size()) sum += 2.0f * kSlashSep2 + kSlashW2;
+                    }
+                    const bool fits = value_x + sum <= hh::overlay::kVirtualWidth - 4.0f;
+                    max_val_px = std::max(max_val_px, fits ? sum : (single + 12.0f));
+                } else if (e.kind == hh::menu::Kind::Number) {
+                    max_val_px = std::max(max_val_px, 7.0f * step);   // "< 9999 >"
+                } else if (e.kind == hh::menu::Kind::Toggle) {
+                    max_val_px = std::max(max_val_px, 4.0f * step);   // "SÍ"/"NO"
+                }
+            }
+            content_px = value_x + max_val_px;
         }
         x_shift = (hh::overlay::kVirtualWidth - content_px) * 0.5f - layout.x;
     }
@@ -636,10 +643,17 @@ void title_update(uint8_t* rdram) {
         }
     }
 
-    if (trace && !traced) {
-        hh::log("[overlay] screen=%d kind=%d entries=%zu\n", static_cast<int>(screen.id),
-                static_cast<int>(screen.kind), screen.entries.size());
-        traced = true;
+    if (trace) {
+        static int last_screen = -1, last_entries = -1, last_xshift = -9999;
+        const int xs = static_cast<int>(x_shift);
+        if (static_cast<int>(screen.id) != last_screen ||
+            static_cast<int>(screen.entries.size()) != last_entries || xs != last_xshift) {
+            last_screen = static_cast<int>(screen.id);
+            last_entries = static_cast<int>(screen.entries.size());
+            last_xshift = xs;
+            hh::log("[overlay] screen=%d kind=%d entries=%zu x_shift=%d\n", last_screen,
+                    static_cast<int>(screen.kind), screen.entries.size(), xs);
+        }
     }
 
     g_publish_counter.fetch_add(1, std::memory_order_relaxed);

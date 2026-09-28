@@ -552,11 +552,10 @@ Screen* find_screen(ScreenId id) {
     return nullptr;
 }
 
-// Reconstruye las pantallas del editor con los valores actuales del slot seleccionado. Se llama al
-// construir el árbol, al cambiar PARTIDA y al cambiar el ESTADO de BODY (lo demás se refleja en el
-// propio modelo). Necesita el `.pak` (hh::save::load); los nombres salen de la ROM (módulo 8).
+// Reconstruye las pantallas del editor con los valores ACTUALES de los globals (la partida cargada).
+// Se llama al construir el árbol, al cambiar PARTIDA/ESTADO y tras GUARDAR (lo demás se refleja en el
+// propio modelo). Cargar un slot en los globals lo hace `hh::save::load(slot)` (en las acciones).
 void rebuild_save_edit() {
-    hh::save::load();
     const int slot = g_edit_slot;
 
     if (Screen* s = find_screen(ScreenId::SaveEdit)) {
@@ -564,11 +563,11 @@ void rebuild_save_edit() {
         e.push_back(make_selector_with_action("PARTIDA", {"1", "2", "3", "4"}, Action::SaveEditSlot,
                                               slot));
         e.push_back(make_selector_with_action("PROGRESO", progress_options(), Action::SaveEditProgress,
-                                              progress_index_of(hh::save::progress(slot))));
+                                              progress_index_of(hh::save::progress())));
         std::vector<std::string> levels;
         for (int i = 0; i < 100; ++i) levels.push_back(std::to_string(i));
         e.push_back(make_selector_with_action("NIVEL", levels, Action::SaveEditLevel,
-                                              hh::save::level(slot)));
+                                              hh::save::level()));
         e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
         e.push_back(make_submenu("BODY", Action::OpenSaveEditBody));
         e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
@@ -580,8 +579,8 @@ void rebuild_save_edit() {
     if (Screen* s = find_screen(ScreenId::SaveEditAbilities)) {
         std::vector<Entry> e;
         for (int id = 0; id < hh::save::kTechCount; ++id) {
-            e.push_back(make_toggle(hh::save::tech_name(id).c_str(),
-                                    hh::save::tech_learned(slot, id), id, Action::None));
+            e.push_back(make_toggle(hh::save::tech_name(id).c_str(), hh::save::tech_learned(id), id,
+                                    Action::None));
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -595,7 +594,7 @@ void rebuild_save_edit() {
         for (int i = 0; i < 6; ++i) {
             const int part = kPartIndex[i];
             e.push_back(make_number(kPartLabels[i], 0, 9999,
-                                    hh::save::body_stat(slot, part, g_edit_body_state), part,
+                                    hh::save::body_stat(part, g_edit_body_state), part,
                                     Action::SaveEditBodyValue));
         }
         s->entries = std::move(e);
@@ -606,7 +605,7 @@ void rebuild_save_edit() {
         std::vector<Entry> e;
         for (int id = 0; id < hh::save::kItemCount; ++id) {
             e.push_back(make_number(hh::save::item_name(id).c_str(), 0, 99,
-                                    hh::save::item_count(slot, id), id, Action::SaveEditItem));
+                                    hh::save::item_count(id), id, Action::SaveEditItem));
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
