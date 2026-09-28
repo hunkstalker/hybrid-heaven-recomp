@@ -58,7 +58,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [2026-09-27 — Editor de partida v3 (sobre el `.pak`) y hallazgos](../notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md) | Sesión larga (`menu-edicion-partida`). Continúa `notes/2026-09-27-e-editor-partida-plan.md`. | 75 | 2026-09-27 |
-| [2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)](../notes/2026-09-27-e-editor-partida-plan.md) | Sesión `menu-edicion-partida` (rama desde `main`/v0.5.1). Objetivo del mantenedor: un menú para | 128 | 2026-09-27 |
+| [2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)](../notes/2026-09-27-e-editor-partida-plan.md) | **OJO (2026-09-27, posterior)**: este documento es el reconocimiento inicial. La **implementación | 133 | 2026-09-27 |
 | [2026-09-27 — Release limpia: diagnósticos y volcados desactivados por defecto (v0.5.1)](../notes/2026-09-27-d-release-sin-volcados.md) | Sesión `main`. Petición del mantenedor: el `.exe` de release **no debe dejar ficheros de volcado**. | 52 | 2026-09-27 |
 | [2026-09-27 — CÁMARA/APUNTADO LIBRE off, tildes +0.5 px y MENÚ en japonés (kana)](../notes/2026-09-27-c-camara-libre-off-tildes-y-menu-ja.md) | Sesión `menu-nativo`. Objetivo acordado: 13–15 de `TODO.md` (deshabilitar los selectores modernos, | 92 | 2026-09-27 |
 | [2026-09-27 — `MODO COMBATE` (BATTLE MODE): reconocimiento nativo y reproducción del SEGV](../notes/2026-09-27-battle-mode-recon.md) | Sesión `menu-nativo`. Objetivo del mantenedor: reconocer la secuencia NATIVA de BATTLE MODE, | 194 | 2026-09-27 |

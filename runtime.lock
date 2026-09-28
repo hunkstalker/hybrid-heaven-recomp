@@ -13,7 +13,7 @@
 RT64_URL=https://github.com/hunkstalker/rt64.git
 RT64_COMMIT=5b119880938ecfef1b933b71a2b5f0372246272e
 NMR_URL=https://github.com/hunkstalker/N64ModernRuntime.git
-NMR_COMMIT=39baeeb9e446162603961291a093dc5959f8e130
+NMR_COMMIT=9b146041eefd69efa591f66761d1cc507a50b008
 # Referencia (los resuelve el .gitmodules anidado del fork NMR; se listan para trazabilidad):
 N64RECOMP_URL=https://github.com/hunkstalker/N64Recomp.git
 N64RECOMP_COMMIT=cab94d912ff858d6574974cead7dbbcca09e282f

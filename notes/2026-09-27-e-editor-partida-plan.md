@@ -1,5 +1,10 @@
 # 2026-09-27 — `EDICIÓN DE PARTIDA`: reconocimiento y diseño (editor de save)
 
+> **OJO (2026-09-27, posterior)**: este documento es el reconocimiento inicial. La **implementación
+> final es la v3 (sobre el `.pak`)** y los **offsets reales verificados** están en
+> `notes/2026-09-27-f-editor-partida-v3-y-hallazgos.md`; las secciones §7/§7.b (vías v1 fichero y v2
+> memoria) quedaron **superadas**. Empieza por la nota `f-…`.
+
 > Sesión `menu-edicion-partida` (rama desde `main`/v0.5.1). Objetivo del mantenedor: un menú para
 > **cargar una partida y editarla** (progreso, nivel, habilidades, estadísticas por parte del cuerpo,
 > items) y **GUARDAR** en un slot, para poder testear sin jugar. **Fase 2** (no ahora): `JUGAR`/viajar
