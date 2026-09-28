@@ -41,33 +41,16 @@ editor de saves; **persiste** en `config.ini [extras].heaven` (como MANTENER EXT
 - **Auto-GUARDAR**: no; sigue siendo explícito.
 
 > **[MEDIDO del C recompilado]**: `0x8017DC40` es el struct del personaje (lo deserializa
-> `func_80144E68`, lo serializa `func_80144C40` y lo leen `func_80378D84/E3C`). **[A VALIDAR]**: que el
-> orden de hooks cubra CONTINUE y partida nueva, y los efectos en ejecución (máx + daño 0 + items que
-> no bajan). Si en partida nueva no pasara por esos hooks, añadir su hook puntual.
-
-## HECHO (validado funcionalmente): SORPRESA/ventaja de combate ("back attack")
-
-Objetivo del mantenedor: que **todos los combates empiecen sorprendiendo al enemigo** (como entrar por
-la espalda), siempre, y dentro de MODO HEAVEN. La sorpresa es un **evento puntual de ANTES del combate**,
-así que no vale con fotos periódicas: la instrumentación registra **cambios** (event-driven) con **F12**
-(`run_battle_trace.bat` + `hh::battle_trace_toggle` en `src/subsystems/input.cpp`).
-
-**Flag medido** (traza diferencial normal vs por la espalda; nombre interno del juego `gw.back_attack`):
-- El byte **`0x801BBBF0+0x1034`** (dirección `0x801BCC24`) pasa a **2** solo en el combate con ventaja,
-  a `vi≈8315` (antes del setup). El `+0x1032=1` del setup normal sale en ambos combates.
-- Lo escriben `func_8021D8D0` (transición de batalla) y `func_801F5F5C` (copia `a0+0xAF`), así que se
-  **fuerza por-frame** en `hh_battle_frame_hook` bajo `heaven_enabled()` (si el byte está en 0/1 → 2).
-- **Validado por el mantenedor (2026-09-28)**: con HEAVEN ON la pelea empieza con el **POWER al máximo
-  desde el inicio** (no hace falta que salga la palabra "ADVANTAGE" en pantalla).
-
-> **OJO (bug corregido)**: la primera versión forzaba `+0x1037` por un `bswap` de más en la
-> decodificación de la traza; el byte correcto es `+0x1034`. El `bswap` ya está quitado del watcher
-> (`hh_battle_frame_hook`).
+> `func_80144E68`, lo serializa `func_80144C40` y lo leen `func_80378D84/E3C`). **Validado en Windows**:
+> los hooks cubren CONTINUE y partida nueva, y los efectos en ejecución (máx + daño 0 + items que no
+> bajan). Ver también `PODER ∞`/`RESISTENCIA ∞` y daño de campo más abajo.
 
 ## `VENTAJA` — toggle propio en EXTRAS (independiente de MODO HEAVEN) `[VALIDADO]`
 
 En **EXTRAS → `VENTAJA NO/SÍ`**. Da la **ventaja de combate ("back attack")**: `hh_battle_frame_hook`
-fuerza el byte `0x801BCC24` (`0x801BBBF0+0x1034`) a 2 → los combates empiezan con el POWER al máximo.
+fuerza el byte **`0x801BBBF0+0x1034`** (dirección `0x801BCC24`) a 2 → los combates empiezan con el POWER
+al máximo. El **nombre interno del juego** es `gw.back_attack` (cadena de debug en `file_011`); lo
+escriben `func_8021D8D0` (transición de batalla) y `func_801F5F5C` (copia `a0+0xAF`).
 
 - **Independiente de HEAVEN**: se aplica **solo** si `advantage_enabled()` (`hh_battle_frame_hook`).
   Antes HEAVEN también la forzaba, pero se **retiró**: con PODER ∞ (que HEAVEN incluye) la ventaja es
@@ -155,8 +138,9 @@ pantalla (`func_800058DC`) y el `live_ptr`. Análisis: `tools/analysis/diff_batt
   `custom_layout` (`src/hooks/menu_overlay.cpp`); CONTROLES y GRÁFICOS se centran y `scroll_cap5`
   (ventana de 5 filas) solo aplica a EXTRAS/CONTROLES/editor, así GRÁFICOS conserva sus 6 filas.
   Añadido un tope de `x_shift` para que bindings largos no saquen el contenido de `kVirtualWidth`.
-- **Validar en Windows** todo el rediseño de esta sesión (sin validar): ATRIBUTOS/ESTADO, repeat de
-  izq/der, ELIMINAR, ITEMS en mayúsculas, HABILIDADES `RESET`, MODO HEAVEN.
+- **Rediseño de esta sesión — VALIDADO en Windows (2026-09-28)**: ATRIBUTOS/ESTADO, repeat de izq/der,
+  ELIMINAR, ITEMS en mayúsculas, HABILIDADES `RESET`, MODO HEAVEN, `VENTAJA`, `PODER ∞`/`RESISTENCIA ∞`
+  y el daño de campo (robots).
 - **"Release limpio" (trazas fuera del release)**. El runtime tiene la macro `HH_DEBUG_TOOLS` (default 1,
   `lib/N64ModernRuntime/librecomp/src/recomp.cpp:26`) que envuelve toda la instrumentación; la idea es
   compilar el release con `-DHH_DEBUG_TOOLS=0`. **PERO hoy está ROTO**: con `=0` no compila — los
@@ -195,7 +179,13 @@ pantalla (`func_800058DC`) y el `live_ptr`. Análisis: `tools/analysis/diff_batt
 6. **MODO HEAVEN (segunda pasada)**: modo **global persistente** (`config.ini [extras].heaven`):
    máxima el personaje vivo al cargar (`func_80144E68`/`func_80152240` → `apply_heaven_runtime`) +
    invulnerabilidad (`func_80232D08`) + items no consumibles (`func_8013D520`); el editor deja de
-   tocarlo. **GRÁFICOS** centrado. Compila en Linux; **sin validar en Windows**.
+   tocarlo. **GRÁFICOS** centrado. **Validado en Windows (2026-09-28)**.
+7. **VENTAJA / PODER ∞ / RESISTENCIA ∞ (EXTRAS)**: toggles persistentes; HEAVEN incluye los ∞ (no la
+   ventaja). El `∞` se dibuja vectorial. **Validados en Windows (2026-09-28)**.
+8. **Daño de campo (robots) anulado** bajo HEAVEN (`func_80379F04` → scratch `0x80388A68`).
+   **Validado en Windows (2026-09-28)**.
+9. **Stepper `< valor >` para ANTIALIASING** (`Entry::stepper`). Y **GRÁFICOS/CONTROLES centrados**.
+   Validado en Windows.
 
 ## Estado del editor (acumulado)
 

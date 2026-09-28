@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-25**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-28**.
 
 ## 1. Objetivo
 
@@ -93,6 +93,13 @@ queda ampliar el contenido de la pantalla `EXTRAS`. Próximas tareas del menú e
 **`v0.5.1` (2026-09-27, en curso)**: release limpia — el `.exe` **solo** deja `hh.log`; los volcados
 (`hh_audio/tick/slow/state/slice/hang/flag/crash/pak`) pasan a **opt-in** (`HH_DIAG`/`HH_CRASH_LOG`/
 `HH_PAKLOG`). Próxima feature: **editor de partida** (`EDICIÓN DE PARTIDA`; ver `RETOMAR.md`).
+**Rama `menu-edicion-partida` (2026-09-28, sin pushear; `main` = v0.5.0)**: **editor de partida**
+rediseñado (ATRIBUTOS/ESTADO como niveles de atributo/parte, HABILIDADES `RESET`, ITEMS en mayúsculas,
+ELIMINAR); **MODO HEAVEN** convertido en **modo global persistente** (ATRIBUTOS/ESTADO 99 + 86
+habilidades + invulnerabilidad combate/campo + items no consumibles); **`VENTAJA`** (back attack) y
+**`PODER ∞`/`RESISTENCIA ∞`** como toggles de EXTRAS persistentes (`∞` dibujado vectorial); daño de
+campo (robots) anulado; **stepper `< valor >`** para ANTIALIASING; GRÁFICOS/CONTROLES centrados. Todo
+**validado en Windows**. Detalle: `RETOMAR.md`, `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

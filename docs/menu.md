@@ -50,7 +50,7 @@ CONFIGURACIÓN ->
             RATIO        < AUTO / ORIGINAL / 4:3 / 16:9 / 16:10 / 21:9 >
             RESOLUCIÓN   < AUTO … >    (filtrada por RATIO; AUTO/ORIGINAL + las del ratio)
             P. COMPLETA  NO/SÍ         (pantalla completa)
-            ANTIALIASING < x0 / x2 / x4 / x8 >
+            ANTIALIASING < x2 >        (stepper; valores x0/x2/x4/x8)
             VSYNC        NO/SÍ         (por defecto SÍ)
             LÍMITE DE FPS < NATIVO / 30 / 40 / 60 / 75 / 90 / 120 / 144 / 165 / 240 >
                           (NATIVO = refresco del monitor)
@@ -61,6 +61,15 @@ CONFIGURACIÓN ->
       DEBUG ->
             VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
             MOSTRAR FPS    NO/SÍ
+EXTRAS ->                                  (desbloqueable con el código Konami / MANTENER EXTRAS; §EXTRAS)
+      MODO HEAVEN        NO/SÍ             (modo global persistente: ATRIBUTOS/ESTADO 99 + 86 hab. +
+                                            invulnerabilidad + items no consumibles + PODER/RESIS. ∞)
+      MANTENER EXTRAS    NO/SÍ
+      LOGOS ORIGINALES   NO/SÍ
+      EDICIÓN DE PARTIDA -> …              (editor de saves; ver §EDICIÓN DE PARTIDA)
+      VENTAJA            NO/SÍ             (ventaja de combate / back attack)
+      PODER ∞            NO/SÍ             (el PODER de combate no se gasta)
+      RESISTENCIA ∞      NO/SÍ             (la RESISTENCIA de combate no se gasta)
 SALIR                                      (extra del port: cierra de forma ordenada; ver §SALIR)
 ```
 
@@ -75,8 +84,10 @@ SALIR                                      (extra del port: cierra de forma orde
   (`hh::video_set_aspect` / `video_set_resolution`) y persisten (`aspect`/`res`); al cambiar `RATIO`
   se re-aplica la `RESOLUCIÓN` resultante del filtro. `res` acepta `auto`/`original`/`2x`/`<n>`/`4k`/
   `8k`/`ANCHOxALTO`.
-- **`ANTIALIASING`** (`x0/x2/x4/x8`): MSAA de RT64; por defecto `x8` (el de `[video].msaa`). Aplica en
-  vivo (`hh::video_set_msaa` → `set_graphics_config` → `updateMultisampling`) y persiste (`msaa`).
+- **`ANTIALIASING`** (`x0/x2/x4/x8`, MSAA de RT64; por defecto `x8` = `[video].msaa`): se muestra como
+  **stepper** `< x2 >` (solo el activo, con chevrons) aunque sus 4 valores quepan enteros, gracias al
+  flag `Entry::stepper` (ver §Selectores laterales). Aplica en vivo (`hh::video_set_msaa` →
+  `set_graphics_config` → `updateMultisampling`) y persiste (`msaa`).
   `res=ANCHOxALTO` usa como multiplicador el mayor de ancho/320 y alto/240, para que cada opción dé un
   paso de escala distinto (antes varias colapsaban al mismo → parecía que "no cambiaba").
 - **Widescreen y ratios fijos**: el *snap* de overscan del port (`hh::snap_overscan`) se aplica a los
@@ -128,8 +139,9 @@ SALIR                                      (extra del port: cierra de forma orde
   VSYNC, LÍMITE DE FPS, VENTANA DEBUG, MOSTRAR FPS): **el activo en verde** y el resto en gris;
   izquierda/derecha cambian el valor. Todos los **valores empiezan en la misma columna** (los chevrons
   quedan fuera de esa alineación). Los de **pocos valores** se ven juntos (`NO / SÍ`, con **2 px** a
-  cada lado de la barra); los **largos** (RESOLUCIÓN, LÍMITE DE FPS) muestran solo el activo entre
-  **flechas `<` `>` a 4 px** (`< 800x600 >`). La fuente del menú no tiene `<>/:.`, así que la barra, las
+  cada lado de la barra); los **largos** (RESOLUCIÓN, LÍMITE DE FPS) y los marcados con
+  **`Entry::stepper`** (ANTIALIASING) muestran solo el activo entre **flechas `<` `>` a 4 px**
+  (`< x2 >`). La fuente del menú no tiene `<>/:.`, así que la barra, las
   flechas y los signos `:` `.` se dibujan con rectángulos (como la flecha nativa). Los **dígitos**
   (resoluciones, FPS) se mapean en el atlas (`hh::font::game::glyph_value`).
 - **Experiencia moderna**: CÁMARA LIBRE y APUNTADO LIBRE (mejoras jugables fuera del original) vivían
@@ -156,6 +168,25 @@ SALIR                                      (extra del port: cierra de forma orde
   0** de mando, así que no se detecta un **2.º mando** (¿o 2.º Controller Pak?) — backlog `TODO.md`.
   `EDITAR DATOS` sigue siendo el flujo nativo (no tiene pantalla de opciones propia).
   Detalle: `../notes/2026-09-27-battle-mode-recon.md`.
+
+### `EXTRAS`
+
+- **Desbloqueo**: se entra si se tecleó el **código Konami** en el logo KONAMI o si `MANTENER EXTRAS`
+  está en SÍ (`config.ini [extras].persist`). También se mantiene visible si algún toggle de EXTRAS
+  está activo, para poder apagarlo.
+- **`MANTENER EXTRAS`** (`NO/SÍ`, persiste `[extras].persist`) y **`LOGOS ORIGINALES`**
+  (`NO/SÍ`, `[extras].original_logos`).
+- **`MODO HEAVEN`** (`NO/SÍ`, `[extras].heaven`): **modo global persistente**, independiente de la
+  partida. Al cargar/empezar partida aplica ATRIBUTOS/ESTADO 99 + 86 habilidades; en runtime,
+  invulnerabilidad (combate y campo), items no consumibles y **PODER/RESISTENCIA ∞**. **No** incluye
+  VENTAJA. Detalle técnico y direcciones: `../RETOMAR.md`.
+- **`EDICIÓN DE PARTIDA`**: submenú del editor de saves (ver `../notes/` y `RETOMAR.md`).
+- **`VENTAJA`** (`NO/SÍ`, `[extras].advantage`): ventaja de combate ("back attack"); fuerza
+  `0x801BCC24 = 2` por frame. Independiente de HEAVEN.
+- **`PODER ∞`** / **`RESISTENCIA ∞`** (`NO/SÍ`, `[extras].infinite_power` / `[extras].infinite_stamina`):
+  mantienen el gauge de combate al máximo (no se gasta). El `∞` (U+221E) **no está en la fuente** y se
+  dibuja vectorial (13×5, con sombra), como `:` `.` `%` `/`.
+- **Idiomas**: todas las etiquetas traducidas a **en/es/ca/fr/de/ja**.
 
 ### `SALIR`
 

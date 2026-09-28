@@ -28,10 +28,6 @@
   incluye.** O(1), no-op fuera de combate. Detalle: `RETOMAR.md`.
 - [x] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (`menu_overlay.cpp`): `Graphics`
   añadido a `custom_layout`; `scroll_cap5` solo para EXTRAS/CONTROLES/editor (GRÁFICOS conserva 6 filas).
-- [x] **SORPRESA/ventaja de combate ("back attack") — VALIDADO funcionalmente (2026-09-28)**: flag
-  `0x801BBBF0+0x1034 = 2` (dirección `0x801BCC24`; interno `gw.back_attack`), forzado en
-  `hh_battle_frame_hook` bajo `hh::menu::heaven_enabled()`. Confirmado por el mantenedor: la pelea
-  empieza con el POWER al máximo (no hace falta ver la palabra "ADVANTAGE"). Detalle en `RETOMAR.md`.
 - [x] **Daño FUERA de combate (robots) — VALIDADO en Windows (2026-09-28)**: la vida de campo es el
   sheet `0x8017DC40+0x02`; `func_80379F04` hace `HP -= *(s16*)0x80388A68`. Hook
   `hh_heaven_field_damage_hook`: con HEAVEN pone el scratch de daño a 0 durante la llamada → no baja la
