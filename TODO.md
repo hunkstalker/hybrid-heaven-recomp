@@ -5,6 +5,10 @@
 
 ## Ahora (priorizado)
 
+- [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
+  detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
+  (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz
+  (copia al último slot); **`EDITAR DATOS` → ordenar slots** (no copiar entre paks).
 - [•] **`EDICIÓN DE PARTIDA` (editor de save) — HECHO en `menu-edicion-partida` (2026-09-27,
   commit `14fa002`), pendiente validar en Windows**: menú en `EXTRAS` con `PROGRESO < N-P >`, `NIVEL`,
   `HABILIDADES` (86, toggle), `BODY` (filtro `ESTADO` + 6 partes), `ITEMS` (45, cantidad) y
