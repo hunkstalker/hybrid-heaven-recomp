@@ -22,6 +22,14 @@
     al cargar 1-0). Verificado en Windows.
   - **Mapa de escenas medido**: `1-0`=0 … `9-0`=90; `100`=Demo Play #1; sub-puntos (`1-1a/b/...`) y
     estaciones por área. `skip_indices.txt` con la lista de los que cuelgan.
+- [ ] **Menú propio de CARGAR/GUARDAR partida (slots "infinitos", 1 `.pak` por slot) — NUEVA TAREA
+  (2026-09-29, PLANIFICADA)**: sustituir los menús nativos (CARGAR al `CONTINUAR`; GUARDAR en cápsula;
+  y, al final, `EDICIÓN DE PARTIDA`) por un **menú propio (overlay)** con **N slots**, un **fichero por
+  slot** (`save/hh_savegame_slot<N>.pak`, slot1=índice 0), diseño **1:1** (Área-Level, nivel, tiempo).
+  Estrategia **A** (overlay encima + interceptar input, como el menú de título). Fases: 0) trazar el
+  file-select nativo (`func_8013E7C0`/`func_8013E850`) y decidir el montaje del `.pak`-por-slot;
+  1) almacenamiento; 2) UI; 3) enganche a CONTINUAR; 4) guardar en cápsula + editar partida. **Plan
+  completo**: `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere

@@ -8,12 +8,18 @@
 > `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
 > plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
 >
+> **TAREA NUEVA (próxima sesión): Menú propio de CARGAR/GUARDAR partida (slots "infinitos", 1 `.pak`
+> por slot).** Plan COMPLETO (leer PRIMERO): **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**
+> (fases, hallazgos `[MEDIDO]`, estrategia A, decisión del fichero-por-slot). La sesión nueva debe
+> empezar por la **Fase 0** de ese plan (trazar `func_8013E7C0`/`func_8013E850` con oráculo + decidir el
+> montaje del `.pak`-por-slot).
+>
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los
 > nuevos). El mantenedor puede decir en cualquier momento que ha guardado slots nuevos; ahí se anotan.
 >
-> **La próxima sesión EMPIEZA por `notes/2026-09-29-editor-area-parte-plan.md`** (§1 sigue siendo el
-> material de partida original; el estado real está al principio de esa nota). Pendientes vivos:
+> **Contexto del mapeo de Áreas-Partes**: `notes/2026-09-29-editor-area-parte-plan.md` (§1 sigue siendo
+> el material de partida original; el estado real está al principio de esa nota). Pendientes vivos:
 > (a) **validar en Windows** `EXTRAS > IR A ÁREA` + `DEBUG NIVELES`; (b) **diseñar/implementar
 > "mover mi partida a una Área-Parte"** (§6bis de la nota: plantilla de zona + datos del jugador);
 > (c) **"volver al menú desde el gameplay"** (el idx 7 daba la intro pero hoy crashea: buscar vía).
