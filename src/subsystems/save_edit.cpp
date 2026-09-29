@@ -276,6 +276,39 @@ void delete_slot(int slot) {
     hh::log("[save-edit] ELIMINAR slot %d (vaciado)\n", slot);
 }
 
+// Escribe el `.pak` en memoria al fichero (recalcula checksums de todos los slots) SIN tocar la
+// cabecera de la lista de partidas. La usa ELIMINAR (su registro ya se marca como no presente).
+bool flush() {
+    if (!g_loaded) return false;
+    for (int s = 0; s < kSlots; ++s) {
+        const size_t base = slot_off(s);
+        unsigned sum = 0;
+        for (size_t i = 0; i < kChecksumOff; ++i) sum += g_bytes[base + i];
+        g_bytes[base + kChecksumOff] = static_cast<uint8_t>(sum & 0xFF);
+        g_bytes[base + kChecksumOff + 1] = 0;
+        g_bytes[base + kChecksumOff + 2] = 0;
+        g_bytes[base + kChecksumOff + 3] = 0;
+    }
+    const std::filesystem::path tmp = g_path.string() + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        if (!out) return false;
+        out.write(reinterpret_cast<const char*>(g_bytes.data()),
+                  static_cast<std::streamsize>(g_bytes.size()));
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp, g_path, ec);
+    if (ec) {
+        std::filesystem::remove(tmp, ec);
+        hh::log("[save-edit] flush: no se pudo escribir %s: %s\n", g_path.string().c_str(),
+                ec.message().c_str());
+        return false;
+    }
+    hh_pak_reload_from_disk();
+    hh::log("[save-edit] flush (.pak) + pak del runtime recargado\n");
+    return true;
+}
+
 bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
     (void)rdram; (void)base_ctx;
     if (!g_loaded || slot < 0 || slot >= kSlots) return false;

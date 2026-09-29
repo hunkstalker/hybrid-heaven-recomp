@@ -32,6 +32,9 @@ enum BodyStat { kOffense = 0, kDefense = 1, kHitCount = 2, kDamageCount = 3 };
 // Abre el `.pak` (idempotente). Los args se mantienen por compatibilidad; no se usan.
 bool load(int slot = 0, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
 bool save(int slot, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
+// Escribe el `.pak` tal cual está en memoria (recalcula checksums de todos los slots) SIN tocar la
+// cabecera de la lista. Para ELIMINAR (que ya marca su registro como no presente).
+bool flush();
 void restore_slot(int slot);   // devuelve el slot al estado del `.pak` al cargarlo (RESTAURAR)
 void delete_slot(int slot);    // vacía el slot y marca su registro de cabecera como no presente
 bool loaded();

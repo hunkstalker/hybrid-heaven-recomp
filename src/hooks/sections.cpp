@@ -1271,11 +1271,14 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditDelete) {
                 // ELIMINAR: A sobre el selector borra en memoria el slot elegido. Queda efectivo al
-                // GUARDAR (que recalcula checksums y reescribe el `.pak`).
-                hh::menu::set_save_edit_delete_target(cur.value);
+                // GUARDAR (que recalcula checksums y reescribe el `.pak`). `cur.value` es el indice
+                // del selector (0-based); el target se guarda 1-based -> +1 (si no, off-by-one: no
+                // borraba el ultimo slot y borraba el anterior).
+                hh::menu::set_save_edit_delete_target(cur.value + 1);
                 const int dslot = hh::menu::save_edit_delete_slot();
                 hh::save::delete_slot(dslot);
-                hh::log("[save-edit] ELIMINAR slot %d\n", dslot);
+                hh::save::flush();   // persiste YA (sin re-marcar la cabecera del slot borrado)
+                hh::log("[save-edit] ELIMINAR slot %d (persistido)\n", dslot);
                 hh::menu::refresh_save_edit();
             } else if (cur.action == hh::menu::Action::SaveEditRestore) {
                 // RESTAURAR: descarta los cambios en memoria del slot (vuelve al estado al cargar).
