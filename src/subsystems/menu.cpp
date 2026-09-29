@@ -191,7 +191,9 @@ Entry make_selector(const char* label, std::vector<std::string> options, int val
     e.enabled = enabled;
     e.kind = Kind::Selector;
     e.options = std::move(options);
-    e.value = value;
+    // Acota el valor al rango de opciones: un indice fuera de rango (p. ej. por un target mal puesto)
+    // leia fuera de `options` y podia colgar el juego.
+    e.value = (value >= 0 && value < static_cast<int>(e.options.size())) ? value : 0;
     e.stepper = stepper;   // fuerza el estilo < valor > (chevrons) aunque quepan todas las opciones
     return e;
 }
@@ -672,9 +674,10 @@ void rebuild_save_edit() {
         for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
         e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
                                               g_edit_save_target));
-        // ELIMINAR: mismo selector de partidas; A borra el slot elegido (se aplica al GUARDAR).
+        // ELIMINAR: mismo selector de partidas; A borra el slot elegido (persiste al instante).
+        // `g_edit_delete_target` es 1-based; el `value` del selector es el indice 0-based -> -1.
         e.push_back(make_selector_with_action("ELIMINAR", slots, Action::SaveEditDelete,
-                                              g_edit_delete_target));
+                                              g_edit_delete_target - 1));
         // RESTAURAR: backup del slot tal como estaba al abrir el `.pak` (estado vanilla). Descarta
         // TODOS los cambios en memoria de este slot. No escribe: hay que GUARDAR después.
         e.push_back(make_item("RESTAURAR", Action::SaveEditRestore));
@@ -709,7 +712,7 @@ void rebuild_save_edit() {
         e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
                                               g_edit_save_target));
         e.push_back(make_selector_with_action("ELIMINAR", slots, Action::SaveEditDelete,
-                                              g_edit_delete_target));
+                                              g_edit_delete_target - 1));
         e.push_back(make_item("", Action::None));   // separacion
         // IR A NIVEL: destino = Area-Parte (con inicios N-0). Con A se inyecta la transicion. Si no
         // hay partida cargada, el port carga la plantilla base de forma transparente y luego warpea.

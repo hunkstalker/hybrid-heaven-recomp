@@ -605,7 +605,12 @@ void title_update(uint8_t* rdram) {
             } else {
                 // Selector largo: solo el activo, alineado en la misma columna; el chevron izquierdo
                 // va a su izquierda y el derecho a 4 px del valor.
-                const std::string opt = hh::menu::localized(e.options[static_cast<size_t>(e.value)]);
+                // Guarda defensiva: un valor fuera de rango (opcionalmente por un indice mal puesto)
+                // leia fuera de `options` y podia colgar; se acota.
+                const size_t vi = (e.value >= 0 && e.value < static_cast<int>(e.options.size()))
+                                      ? static_cast<size_t>(e.value)
+                                      : 0u;
+                const std::string opt = hh::menu::localized(e.options[vi]);
                 // Entrada deshabilitada: valor y chevrons en gris (consistente con la etiqueta).
                 const uint32_t vc = e.enabled ? kGreen : kGray;
                 const uint32_t cc = e.enabled ? kWhite : kGray;
