@@ -8,11 +8,11 @@
 > `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
 > plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
 >
-> **TAREA NUEVA (próxima sesión): Menú propio de CARGAR/GUARDAR partida (slots "infinitos", 1 `.pak`
-> por slot).** Plan COMPLETO (leer PRIMERO): **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**
-> (fases, hallazgos `[MEDIDO]`, estrategia A, decisión del fichero-por-slot). La sesión nueva debe
-> empezar por la **Fase 0** de ese plan (trazar `func_8013E7C0`/`func_8013E850` con oráculo + decidir el
-> montaje del `.pak`-por-slot).
+> **TAREA NUEVA (próxima sesión): Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak`
+> con N slots).** Plan COMPLETO (leer PRIMERO): **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**
+> (fases, hallazgos `[MEDIDO]`, estrategia A, formato del `.pak` ampliado, metadatos en la cabecera
+> `0x100`, nombre `savegame_slot<N>`). La sesión nueva debe empezar por la **Fase 0** de ese plan
+> (trazar `func_8013E7C0`/`func_8013E850` con oráculo + probar el `.pak` ampliado a N slots).
 >
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los
