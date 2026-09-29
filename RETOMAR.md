@@ -4,16 +4,27 @@
 > (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
 > `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
+> **DEPENDENCIA DE FORK (importante):** esta rama necesita **2 commits en el fork `N64ModernRuntime`
+> (rama `hybrid-heaven`), SIN pushear**: (1) `9b14604` `hh_pak_reload_from_disk()` y (2) el cambio de
+> `PAK_SIZE` a `0x40000` (commit **pendiente**, working tree). El **gitlink de `lib/N64ModernRuntime`
+> habrá que bumpearlo tras pushear el fork** (`AGENTS.md`). Antes de commitear: validar. Decisión
+> estructural: **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**.
+>
 > **Sesión 2026-09-29 (hecha):** RESUELTO el mapeo de Áreas-Partes / puntos de carga. Documento
 > maestro: **`notes/2026-09-29-editor-area-parte-plan.md`** (todo medido: campo `0x564`, fórmula
 > `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
 > plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
 >
-> **TAREA NUEVA (próxima sesión): Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak`
-> con N slots).** Plan COMPLETO (leer PRIMERO): **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**
-> (fases, hallazgos `[MEDIDO]`, estrategia A, formato del `.pak` ampliado, metadatos en la cabecera
-> `0x100`, nombre `savegame_slot<N>`). La sesión nueva debe empezar por la **Fase 0** de ese plan
-> (trazar `func_8013E7C0`/`func_8013E850` con oráculo + probar el `.pak` ampliado a N slots).
+> **Sesión 2026-09-29 (Fases 0 y 1 del menú de carga/guardado, HECHAS `[MEDIDO]`):** ver
+> **`notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md`** y **`...-fase1-formato-pak.md`**.
+> Resumen: file-select nativo trazado (estado `D_801BEBCC`, cursor `D_801BEC05`); `.pak` ampliado a
+> **74 slots** (`PAK_SIZE=0x40000`) con reparto **45 partidas (0..44) + 29 plantillas (45..73)** y
+> **trailer de metadatos** (`hh::save`); `func_801423C8` carga slots altos; migración de `.pak` de 4
+> slots verificada offline. **Pendiente validar en Windows** (migración real + flujo de guardado).
+>
+> **TAREA: Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots).** Plan
+> COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fase 2 (UI 1:1) es lo
+> siguiente**; luego Fase 3 (enganche a CONTINUAR) y Fase 4 (guardar en cápsula + editor).
 >
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los

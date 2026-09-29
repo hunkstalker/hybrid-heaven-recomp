@@ -22,15 +22,29 @@
     al cargar 1-0). Verificado en Windows.
   - **Mapa de escenas medido**: `1-0`=0 … `9-0`=90; `100`=Demo Play #1; sub-puntos (`1-1a/b/...`) y
     estaciones por área. `skip_indices.txt` con la lista de los que cuelgan.
-- [ ] **Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots) — NUEVA
-  TAREA (2026-09-29, PLANIFICADA)**: sustituir los menús nativos (CARGAR al `CONTINUAR`; GUARDAR en
-  cápsula; y, al final, `EDICIÓN DE PARTIDA`) por un **menú propio (overlay)** con **N slots** en un
-  **único `.pak`** (contenedor `HHPK` ampliado; el juego ya lo espera y `func_801423C8(slot)` sirve
-  para cualquier índice), diseño **1:1** (Área-Level, nivel, tiempo; nombre `savegame_slot<N>`;
-  metadatos en la cabecera `0x100`). Estrategia **A** (overlay encima + interceptar input, como el
-  menú de título). Fases: 0) trazar el file-select nativo (`func_8013E7C0`/`func_8013E850`) y probar
-  el `.pak` ampliado; 1) almacenamiento; 2) UI; 3) enganche a CONTINUAR; 4) guardar en cápsula +
-  editar partida. **Plan completo**: `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
+- [•] **Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots) — FASE 0 y 1
+  HECHAS (2026-09-29)**: sustituir los menús nativos (CARGAR al `CONTINUAR`; GUARDAR en cápsula; y, al
+  final, `EDICIÓN DE PARTIDA`) por un **menú propio (overlay)** con **N slots** en un **único `.pak`**
+  (contenedor `HHPK` ampliado; `func_801423C8(slot)` sirve para cualquier índice), diseño **1:1**
+  (Área-Level, nivel, tiempo; nombre `savegame_slot<N>`), estrategia **A**.
+  - **Fase 0 `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md`): file-select
+    trazado (estado `D_801BEBCC` 0..5, cursor `D_801BEC05`, top `D_801BEC04`; confirmar = inyectar A /
+    `func_801423C8`; salida `ret=1` éxito, `ret=2` cancelar); captura 1:1 en
+    `work/gameplay screenshots/CONTINUAR/`; `.pak` a N probado → **el PFS del runtime recortaba a
+    `PAK_SIZE=0x8000`** y la cabecera `0x100` solo da para **30 registros**.
+  - **Fase 1 = opción "b" HECHA `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md`;
+    ADR **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**): fork NMR `PAK_SIZE` → **`0x40000`**
+    (commit local, **sin push**); `hh::save` con **`kSlots=74`** y reparto **45 partidas (0..44) + 29
+    plantillas (45..73)**; **trailer de metadatos** de 74×8 B y `size` del contenedor a `0x3C550`;
+    `load()` migra `.pak` de 4 slots. Verificado: `func_801423C8` carga slots altos (p. ej. **slot 63**
+    → escena `glob[+4]=0x13F`), fuera de rango falla; migración verificada **offline**.
+    **Pendiente**: validar en Windows (migración real + flujo de guardado).
+  - **DEPENDENCIA DE FORK**: la rama necesita **2 commits de NMR (no pusheados)** — `9b14604`
+    `hh_pak_reload_from_disk` y el de `PAK_SIZE` (pendiente de commit) — y **bumpear el gitlink de
+    `lib/N64ModernRuntime` tras push** (`AGENTS.md`).
+  - **Siguiente (UI/enganche)**: exponer metadatos (ya hecho: `slot_present/meta_*/slot_name/
+    template_name`) + fecha del fichero; **Fase 2** (UI 1:1), **3** (enganche a CONTINUAR) y **4**
+    (guardar en cápsula + editar). Plan: `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere

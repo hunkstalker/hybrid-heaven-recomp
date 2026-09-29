@@ -105,6 +105,11 @@ campo (robots) anulado; **stepper `< valor >`** para ANTIALIASING; GRÁFICOS/CON
 DEBUG NIVELES`** (ciclo de escenas F5/F6 + indicador `idx=` + `skip_indices.txt` editable) y **`EXTRAS >
 IR A ÁREA`** (teletransporte a `N-0` con plantilla). Documento maestro:
 **`notes/2026-09-29-editor-area-parte-plan.md`**.
+**Menú propio de cargar/guardar (Fases 0 y 1, 2026-09-29, rama `menu-carga-guardado-partida`)**: PFS
+virtual ampliado (`PAK_SIZE=0x40000`, fork NMR) y `.pak` de **74 slots** (`hh::save`) con reparto **45
+partidas + 29 plantillas** y **trailer de metadatos**; `func_801423C8` carga slots altos; migración de
+`.pak` de 4 slots verificada offline. **Pendiente validar en Windows**. Decisión: **ADR 0013**; notas
+`notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md` y `...-fase1-formato-pak.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

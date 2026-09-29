@@ -20,7 +20,15 @@
 
 namespace hh::save {
 
-constexpr int kSlots = 4;
+// N de slots del `.pak`. Fase 1 (2026-09-29): ampliado de 4 a **74** (tope real de `PAK_SIZE=0x40000`).
+// Reparto (contrato del layout, ADR 0013): slots 0..44 = **partidas** del jugador; 45..73 = **plantillas**
+// por punto de guardado (29, las que ofrece EDICIÓN DE PARTIDA). Las plantillas viven dentro del `.pak`
+// (seguro ante borrados) y NO se listan en el menú de carga (la UI solo recorre 0..kGameSlots-1).
+// Ver notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md y docs/adr/0013-*.md.
+constexpr int kGameSlots = 45;
+constexpr int kTemplateSlots = 29;
+constexpr int kSlots = kGameSlots + kTemplateSlots;   // 74
+constexpr int kTemplateBase = kGameSlots;             // primer slot de plantilla
 constexpr int kTechCount = 86;
 constexpr int kItemCount = 45;
 constexpr int kParts = 6;
@@ -46,6 +54,26 @@ bool slot_used(int slot);
 // con la plantilla `assets/save/template_slot.bin` (clon del slot0, con solo Map Viewer + Defuser).
 // Devuelve false si no encuentra la plantilla. No escribe el fichero (requiere GUARDAR).
 bool load_template(int slot);
+
+// Metadatos por slot (fuente de la UI): registro de 8 B al FINAL del fichero PFS (trailer), layout
+// `+0 presente · +1 AREA N · +2 AREA P · +3 LEVEL · +4..5 TIME (u16 BE)`. `update_save_header` los
+// mantiene para los N slots; `load()` los migra desde la cabecera del juego (solo da para 30) si
+// faltan. Ver notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md.
+bool slot_present(int slot);
+uint8_t meta_area_n(int slot);
+uint8_t meta_area_p(int slot);
+uint8_t meta_level(int slot);
+uint16_t meta_time(int slot);
+std::string slot_name(int slot);   // "savegame_slot<N>" (1-based)
+
+// Reparto de slots (contrato del layout, ADR 0013): 0..kGameSlots-1 = partidas; kTemplateBase..kSlots-1
+// = plantillas. La UI de carga recorre solo el rango de partidas; el editor accede a ambos.
+constexpr int game_slot_count() { return kGameSlots; }
+constexpr int template_slot_count() { return kTemplateSlots; }
+constexpr int template_slot_base() { return kTemplateBase; }
+constexpr bool is_game_slot(int slot) { return slot >= 0 && slot < kGameSlots; }
+constexpr bool is_template_slot(int slot) { return slot >= kTemplateBase && slot < kSlots; }
+std::string template_name(int index);   // "template_<N>" (1-based dentro del rango de plantillas)
 
 // Campos por slot.
 uint16_t progress_of(int slot);

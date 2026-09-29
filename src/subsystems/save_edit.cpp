@@ -37,6 +37,18 @@ constexpr size_t kHeaderSize = 0x100;
 constexpr size_t kSlotSize = 0xD00;
 constexpr size_t kSlot0 = kDataOff + kHeaderSize;
 
+// Metadatos por slot (Fase 1, 2026-09-29): la cabecera del juego (`0x100`) solo tiene sitio para
+// 30 registros (`(0x100-0x10)/8`), así que para N=64 añadimos un **trailer** de N registros de 8 B
+// DESPUÉS de los slots (dentro del fichero PFS). `func_801423C8` lee offsets fijos `0x100+slot*0xD00`
+// -> el trailer no le afecta. Layout del registro idéntico al de la cabecera.
+constexpr size_t kMetaRecord = 8;
+constexpr size_t kHeaderRecords = (kHeaderSize - 0x10) / 8;   // 30
+constexpr size_t kMetaOff = kSlot0 + static_cast<size_t>(kSlots) * kSlotSize;
+constexpr size_t kFileDataSize = kHeaderSize + static_cast<size_t>(kSlots) * kSlotSize +
+                                 static_cast<size_t>(kSlots) * kMetaRecord;
+constexpr size_t kContainerSize = kDataOff + kFileDataSize;
+constexpr size_t kPakSizeOff = 0x17;   // u32 LE: size del fichero PFS en el HHPK (tras HHPK+count)
+
 // Offsets DENTRO del slot.
 // NIVEL: u16 little-endian en +0x04A (byte bajo en 0x4A, alto en 0x4B). Antes se trataba como u8
 // en 0x4B: escribir ahi dejaba el byte bajo intacto (0x01) y el display del juego combinaba
@@ -122,7 +134,30 @@ struct SimSnap {
 std::map<int, std::vector<SimSnap>> g_sim_undo;
 
 size_t slot_off(int slot) { return kSlot0 + static_cast<size_t>(slot) * kSlotSize; }
+size_t meta_off(int slot) { return kMetaOff + static_cast<size_t>(slot) * kMetaRecord; }
 bool in_slot(size_t rel, size_t n) { return rel + n <= kSlotSize; }
+
+// Acceso al trailer de metadatos (independiente de g_loaded: lo usan también los getters de la UI).
+uint8_t meta_rd(int slot, size_t rel) {
+    if (slot < 0 || slot >= kSlots) return 0;
+    const size_t o = meta_off(slot) + rel;
+    return o < g_bytes.size() ? g_bytes[o] : 0;
+}
+void meta_wr(int slot, size_t rel, uint8_t v) {
+    if (slot < 0 || slot >= kSlots) return;
+    const size_t o = meta_off(slot) + rel;
+    if (o < g_bytes.size()) g_bytes[o] = v;
+}
+// Fija el `size` del fichero PFS en el registro del contenedor HHPK (para que el PFS del runtime lea
+// los N slots; si no, `pak_load` corta al size viejo).
+void set_pak_file_size() {
+    if (g_bytes.size() < kPakSizeOff + 4) return;
+    const uint32_t v = static_cast<uint32_t>(kFileDataSize);
+    g_bytes[kPakSizeOff + 0] = static_cast<uint8_t>(v & 0xFF);
+    g_bytes[kPakSizeOff + 1] = static_cast<uint8_t>((v >> 8) & 0xFF);
+    g_bytes[kPakSizeOff + 2] = static_cast<uint8_t>((v >> 16) & 0xFF);
+    g_bytes[kPakSizeOff + 3] = static_cast<uint8_t>((v >> 24) & 0xFF);
+}
 
 uint8_t rd8(int slot, size_t rel) {
     if (!g_loaded || slot < 0 || slot >= kSlots || !in_slot(rel, 1)) return 0;
@@ -188,50 +223,74 @@ std::filesystem::path find_pak() {
 // `sum[0..0xFE]` en `0xFF`, sobre el buffer ya revertido. Registro del slot i = 0x10 + i*8:
 // +0 presente, +1 AREA N, +2 AREA P, +3 LEVEL, +4..5 TIME (se conserva). Ver
 // notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md.
-void update_save_header(int slot) {
-    if (g_bytes.size() < kDataOff + kHeaderSize) return;
+void bswap_header_in_place() {
     uint8_t* h = g_bytes.data() + kDataOff;
-    auto bswap_header = [&]() {
-        for (size_t i = 0; i + 3 < kHeaderSize; i += 4) {
-            std::swap(h[i], h[i + 3]);
-            std::swap(h[i + 1], h[i + 2]);
-        }
-    };
-    bswap_header();
-    if (std::memcmp(h, "HYBRID HEAVEN", 13) != 0) { bswap_header(); return; }
+    for (size_t i = 0; i + 3 < kHeaderSize; i += 4) {
+        std::swap(h[i], h[i + 3]);
+        std::swap(h[i + 1], h[i + 2]);
+    }
+}
+bool header_magic_ok() {
+    return g_bytes.size() >= kDataOff + kHeaderSize &&
+           std::memcmp(g_bytes.data() + kDataOff, "HYBRID HEAVEN", 13) == 0;
+}
+
+// Migra la cabecera del juego (solo slots 0..29) al trailer de metadatos. La cabecera es la fuente
+// más fresca para esos slots (la escribe el propio juego al guardar); el editor escribe ambas.
+void sync_meta_from_header() {
+    if (!header_magic_ok()) return;
+    bswap_header_in_place();
+    uint8_t* h = g_bytes.data() + kDataOff;
+    if (std::memcmp(h, "HYBRID HEAVEN", 13) != 0) { bswap_header_in_place(); return; }
+    for (size_t s = 0; s < kHeaderRecords; ++s) {
+        const size_t rec = 0x10 + s * 8;
+        for (size_t i = 0; i < kMetaRecord; ++i) meta_wr(static_cast<int>(s), i, h[rec + i]);
+    }
+    bswap_header_in_place();
+}
+
+// Escribe el registro del slot en la cabecera del juego (solo 0..29) y en el trailer (todos).
+void update_save_header(int slot) {
+    if (!g_loaded || slot < 0 || slot >= kSlots || g_bytes.size() < kContainerSize) return;
     const uint16_t prog = progress_of(slot);
     const uint16_t lvl = static_cast<uint16_t>(global_level_of(slot));   // DERIVADO de las partes
-    const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
-    h[rec + 0] = 1;                                                    // presente
-    h[rec + 1] = static_cast<uint8_t>((prog / 10) & 0xFF);             // AREA N
-    h[rec + 2] = static_cast<uint8_t>((prog % 10) & 0xFF);             // AREA P
-    h[rec + 3] = static_cast<uint8_t>(lvl > 255 ? 255 : lvl);          // LEVEL
-    unsigned sum = 0;
-    for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
-    h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
-    bswap_header();
+    // Trailer: presente/AREA/LEVEL (TIME en +4..5 se conserva).
+    meta_wr(slot, 0, 1);
+    meta_wr(slot, 1, static_cast<uint8_t>((prog / 10) & 0xFF));
+    meta_wr(slot, 2, static_cast<uint8_t>((prog % 10) & 0xFF));
+    meta_wr(slot, 3, static_cast<uint8_t>(lvl > 255 ? 255 : lvl));
+    // Cabecera del juego (compatibilidad mientras el DATA LOAD nativo siga existiendo).
+    if (slot < static_cast<int>(kHeaderRecords) && header_magic_ok()) {
+        bswap_header_in_place();
+        uint8_t* h = g_bytes.data() + kDataOff;
+        const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
+        h[rec + 0] = 1;
+        h[rec + 1] = static_cast<uint8_t>((prog / 10) & 0xFF);
+        h[rec + 2] = static_cast<uint8_t>((prog % 10) & 0xFF);
+        h[rec + 3] = static_cast<uint8_t>(lvl > 255 ? 255 : lvl);
+        unsigned sum = 0;
+        for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
+        h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
+        bswap_header_in_place();
+    }
     hh::log("[save-edit] cabecera: slot %d -> AREA %u-%u LEVEL %u\n", slot, (unsigned)(prog / 10),
             (unsigned)(prog % 10), (unsigned)lvl);
 }
 
-// Marca el registro del slot como NO presente (para ELIMINAR). Misma cabecera bswap32 + checksum.
+// Marca el registro del slot como NO presente (para ELIMINAR) en cabecera (0..29) y trailer.
 void clear_save_header_record(int slot) {
-    if (g_bytes.size() < kDataOff + kHeaderSize) return;
-    uint8_t* h = g_bytes.data() + kDataOff;
-    auto bswap_header = [&]() {
-        for (size_t i = 0; i + 3 < kHeaderSize; i += 4) {
-            std::swap(h[i], h[i + 3]);
-            std::swap(h[i + 1], h[i + 2]);
-        }
-    };
-    bswap_header();
-    if (std::memcmp(h, "HYBRID HEAVEN", 13) != 0) { bswap_header(); return; }
-    const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
-    for (int i = 0; i < 8; ++i) h[rec + i] = 0;   // registro vacío (no presente, sin AREA/LEVEL)
-    unsigned sum = 0;
-    for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
-    h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
-    bswap_header();
+    if (slot < 0 || slot >= kSlots) return;
+    for (size_t i = 0; i < kMetaRecord; ++i) meta_wr(slot, i, 0);
+    if (slot < static_cast<int>(kHeaderRecords) && header_magic_ok()) {
+        bswap_header_in_place();
+        uint8_t* h = g_bytes.data() + kDataOff;
+        const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
+        for (size_t i = 0; i < 8; ++i) h[rec + i] = 0;
+        unsigned sum = 0;
+        for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
+        h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
+        bswap_header_in_place();
+    }
     hh::log("[save-edit] cabecera: slot %d -> NO presente\n", slot);
 }
 
@@ -245,14 +304,23 @@ bool load(int slot, uint8_t* rdram, recomp_context* base_ctx) {
     std::ifstream in(g_path, std::ios::binary);
     if (!in) return false;
     g_bytes.assign((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (g_bytes.size() < kSlot0 + kSlots * kSlotSize || std::memcmp(g_bytes.data(), "HHPK", 4) != 0) {
+    if (g_bytes.size() < kDataOff + kHeaderSize || std::memcmp(g_bytes.data(), "HHPK", 4) != 0) {
         hh::log("[save-edit] .pak invalido (%zu B)\n", g_bytes.size());
         g_bytes.clear();
         return false;
     }
+    // Normaliza al layout de N slots + trailer: migra `.pak` de 4 slots (rellena a cero) y recorta
+    // cualquier exceso. Fija el `size` del fichero PFS en el registro HHPK para que el runtime lea N.
+    if (g_bytes.size() < kContainerSize) {
+        g_bytes.resize(kContainerSize, 0);
+    } else if (g_bytes.size() > kContainerSize) {
+        g_bytes.resize(kContainerSize);
+    }
+    set_pak_file_size();
     g_loaded = true;
+    sync_meta_from_header();   // cabecera del juego (0..29) -> trailer
     g_baseline = g_bytes;
-    hh::log("[save-edit] .pak cargado (%zu B)\n", g_bytes.size());
+    hh::log("[save-edit] .pak cargado (%zu B, %d slots)\n", g_bytes.size(), kSlots);
     return true;
 }
 
@@ -261,6 +329,8 @@ void restore_slot(int slot) {
     if (!g_loaded || g_baseline.size() != g_bytes.size() || slot < 0 || slot >= kSlots) return;
     const size_t base = slot_off(slot);
     std::copy(g_baseline.begin() + base, g_baseline.begin() + base + kSlotSize, g_bytes.begin() + base);
+    const size_t m = meta_off(slot);
+    std::copy(g_baseline.begin() + m, g_baseline.begin() + m + kMetaRecord, g_bytes.begin() + m);
     g_sim_undo.erase(slot);   // el estado cambió: la pila de deshacer de la sim ya no aplica
     hh::log("[save-edit] RESTAURAR slot %d (estado al cargar)\n", slot);
 }
@@ -280,6 +350,7 @@ void delete_slot(int slot) {
 // cabecera de la lista de partidas. La usa ELIMINAR (su registro ya se marca como no presente).
 bool flush() {
     if (!g_loaded) return false;
+    set_pak_file_size();
     for (int s = 0; s < kSlots; ++s) {
         const size_t base = slot_off(s);
         unsigned sum = 0;
@@ -312,6 +383,7 @@ bool flush() {
 bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
     (void)rdram; (void)base_ctx;
     if (!g_loaded || slot < 0 || slot >= kSlots) return false;
+    set_pak_file_size();
     // Recalcula checksums de todos los slots y escribe el fichero (tmp + rename).
     for (int s = 0; s < kSlots; ++s) {
         const size_t base = slot_off(s);
@@ -385,6 +457,33 @@ bool slot_used(int slot) {
     if (!g_loaded) load(slot, nullptr, nullptr);
     return rd16(slot, kProgressOff) != 0;
 }
+
+// --- Metadatos por slot (trailer) para la UI -----------------------------------------------
+// Registro del trailer: +0 presente, +1 AREA N, +2 AREA P, +3 LEVEL, +4..5 TIME (u16 BE).
+bool slot_present(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return meta_rd(slot, 0) != 0;
+}
+uint8_t meta_area_n(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return meta_rd(slot, 1);
+}
+uint8_t meta_area_p(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return meta_rd(slot, 2);
+}
+uint8_t meta_level(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return meta_rd(slot, 3);
+}
+uint16_t meta_time(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return static_cast<uint16_t>((meta_rd(slot, 4) << 8) | meta_rd(slot, 5));
+}
+// Nombre para la UI: `savegame_slot<N>` (1-based; el índice interno es 0-based).
+std::string slot_name(int slot) { return "savegame_slot" + std::to_string(slot + 1); }
+// Nombre de una plantilla por su índice dentro del rango (0-based): `template_<N>` (1-based).
+std::string template_name(int index) { return "template_" + std::to_string(index + 1); }
 
 // Campos por slot. PROGRESO: u16 LE en 0x564 (indice de escena). Se mantiene 0x366 (BE) sincronizado
 // por compatibilidad con el resto del editor/observaciones, pero el campo que decide el mapa es 0x564.
