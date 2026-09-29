@@ -46,6 +46,15 @@ struct MenuTr {
 const MenuTr kMenuTr[] = {
     // Pantallas / entradas
     {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN", "コンティニュー"},
+    // CARGAR PARTIDA (menú propio de carga, Fase 2)
+    // NOTA: el título y el mensaje NO se traducen: son EXACTAMENTE las cadenas del DATA LOAD nativo
+    // ("DATA LOAD" y "Select play data to be loaded."). El overlay las dibuja literales para el 1:1.
+    {"CARGAR PARTIDA", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD"},
+    {"ELIGE LA PARTIDA A CARGAR", "Select play data to be loaded.",
+     "Select play data to be loaded.", "Select play data to be loaded.",
+     "Select play data to be loaded.", "Select play data to be loaded."},
+    {"PARTIDA VACÍA", "EMPTY SLOT", "PARTIDA BUIDA", "EMPLACEMENT VIDE", "LEERER PLATZ",
+     "カラノスロット"},
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL", "ニューゲーム"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS", "バトルモード"},
     // MODO COMBATE (subpantallas recreadas con nuestro menu; ver docs/menu.md)
@@ -441,6 +450,9 @@ std::vector<std::string> ratio_resolutions(int ratio) {
 // ratios concretos dejan AUTO. Definida tras `find_screen`.
 void sync_resolution();
 
+// Rellena la pantalla CARGAR PARTIDA (definida tras rebuild_save_edit; build_tree la llama antes).
+void rebuild_load_game();
+
 // Rellena g_screens con el árbol acordado (orden de arriba a abajo).
 void build_tree() {
     g_screens.clear();
@@ -642,7 +654,11 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::SaveEditStats, ScreenKind::Menu, {}));
     g_screens.push_back(make_screen(ScreenId::SaveEditCombatSim, ScreenKind::Menu, {}));
     g_screens.push_back(make_screen(ScreenId::ChooseLevel, ScreenKind::Menu, {}));
+    // CARGAR PARTIDA (menú propio de carga): lista de las 45 partidas del `.pak`. Se rellena en
+    // rebuild_load_game con los metadatos del trailer. Ver notes/...fase2-ui.md.
+    g_screens.push_back(make_screen(ScreenId::LoadGame, ScreenKind::Menu, {}));
     rebuild_save_edit();
+    rebuild_load_game();
 }
 
 Screen* find_screen(ScreenId id) {
@@ -824,6 +840,74 @@ void rebuild_save_edit() {
     }
 }
 
+// --- CARGAR PARTIDA (menú propio de carga; Fase 2) -----------------------------------------------
+// Texto de cada fila de la lista, con el mismo contenido que el DATA LOAD nativo:
+//   "ÁREA N-P   NIVEL <n>   TIEMPO M:SS"
+// Mantenemos el texto PRE-FORMATEADO (lo dibuja el overlay tal cual) para poder alinearlo 1:1 sin que
+// el overlay tenga que conocer el formato. `load_game_row_text` también sirve de diagnóstico.
+std::vector<std::string> g_load_game_rows;
+
+std::string format_time(uint16_t t) {
+    // El nativo muestra "M:SS"; el tiempo guardado es un u16 (segundos).
+    const unsigned m = t / 60u, s = t % 60u;
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%u:%02u", m, s);
+    return buf;
+}
+
+void rebuild_load_game() {
+    if (!hh::save::loaded()) {
+        hh::save::load();
+    }
+    g_load_game_rows.clear();
+    g_load_game_rows.reserve(hh::save::game_slot_count());
+    for (int i = 0; i < hh::save::game_slot_count(); ++i) {
+        std::string row;
+        if (hh::save::slot_present(i)) {
+            const unsigned an = hh::save::meta_area_n(i);
+            const unsigned ap = hh::save::meta_area_p(i);
+            const unsigned lv = hh::save::meta_level(i);
+            // Tres líneas separadas por '\n' (el overlay las dibuja dentro de la caja, 1:1 con el
+            // DATA LOAD nativo). El ':' del tiempo y el '-' del área los vectoriza el overlay.
+            row = "ÁREA " + std::to_string(an) + "-" + std::to_string(ap) + "\n" +
+                  "NIVEL " + std::to_string(lv) + "\n" +
+                  "TIEMPO " + format_time(hh::save::meta_time(i));
+        } else {
+            row = hh::menu::localized("PARTIDA VACÍA");
+        }
+        g_load_game_rows.push_back(std::move(row));
+    }
+    if (Screen* s = find_screen(ScreenId::LoadGame)) {
+        std::vector<Entry> e;
+        for (int i = 0; i < static_cast<int>(g_load_game_rows.size()); ++i) {
+            // Cada fila es un Item con Action::LoadGamePick; `index` = slot (0-based). Las partidas
+            // vacías siguen siendo seleccionables? NO: se marcan disabled (el cursor no se posa) para
+            // que solo se puedan cargar las existentes, como el nativo (lista de slots presentes).
+            Entry it = make_item(g_load_game_rows[i].c_str(), Action::LoadGamePick,
+                                 hh::save::slot_present(i));
+            it.index = i;
+            e.push_back(std::move(it));
+        }
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+        // Deja el cursor en la primera partida PRESENTE (como el nativo).
+        for (int i = 0; i < static_cast<int>(s->entries.size()); ++i) {
+            if (s->entries[i].enabled) { s->cursor = i; break; }
+        }
+    }
+}
+
+void refresh_load_game() { rebuild_load_game(); }
+
+const char* load_game_row_text(int index) {
+    if (index < 0 || index >= static_cast<int>(g_load_game_rows.size())) return nullptr;
+    return g_load_game_rows[index].c_str();
+}
+bool load_game_row_present(int index) {
+    if (index < 0 || index >= static_cast<int>(g_load_game_rows.size())) return false;
+    return hh::save::slot_present(index);
+}
+
 // Ajusta las opciones/valor de RESOLUCIÓN al RATIO: AUTO -> AUTO, ORIGINAL -> ORIGINAL, y los ratios
 // concretos dejan las resoluciones de ese ratio con AUTO seleccionado.
 void sync_resolution() {
@@ -905,6 +989,7 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenSaveEditItems:     out = ScreenId::SaveEditItems;     return true;
         case Action::OpenSaveEditStats:     out = ScreenId::SaveEditStats;     return true;
         case Action::OpenSaveEditCombatSim: out = ScreenId::SaveEditCombatSim; return true;
+        case Action::OpenLoadGame:          out = ScreenId::LoadGame;          return true;
         case Action::BattleMode:     out = ScreenId::BattleMode; return true;
         default:                     return false;
     }
@@ -1119,7 +1204,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::SaveEditItems)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::LoadGame)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);

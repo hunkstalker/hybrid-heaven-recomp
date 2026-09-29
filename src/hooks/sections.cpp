@@ -1326,6 +1326,28 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             g_inject_native_a = true;
         }
     }
+    // CARGAR PARTIDA (menú propio de carga, Fase 2): A sobre una partida de la lista carga ESE slot
+    // reutilizando el flujo nativo (`func_801423C8(0, slot)` + `func_80142570` + transición de
+    // escena). El despacho desde CONTINUAR es la Fase 3; hasta entonces esta pantalla se alcanza por
+    // `HH_MENU_SCREEN` (valor de ScreenId::LoadGame) para revisar el dibujo 1:1.
+    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.id == hh::menu::ScreenId::LoadGame && s.cursor >= 0 &&
+            s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (cur.enabled && cur.action == hh::menu::Action::LoadGamePick) {
+                const int slot = cur.index;
+                hh::log("[load-game] cargar slot=%d (%s)\n", slot,
+                        hh::save::slot_name(slot).c_str());
+                recomp_context t = *ctx;
+                t.r4 = 0;                        // canal 0
+                t.r5 = static_cast<uint32_t>(slot);
+                func_801423C8_103AB98(rdram, &t);   // lee el slot y deserializa a los globals
+                // NOTA: la transición de escena completa se cierra en la Fase 3 (enganche a
+                // CONTINUAR); aquí solo se deserializa el slot a los globals.
+            }
+        }
+    }
     // EMPEZAR PARTIDA (NUEVA PARTIDA): arranca la partida con la dificultad elegida, reutilizando el
     // flujo NATIVO de GAME START. La rama idx0 del submenú de NUEVA PARTIDA (func_801C3A40) hace
     // func_80005670(obj, 0x80044090) y fija el callback func_801C3BA4; a partir de ahí la cadena

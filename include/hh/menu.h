@@ -45,6 +45,7 @@ enum class ScreenId {
     SaveEditStats,     // EDICIÓN DE PARTIDA -> ATRIBUTOS (HP/OFFENSE/... globales)
     SaveEditCombatSim, // EDICIÓN DE PARTIDA -> SIM. COMBATE (simula N combates)
     ChooseLevel,       // EXTRAS -> ELEGIR NIVEL (CARGAR/GUARDAR/ELIMINAR + IR A NIVEL)
+    LoadGame,          // CARGAR PARTIDA (menú propio de carga; Fase 2 del menú de carga/guardado)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -112,6 +113,8 @@ enum class Action {
     MenuSfxToggle,   // MENÚ SFX: activa/desactiva los sonidos del menú
     RatioSelect,     // selector RATIO: filtra las resoluciones y ajusta su valor
     ResolutionSelect,// selector RESOLUCIÓN (lista dependiente del ratio)
+    OpenLoadGame,    // CARGAR PARTIDA: sustituye el CONTINUAR nativo (menú propio; Fase 2)
+    LoadGamePick,    // CARGAR PARTIDA: A sobre una partida de la lista -> cargarla
 };
 
 // Tipo de entrada dentro de una pantalla.
@@ -231,6 +234,15 @@ void set_save_edit_body_state(int state);
 
 uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
 void refresh_save_edit();
+
+// --- CARGAR PARTIDA (menú propio de carga; Fase 2 del menú de carga/guardado) --------------------
+// La pantalla `LoadGame` lista las 45 partidas del `.pak` (rango de partidas, sin las plantillas), con
+// los metadatos del trailer (Área-Level / nivel / tiempo). La fila i corresponde al slot i (0-based).
+// A sobre una partida la carga. Se reconstruye con refresh_load_game() cuando el `.pak` cambia.
+// Ver notes/2026-09-29-menu-cargar-guardar-fase2-ui.md.
+void refresh_load_game();
+const char* load_game_row_text(int index);   // texto de la fila (dibujo 1:1), o nullptr
+bool load_game_row_present(int index);       // true si la partida existe (registro presente)
 
 // --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
 // `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).

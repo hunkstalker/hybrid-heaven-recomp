@@ -23,8 +23,10 @@
 > slots verificada offline. **Pendiente validar en Windows** (migración real + flujo de guardado).
 >
 > **TAREA: Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots).** Plan
-> COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fase 2 (UI 1:1) es lo
-> siguiente**; luego Fase 3 (enganche a CONTINUAR) y Fase 4 (guardar en cápsula + editor).
+> COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fases 0-2 HECHAS**; **Fase 3
+> (enganche a CONTINUAR) es lo siguiente**; luego Fase 4 (guardar en cápsula + editor). Fase 2 (UI):
+> pantalla `LoadGame` + render 1:1 (`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`); revisable con
+> `HH_MENU_SCREEN=19`. **Pendiente en Windows**: afinado fino del 1:1 + ocultar el fondo del título.
 >
 > **ESTRATEGIA DE MERGE (mantenedor, 2026-09-29):** `menu-carga-guardado-partida` es una rama
 > **DERIVADA** (necesidad del menú) → **no** va a `main`. Al **terminar** esta tarea: merge a

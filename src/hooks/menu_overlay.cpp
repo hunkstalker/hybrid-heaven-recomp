@@ -124,6 +124,8 @@ constexpr uint32_t kGreen = hh::overlay::rgba(96, 255, 96, 255);
 constexpr uint32_t kGray = hh::overlay::rgba(130, 130, 130, 255);
 // Sombra del texto/UI (negra, +1 px derecha/abajo), como la horneada en el atlas de la fuente.
 constexpr uint32_t kShadow = hh::overlay::rgba(0, 0, 0, 255);
+// Relleno de las cajas del DATA LOAD (oscuro semitransparente, como el nativo).
+constexpr uint32_t kBoxFill = hh::overlay::rgba(0, 0, 0, 160);
 
 // El handler del menú de título se ejecuta en el hilo del juego; `tick` en el de render. El contador
 // permite ocultar el overlay cuando el menú deja de publicarlo (p. ej. al salir del título).
@@ -275,6 +277,17 @@ void append_scroll_arrow(hh::overlay::Frame& frame, float x, float y, bool up, u
     }
 }
 
+// Caja con BORDE (1 px) y relleno semitransparente, como las del DATA LOAD nativo. Se dibuja con 4
+// paneles de borde sobre un relleno. `color` = color del borde; el relleno es oscuro translucido.
+void append_box(hh::overlay::Frame& frame, float x, float y, float w, float h, uint32_t color,
+                uint32_t fill) {
+    frame.panels.push_back({ x, y, w, h, fill });
+    frame.panels.push_back({ x, y, w, 1.0f, color });             // borde superior
+    frame.panels.push_back({ x, y + h - 1.0f, w, 1.0f, color });  // borde inferior
+    frame.panels.push_back({ x, y, 1.0f, h, color });             // borde izquierdo
+    frame.panels.push_back({ x + w - 1.0f, y, 1.0f, h, color });  // borde derecho
+}
+
 }  // namespace
 
 bool visible() { return g_visible; }
@@ -422,11 +435,12 @@ void title_update(uint8_t* rdram) {
     // compatibilidad de `HH_MENU_SCREEN`, pero ya no es alcanzable desde el menú.
     const bool is_debug = (screen.id == hh::menu::ScreenId::Debug);
     // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES, el
-    // editor y GRÁFICOS (7 filas desde que se añadió MOSTRAR FPS -> necesita scroll).
+    // editor, GRÁFICOS y CARGAR PARTIDA (45 partidas -> necesita scroll).
+    const bool is_load_game = (screen.id == hh::menu::ScreenId::LoadGame);
     const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit ||
-                             is_graphics;
-    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS y SONIDO se CENTRAN; el
-    // resto de los nativos conserva su margen original.
+                             is_graphics || is_load_game;
+    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS, SONIDO y CARGAR PARTIDA se
+    // CENTRAN; el resto de los nativos conserva su margen original.
     const bool is_sound = (screen.id == hh::menu::ScreenId::Sound);
     const bool is_choose_level = (screen.id == hh::menu::ScreenId::ChooseLevel);
     const bool custom_layout = scroll_cap5 || is_graphics || is_sound || is_choose_level || is_debug;
@@ -496,6 +510,95 @@ void title_update(uint8_t* rdram) {
 
     hh::overlay::Frame frame;
     frame.visible = true;
+
+    // --- CARGAR PARTIDA (menú propio de carga; Fase 2) --------------------------------------------
+    // Dibujo 1:1 con el DATA LOAD nativo: título "DATA LOAD", subtítulo "CONTROLLER PAK", una CAJA con
+    // borde por partida (3 filas: ÁREA N-P / NIVEL n / TIEMPO M:SS) y una caja de mensaje abajo. Los
+    // valores de cada fila salen de los metadatos del trailer del `.pak`. El cursor (flecha nativa) se
+    // posa sobre la partida actual. Ver notes/2026-09-29-menu-cargar-guardar-fase2-ui.md.
+    if (is_load_game) {
+        const float step = 8.0f * g_scale_x;
+        const float line = layout.dy;                    // 10 px por línea
+        // Título centrado arriba (como "DATA LOAD").
+        {
+            const std::string title = hh::menu::localized("CARGAR PARTIDA");
+            const float tw = static_cast<float>(cp_count(title)) * step;
+            frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, 20.0f, g_scale_x,
+                                    g_scale_y, kWhite, " " + title });
+        }
+        const float box_x = 58.0f;
+        const float box_w = 200.0f;
+        const float box0_y = 34.0f;
+        const float box_h = line * 3.0f + 4.0f;          // caja de 3 líneas
+        const float box_step = box_h + 2.0f;             // separación entre cajas
+        const int n_entries = static_cast<int>(screen.entries.size());
+        // Caben cajas hasta y≈150 (deja la caja de mensaje abajo).
+        int kMaxBoxes = static_cast<int>((150.0f - box0_y) / box_step);
+        if (kMaxBoxes < 1) kMaxBoxes = 1;
+        int first = 0;
+        if (n_entries > kMaxBoxes) {
+            if (screen.cursor >= first + kMaxBoxes) first = screen.cursor - kMaxBoxes + 1;
+            if (screen.cursor < first) first = screen.cursor;
+            first = std::clamp(first, 0, n_entries - kMaxBoxes);
+        }
+        const int last = std::min(n_entries, first + kMaxBoxes);
+        for (int i = first; i < last; ++i) {
+            const hh::menu::Entry& e = screen.entries[static_cast<size_t>(i)];
+            const float by = box0_y + static_cast<float>(i - first) * box_step;
+            const bool present = e.enabled;
+            const bool selected = (i == screen.cursor);
+            // Como el nativo: borde de la caja seleccionada en verde; el resto, blanco/gris.
+            const uint32_t border = selected ? kGreen : (present ? kWhite : kGray);
+            append_box(frame, box_x, by, box_w, box_h, border, kBoxFill);
+            // El label trae 3 líneas separadas por '\n'.
+            const std::string& lab = e.label;
+            float ty = by + 3.0f;
+            size_t p0 = 0;
+            while (p0 <= lab.size()) {
+                size_t p1 = lab.find('\n', p0);
+                const std::string ln = (p1 == std::string::npos) ? lab.substr(p0)
+                                                                 : lab.substr(p0, p1 - p0);
+                frame.texts.push_back({ box_x + 4.0f, ty, g_scale_x, g_scale_y,
+                                        present ? kWhite : kGray, " " + ln });
+                if (p1 == std::string::npos) break;
+                p0 = p1 + 1;
+                ty += line;
+            }
+            if (selected) {
+                append_native_cursor(frame, box_x - 9.0f, by + 3.0f, kWhite);
+            }
+        }
+        // Indicadores de scroll.
+        if (n_entries > kMaxBoxes) {
+            if (first > 0) append_scroll_arrow(frame, box_x - 15.0f, box0_y - 7.0f, true, kWhite);
+            if (first + kMaxBoxes < n_entries) {
+                const float ay = box0_y + static_cast<float>(kMaxBoxes) * box_step;
+                append_scroll_arrow(frame, box_x - 15.0f, ay, false, kWhite);
+            }
+        }
+        // Caja de mensaje inferior (como "Select play data to be loaded."): ancha, casi de borde a
+        // borde, con el texto centrado.
+        {
+            const float msg_y = 168.0f;
+            const float msg_x = 22.0f, msg_w = 276.0f, msg_h = 20.0f;
+            append_box(frame, msg_x, msg_y, msg_w, msg_h, kWhite, kBoxFill);
+            const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
+            const float tw = static_cast<float>(cp_count(msg)) * step;
+            frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, msg_y + 6.0f, g_scale_x,
+                                    g_scale_y, kWhite, msg });
+        }
+        if (trace) {
+            static int last_screen2 = -1;
+            if (static_cast<int>(screen.id) != last_screen2) {
+                last_screen2 = static_cast<int>(screen.id);
+                hh::log("[overlay] screen=%d (CARGAR PARTIDA) entries=%zu\n", last_screen2,
+                        screen.entries.size());
+            }
+        }
+        g_publish_counter.fetch_add(1, std::memory_order_relaxed);
+        hh::overlay::publish(std::move(frame));
+        return;
+    }
 
     // Scroll vertical: si no caben todas las entradas (p. ej. CONTROLES), se muestra una VENTANA que
     // sigue al cursor. Para pantallas cortas `first=0` y todo queda igual que el nativo.

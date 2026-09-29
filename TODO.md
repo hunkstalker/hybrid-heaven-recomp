@@ -42,9 +42,13 @@
   - **DEPENDENCIA DE FORK**: la rama necesita **2 commits de NMR (no pusheados)** — `9b14604`
     `hh_pak_reload_from_disk` y el de `PAK_SIZE` (pendiente de commit) — y **bumpear el gitlink de
     `lib/N64ModernRuntime` tras push** (`AGENTS.md`).
-  - **Siguiente (UI/enganche)**: exponer metadatos (ya hecho: `slot_present/meta_*/slot_name/
-    template_name`) + fecha del fichero; **Fase 2** (UI 1:1), **3** (enganche a CONTINUAR) y **4**
-    (guardar en cápsula + editar). Plan: `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
+  - **Fase 2 (UI 1:1) HECHA `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`): pantalla
+    `LoadGame` (45 partidas del rango de juego, metadatos del trailer) + render 1:1 en overlay
+    (`DATA LOAD`, caja de 3 líneas por partida, cursor/scroll/mensaje nativos). Validado headless con
+    captura. **Pendiente**: afinado fino contra el nativo en Windows + ocultar el fondo del título.
+  - **Siguiente (Fase 3)**: enganchar `CONTINUAR` a `LoadGame` (ocultar el file-select nativo `func_8013E850`,
+    mutear input, publicar el overlay) y cerrar la transición de carga. Plan:
+    `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere
