@@ -43,9 +43,14 @@ reconstruir a mano flags de historia, puertas y cinemáticas, que es frágil).
 3. **Mezcla** = plantilla de la zona **+ sobrescribir** con los datos del jugador:
    - `0x000..0x09D` **atributos/estado** (struct personaje; incluye contadores por parte).
    - `0x09E..0x19F` **habilidades** (86 × 3).
-   - `0x1A0..0x1CC` **items** (45 × 1).
+   - `0x1A0..0x1CC` **items** (45 × 1): **consumibles = del jugador** (se editan/añaden los suyos);
+     **no consumibles (equipo, última página del inventario) = de la plantilla** (se conservan).
    - Lo demás (flags `0x300..0x363`, bloque de estado `0x364..0x563`, escena **`0x564`**) se queda
      **de la plantilla**.
+   - **No consumibles conocidos** `[se irá afinando al avanzar de área]`: en 1-1/1-2 son
+     **`38 Code Key`, `39 Map Viewer`, `40 Defuser`** (se conservan de la plantilla). El resto de ids
+     (consumibles) vienen del jugador. **Pendiente**: cerrar el rango completo de no consumibles
+     (candidatos de equipo: `37 Memory Card`..`44 Impulse Unit`) jugando más áreas.
 4. `GUARDAR` → escribe el slot destino (checksum recalculado).
 5. `CONTINUAR` → arranca en esa Área-Parte con la partida del jugador.
 
