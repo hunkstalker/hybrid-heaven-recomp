@@ -4,7 +4,8 @@
 > Reglas: `AGENTS.md`.
 >
 > **La próxima sesión EMPIEZA por la §1 (TAREA PRINCIPAL): editar el nivel del save (Área-Parte) y que
-> `CONTINUAR` cargue ahí.** Antes de tocar el save, leer
+> `CONTINUAR` cargue ahí; y lo PRIMERO es crear un item en `TODO.md` + una planificación de la tarea.**
+> Antes de tocar el save, leer
 > **`notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md`** (formato del slot, cabecera y
 > funciones del juego, todo medido) y `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`
 > (editor + MODO HEAVEN).
@@ -12,6 +13,10 @@
 ---
 
 ## 1. TAREA PRINCIPAL — nivel (Área-Parte) del save y carga con `CONTINUAR`
+
+> **La sesión nueva debe EMPEZAR creando un item en `TODO.md` y una planificación/plan de la tarea**
+> (pasos numerados + criterio de validación en Windows), y trabajar sobre ese plan. Lo de abajo es el
+> material de partida, no el plan hecho.
 
 ### Objetivo
 
