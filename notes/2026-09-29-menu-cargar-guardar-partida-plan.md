@@ -1,20 +1,24 @@
-# PLAN — Menú propio de cargar/guardar partida (slots "infinitos", 1 `.pak` por slot)
+# PLAN — Menú propio de cargar/guardar partida (slots "infinitos", un `.pak` con N slots)
 
 > **Documento maestro de la tarea** (para una sesión nueva). Rama `menu-edicion-partida`.
 > Sustituir los menús nativos de **CARGAR** (CONTINUAR) y **GUARDAR** (cápsula) por un **menú propio**
-> (overlay del port, como el del título), con **N slots** en vez de 4, y un **fichero por slot**.
+> (overlay del port, como el del título), con **N slots** en vez de 4, en un **único `.pak`**.
 > Diseño **1:1** con el nativo (fuente/estilo/cajas), pero listando todas las partidas.
 
 ## 0. Decisiones (mantenedor, 2026-09-29)
 
-1. **Almacenamiento**: **1 `.pak` por slot**, `hh_savegame_slot<N>.pak` (slot1 = índice 0), en `saves/`
-   (identificable desde Linux/Windows). No un `.pak` compartido de 4 slots.
+1. **Almacenamiento**: **UN `.pak` con N slots** (contenedor `HHPK` como el del juego, ampliado a N
+   slots de 0xD00). Es lo MÁS FÁCIL: el juego ya espera este formato y `hh::save` ya lee/escribe así;
+   `func_801423C8(slot)` funciona con cualquier índice sin montar nada. (Se descartó "1 `.pak` por
+   slot": obligaba a montar el fichero-slot como pak activo antes de cargar/guardar.) Opcional a
+   futuro: exportar/importar un slot suelto para inspección.
 2. **Fases**: primero **CARGAR** (sustituir CONTINUAR); luego **GUARDAR** (cápsula); por último
    **sustituir EDICIÓN DE PARTIDA**. Experiencia más nativa.
 3. **Estrategia de sustitución = A** (overlay encima + interceptar input, como el menú de título):
    ocultar el menú nativo y mostrar el nuestro; al elegir, reutilizar el flujo nativo para cargar.
-4. **Diseño 1:1**: mismas cajas/cabecera por slot; por fila, **Área-Level, nivel y tiempo**. Sin
-   nombre. Metadatos de fecha = los del fichero.
+4. **Diseño 1:1**: mismas cajas/cabecera por slot; por fila, **Área-Level, nivel y tiempo** (como el
+   nativo). **Nombre del slot**: `savegame_slot1`, `savegame_slot2`, … (1-based para el nombre; 0-based
+   internamente). Fecha = la del fichero.
 5. Al dar a CONTINUAR **no** debe salir el cartel de Controller/Rumble Pak; solo las cajas.
 
 ## 1. Hallazgos `[MEDIDO]` (dónde está el menú nativo y cómo se entra)
@@ -40,16 +44,20 @@
   slots: `kSlots=4`, `kSlotSize=0xD00`, cabecera 0x100, campo de escena `0x564` (u16 LE), checksum
   0xCFC. Runtime PFS: `lib/N64ModernRuntime/librecomp/src/pak.cpp`.
 
-## 2. Matiz del "1 `.pak` por slot"
+## 2. Formato: un `.pak` con N slots
 
-- El juego espera **su** `.pak` (contenedor `HHPK` con 4 slots) y lo lee por PFS
-  (`osPfsReadWriteFile`) al cargar/guardar.
-- Con 1 `.pak` por slot, hay que **materializar el slot elegido como el pak activo del juego** antes de
-  cargar/guardar: opciones (a decidir en Fase 0): (i) copiar el fichero-slot al `.pak` del juego y
-  recargar (`hh_pak_reload_from_disk`), (ii) construir en memoria un `HHPK` de 1 slot y montarlo,
-  (iii) escribir el slot del fichero en el `.pak` activo en el offset que el juego lee.
-- **Fase 0 debe decidir esto con una prueba** (no asumir). Puede ser más simple de lo que parece:
-  basta con que el slot 0 del `.pak` activo contenga el fichero-slot elegido.
+- El juego espera **su** `.pak` (`HHPK` + N slots de 0xD00) y lo lee por PFS (`osPfsReadWriteFile`).
+  Con un `.pak` único ampliado a N slots, **no hay que montar nada**: `func_801423C8(slot)` ya sirve.
+- Puntos a resolver en Fase 0:
+  - **Tamaño del fichero**: `0x1B + 0x100 + N*0xD00`. ¿Cuántos slots (N)? Decidir un tope razonable
+    (propuesta: 32 o 64; "infinitos" de facto, con scroll en la UI).
+  - **El runtime PFS**: `osPfsReadWriteFile(off = slot*0xD00 + 0x100, 0xD00)` lee del `.pak` activo.
+    Comprobar que acepta un fichero mayor que el actual (4 slots) sin recortar (el PFS del runtime es
+    nuestro, `pak.cpp`); ver si `PAK_MAX_FILES`/tamaños limitan.
+  - **Cabecera de la lista** (`0x100`, registros `0x10+slot*8`): ampliar a N registros. Ya la
+    gestionamos en `hh::save` (`update_save_header`).
+- `hh::save` (src/subsystems/save_edit.cpp) ya trabaja sobre `.pak`+slots (hoy `kSlots=4`): ampliar
+  `kSlots` y los recorridos de checksum/cabecera. Base ya validada (cargar/guardar/eliminar/clonar).
 
 ## 3. Fases
 
@@ -57,24 +65,23 @@
 1. Trazar `func_8013E7C0`/`func_8013E850` (oráculo/headless): globals de estado/cursor, qué pinta
    (DLs/`G_FILLRECT`), cómo confirma y sale. Objetivo: saber qué **mutear** y dónde **interceptar**.
 2. Capturar el `DATA LOAD` nativo (F7) para el diseño 1:1 (posición/color/orden de las cajas).
-3. Probar el "montaje" del `.pak`-por-slot (elegir 1 fichero-slot → que `func_801423C8(0)` cargue).
-4. **Decidir formato** del fichero-slot: ¿`HHPK` de 1 slot (0x1B + 0xD00) o un `.pak` de 4 con solo el
-   slot 0 usado? (recomendado: contenedor `HHPK` con **1** slot para que `hh::save` lo lea fácil).
+3. **Probar el `.pak` ampliado**: generar uno con N slots y verificar que `func_801423C8(slot)` carga
+   un slot > 3 y que el PFS del runtime no recorta el fichero.
 
-### Fase 1 — Almacenamiento (1 fichero/slot)
-5. Nuevo módulo (p. ej. `hh::slots`): listar `saves/hh_savegame_slot*.pak`, leer metadatos (AREA-LEVEL,
-   nivel, tiempo de la cabecera 0x100 + fecha del fichero), ordenar.
-6. Reutilizar la lógica de lectura/escritura de slot de `hh::save` sobre el contenedor de 1 slot.
+### Fase 1 — Almacenamiento (un `.pak`, N slots)
+4. Ampliar `hh::save`: `kSlots` configurable, recorridos de checksum/cabecera a N, y
+   creación/redimensionado del `.pak` (rellenar/truncar a N slots).
+5. Metadatos por slot (AREA-LEVEL, nivel, tiempo de la cabecera `0x100` + fecha del fichero) para la UI.
 
 ### Fase 2 — UI de carga (overlay 1:1)
-7. Nueva pantalla del árbol (`ScreenId::LoadGame`) con lista con scroll (reutiliza layout/scroll del
+6. Nueva pantalla del árbol (`ScreenId::LoadGame`) con lista con scroll (reutiliza layout/scroll del
    menú) y estilo 1:1 con el nativo (cajas verdes, cabecera por slot).
 
 ### Fase 3 — Enganche a CONTINUAR (Estrategia A)
-8. Hook del file-select (`func_8013E7C0`/`func_8013E850`): ocultar el nativo, **mutear input**,
+7. Hook del file-select (`func_8013E7C0`/`func_8013E850`): ocultar el nativo, **mutear input**,
    **publicar** nuestro overlay.
-9. Confirmar slot -> montar el fichero-slot como pak activo -> cargar (`func_801423C8`) -> desmontar el
-   menú + transición de escena (lo que hace el flujo nativo: `func_8012FE50`).
+8. Confirmar slot -> cargar (`func_801423C8(slot)`) -> desmontar el menú + transición de escena (lo que
+   hace el flujo nativo: `func_8012FE50`).
 
 ### Fase 4 (después) — GUARDAR en cápsula y sustituir EDICIÓN DE PARTIDA (mismo patrón).
 
