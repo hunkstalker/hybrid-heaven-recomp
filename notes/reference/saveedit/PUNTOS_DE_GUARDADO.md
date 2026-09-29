@@ -29,6 +29,30 @@
 > - Área 2: 2-1 ⬜ · Área 3: 3-1..3-7 ⬜ · Área 4: 4-1..4-3 ⬜ · Área 5: 5-1,5-2 ⬜ ·
 >   Área 6: 6-1..6-7 ⬜ · Área 7: 7-1..7-3 ⬜ · Área 8: 8-1..8-3 ⬜ · Área 9: 9-1 ⬜.
 
+## Para qué sirven (flujo diseñado en `EDICIÓN DE PARTIDA`)
+
+**Objetivo**: permitir que el jugador **empiece su partida en cualquier Área-Parte** con **sus**
+atributos/estado/items/habilidades, usando el estado de zona correcto de la plantilla (evita
+reconstruir a mano flags de historia, puertas y cinemáticas, que es frágil).
+
+**Flujo** (diseño acordado 2026-09-29; pendiente de implementar):
+1. El jugador **carga su partida** (slot X) en `EDICIÓN DE PARTIDA` → el port tiene sus datos
+   (atributos, estado, items, habilidades).
+2. Elige **Área-Parte destino** (p. ej. `3-3`) → se coge la **plantilla** `templates/3-3.bin`
+   (estado de zona REAL, generado jugando).
+3. **Mezcla** = plantilla de la zona **+ sobrescribir** con los datos del jugador:
+   - `0x000..0x09D` **atributos/estado** (struct personaje; incluye contadores por parte).
+   - `0x09E..0x19F` **habilidades** (86 × 3).
+   - `0x1A0..0x1CC` **items** (45 × 1).
+   - Lo demás (flags `0x300..0x363`, bloque de estado `0x364..0x563`, escena **`0x564`**) se queda
+     **de la plantilla**.
+4. `GUARDAR` → escribe el slot destino (checksum recalculado).
+5. `CONTINUAR` → arranca en esa Área-Parte con la partida del jugador.
+
+**Por qué una plantilla por punto**: cada punto tiene su "estado de mundo" (qué puertas abiertas, qué
+cinemáticas vistas). Solo el slot guardado ahí lo tiene bien. Por eso se necesitan plantillas de
+varios puntos (empezando por los `N-0`). Cobertura actual en la tabla de arriba.
+
 ## Cómo registrar uno nuevo (checklist)
 
 1. Copiar el `.pak` a esta carpeta con nombre `YYYY-MM-DD-hh.us.bin.pak.<resumen>.pak`.
