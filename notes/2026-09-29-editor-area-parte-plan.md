@@ -340,6 +340,12 @@ estaciones de guardado):
 - **Uso**: pulsar `[`/`]` y anotar fila/col + a dónde sale el jugador; así se etiqueta cada índice
   (estación `N-N` vs intermedio `N-Na/b/...`). Con eso se puede construir la lista ordenada real.
 
+## 6quater. Slots de punto de guardado aportados por el mantenedor
+
+Registro vivo y cobertura por área: **`reference/saveedit/PUNTOS_DE_GUARDADO.md`**. El mantenedor
+aporta `.pak` guardados jugando; sirven para (1) validar el mapeo de `idx`/carga con `CONTINUAR` y
+(2) ser las **plantillas** de "mover mi partida a una Área-Parte" (§6bis). Área 1 completa (1-1, 1-2).
+
 ## 7. Pendiente / siguiente prueba
 
 - [x] Lista completa de Áreas-Partes (dato del mantenedor): 39 puntos (arriba).

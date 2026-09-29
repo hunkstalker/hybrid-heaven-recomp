@@ -8,6 +8,10 @@
 > `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
 > plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
 >
+> **Puntos de guardado aportados por el mantenedor**: registro vivo en
+> **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los
+> nuevos). El mantenedor puede decir en cualquier momento que ha guardado slots nuevos; ahí se anotan.
+>
 > **La próxima sesión EMPIEZA por `notes/2026-09-29-editor-area-parte-plan.md`** (§1 sigue siendo el
 > material de partida original; el estado real está al principio de esa nota). Pendientes vivos:
 > (a) **validar en Windows** `EXTRAS > IR A ÁREA` + `DEBUG NIVELES`; (b) **diseñar/implementar
