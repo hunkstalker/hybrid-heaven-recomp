@@ -1,6 +1,7 @@
 # PLAN — Menú propio de cargar/guardar partida (slots "infinitos", un `.pak` con N slots)
 
-> **Documento maestro de la tarea** (para una sesión nueva). Rama `menu-edicion-partida`.
+> **Documento maestro de la tarea** (para una sesión nueva). Rama **`menu-carga-guardado-partida`**
+> (creada desde `menu-edicion-partida` @ `9fbe2e8`).
 > Sustituir los menús nativos de **CARGAR** (CONTINUAR) y **GUARDAR** (cápsula) por un **menú propio**
 > (overlay del port, como el del título), con **N slots** en vez de 4, en un **único `.pak`**.
 > Diseño **1:1** con el nativo (fuente/estilo/cajas), pero listando **todas** las partidas.

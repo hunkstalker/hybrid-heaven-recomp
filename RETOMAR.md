@@ -1,7 +1,8 @@
 # RETOMAR — handoff (2026-09-29)
 
-> Handoff para la próxima sesión. Rama **`menu-edicion-partida`** (nada pusheado; `main` = v0.5.0).
-> Reglas: `AGENTS.md`.
+> Handoff para la próxima sesión. **Rama de trabajo actual: `menu-carga-guardado-partida`**
+> (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
+> `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
 > **Sesión 2026-09-29 (hecha):** RESUELTO el mapeo de Áreas-Partes / puntos de carga. Documento
 > maestro: **`notes/2026-09-29-editor-area-parte-plan.md`** (todo medido: campo `0x564`, fórmula
