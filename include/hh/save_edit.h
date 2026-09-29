@@ -39,6 +39,11 @@ void unload();
 int slot_count();
 bool slot_used(int slot);
 
+// PLANTILLA BASE (EXTRAS -> ELEGIR NIVEL -> IR A NIVEL): escribe el slot `slot` del `.pak` en memoria
+// con la plantilla `assets/save/template_slot.bin` (clon del slot0, con solo Map Viewer + Defuser).
+// Devuelve false si no encuentra la plantilla. No escribe el fichero (requiere GUARDAR).
+bool load_template(int slot);
+
 // Campos por slot.
 uint16_t progress_of(int slot);
 void set_progress_of(int slot, uint16_t v);
@@ -83,12 +88,26 @@ std::string item_name(int id);
 // muestra el nombre en orden natural pero lee/escribe la cantidad en el slot invertido de su familia.
 int item_slot_of(int display_index);
 
-// PROGRESO: puntos de guardado válidos por nivel según la tabla de escenas real D_80175490.
+// [OBSOLETO 2026-09-29] `D_80175490` es la tabla de ESCENAS (224 entradas), no la lista real de
+// Áreas-Partes. La enumeración de la UI se hace ahora en `menu.cpp` con el esquema
+// `(area+1)*10+sub` (ver notes/2026-09-29-editor-area-parte-plan.md §2bis). Se conserva por si una
+// herramienta de diagnóstico quiere volcar los conteos por fila.
 void valid_points_by_level(int out_points[30]);
+
+// DIAGNOSTICO (HH_SAVEEDIT_DUMP=1): vuelca a `hh.log` la tabla `D_80175490` (con los records
+// apuntados), el bloque `0x801BBBF0` y el bloque de 512 B `0x801BED38`. Lo llama el hook de carga.
+void dump_runtime(uint8_t* rdram, const char* tag);
+// DIAGNOSTICO: vuelca el buffer de 0xD00 que `func_80141D08` va a deserializar (layout exacto).
+void dump_slot_buffer(uint8_t* rdram, uint32_t addr, const char* tag);
 
 // MODO HEAVEN (runtime, modo GLOBAL): lleva el personaje VIVO `0x8017DC40` al máximo (ATRIBUTOS
 // 99 + ESTADO 99 + 86 habilidades). Lo llama el hook de carga de partida cuando
 // `hh::menu::heaven_enabled()`. No toca items (esos solo son "no consumibles" por hook).
 void apply_heaven_runtime(uint8_t* rdram);
+
+// Quita la Code Key (item id 38) del inventario VIVO (tabla `0x8017E004 + id*8 + 4`). Se usa tras
+// cargar 1-0: la plantilla base lleva 1 Code Key para areas avanzadas, pero una partida nueva no la
+// debe tener. Ver notes/2026-09-29-editor-area-parte-plan.md.
+void clear_code_key_runtime(uint8_t* rdram);
 
 }  // namespace hh::save

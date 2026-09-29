@@ -32,6 +32,7 @@
 #include "hh.h"
 #include "hh/config_ini.h"
 #include "hh/hudrewrite.h"
+#include "hh/menu.h"
 
 // HH: reloj de juego esclavo del replay (runtime ultramodern/src/timer.cpp). Ver
 // notes/2026-09-17-cac-timeline-modulo24-periodo.md §5.
@@ -1008,15 +1009,15 @@ void hh::poll_input() {
                     // MSAA (apenas notable a alta resolucion; por config suele bastar).
                     hh::video_cycle_msaa();
                 }
-                else if (k.sym == SDLK_F5) {
-                    // Idioma: cicla entre los disponibles (base del selector, ADR 0008) y lo aplica
-                    // en vivo a lo ya cargado. Se persiste en config.ini [lang].
-                    hh::text_cycle_language();
+                else if (k.sym == SDLK_F5 && hh::menu::debug_levels_enabled()) {
+                    // CICLO DE PUNTOS (DEBUG NIVELES): punto de escena anterior.
+                    hh::menu::cycle_step(-1);
+                    std::fprintf(stderr, "[HH] F5 -> punto anterior\n");
                 }
-                else if (k.sym == SDLK_F6) {
-                    // A2: muestra/oculta el menú NATIVO del juego (oculto por defecto; se muestra
-                    // para comparar con nuestro overlay). El overlay del port queda siempre visible.
-                    hh::menu_overlay::native_toggle();
+                else if (k.sym == SDLK_F6 && hh::menu::debug_levels_enabled()) {
+                    // CICLO DE PUNTOS (DEBUG NIVELES): siguiente punto de escena.
+                    hh::menu::cycle_step(+1);
+                    std::fprintf(stderr, "[HH] F6 -> punto siguiente\n");
                 }
                 else if ((k.mod & KMOD_CTRL) && hh::menu_overlay::visible()) {
                     // A2 calibración en vivo del overlay (con el overlay visible):
@@ -1041,18 +1042,6 @@ void hh::poll_input() {
                     // en el mismo instante. Cada F7 abre una captura nueva; otro F7 la cancela.
                     hh::hud_capture_trigger();
                 }
-                else if (k.sym == SDLK_F8) {
-                    // Diagnostico (parpadeo de geometria): PresentEarly <-> SkipBuffering.
-                    hh::video_toggle_present_early();
-                }
-                else if (k.sym == SDLK_F9) {
-                    // Diagnostico (parpadeo de geometria): interpolacion (RefreshRate) Display <-> Original.
-                    hh::video_toggle_interpolation();
-                }
-                else if (k.sym == SDLK_F10) {
-                    // Diagnostico (A/B): activa/desactiva el reescritor del HUD 2D.
-                    hh::hudrewrite::toggle();
-                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);
@@ -1070,6 +1059,26 @@ void hh::poll_input() {
                     std::fprintf(stderr, "[HH] F11 -> ultramodern::quit()\n");
                     hh::video_remember_window();  // recordar tamano/posicion en [video]
                     ultramodern::quit();
+                }
+                else if (k.sym == SDLK_HOME && hh::menu::debug_levels_enabled()) {
+                    // CICLO DE PUNTOS (DEBUG NIVELES): ejecuta el índice 0 (1-0).
+                    hh::menu::cycle_reset();
+                    std::fprintf(stderr, "[HH] Inicio -> punto 0\n");
+                }
+                else if (k.sym == SDLK_PAGEDOWN && hh::menu::debug_levels_enabled()) {
+                    // CICLO DE PUNTOS (DEBUG NIVELES): +10 (siguiente bloque de área).
+                    hh::menu::cycle_step_block(+1);
+                    std::fprintf(stderr, "[HH] AvPag -> +10\n");
+                }
+                else if (k.sym == SDLK_PAGEUP && hh::menu::debug_levels_enabled()) {
+                    // CICLO DE PUNTOS (DEBUG NIVELES): -10 (bloque anterior).
+                    hh::menu::cycle_step_block(-1);
+                    std::fprintf(stderr, "[HH] RePag -> -10\n");
+                }
+                else if (k.sym == SDLK_F10) {
+                    // VOLVER AL MENÚ desde el gameplay (test): el idx 7 daba la intro/menú pero
+                    // crashea; desactivado hasta encontrar la vía buena. Ver plan 2026-09-29.
+                    std::fprintf(stderr, "[HH] F10 -> volver al menú (desactivado: idx 7 crashea)\n");
                 }
             } break;
         }

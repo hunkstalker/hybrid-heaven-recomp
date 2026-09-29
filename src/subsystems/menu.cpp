@@ -10,6 +10,10 @@
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <set>
+#include <sstream>
 
 #include "hh.h"   // VideoConfig/AudioConfig: valores iniciales de los selectores
 #include "hh/save_edit.h"  // EDICIÓN DE PARTIDA
@@ -62,11 +66,12 @@ const MenuTr kMenuTr[] = {
     {"SONIDO", "SOUND", "SO", "SON", "TON", "サウンド"},
     {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG", "デバッグ"},
     {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "エクストラ"},
-    {"MANTENER EXTRAS", "KEEP EXTRAS", "MANTENIR EXTRAS", "GARDER EXTRAS", "EXTRAS BEHALTEN",
-     "エクストラホゾン"},
+    {"MANTENER LOS EXTRAS", "KEEP EXTRAS", "MANTENIR ELS EXTRAS", "GARDER LES EXTRAS",
+     "EXTRAS BEHALTEN", "エクストラホゾン"},
     {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX", "ORIGINAL-LOGOS",
      "オリジナルロゴ"},
-    {"VENTAJA", "ADVANTAGE", "AVANTATGE", "AVANTAGE", "VORTEIL", "アドバンテージ"},
+    {"SIEMPRE EN VENTAJA", "ALWAYS ADVANTAGE", "SEMPRE EN AVANTATGE", "TOUJOURS AVANTAGE",
+     "IMMER VORTEIL", "アドバンテージ"},
     // ∞ = simbolo vectorial (la fuente no lo trae); se dibuja en overlay.cpp.
     {"PODER ∞", "POWER ∞", "PODER ∞", "PUISSANCE ∞", "KRAFT ∞", "パワー∞"},
     {"RESISTENCIA ∞", "STAMINA ∞", "RESISTÈNCIA ∞", "ENDURANCE ∞", "AUSDAUER ∞", "スタミナ∞"},
@@ -107,8 +112,12 @@ const MenuTr kMenuTr[] = {
      "アンチエイリアス"},
     {"VSYNC", "VSYNC", "VSYNC", "VSYNC", "VSYNC", "ブイシンク"},
     {"LÍMITE DE FPS", "FPS LIMIT", "LÍMIT DE FPS", "LIMITE FPS", "FPS-LIMIT", "FPSセイゲン"},
-    {"VENTANA DEBUG", "DEBUG WINDOW", "FINESTRA DEBUG", "FENÊTRE DEBUG", "DEBUG-FENSTER",
-     "デバッグウインドウ"},
+    {"DEBUG PANEL", "DEBUG PANEL", "PANELL DEBUG", "PANNEAU DEBUG", "DEBUG-PANEL",
+     "デバッグパネル"},
+    {"DEBUG NIVELES", "DEBUG LEVELS", "DEBUG NIVELLS", "DEBUG NIVEAUX", "DEBUG-LEVEL",
+     "レベルデバッグ"},
+    {"IR A ÁREA", "GO TO AREA", "ANAR A ÀREA", "ALLER À ZONE", "ZU BEREICH", "エリアイキ"},
+    {"ÁREA", "AREA", "ÀREA", "ZONE", "BEREICH", "エリア"},
     {"MOSTRAR FPS", "SHOW FPS", "MOSTRAR FPS", "AFFICHER FPS", "FPS ANZEIGEN", "FPSヒョウジ"},
     {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE", "オンリョウ"},
     {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE", "シュツリョク"},
@@ -325,48 +334,77 @@ int g_edit_delete_target = 1; // ELIMINAR: 1..4 = slot a borrar (valor del selec
 uint8_t g_tech_baseline[hh::save::kTechCount];
 bool g_tech_baseline_valid = false;
 
-// Puntos de guardado validos por INDICE de escena interno (0..29), leidos de la tabla REAL
-// `D_80175490` en runtime (ver hh::save::valid_points_by_level). El valor del campo es
-// `idx*10 + punto`. El juego ARRANCA en el indice 1 (valor 0x0A), que muestra como "1-0": el nivel
-// mostrado es `idx` (1-based). El grupo 0 (interno) no es jugable.
+// Areas-Partes REALES del juego. `[MEDIDO 2026-09-29]`. El valor de escena (que el editor escribe en
+// el slot en `0x564`, u16 LE) es `(area-1)*10 + (sub-1)*2` para los PUNTOS DE GUARDADO (1-1 -> 0,
+// 1-2 -> 2, 2-1 -> 10). Los `N-0` (1-0, 2-0) son INICIOS de nivel: NO guardables (un slot nunca los
+// registra; se llega a ellos por transicion `tipo=15`), pero SI destinos del warp `IR A NIVEL`, con
+// `idx = (area-1)*10`. Ver notes/2026-09-29-editor-area-parte-plan.md.
+struct AreaPart { int area; int sub; };   // area 1-based; sub 0 = inicio (N-0), 1.. = punto guardado
+// Puntos de guardado (sub >= 1): los unicos que un slot puede registrar (selector PROGRESO).
+static const AreaPart kAreaPartsSave[] = {
+    {1, 1}, {1, 2},
+    {2, 1},
+    {3, 1}, {3, 2}, {3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7},
+    {4, 1}, {4, 2}, {4, 3},
+    {5, 1}, {5, 2},
+    {6, 1}, {6, 2}, {6, 3}, {6, 4}, {6, 5}, {6, 6}, {6, 7},
+    {7, 1}, {7, 2}, {7, 3},
+    {8, 1}, {8, 2}, {8, 3},
+    {9, 1},
+};
+// `IR A NIVEL` (EXTRAS): SOLO los `N-0` (inicio de cada nivel), con su índice de escena MEDIDO
+// (no todos siguen `(area-1)*10`: 7-0 = 75). Ver notes/2026-09-29-editor-area-parte-plan.md.
+struct NamedPoint { const char* label; uint16_t idx; };
+static const NamedPoint kStartPoints[] = {
+    { "1-0", 0 }, { "2-0", 10 }, { "3-0", 20 }, { "4-0", 30 }, { "5-0", 40 },
+    { "6-0", 50 }, { "7-0", 75 }, { "8-0", 80 }, { "9-0", 90 },
+};
+// Valor de escena para un destino de guardado: `(area-1)*10 + (sub-1)*2` (sub >= 1).
+static uint16_t area_part_value(int area, int sub) {
+    if (sub <= 0) return static_cast<uint16_t>((area - 1) * 10);
+    return static_cast<uint16_t>((area - 1) * 10 + (sub - 1) * 2);
+}
+static std::vector<AreaPart> area_parts_save() {
+    return std::vector<AreaPart>(std::begin(kAreaPartsSave), std::end(kAreaPartsSave));
+}
+
 std::vector<std::string> progress_options() {
-    int pts[30] = {0};
-    hh::save::valid_points_by_level(pts);
     std::vector<std::string> out;
-    for (int idx = 1; idx < 30; ++idx) {
-        for (int p = 0; p < pts[idx] && p < 10; ++p) {
-            out.push_back(std::to_string(idx) + "-" + std::to_string(p));
-        }
+    for (const AreaPart& ap : area_parts_save()) {
+        out.push_back(std::to_string(ap.area) + "-" + std::to_string(ap.sub));
     }
-    if (out.empty()) out.push_back("1-0");   // guarda si la tabla no está disponible
+    if (out.empty()) out.push_back("1-1");
     return out;
 }
 int progress_index_of(uint16_t value) {
-    int pts[30] = {0};
-    hh::save::valid_points_by_level(pts);
-    int out = 0;
-    for (int idx = 1; idx < 30; ++idx) {
-        for (int p = 0; p < pts[idx] && p < 10; ++p, ++out) {
-            if (value == static_cast<uint16_t>(idx * 10 + p)) return out;
-        }
+    const std::vector<AreaPart> aps = area_parts_save();
+    for (int i = 0; i < static_cast<int>(aps.size()); ++i) {
+        if (value == area_part_value(aps[i].area, aps[i].sub)) return i;
     }
-    return 0;   // 1-0
+    return 0;
 }
-// Valor N*10+P del indice `slot` del selector PROGRESO.
+// Valor del slot (`0x564`) del indice `slot` del selector PROGRESO.
 uint16_t progress_value_at(int slot) {
-    int pts[30] = {0};
-    hh::save::valid_points_by_level(pts);
-    int i = 0;
-    for (int idx = 1; idx < 30; ++idx) {
-        for (int p = 0; p < pts[idx] && p < 10; ++p, ++i) {
-            if (i == slot) return static_cast<uint16_t>(idx * 10 + p);
+    const std::vector<AreaPart> aps = area_parts_save();
+    if (slot < 0 || slot >= static_cast<int>(aps.size())) return area_part_value(1, 1);   // 1-1
+    return area_part_value(aps[slot].area, aps[slot].sub);
+}
+// Cadena "N-P" (area-punto de guardado). El valor guardado es `(area-1)*10+(sub-1)*2`, asi que NO se
+// puede derivar por division; se busca en la lista. La fuente no tiene '-': el overlay dibuja el guion.
+std::string progress_label(uint16_t value) {
+    for (const AreaPart& ap : area_parts_save()) {
+        if (value == area_part_value(ap.area, ap.sub)) {
+            return std::to_string(ap.area) + "-" + std::to_string(ap.sub);
         }
     }
-    return 0x0A;   // 1-0 por defecto
-}
-// Cadena "N-P" (nivel-punto) del valor N*10+P. La fuente no tiene '-': el overlay dibuja el guion.
-std::string progress_label(uint16_t value) {
     return std::to_string(value / 10) + "-" + std::to_string(value % 10);
+}
+
+// IR A NIVEL (EXTRAS): SOLO los `N-0` (inicio de cada nivel), con su índice medido.
+std::vector<std::string> warp_options() {
+    std::vector<std::string> out;
+    for (const NamedPoint& p : kStartPoints) out.push_back(p.label);
+    return out;
 }
 
 // Orden de las partes como las muestra el port (mapa al orden del juego en el struct):
@@ -460,7 +498,6 @@ void build_tree() {
         make_submenu("GRÁFICOS", Action::OpenGraphics),
         make_submenu("SONIDO", Action::OpenSound),
         make_submenu("CONTROLES", Action::OpenControls),
-        make_submenu("DEBUG", Action::OpenDebug),
     }));
 
     // IDIOMA: lista (INGLÉS...JAPONÉS). La opción activa es el idioma actual (negrita/verde).
@@ -496,16 +533,13 @@ void build_tree() {
         make_selector_with_action("LÍMITE DE FPS",
                                   {"NATIVO", "30", "40", "60", "75", "90", "120", "144", "165", "240"},
                                   Action::FpsLimit, fps_limit_default()),
-    }));
-
-    // DEBUG: opciones de depuración (fuera de GRÁFICOS para no alargarlo).
-    g_screens.push_back(make_screen(ScreenId::Debug, ScreenKind::Menu, {
-        make_selector_with_action("VENTANA DEBUG", {"NO", "SÍ"}, Action::ToggleDebug,
-                                  developer_default()),
         // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
         make_selector_with_action("MOSTRAR FPS", {"NO", "SÍ"}, Action::ToggleShowFps,
                                   show_fps_default()),
     }));
+
+    // DEBUG: vacío por ahora (VENTANA DEBUG -> EXTRAS como DEBUG PANEL; MOSTRAR FPS -> GRÁFICOS).
+    g_screens.push_back(make_screen(ScreenId::Debug, ScreenKind::Menu, {}));
 
     // EXTRAS: desbloqueado con el codigo Konami. MANTENER EXTRAS decide si el propio menu persiste
     // entre arranques; LOGOS ORIGINALES elige el set de logos de la intro por defecto. Ambos
@@ -516,21 +550,29 @@ void build_tree() {
         // las 86 habilidades, y en runtime invulnerabilidad + items no consumibles (ver RETOMAR.md).
         make_selector_with_action("MODO HEAVEN", {"NO", "SÍ"}, Action::ToggleHeavenMode,
                                   heaven_default()),
-        make_selector_with_action("MANTENER EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
-                                  extras_persist_default()),
-        make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
-                                  original_logos_default()),
         make_submenu("EDICIÓN DE PARTIDA", Action::OpenSaveEdit),
-        // VENTAJA: independiente de MODO HEAVEN (permite la ventaja de combate sola). Persiste en
-        // config.ini [extras].advantage. La ventaja se aplica si HEAVEN **o** VENTAJA estan en SÍ.
-        make_selector_with_action("VENTAJA", {"NO", "SÍ"}, Action::ToggleAdvantage,
-                                  advantage_default()),
+        // DEBUG NIVELES: activa los atajos del CICLO DE PUNTOS (F5/F6, RePag/AvPag) + indicador
+        // `idx=`, y da acceso a ELEGIR NIVEL. Persiste en config.ini [extras].debug_levels.
+        make_selector_with_action("DEBUG NIVELES", {"NO", "SÍ"}, Action::ToggleDebugLevels,
+                                  hh::extras_config().debug_levels == "si" ? 1 : 0),
+        make_submenu("IR A ÁREA", Action::OpenChooseLevel),
         // PODER ∞ / RESIS. ∞: el gauge de combate no se gasta (se pinnea a max por frame). El ∞ se
         // dibuja como simbolo vectorial (la fuente no lo trae). Persisten en config.ini [extras].
         make_selector_with_action("PODER ∞", {"NO", "SÍ"}, Action::ToggleInfinitePower,
                                   infinite_power_default()),
         make_selector_with_action("RESISTENCIA ∞", {"NO", "SÍ"}, Action::ToggleInfiniteStamina,
                                   infinite_stamina_default()),
+        // SIEMPRE EN VENTAJA (antes VENTAJA): independiente de MODO HEAVEN (permite la ventaja de
+        // combate sola). Persiste en config.ini [extras].advantage.
+        make_selector_with_action("SIEMPRE EN VENTAJA", {"NO", "SÍ"}, Action::ToggleAdvantage,
+                                  advantage_default()),
+        make_selector_with_action("MANTENER LOS EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
+                                  extras_persist_default()),
+        make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
+                                  original_logos_default()),
+        // DEBUG PANEL (antes VENTANA DEBUG, en el submenú DEBUG): habilita el Inspector de RT64 (F1).
+        make_selector_with_action("DEBUG PANEL", {"NO", "SÍ"}, Action::ToggleDebug,
+                                  developer_default()),
     }));
 
     // CONTROLES: Stick C + tabla del mapeado (accion N64 -> binding actual de mando/teclado). La
@@ -597,6 +639,7 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::SaveEditItems, ScreenKind::Menu, {}));
     g_screens.push_back(make_screen(ScreenId::SaveEditStats, ScreenKind::Menu, {}));
     g_screens.push_back(make_screen(ScreenId::SaveEditCombatSim, ScreenKind::Menu, {}));
+    g_screens.push_back(make_screen(ScreenId::ChooseLevel, ScreenKind::Menu, {}));
     rebuild_save_edit();
 }
 
@@ -650,6 +693,27 @@ void rebuild_save_edit() {
         e.push_back(make_submenu("ESTADO", Action::OpenSaveEditBody));   // antes "BODY"
         e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
         e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
+        s->entries = std::move(e);
+        if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
+    }
+
+    // ELEGIR NIVEL (EXTRAS): controlar la partida (CARGAR/GUARDAR/ELIMINAR) + IR A NIVEL. IR A NIVEL
+    // solo se habilita con partida cargada (gris y cursor no se posa si no la hay).
+    if (Screen* s = find_screen(ScreenId::ChooseLevel)) {
+        std::vector<Entry> e;
+        std::vector<std::string> slots;
+        for (int i = 1; i <= hh::save::kSlots; ++i) slots.push_back("PARTIDA " + std::to_string(i));
+        e.push_back(make_selector_with_action("CARGAR", slots, Action::SaveEditSlot, slot));
+        std::vector<std::string> save_slots{"NUEVA PARTIDA"};
+        for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
+        e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
+                                              g_edit_save_target));
+        e.push_back(make_selector_with_action("ELIMINAR", slots, Action::SaveEditDelete,
+                                              g_edit_delete_target));
+        e.push_back(make_item("", Action::None));   // separacion
+        // IR A NIVEL: destino = Area-Parte (con inicios N-0). Con A se inyecta la transicion. Si no
+        // hay partida cargada, el port carga la plantilla base de forma transparente y luego warpea.
+        e.push_back(make_selector_with_action("ÁREA", warp_options(), Action::WarpToLevel, 0));
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
     }
@@ -830,6 +894,7 @@ bool screen_for(Action action, ScreenId& out) {
         case Action::OpenSound:      out = ScreenId::Sound;      return true;
         case Action::OpenDebug:      out = ScreenId::Debug;      return true;
         case Action::OpenExtras:     out = ScreenId::Extras;     return true;
+        case Action::OpenChooseLevel: out = ScreenId::ChooseLevel; return true;
         case Action::OpenControls:   out = ScreenId::Controls;   return true;
         case Action::OpenSaveEdit:          out = ScreenId::SaveEdit;          return true;
         case Action::OpenSaveEditAbilities: out = ScreenId::SaveEditAbilities; return true;
@@ -1180,6 +1245,21 @@ void set_infinite_stamina_enabled(bool on) {
     hh::extras_set_infinite_stamina(on);
 }
 
+// EXTRAS -> DEBUG NIVELES: habilita los atajos del CICLO DE PUNTOS y el indicador `idx=`.
+static std::atomic<bool> g_debug_levels_cache{ false };
+static std::atomic<bool> g_debug_levels_init{ false };
+bool debug_levels_enabled() {
+    if (!g_debug_levels_init.exchange(true)) {
+        g_debug_levels_cache.store(hh::extras_config().debug_levels == "si");
+    }
+    return g_debug_levels_cache.load();
+}
+void set_debug_levels_enabled(bool on) {
+    g_debug_levels_cache.store(on);
+    g_debug_levels_init.store(true);
+    hh::extras_set_debug_levels(on);
+}
+
 void unlock_extras() {
     if (g_extras_unlocked_state) return;
     g_extras_unlocked_state = true;
@@ -1209,6 +1289,133 @@ std::string describe_tree() {
         }
     }
     return out;
+}
+
+// --- ELEGIR NIVEL: estado de partida cargada ---------------------------------------------------------
+static std::atomic<bool> g_game_loaded{ false };
+bool game_loaded() { return g_game_loaded.load(); }
+void set_game_loaded(bool on) {
+    if (g_game_loaded.exchange(on) != on) {
+        hh::log("[elegir-nivel] partida %s\n", on ? "cargada" : "no cargada");
+    }
+}
+// IR A NIVEL: valor de escena (idx) del indice del selector. Publico (lo usa el hook del menu).
+uint16_t warp_value_at(int index) {
+    const int n = static_cast<int>(sizeof(kStartPoints) / sizeof(kStartPoints[0]));
+    if (index < 0 || index >= n) return 0;
+    return kStartPoints[index].idx;
+}
+
+// CICLO DE PUNTOS (diagnostico): indice actual y peticion de paso. Lo usa el hook del menu (con
+// rdram) para cargar/transicionar al punto; el indice persiste entre cargas.
+static std::atomic<int> g_cycle_index{ 0 };
+static std::atomic<bool> g_cycle_first{ true };   // el primer paso ejecuta el indice actual (0 = 1-0)
+static std::atomic<int> g_cycle_request{ 0 };
+// Índices que NO son cargables (cuelgan o son inválidos): el ciclo los salta. `[MEDIDO 2026-09-29]`:
+// 5, 6, 8 = cuelgan / negro ("opening"). Ampliar según se descubran más. 7 = Intro antes del menú
+// (por eso NO se salta: sirve como "volver al menú").
+// Lista de saltos cargada de `skip_indices.txt` (junto al ejecutable). Se relee cada vez que se
+// consulta (barato: fichero pequeño) para poder editarla sin recompilar. Si falta, se crea con los
+// índices por defecto. Formato: un índice por línea; `#` comenta; comas/espacios también separan.
+static std::set<int> g_cycle_skip_cache;
+static std::filesystem::file_time_type g_cycle_skip_mtime{};
+static bool g_cycle_skip_loaded = false;
+
+static void cycle_skip_load(bool force) {
+    const std::filesystem::path path = hh::get_app_folder_path() / "skip_indices.txt";
+    std::error_code ec;
+    const bool exists = std::filesystem::exists(path, ec);
+    if (exists) {
+        const auto mt = std::filesystem::last_write_time(path, ec);
+        if (!force && g_cycle_skip_loaded && !ec && mt == g_cycle_skip_mtime) return;   // sin cambios
+        g_cycle_skip_mtime = mt;
+    } else if (g_cycle_skip_loaded && !force) {
+        return;
+    }
+    std::set<int> s;
+    if (exists) {
+        std::ifstream in(path);
+        std::string line;
+        while (std::getline(in, line)) {
+            const size_t hash = line.find('#');
+            if (hash != std::string::npos) line = line.substr(0, hash);
+            for (char& c : line) if (c == ',') c = ' ';
+            std::istringstream iss(line);
+            int v;
+            while (iss >> v) s.insert(v);
+        }
+    } else {
+        // Lista por defecto [MEDIDO 2026-09-29]: indices del ciclo que cuelgan / no cargan.
+        s = { 5, 6, 7, 8, 9, 28, 29, 38, 39, 57, 58, 59, 65, 66, 67, 68, 69, 73, 74,
+              78, 79, 85, 86, 87, 88, 89, 98, 99 };
+        std::ofstream out(path);
+        if (out) {
+            out << "# Indices del CICLO DE PUNTOS (F5/F6) que se SALTAN (cuelgan). Uno por linea.\n"
+                << "# Editable sin recompilar; se relee al pulsar. Ver plan 2026-09-29.\n";
+            for (int v : s) out << v << "\n";
+        }
+    }
+    g_cycle_skip_cache = std::move(s);
+    g_cycle_skip_loaded = true;
+}
+
+static bool cycle_skip(int i) {
+    cycle_skip_load(false);
+    return g_cycle_skip_cache.count(i) != 0;
+}
+bool cycle_skipped(int i) { return cycle_skip(i); }   // público: el hook no ejecuta índices saltados
+// `mag` = magnitud del salto (1 = fino, 10 = bloque). El indice arranca en -mag para que la primera
+// pulsacion de F6 ejecute el 0 (1-0). Los indices que cuelgan (cycle_skip) se saltan.
+void cycle_step_mag(int delta, int mag) {
+    // Primer paso: ejecuta el indice actual (0 = 1-0) sin mover (solo para F6/+1).
+    if (g_cycle_first.load() && delta > 0) {
+        g_cycle_first.store(false);
+        g_cycle_index.store(0);
+        g_cycle_request.store(1);
+        return;
+    }
+    g_cycle_first.store(false);
+    int v = g_cycle_index.load();
+    if (delta == 0) delta = 1;
+    if (mag < 1) mag = 1;
+    const int lo = 0, hi = 99;   // tope 99; al pasar de 99 vuelve a 0 (y al bajar de 0, a 99)
+    int step = (delta > 0 ? mag : -mag);
+    for (int guard = 0; guard < 400; ++guard) {
+        v += step;
+        if (v > hi) v = lo;
+        if (v < lo) v = hi;
+        if (!cycle_skip(v)) break;
+    }
+    g_cycle_index.store(v);
+    g_cycle_request.store(1);
+}
+void cycle_step(int delta) { cycle_step_mag(delta, 1); }       // F5/F6: 1 en 1 (fino)
+void cycle_step_block(int delta) { cycle_step_mag(delta, 10); } // RePag/AvPag: 10 en 10
+void cycle_reset() {
+    g_cycle_index.store(0);
+    g_cycle_first.store(false);
+    g_cycle_request.store(1);   // ejecuta el 0 (1-0)
+}
+void cycle_goto(int idx) {
+    if (idx < 0) idx = 0;
+    if (idx > 299) idx = 299;
+    g_cycle_index.store(idx);
+    g_cycle_request.store(1);
+}
+bool request_cycle() {
+    return g_cycle_request.exchange(0) != 0;
+}
+int cycle_index() { return g_cycle_index.load(); }
+
+// Warp pendiente: IR A NIVEL sin partida cargada deja aqui el destino; al terminar de cargar la
+// plantilla, el hook de carga lo consume y ejecuta la transicion. -1 = no hay pendiente.
+static std::atomic<int> g_pending_warp{ -1 };
+void request_warp(uint16_t idx) { g_pending_warp.store(static_cast<int>(idx)); }
+bool take_pending_warp(uint16_t& idx) {
+    const int v = g_pending_warp.exchange(-1);
+    if (v < 0) return false;
+    idx = static_cast<uint16_t>(v);
+    return true;
 }
 
 // --- EDICIÓN DE PARTIDA: API pública -----------------------------------------------------------------

@@ -3,12 +3,19 @@
 > Handoff para la próxima sesión. Rama **`menu-edicion-partida`** (nada pusheado; `main` = v0.5.0).
 > Reglas: `AGENTS.md`.
 >
-> **La próxima sesión EMPIEZA por la §1 (TAREA PRINCIPAL): editar el nivel del save (Área-Parte) y que
-> `CONTINUAR` cargue ahí; y lo PRIMERO es crear un item en `TODO.md` + una planificación de la tarea.**
-> Antes de tocar el save, leer
-> **`notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md`** (formato del slot, cabecera y
-> funciones del juego, todo medido) y `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`
-> (editor + MODO HEAVEN).
+> **Sesión 2026-09-29 (hecha):** RESUELTO el mapeo de Áreas-Partes / puntos de carga. Documento
+> maestro: **`notes/2026-09-29-editor-area-parte-plan.md`** (todo medido: campo `0x564`, fórmula
+> `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
+> plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
+>
+> **La próxima sesión EMPIEZA por `notes/2026-09-29-editor-area-parte-plan.md`** (§1 sigue siendo el
+> material de partida original; el estado real está al principio de esa nota). Pendientes vivos:
+> (a) **validar en Windows** `EXTRAS > IR A ÁREA` + `DEBUG NIVELES`; (b) **diseñar/implementar
+> "mover mi partida a una Área-Parte"** (§6bis de la nota: plantilla de zona + datos del jugador);
+> (c) **"volver al menú desde el gameplay"** (el idx 7 daba la intro pero hoy crashea: buscar vía).
+> Antes del formato del save, leer
+> `notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md` y
+> `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
 
 ---
 

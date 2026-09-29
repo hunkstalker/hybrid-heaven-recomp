@@ -210,6 +210,19 @@ add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
         ${INTRO_LOGO_PNGS}
         "$<TARGET_FILE_DIR:HybridHeavenRecomp>/logos")
 
+# Plantilla base de partida (slot 0xD00 clonado, con solo Map Viewer + Defuser): la usa EXTRAS ->
+# ELEGIR NIVEL -> IR A NIVEL cuando no hay partida cargada. Copiar junto al ejecutable (save/).
+# Ver src/subsystems/save_edit.cpp (load_template) y notes/2026-09-29-editor-area-parte-plan.md.
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/save"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${PROJECT_SOURCE_DIR}/assets/save/template_slot.bin"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/save/template_slot.bin")
+
+# NOTA: `skip_indices.txt` NO se copia en el build: lo crea el propio port con la lista por defecto
+# embebida si no existe, y el usuario lo edita. Asi no se pisa nunca. Ver src/subsystems/menu.cpp.
+
 if(WIN32)
     target_compile_definitions(HybridHeavenRecomp PRIVATE
         NOMINMAX

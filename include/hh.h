@@ -42,6 +42,9 @@ namespace hh {
     std::vector<std::filesystem::path> get_rom_paths();                // todas las *.z64 (rom/ y raiz)
 
     void log(const char* fmt, ...);
+    // Como log(), pero a `hh_trace.log` en modo append (persiste entre arranques). Para experimentos
+    // que requieren cerrar el juego entre pasos (p. ej. cargar varios slots del menu).
+    void trace_log(const char* fmt, ...);
     void error_box(const char* msg);
     std::string get_game_thread_name(const OSThread* t);
     void set_window_icon(SDL_Window* window);
@@ -166,6 +169,7 @@ namespace hh {
         std::string advantage = "no";       // si = VENTAJA de combate (back attack) siempre, persiste
         std::string infinite_power = "no";  // si = PODER de combate al max (no se gasta), persiste
         std::string infinite_stamina = "no";// si = RESISTENCIA de combate al max (no se gasta), persiste
+        std::string debug_levels = "no";    // si = atajos del CICLO DE PUNTOS (F5/F6, RePag/AvPag) activos
     };
     const ExtrasConfig& extras_config();
     ExtrasConfig& extras_config_mutable();
@@ -175,6 +179,7 @@ namespace hh {
     void extras_set_advantage(bool enabled);       // menu EXTRAS -> VENTAJA (persiste)
     void extras_set_infinite_power(bool enabled);    // menu EXTRAS -> PODER ∞ (persiste)
     void extras_set_infinite_stamina(bool enabled);  // menu EXTRAS -> RESIS. ∞ (persiste)
+    void extras_set_debug_levels(bool enabled);      // menu EXTRAS -> DEBUG NIVELES (persiste)
     void extras_config_save();
 
     // UI de desarrollo: true si el Inspector de RT64 (`HH_DEVELOPER=1` + F1) esta abierto. El

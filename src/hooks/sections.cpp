@@ -171,10 +171,74 @@ extern "C" void hh_heaven_char_hook(uint8_t* rdram, recomp_context* ctx) {
 }
 
 // Carga de partida: tras montar las tablas de runtime (técnicas/items), reaplicar el máximo (cubre
-// partida nueva y cualquier recomposición posterior del personaje).
+// partida nueva y cualquier recomposición posterior del personaje). Ademas marca "partida cargada"
+// para el submenu EXTRAS -> ELEGIR NIVEL (habilita IR A NIVEL).
 extern "C" void hh_heaven_load_hook(uint8_t* rdram, recomp_context* ctx) {
     func_80152240_104AA10(rdram, ctx);
+    hh::menu::set_game_loaded(true);
     if (hh::menu::heaven_enabled()) hh::save::apply_heaven_runtime(rdram);
+    // IR A NIVEL sin partida cargada: la plantilla se cargo y ahora toca el warp pedido.
+    uint16_t idx = 0;
+    if (hh::menu::take_pending_warp(idx)) {
+        recomp_context t = *ctx;
+        t.r4 = 15;
+        t.r5 = idx;
+        t.r6 = 1;
+        t.r7 = 6;
+        hh::log("[elegir-nivel] warp pendiente tras cargar plantilla: idx=%u\n", idx);
+        func_8012FE50_1028620(rdram, &t);
+    }
+    // La plantilla lleva 1 Code Key (id 38, item) para no quedarse bloqueado en puertas de areas
+    // avanzadas; si se carga la escena 1-0 (idx 0) se quita (una partida nueva no la debe tener).
+    // El indice de escena cargado esta en `0x801BBBF0[+4]` (u16 BE del guest).
+    {
+        const uint16_t scene = static_cast<uint16_t>(
+            (static_cast<uint16_t>(rdram[(0x801BBBF4u - 0x80000000u) ^ 3u]) << 8) |
+            rdram[(0x801BBBF5u - 0x80000000u) ^ 3u]);
+        if (scene == 0) {
+            hh::save::clear_code_key_runtime(rdram);
+        }
+    }
+}
+
+// DIAGNOSTICO (HH_SAVEEDIT_DUMP=1): al deserializar un slot (`func_80141D08(a0=buffer 0xD00)`)
+// volcar el buffer entrante y, tras el original, los bloques de estado (0x801BBBF0 / 0x801BED38) y la
+// tabla de escenas. Ver hh::save::dump_runtime / dump_slot_buffer.
+extern "C" void hh_saveedit_load_hook(uint8_t* rdram, recomp_context* ctx) {
+    const char* dump = std::getenv("HH_SAVEEDIT_DUMP");
+    const bool on = dump != nullptr && *dump != '\0' && *dump != '0';
+    if (on) hh::save::dump_slot_buffer(rdram, static_cast<uint32_t>(ctx->r4), "load");
+    func_80141D08_103A4D8(rdram, ctx);
+    if (on) hh::save::dump_runtime(rdram, "load");
+}
+
+// TRAZA DE ESCENA (HH_SCENE_TRACE=1): loguea las transiciones `func_8012FE50(tipo, valor, ...)` (a1 =
+// valor de progreso `N*10+P`) y las cargas de escena `func_80125968(idx, flags)`. Con esto se ve el
+// valor EXACTO que el juego usa al cargar un slot y de que campo sale. Ver plan 2026-09-29.
+extern "C" void hh_scene_transition_hook(uint8_t* rdram, recomp_context* ctx) {
+    const char* tr = std::getenv("HH_SCENE_TRACE");
+    if (tr != nullptr && *tr != '\0' && *tr != '0') {
+        auto rh16 = [&](uint32_t a) -> uint16_t {
+            return *reinterpret_cast<uint16_t*>(&rdram[(a ^ 2u) & 0x7FFFFFu]);
+        };
+        hh::trace_log("[scene] transicion func_8012FE50 tipo=%u valor=%u (N=%u P=%u) | glob 0x801BBBF0 "
+                "[+2]=%u [+4]=%u [+6]=%u | buf? a2=%u a3=%u\n",
+                (unsigned)(ctx->r4 & 0xFF), (unsigned)(ctx->r5 & 0xFFFF),
+                (unsigned)((ctx->r5 & 0xFFFF) / 10), (unsigned)((ctx->r5 & 0xFFFF) % 10),
+                (unsigned)rh16(0x801BBBF2u), (unsigned)rh16(0x801BBBF4u), (unsigned)rh16(0x801BBBF6u),
+                (unsigned)(ctx->r6 & 0xFF), (unsigned)(ctx->r7 & 0xFF));
+    }
+    func_8012FE50_1028620(rdram, ctx);
+}
+
+extern "C" void hh_scene_load_hook(uint8_t* rdram, recomp_context* ctx) {
+    const char* tr = std::getenv("HH_SCENE_TRACE");
+    if (tr != nullptr && *tr != '\0' && *tr != '0') {
+        hh::trace_log("[scene] carga func_80125968 idx=%u (N=%u P=%u) flags(a1)=%u\n",
+                (unsigned)(ctx->r4 & 0xFFFF), (unsigned)((ctx->r4 & 0xFFFF) / 10),
+                (unsigned)((ctx->r4 & 0xFFFF) % 10), (unsigned)(ctx->r5 & 0xFFFF));
+    }
+    func_80125968_101E138(rdram, ctx);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -521,6 +585,20 @@ void register_title_menu_hook() {
     // hooks consultan `hh::menu::heaven_enabled()` y se re-registran aquí en cada carga de módulo.
     recomp::overlays::add_loaded_function(0x80144E68, hh_heaven_char_hook);
     recomp::overlays::add_loaded_function(0x80152240, hh_heaven_load_hook);
+    // DIAGNOSTICO/EXPERIMENTOS: estas envolturas (deserializador de slot, transicion y carga de
+    // escena) SOLO se registran cuando el experimento esta pedido por entorno. Registrarlas siempre
+    // engancha funciones residentes/de boot y rompe la intro/arranque normal (la intro se autoarranca
+    // y el menu no responde). Ver notes/2026-09-29-editor-area-parte-plan.md.
+    {
+        const char* dump = std::getenv("HH_SAVEEDIT_DUMP");
+        if (dump != nullptr && *dump != '\0' && *dump != '0')
+            recomp::overlays::add_loaded_function(0x80141D08, hh_saveedit_load_hook);
+        const char* tr = std::getenv("HH_SCENE_TRACE");
+        if (tr != nullptr && *tr != '\0' && *tr != '0') {
+            recomp::overlays::add_loaded_function(0x8012FE50, hh_scene_transition_hook);
+            recomp::overlays::add_loaded_function(0x80125968, hh_scene_load_hook);
+        }
+    }
     recomp::overlays::add_loaded_function(0x80232D08, hh_heaven_damage_hook);
     recomp::overlays::add_loaded_function(0x8013D520, hh_heaven_item_hook);
     recomp::overlays::add_loaded_function(0x80379F04, hh_heaven_field_damage_hook);
@@ -593,8 +671,40 @@ static inline uint16_t& guest_h16(uint8_t* rdram, uint32_t addr) {
 
 // Reloj por frame (poll de input func_800021B4): registra la primera variacion de cada palabra vigilada.
 extern "C" void func_800021B4_2DB4(uint8_t* rdram, recomp_context* ctx);
+// CICLO DE PUNTOS (diagnóstico): ejecuta un paso del recorrido de índices de escena. Carga la
+// plantilla si no hay partida + dispara el CONTINUAR nativo, y deja el warp pendiente al índice
+// actual. Si ya hay partida, warpea directo. Se llama desde el hook por-frame (con rdram/ctx).
+static void run_cycle_step(uint8_t* rdram, recomp_context* ctx) {
+    int idx = hh::menu::cycle_index();
+    if (idx < 0) idx = 0;   // el indice arranca en -10 hasta la primera pulsacion; no ejecutar negativo
+    if (hh::menu::cycle_skipped(idx)) {
+        hh::log("[ciclo] idx=%d esta en la lista de saltos (cuelga): no se ejecuta\n", idx);
+        return;
+    }
+    hh::log("[ciclo] punto idx=%d (fila=%d col=%d)\n", idx, idx / 10, idx % 10);
+    if (hh::menu::game_loaded()) {
+        recomp_context t = *ctx;
+        t.r4 = 15; t.r5 = static_cast<uint32_t>(idx); t.r6 = 1; t.r7 = 6;
+        func_8012FE50_1028620(rdram, &t);
+    } else {
+        int tslot = 0;
+        for (int s = 0; s < hh::save::kSlots; ++s) {
+            if (!hh::save::slot_used(s)) { tslot = s; break; }
+        }
+        hh::menu::request_warp(static_cast<uint16_t>(idx));
+        if (hh::save::load_template(tslot)) hh::save::save(tslot, rdram, ctx);
+        rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
+        g_inject_native_a = true;
+    }
+}
+
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
     func_800021B4_2DB4(rdram, ctx);
+    // CICLO DE PUNTOS: consume la petición de las teclas de ciclo (diagnóstico de mapeo de escenas).
+    // El índice ya se movió en `cycle_step`; aquí se ejecuta la carga/warp.
+    if (hh::menu::request_cycle()) {
+        run_cycle_step(rdram, ctx);
+    }
     // PODER / RESISTENCIA INFINITOS [MEDIDO con la traza F12]: gauges de la entidad del jugador en
     // el bloque de batalla (base 0x801BBBF0, entidad 0x801BC03C):
     //   0x801BC040: alta = PODER max   / baja = PODER actual (arranca a 0, sube al atacar)
@@ -852,6 +962,23 @@ static int native_difficulty_value() {
 // (sin X/"aplicar"); las ACCIONES llegan en el paso 6 (de momento, solo DEBUG engancha el modo
 // desarrollador). La raíz no tiene "atrás" (el modelo lo ignora).
 static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
+    // Test headless (HH_SAVEEDIT_LOADTEST=1): llama a la carga nativa de un slot (func_801423C8) para
+    // poblar los globals (y disparar el volcado si HH_SAVEEDIT_DUMP=1). Slot en HH_SAVEEDIT_SLOT.
+    static const bool loadtest = env_set("HH_SAVEEDIT_LOADTEST");
+    if (loadtest) {
+        static bool done = false;
+        if (!done) {
+            done = true;
+            int slot = 0;
+            if (const char* s = std::getenv("HH_SAVEEDIT_SLOT")) slot = std::atoi(s);
+            hh::log("[save-edit][loadtest] cargando slot %d via func_801423C8\n", slot);
+            ctx->r4 = 0;
+            ctx->r5 = static_cast<uint32_t>(slot);
+            func_801423C8_103AB98(rdram, ctx);
+            hh::log("[save-edit][loadtest] hecho\n");
+        }
+        return;
+    }
     // Test headless (HH_SAVEEDIT_TEST=1): carga el slot 0, fija progreso/nivel, guarda y verifica el
     // round-trip. Solo una vez. No requiere mando.
     static const bool saveedit_test = env_set("HH_SAVEEDIT_TEST");
@@ -1027,6 +1154,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 // RESIS. ∞: pinnea la RESISTENCIA (0x801BC046) a su max (0x801BC044) cada frame.
                 hh::menu::set_infinite_stamina_enabled(cur.value != 0);
                 hh::log("[heaven] RESISTENCIA infinita %s\n", cur.value != 0 ? "SI" : "NO");
+            } else if (cur.action == hh::menu::Action::ToggleDebugLevels) {
+                // DEBUG NIVELES: activa los atajos del ciclo de puntos y el indicador `idx=`.
+                hh::menu::set_debug_levels_enabled(cur.value != 0);
+                hh::log("[ciclo] DEBUG NIVELES %s\n", cur.value != 0 ? "SI" : "NO");
             } else if (cur.action == hh::menu::Action::ToggleExtrasPersist) {
                 hh::extras_set_persist(cur.value != 0);
             } else if (cur.action == hh::menu::Action::ToggleOriginalLogos) {
@@ -1150,6 +1281,33 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 // RESTAURAR: descarta los cambios en memoria del slot (vuelve al estado al cargar).
                 hh::save::restore_slot(hh::menu::save_edit_slot());
                 hh::menu::refresh_save_edit();
+            } else if (cur.action == hh::menu::Action::WarpToLevel) {
+                // IR A NIVEL: teletransporta al Area-Parte seleccionada inyectando la transicion del
+                // juego (func_8012FE50(tipo=15, idx)). Si hay partida cargada, warp directo. Si no,
+                // se escribe la PLANTILLA base en un slot temporal y se dispara la carga nativa; el
+                // hook de carga (hh_heaven_load_hook) consume el warp pendiente. Ver plan 2026-09-29.
+                const uint16_t idx = hh::menu::warp_value_at(cur.value);
+                if (hh::menu::game_loaded()) {
+                    recomp_context t = *ctx;
+                    t.r4 = 15; t.r5 = idx; t.r6 = 1; t.r7 = 6;
+                    hh::log("[elegir-nivel] IR A NIVEL (directo) idx=%u\n", idx);
+                    func_8012FE50_1028620(rdram, &t);
+                } else {
+                    // Slot temporal: el primer hueco libre (lo mas bajo vacio) o el 0.
+                    int tslot = 0;
+                    for (int s = 0; s < hh::save::kSlots; ++s) {
+                        if (!hh::save::slot_used(s)) { tslot = s; break; }
+                    }
+                    hh::log("[elegir-nivel] IR A NIVEL sin partida: plantilla -> slot %d, warp idx=%u\n",
+                            tslot, idx);
+                    hh::menu::request_warp(idx);
+                    if (hh::save::load_template(tslot)) {
+                        hh::save::save(tslot, rdram, ctx);       // escribe el .pak + recarga el pak
+                    }
+                    // Dispara el CONTINUAR NATIVO (fija sel=CONTINUE + A) para montar la partida.
+                    rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;
+                    g_inject_native_a = true;
+                }
             }
         }
     }

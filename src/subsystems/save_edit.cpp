@@ -44,7 +44,14 @@ constexpr size_t kSlot0 = kDataOff + kHeaderSize;
 constexpr size_t kLevelOff = 0x04A;
 constexpr size_t kTechOff = 0x09E;      // 86 x 3
 constexpr size_t kItemOff = 0x1A0;      // 45 x u8
-constexpr size_t kProgressOff = 0x366;  // u16 BE
+// PROGRESO (indice de escena / Area-Parte): `[MEDIDO/VALIDADO 2026-09-29]` vive en **0x564** como
+// u16 LITTLE-ENDIAN. El deserializador lo vuelca a `glob 0x801BBBF0[+4]`, que es el valor que el
+// cargador de escena usa (`func_8012FE50` -> `func_80125968`). Verificado headless: escribir 0x564
+// (LE) en un slot 1-1 y cargar cambia `[+4]`. NO es 0x366 (aquel no mueve el mapa).
+// Formula medida (3 puntos reales): `valor = (area-1)*10 + (sub-1)*2` con `sub` 1-based de los puntos
+// de guardado (1-1->0, 1-2->2, 2-1->10). 1-0/2-0 son inicios (no guardables).
+constexpr size_t kProgressOff = 0x564;  // u16 LE (indice de escena / Area-Parte)
+constexpr size_t kProgressOldOff = 0x366;  // u16 BE: campo gemelo legado; se mantiene sincronizado
 constexpr size_t kChecksumOff = 0xCFC;
 // Stats por parte (contadores de uso, u16): offsets RUNTIME (los de func_8022C7A4 / struct
 // 0x8017DC40). El SAVE va **32-bit word-swapped** respecto al runtime (confirmado por el mantenedor:
@@ -310,14 +317,49 @@ bool loaded() { return g_loaded; }
 void unload() { g_bytes.clear(); g_path.clear(); g_loaded = false; }
 int slot_count() { return kSlots; }
 
+// PLANTILLA BASE: carga `save/template_slot.bin` (0xD00) y la escribe en el slot `slot` del `.pak` en
+// memoria (no toca el fichero). Se usa desde EXTRAS -> ELEGIR NIVEL -> IR A NIVEL cuando no hay
+// partida cargada: da un estado de partida valido (stats base + Map Viewer/Defuser).
+bool load_template(int slot) {
+    if (slot < 0 || slot >= kSlots) return false;
+    const std::filesystem::path p = hh::get_app_folder_path() / "save" / "template_slot.bin";
+    std::ifstream in(p, std::ios::binary);
+    if (!in) {
+        hh::log("[save-edit] no encuentro la plantilla %s\n", p.string().c_str());
+        return false;
+    }
+    std::vector<uint8_t> tpl((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    if (tpl.size() != kSlotSize) {
+        hh::log("[save-edit] plantilla con tamano invalido (%zu B)\n", tpl.size());
+        return false;
+    }
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    if (!g_loaded || g_bytes.size() < slot_off(slot) + kSlotSize) return false;
+    std::copy(tpl.begin(), tpl.end(), g_bytes.begin() + slot_off(slot));
+    // Recalcula el checksum del slot por si la plantilla se edito a mano.
+    unsigned sum = 0;
+    const size_t base = slot_off(slot);
+    for (size_t i = 0; i < kChecksumOff; ++i) sum += g_bytes[base + i];
+    g_bytes[base + kChecksumOff] = static_cast<uint8_t>(sum & 0xFF);
+    g_bytes[base + kChecksumOff + 1] = 0;
+    g_bytes[base + kChecksumOff + 2] = 0;
+    g_bytes[base + kChecksumOff + 3] = 0;
+    hh::log("[save-edit] plantilla base escrita en slot %d (en memoria)\n", slot);
+    return true;
+}
+
 bool slot_used(int slot) {
     if (!g_loaded) load(slot, nullptr, nullptr);
     return rd16(slot, kProgressOff) != 0;
 }
 
-// Campos por slot.
-uint16_t progress_of(int slot) { return rd16(slot, kProgressOff); }
-void set_progress_of(int slot, uint16_t v) { wr16(slot, kProgressOff, v); }
+// Campos por slot. PROGRESO: u16 LE en 0x564 (indice de escena). Se mantiene 0x366 (BE) sincronizado
+// por compatibilidad con el resto del editor/observaciones, pero el campo que decide el mapa es 0x564.
+uint16_t progress_of(int slot) { return rd16le(slot, kProgressOff); }
+void set_progress_of(int slot, uint16_t v) {
+    wr16le(slot, kProgressOff, v);
+    wr16(slot, kProgressOldOff, v);   // espejo legado (BE) para no dejar incoherencias
+}
 uint16_t level_of(int slot) { return rd16le(slot, kLevelOff); }
 void set_level_of(int slot, uint16_t v) { wr16le(slot, kLevelOff, v); }
 
@@ -409,6 +451,15 @@ int global_level_of(int slot) {
 //     (y a HP máx en la parte 0); recalcula el NIVEL global derivado.
 //   - ESTADO: OFENSIVO/DEFENSIVO por parte a 99 (tope del editor).
 //   - HABILIDADES: las 86 técnicas marcadas como aprendidas en la tabla viva `0x80183CE0` (+espejo).
+// Quita la Code Key (id 38) del inventario vivo (cantidad u8 en `0x8017E004 + id*8 + 4`).
+void clear_code_key_runtime(uint8_t* rdram) {
+    if (rdram == nullptr) return;
+    constexpr int kCodeKey = 38;
+    const uint32_t addr = kItemNameRecs + static_cast<uint32_t>(kCodeKey) * 8u + 4u;
+    rdram[(addr - 0x80000000u) ^ 3u] = 0;
+    hh::log("[elegir-nivel] Code Key (item 38) quitada al cargar 1-0\n");
+}
+
 void apply_heaven_runtime(uint8_t* rdram) {
     if (rdram == nullptr) return;
     constexpr uint32_t kChar = 0x8017DC40u;
@@ -636,6 +687,77 @@ std::string item_base_name(const std::string& n) {
         if (n.size() > sl && n.compare(n.size() - sl, sl, suf) == 0) return n.substr(0, n.size() - sl);
     }
     return n;
+}
+
+// DIAGNOSTICO (HH_SAVEEDIT_DUMP=1): vuelca a `hh.log` la tabla de escenas `D_80175490` (30x10, con
+// los records apuntados) y el bloque de estado global `0x801BBBF0`. Sirve para identificar que
+// Areas-Partes existen de verdad y que campos lleva cada record. No forma parte del editor.
+void dump_runtime(uint8_t* rdram, const char* tag) {
+    if (rdram == nullptr) return;
+    auto r8 = [&](uint32_t addr) -> uint8_t { return rdram[(addr - 0x80000000u) ^ 3u]; };
+    auto r16 = [&](uint32_t addr) -> uint16_t {
+        return static_cast<uint16_t>((static_cast<uint16_t>(r8(addr)) << 8) | r8(addr + 1u));
+    };
+    auto r32 = [&](uint32_t addr) -> uint32_t {
+        return (static_cast<uint32_t>(r8(addr)) << 24) | (static_cast<uint32_t>(r8(addr + 1u)) << 16) |
+               (static_cast<uint32_t>(r8(addr + 2u)) << 8) | static_cast<uint32_t>(r8(addr + 3u));
+    };
+    auto hex16 = [&](uint32_t base) {
+        std::string s;
+        char b[4];
+        for (int i = 0; i < 16; ++i) {
+            std::snprintf(b, sizeof(b), "%02x ", r8(base + static_cast<uint32_t>(i)));
+            s += b;
+        }
+        return s;
+    };
+    hh::trace_log("[save-dump][%s] === D_80175490 (300 punteros) ===\n", tag);
+    for (int i = 0; i < 300; ++i) {
+        const uint32_t rec = r32(kSceneTable + static_cast<uint32_t>(i) * 4u);
+        if (rec == 0) continue;
+        hh::trace_log("[save-dump][%s]  idx=%3d (N=%d P=%d) rec=%08X  bytes=%s\n", tag, i, i / 10, i % 10,
+                rec, hex16(rec).c_str());
+    }
+    hh::trace_log("[save-dump][%s] === 0x801BBBF0 (+0..0x40) ===\n", tag);
+    for (int row = 0; row < 0x40; row += 16) {
+        hh::trace_log("[save-dump][%s]  +%03X %s\n", tag, row, hex16(0x801BBBF0u + static_cast<uint32_t>(row)).c_str());
+    }
+    hh::trace_log("[save-dump][%s] === 0x801BBBF0 (+0x180..0x1A0, +0x390..0x3A0) ===\n", tag);
+    for (int row = 0x180; row < 0x1A0; row += 16) {
+        hh::trace_log("[save-dump][%s]  +%03X %s\n", tag, row, hex16(0x801BBBF0u + static_cast<uint32_t>(row)).c_str());
+    }
+    for (int row = 0x390; row < 0x3A0; row += 16) {
+        hh::trace_log("[save-dump][%s]  +%03X %s\n", tag, row, hex16(0x801BBBF0u + static_cast<uint32_t>(row)).c_str());
+    }
+    hh::trace_log("[save-dump][%s] progreso global [+4]=%u nivel [+8]=%u [+2]=%u [+6]=%u\n", tag,
+            static_cast<unsigned>(r16(0x801BBBF0u + 4u)), static_cast<unsigned>(r16(0x801BBBF0u + 8u)),
+            static_cast<unsigned>(r16(0x801BBBF0u + 2u)), static_cast<unsigned>(r16(0x801BBBF0u + 6u)));
+    // Bloque de 512 B que el serializador copia a 0x364 (fuente `0x801BED38`, ver func_8014C294/A0).
+    hh::trace_log("[save-dump][%s] === 0x801BED38 (512 B, va al slot 0x364) ===\n", tag);
+    for (int row = 0; row < 0x200; row += 16) {
+        hh::trace_log("[save-dump][%s]  +%03X %s\n", tag, row,
+                hex16(0x801BED38u + static_cast<uint32_t>(row)).c_str());
+    }
+}
+
+// Volcado del buffer de 0xD00 que el juego pasa a `func_80141D08` (lo leido del PFS, verbatim). Es el
+// layout EXACTO que interpreta el deserializador. Solo diagnostico.
+void dump_slot_buffer(uint8_t* rdram, uint32_t addr, const char* tag) {
+    if (rdram == nullptr || addr < 0x80000000u) return;
+    auto r8 = [&](uint32_t a) -> uint8_t { return rdram[(a - 0x80000000u) ^ 3u]; };
+    hh::trace_log("[save-dump][%s] === buffer 0xD00 en %08X ===\n", tag, addr);
+    for (int row = 0; row < 0xD00; row += 16) {
+        std::string s;
+        char b[4];
+        for (int i = 0; i < 16; ++i) {
+            std::snprintf(b, sizeof(b), "%02x ", r8(addr + static_cast<uint32_t>(row + i)));
+            s += b;
+        }
+        // Solo filas con algun byte no cero (el buffer mayormente vacio).
+        bool any = false;
+        for (int i = 0; i < 16; ++i) any = any || (r8(addr + static_cast<uint32_t>(row + i)) != 0);
+        if (any) hh::trace_log("[save-dump][%s]  +%03X %s\n", tag, row, s.c_str());
+    }
 }
 
 int item_slot_of(int display) {

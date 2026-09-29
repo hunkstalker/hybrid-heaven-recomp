@@ -104,6 +104,9 @@ Frame g_frame;
 // Indicador de FPS (capa independiente del frame del menú). Lo publica el hilo de render.
 std::atomic<bool> g_fps_on{ false };
 std::atomic<int> g_fps_value{ 0 };
+// Indicador del CICLO DE PUNTOS (diagnóstico): "idx=<n>" en la esquina.
+std::atomic<bool> g_cycle_on{ false };
+std::atomic<int> g_cycle_value{ 0 };
 // Frames realmente presentados (se incrementa una vez por draw del render hook).
 std::atomic<uint64_t> g_presented_frames{ 0 };
 
@@ -670,6 +673,28 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         fps_index_count = static_cast<uint32_t>(indices.size()) - menu_text_end;
     }
 
+    // Indicador del CICLO DE PUNTOS: "idx=<n>" debajo del FPS, misma proyeccion en pixeles.
+    if (g_cycle_on.load(std::memory_order_relaxed) && g_atlas_set != nullptr && g_atlas_w > 0.0f) {
+        const float cw = static_cast<float>(hh::font::game::char_width());
+        const float ch = static_cast<float>(hh::font::game::char_height());
+        const float fscale = static_cast<float>(height) / kVirtualHeight;
+        const std::string text = "idx=" + std::to_string(g_cycle_value.load(std::memory_order_relaxed));
+        float pen_x = 2.0f;
+        const float yy = 2.0f + ch * fscale + 2.0f;   // una fila debajo del FPS
+        for (char c : text) {
+            unsigned gx = 0, gy = 0;
+            if (hh::font::game::glyph_uv(static_cast<unsigned char>(c), gx, gy)) {
+                const float u0 = static_cast<float>(gx) / g_atlas_w;
+                const float v0 = static_cast<float>(gy) / g_atlas_h;
+                const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                append_quad(vertices, indices, pen_x, yy, cw * fscale, ch * fscale, 0xFFFFFFFFu,
+                            u0, v0, u1, v1);
+            }
+            pen_x += cw * fscale;
+        }
+    }
+
     // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
     // logos nativos del boot). Solo mientras la intro no retire la bandera.
     uint32_t blackout_begin = 0;
@@ -886,6 +911,11 @@ void set_screen_blackout(bool enabled) {
 void set_fps_indicator(bool enabled, int fps) {
     g_fps_on.store(enabled, std::memory_order_relaxed);
     g_fps_value.store(fps, std::memory_order_relaxed);
+}
+
+void set_cycle_indicator(bool enabled, int idx) {
+    g_cycle_on.store(enabled, std::memory_order_relaxed);
+    g_cycle_value.store(idx, std::memory_order_relaxed);
 }
 
 uint64_t presented_frames() {

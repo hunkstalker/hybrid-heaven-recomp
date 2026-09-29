@@ -25,6 +25,7 @@
 #include "hh_render.h"
 #include "hh.h"
 #include "hh/hudrewrite.h"
+#include "hh/menu.h"
 #include "hh/overlay.h"
 
 #if defined(_WIN32)
@@ -606,6 +607,8 @@ void hh::RT64Context::update_screen() {
         }
         hh::overlay::set_fps_indicator(hh::video_config().showfps == "si", fps_display);
     }
+    // Indicador del CICLO DE PUNTOS (diagnóstico): visible solo con EXTRAS -> DEBUG NIVELES = SÍ.
+    hh::overlay::set_cycle_indicator(hh::menu::debug_levels_enabled(), hh::menu::cycle_index());
     // Publica si el Inspector de RT64 esta abierto (el input lo consulta para no mapear el raton a
     // botones N64 mientras se usa el panel). RT64 lo protege con `inspectorMutex`.
     {

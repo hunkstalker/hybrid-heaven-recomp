@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-28**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-29**.
 
 ## 1. Objetivo
 
@@ -100,6 +100,11 @@ habilidades + invulnerabilidad combate/campo + items no consumibles); **`VENTAJA
 **`PODER ∞`/`RESISTENCIA ∞`** como toggles de EXTRAS persistentes (`∞` dibujado vectorial); daño de
 campo (robots) anulado; **stepper `< valor >`** para ANTIALIASING; GRÁFICOS/CONTROLES centrados. Todo
 **validado en Windows**. Detalle: `RETOMAR.md`, `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
+**Sesión 2026-09-29**: RESUELTO el **mapeo de Áreas-Partes/puntos de carga**: campo de mapa
+**`0x564` (u16 LE)** del slot, `idx=(area-1)*10` para los `N-0` (1-0=0 … 9-0=90; 7-0=75); **`EXTRAS >
+DEBUG NIVELES`** (ciclo de escenas F5/F6 + indicador `idx=` + `skip_indices.txt` editable) y **`EXTRAS >
+IR A ÁREA`** (teletransporte a `N-0` con plantilla). Documento maestro:
+**`notes/2026-09-29-editor-area-parte-plan.md`**.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

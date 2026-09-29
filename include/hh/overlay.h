@@ -86,6 +86,10 @@ void set_screen_blackout(bool enabled);
 // esté activo, también en gameplay). Se llama por frame desde el hilo de render.
 void set_fps_indicator(bool enabled, int fps);
 
+// Indicador del CICLO DE PUNTOS (diagnóstico): muestra "idx=<n>" en la esquina superior izquierda,
+// debajo del FPS. Independiente del frame del menú (se ve también en gameplay).
+void set_cycle_indicator(bool enabled, int idx);
+
 // Nº de frames realmente PRESENTADOS (una vez por draw del render hook, es decir, por frame que
 // llega al swapchain, incluidos los interpolados). Lo usa el indicador de FPS para medir la tasa
 // real de presentación (no la de update_screen, que corre a la tasa VI).

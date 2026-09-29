@@ -74,6 +74,25 @@ void hh::log(const char* fmt, ...) {
     std::fflush(g_log_file);
 }
 
+// Log de TRAZA persistente (append, no se sobreescribe entre arranques): para experimentos que
+// requieren cerrar el juego entre pasos (p. ej. cargar varios slots del menu, ver plan
+// 2026-09-29-editor-area-parte-plan.md). Se escribe en `hh_trace.log` junto al ejecutable.
+static FILE* g_trace_file = nullptr;
+void hh::trace_log(const char* fmt, ...) {
+    if (g_trace_file == nullptr) {
+        g_trace_file = std::fopen((hh::get_app_folder_path() / "hh_trace.log").string().c_str(), "a");
+    }
+    if (g_trace_file == nullptr) {
+        return;
+    }
+    log_timestamp(g_trace_file);
+    va_list args;
+    va_start(args, fmt);
+    std::vfprintf(g_trace_file, fmt, args);
+    va_end(args);
+    std::fflush(g_trace_file);
+}
+
 const char* hh::get_version_string() {
     static const std::string version =
         std::to_string(hh::kVersionMajor) + "." + std::to_string(hh::kVersionMinor) + "." +
@@ -513,6 +532,7 @@ hh::ExtrasConfig& hh::extras_config_mutable() {
             else if (k == "advantage" || k == "ventaja") c.advantage = v;
             else if (k == "infinite_power" || k == "poder_infinito") c.infinite_power = v;
             else if (k == "infinite_stamina" || k == "resis_infinita") c.infinite_stamina = v;
+            else if (k == "debug_levels" || k == "debug_niveles") c.debug_levels = v;
         }
         fclose(f);
         return c;
@@ -570,7 +590,16 @@ void hh::extras_config_save() {
                                   {"heaven", hh::extras_config().heaven},
                                   {"advantage", hh::extras_config().advantage},
                                   {"infinite_power", hh::extras_config().infinite_power},
-                                  {"infinite_stamina", hh::extras_config().infinite_stamina}});
+                                  {"infinite_stamina", hh::extras_config().infinite_stamina},
+                                  {"debug_levels", hh::extras_config().debug_levels}});
+}
+
+// Menu EXTRAS -> DEBUG NIVELES: activa los atajos del CICLO DE PUNTOS (F5/F6, RePag/AvPag) y el
+// indicador `idx=` en pantalla. Persiste entre arranques.
+void hh::extras_set_debug_levels(bool enabled) {
+    hh::extras_config_mutable().debug_levels = enabled ? "si" : "no";
+    hh::extras_config_save();
+    fprintf(stderr, "[EXTRAS] DEBUG NIVELES -> %s\n", hh::extras_config().debug_levels.c_str());
 }
 
 // ===== Config de INPUT (config.ini [input]) =====

@@ -5,6 +5,31 @@
 
 ## Ahora (priorizado)
 
+- [x] **`DEBUG NIVELES` + `IR A ÁREA` (EXTRAS) — salto a cualquier nivel para TEST (2026-09-29,
+  VALIDADO en Windows)**: **mecánica central descubierta y medida** (documento maestro:
+  `notes/2026-09-29-editor-area-parte-plan.md`). Puntos clave:
+  - **Campo del mapa = `0x564` (u16 LE) del slot**; el deserializador lo vuelca a `glob 0x801BBBF0[+4]`
+    y el cargador de escena (`func_8012FE50(tipo=15, idx)` -> `func_80125968(idx)`) lo consume. **NO**
+    es `0x366` (aquel no mueve el mapa). `idx = (area-1)*10` para los `N-0` (1-0=0, 2-0=10, ...,
+    7-0=**75**, 8-0=80, 9-0=90).
+  - **`EXTRAS > DEBUG NIVELES < NO/SÍ >`** (persiste `[extras].debug_levels`): activa el **CICLO DE
+    PUNTOS** para mapear escenas: **F5/F6** = ±1, **RePág/AvPág** = ±10, **Inicio** = idx 0,
+    indicador **`idx=`** en pantalla. Rango 0..99 con wrap. Índices que cuelgan en
+    **`skip_indices.txt`** (junto al ejecutable, editable sin recompilar).
+  - **`EXTRAS > IR A ÁREA`**: submenú con CARGAR/GUARDAR/ELIMINAR + selector **`ÁREA < N-N >`** (solo
+    `N-0`) que **teletransporta** (`func_8012FE50`). Si no hay partida, carga la **plantilla**
+    (`assets/save/template_slot.bin`: stats base + Code Key/Map Viewer/Defuser; la Code Key se quita
+    al cargar 1-0). Verificado en Windows.
+  - **Mapa de escenas medido**: `1-0`=0 … `9-0`=90; `100`=Demo Play #1; sub-puntos (`1-1a/b/...`) y
+    estaciones por área. `skip_indices.txt` con la lista de los que cuelgan.
+- [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
+  partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
+  sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere
+  **plantillas por punto de guardado** (`assets/save/templates/<n-p>.bin`, generadas jugando). Detalle:
+  `notes/2026-09-29-editor-area-parte-plan.md` §6bis.
+- [ ] **Editor `PROGRESO` del slot**: ahora escribe **`0x564` (u16 LE)** con
+  `(area-1)*10+(sub-1)*2` y lista solo puntos de guardado (sin `N-0`). **Pendiente validar en Windows**
+  que `CONTINUAR` carga donde toca.
 - [x] **`MODO HEAVEN` (EXTRAS) — modo GLOBAL persistente, VALIDADO en Windows (2026-09-28)**: NO
   depende de la partida ni del editor (persiste en `config.ini [extras].heaven`). Al cargar/empezar
   cualquier partida aplica al personaje vivo `0x8017DC40` **ATRIBUTOS/ESTADO 99 + 86 habilidades**

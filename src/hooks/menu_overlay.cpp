@@ -418,14 +418,18 @@ void title_update(uint8_t* rdram) {
     // GRÁFICOS es una pantalla NATIVA de selectores, pero se CENTRA como los menus del PORT (misma
     // columna de valores: su etiqueta mas larga, "LÍMITE DE FPS", mide lo mismo que kSelectorValueCol).
     const bool is_graphics = (screen.id == hh::menu::ScreenId::Graphics);
-    // DEBUG es un submenú nativo corto (2 filas) que se CENTRA como GRÁFICOS.
+    // DEBUG quedó sin entradas (sus opciones se movieron a GRÁFICOS y EXTRAS); se conserva el id por
+    // compatibilidad de `HH_MENU_SCREEN`, pero ya no es alcanzable desde el menú.
     const bool is_debug = (screen.id == hh::menu::ScreenId::Debug);
-    // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES y el
-    // editor. GRÁFICOS no entra aqui: tiene 6 filas y caben todas (no debe scrollear).
-    const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit;
-    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS y DEBUG se CENTRAN; el
+    // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES, el
+    // editor y GRÁFICOS (7 filas desde que se añadió MOSTRAR FPS -> necesita scroll).
+    const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit ||
+                             is_graphics;
+    // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS y SONIDO se CENTRAN; el
     // resto de los nativos conserva su margen original.
-    const bool custom_layout = scroll_cap5 || is_graphics || is_debug;
+    const bool is_sound = (screen.id == hh::menu::ScreenId::Sound);
+    const bool is_choose_level = (screen.id == hh::menu::ScreenId::ChooseLevel);
+    const bool custom_layout = scroll_cap5 || is_graphics || is_sound || is_choose_level || is_debug;
     float x_shift = 0.0f;
     float selector_col = kSelectorValueCol;   // EXTRAS: columna de valores; CONTROLES: columna MANDO
     float key_col = selector_col + kKeyColGap;  // CONTROLES: columna TECLADO

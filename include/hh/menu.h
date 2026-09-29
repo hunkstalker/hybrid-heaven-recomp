@@ -44,6 +44,7 @@ enum class ScreenId {
     SaveEditItems,     // EDICIÓN DE PARTIDA -> ITEMS (cantidad)
     SaveEditStats,     // EDICIÓN DE PARTIDA -> ATRIBUTOS (HP/OFFENSE/... globales)
     SaveEditCombatSim, // EDICIÓN DE PARTIDA -> SIM. COMBATE (simula N combates)
+    ChooseLevel,       // EXTRAS -> ELEGIR NIVEL (CARGAR/GUARDAR/ELIMINAR + IR A NIVEL)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -66,6 +67,7 @@ enum class Action {
     OpenSound,       // submenú SONIDO
     OpenDebug,       // submenú DEBUG (VENTANA DEBUG + MOSTRAR FPS)
     OpenExtras,      // submenú EXTRAS (solo si esta desbloqueado)
+    OpenChooseLevel, // EXTRAS -> ELEGIR NIVEL (CARGAR/GUARDAR/ELIMINAR + IR A NIVEL)
     OpenControls,    // submenú CONTROLES (mapeado de teclado/mando)
     OpenSaveEdit,          // EXTRAS -> EDICIÓN DE PARTIDA
     SaveEditSlot,          // EDICIÓN DE PARTIDA: selector CARGAR PARTIDA (slot; carga al cambiar)
@@ -97,6 +99,8 @@ enum class Action {
     ToggleAdvantage,      // EXTRAS -> VENTAJA: SÍ = ventaja de combate (back attack) siempre
     ToggleInfinitePower,    // EXTRAS -> PODER ∞: SÍ = el PODER de combate no se gasta
     ToggleInfiniteStamina,  // EXTRAS -> RESIS. ∞: SÍ = la RESISTENCIA de combate no se gasta
+    ToggleDebugLevels,      // EXTRAS -> DEBUG NIVELES: SÍ = atajos del ciclo de puntos + indicador idx
+    WarpToLevel,     // EXTRAS -> IR A NIVEL: teletransporta al Area-Parte seleccionada (transicion)
     ToggleDebug,     // VENTANA DEBUG: habilita el modo desarrollador de RT64 (Inspector con F1)
     ToggleFullscreen,// P. COMPLETA: NO = ventana (windowed); SÍ = borderless completa
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
@@ -227,10 +231,36 @@ void set_save_edit_body_state(int state);
 
 uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
 void refresh_save_edit();
+
+// --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
+// `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).
+// IR A NIVEL (transición de escena) solo está disponible con partida cargada.
+bool game_loaded();
+void set_game_loaded(bool on);
+uint16_t warp_value_at(int index);   // índice del selector IR A NIVEL -> valor de escena (idx)
+// IR A NIVEL sin partida cargada: pide cargar la plantilla y, tras cargar, hacer el warp a `idx`.
+void request_warp(uint16_t idx);
+bool take_pending_warp(uint16_t& idx);   // consume el warp pendiente (lo llama el hook de carga)
+
+// CICLO DE PUNTOS (diagnóstico): recorre los índices de escena (0..299) para mapearlos a mano. F8/F9
+// (o las teclas asignadas) piden avanzar/retroceder; el hook del menú (con rdram) lo ejecuta. El
+// índice vive aquí (persiste entre cargas). Ver notes/2026-09-29-editor-area-parte-plan.md.
+void cycle_step(int delta);        // pide mover el índice del ciclo (+1/-1, fino)
+void cycle_step_block(int delta);  // pide mover el índice de 10 en 10 (bloques de área)
+void cycle_reset();                // reinicia el índice del ciclo a 0
+void cycle_goto(int idx);          // salta a un índice concreto y lo ejecuta (p. ej. 7 = menú)
+bool cycle_skipped(int idx);       // true si el índice está en la lista de saltos (cuelga)
+bool request_cycle();              // ¿hay un paso de ciclo pendiente? (lo consume el hook del menú)
+int  cycle_index();                // índice actual del ciclo (0..299)
 // HABILIDADES: guarda la copia de la carga y restaura una técnica desde ella (selector SIN CAMBIOS).
 void capture_tech_baseline();
 void restore_tech_baseline(int id);
 void set_save_edit_tech_bulk(int mode);   // 0 SIN CAMBIOS, 1 TODO SÍ, 2 TODO NO
+
+// EXTRAS -> DEBUG NIVELES: activa los atajos del CICLO DE PUNTOS (F5/F6, RePag/AvPag) y el indicador
+// `idx=` en pantalla. Persiste en config.ini [extras].debug_levels.
+bool debug_levels_enabled();
+void set_debug_levels_enabled(bool on);
 
 // EXTRAS -> MODO HEAVEN: modo GLOBAL de juego (persiste en config.ini [extras].heaven). Al cargar
 // cualquier partida aplica ATRIBUTOS/ESTADO máx + habilidades, y en runtime anula el daño al jugador
