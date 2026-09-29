@@ -26,6 +26,14 @@
 > COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fase 2 (UI 1:1) es lo
 > siguiente**; luego Fase 3 (enganche a CONTINUAR) y Fase 4 (guardar en cápsula + editor).
 >
+> **ESTRATEGIA DE MERGE (mantenedor, 2026-09-29):** `menu-carga-guardado-partida` es una rama
+> **DERIVADA** (necesidad del menú) → **no** va a `main`. Al **terminar** esta tarea: merge a
+> **`menu-edicion-partida`**; y de `menu-edicion-partida` → **`main`**. Nada a `main` por ahora.
+>
+> **Estado de commits (2026-09-29):** fork NMR `hybrid-heaven` **publicado** (`3523bf3`, `PAK_SIZE`);
+> port `menu-carga-guardado-partida` con `d4b7f02` (feat save 74 slots) + `dbb209a` (bump gitlink +
+> `runtime.lock` a `3523bf3`), **sin pushear**.
+>
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los
 > nuevos). El mantenedor puede decir en cualquier momento que ha guardado slots nuevos; ahí se anotan.
