@@ -1680,11 +1680,17 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     g_inject_native_a = false;           // la inyección (si la hubo) es de un solo frame
     // F8 sobre el DATA LOAD: el título/`CONTROLLER PAK`/mensaje se componen SOLO en el setup, así que
     // al alternar la visibilidad hay que re-componerlos (las filas se recomponen cada frame). Se
-    // re-ejecutan los compositores del setup LOAD (seguro: son funciones, no hooks).
+    // re-ejecuta el compositor del SETUP LOAD (`func_801426B0`, el mismo que corre el flujo nativo del
+    // CONTINUE en `func_8013E7C0`): compone título `DATA LOAD` + `CONTROLLER PAK` + caja + mensaje.
+    //
+    // OJO: NO llamar a `func_80142840`. Aunque su nombre/comentario previo sugería "Select play
+    // data...", en realidad compone el SETUP del **BATTLE DATA LOAD (MODO VS)**: su tabla
+    // (`a3=0x8018F20C`/`0x8018F230`) es `ＢＡＴＴＬＥ　ＤＡＴＡ　ＬＯＡＤ` + `1P CONTROLLER` /
+    // `2P CONTROLLER` (medido en el volcado RDRAM: ver nota 2026-09-30). Llamarlo pintaba la pantalla
+    // equivocada (dos columnas) al pulsar F8. `func_80142778` es el setup del `ＤＡＴＡ　ＳＡＶＥ`.
     if (hh::menu_overlay::native_toggle_pending()) {
         recomp_context t = *ctx;
-        func_801426B0_103AE80(rdram, &t);   // título DATA LOAD + CONTROLLER PAK + caja
-        func_80142840_103B010(rdram, &t);   // mensaje "Select play data..."
+        func_801426B0_103AE80(rdram, &t);   // SETUP del DATA LOAD (CONTINUE): título + CONTROLLER PAK + caja
     }
     // Publica NUESTRO overlay (la pantalla LoadGame en su sitio real, ocultando el nativo).
     hh::menu_overlay::title_update(rdram);
