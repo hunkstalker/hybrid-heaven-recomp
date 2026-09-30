@@ -46,6 +46,8 @@ extern "C" void func_8001B204_1BE04(uint8_t* rdram, recomp_context* ctx);  // co
 extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800058DC_64DC(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80005670_6270(uint8_t* rdram, recomp_context* ctx);  // crea objeto de transición
+extern "C" void func_800023A8_2FA8(uint8_t* rdram, recomp_context* ctx);  // rama CONTINUE nativa
+extern "C" void func_80020718_21318(uint8_t* rdram, recomp_context* ctx); // rama CONTINUE nativa
 extern "C" void func_8001BFE4_1CBE4(uint8_t* rdram, recomp_context* ctx);  // carga bitmap de glifo
 extern "C" void func_8001D394_1DF94(uint8_t* rdram, recomp_context* ctx);  // código EUC -> slot
 extern "C" void func_801C1340_11BAE10(uint8_t* rdram, recomp_context* ctx);  // lee botones (direcciones)
@@ -1322,10 +1324,12 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             }
         }
     }
-    // CONTINUAR (raiz): reenvia la accion al menu NATIVO. El indice de seleccion del juego
-    // (`0x801CC8C4`) va 0..4 = NEW GAME / CONTINUE / BATTLE MODE / SOUND / RESOLUTION; se fija a
-    // CONTINUE (1) y se inyecta A una vez, de modo que el handler nativo ejecute su rama real
-    // (func_801C3CDC: desmonta el menu y carga la partida). Solo con el overlay controlando.
+    // CONTINUAR (raiz): monta la rama NATIVA de CONTINUE llamando DIRECTAMENTE a su callback
+    // (`func_801C3CDC`), replicando la rama `sel=1` del jump table del menú de título
+    // (`jtbl_801CF264[1]` -> 0x801C1F30: func_800023A8(0) + func_80020718(8) + func_800058DC(obj,
+    // func_801C3CDC)). NO se usa el patrón `sel`+A: el handler nativo RECALCULA `sel` desde su cursor
+    // (D-pad) y pisaba nuestro 1, abriendo otra rama (p. ej. MODO COMBATE -> BATTLE DATA LOAD). Ver
+    // notes 2026-09-30. Solo con el overlay controlando.
     if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size()) &&
@@ -1334,8 +1338,17 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             // ocultado para que su SETUP (que compone título/`CONTROLLER PAK`/caja) se blankee aunque
             // no enganchemos `func_801C3D50` (su dirección la comparte otro módulo -> colgaba).
             hh::menu_overlay::set_file_select_active(true);
-            rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
-            g_inject_native_a = true;
+            recomp_context t0 = *ctx;
+            t0.r4 = 0;
+            func_800023A8_2FA8(rdram, &t0);          // (igual que la rama nativa)
+            recomp_context t1 = *ctx;
+            t1.r4 = 8;
+            func_80020718_21318(rdram, &t1);
+            recomp_context t2 = *ctx;
+            t2.r4 = obj;
+            t2.r5 = 0x801C3CDCu;                     // callback de CONTINUE (func_801C3CDC)
+            func_800058DC_64DC(rdram, &t2);
+            hh::log("[menu] CONTINUAR -> rama CONTINUE nativa (func_801C3CDC)\n");
         }
     }
     // CARGAR PARTIDA (menú propio de carga, Fase 2): A sobre una partida de la lista carga ESE slot

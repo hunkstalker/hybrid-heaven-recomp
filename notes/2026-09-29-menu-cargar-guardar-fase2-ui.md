@@ -60,22 +60,21 @@
   - **⚠️ NO enganchar `func_801C3D50`** (setup del file-select): su dirección la comparte otro módulo
     (base solapada) y el hook **cuelga el juego** (medido). La categoría se activa desde CONTINUAR.
   - **Qué quedó a medias (y por qué)**:
-    0. **⚠️ Ocultado INCOMPLETO en Windows (2026-09-30, reportado por el mantenedor)**: al dar
-       CONTINUAR se ve, detrás de nuestra `LoadGame`, el file-select **nativo de CONTINUAR** con
-       cadenas que **NO** ocultamos: `1P CONTROLLER` / `2P CONTROLLER` / `EMPTY SLOT`. `[MEDIDO]`
-       (headless): el enganche **sí** corre el file-select de CONTINUAR (`func_8013E850`, `screen=19`);
-       esas cadenas **no están** en las tablas que blankeamos (`D_8018F16C`/`D_8018F184`/`D_8018F20C`/
-       `D_8018F230`/`D_8018F6BC…`), que solo cubren `DATA LOAD`/`CONTROLLER PAK`/`AREA/LEVEL/TIME`/
-       mensaje. Hay que **localizar sus tablas** y añadirlas. *(El mantenedor lo describió como "menú
-       de modo batalla"; medido, es la misma pantalla de CONTINUAR con texto sin ocultar.)*
-       - **El "espacio doble" del mensaje** que reportó el mantenedor (inglés) se atribuye a la MISMA
-         superposición: nuestra línea `Select play data...` y la NATIVA (color4) quedan desalineadas y
-         al sumarse parecen el doble de ancho. `[MEDIDO]` en la captura (huecos irregulares 12..78 px,
-         glifos de 30-36 px = dos textos mezclados); en headless con el nativo oculto el espaciado es
-         normal. **No es un bug de avance de la fuente** (el avance de color4 es fijo = 8 px).
-    1. **Afinado 1:1 ❌ bloqueado** por las **tipografías** (tarea aparte): el overlay dibuja TODO con
-       la fuente del menú (`color0`), pero el DATA LOAD nativo usa 3 fuentes distintas → no se puede
-       dejar idéntico hasta extraerlas/mapearlas.
+    0. **✅ RESUELTO (2026-09-30): el enganche abría la pantalla EQUIVOCADA (BATTLE DATA LOAD / MODO
+       VS), no el DATA LOAD de CONTINUAR.** Causa `[MEDIDO]`: `CONTINUAR` fijaba `sel=1` +
+       `g_inject_native_a`, pero el handler del título (`func_801C1DB8`) **RECALCULA `sel`** desde su
+       cursor (D-pad) antes de leer la jump table `jtbl_801CF264` (`0`=NEW GAME, `1`=CONTINUE,
+       `2`=BATTLE MODE, …) → pisaba el 1 y abría otra rama (MODO COMBATE → MODO VS → BATTLE DATA LOAD).
+       **Fix**: `CONTINUAR` ahora llama **directamente** a la rama CONTINUE nativa (replicando
+       `jtbl[1]` = `0x801C1F30`): `func_800023A8(0)` + `func_80020718(8)` + `func_800058DC(obj,
+       func_801C3CDC)`; sin `sel` ni A inyectada. Verificado headless: `goto pantalla=801C3CDC` (no
+       `801BF…`/BATTLE) y `screen=19`.
+    1. **Ocultado INCOMPLETO** (tras el fix sigue viéndose tenue el nativo de CONTINUAR): faltan las
+       cadenas `1P CONTROLLER`/`2P CONTROLLER`/`Select play data...`/`EMPTY SLOT` del file-select, que
+       **no** están en las tablas que blankeamos. Hay que localizar sus tablas y añadirlas.
+       - El "espacio doble" y el "texto duplicado" que reportó el mantenedor eran de la **pantalla
+         equivocada** (BATTLE + nuestra UI encima); con la pantalla correcta hay un solo mensaje.
+    2. **Afinado 1:1 ❌ bloqueado** por las **tipografías** (ya extraídas, ver `2026-09-30-...hallazgos`).
     2. **Al elegir una partida NO carga todavía**: hoy solo llama a `func_801423C8(0, slot)` (lee el
        slot y deserializa a los globals); **falta la transición de escena** que hace el flujo nativo
        tras elegir (`func_80142570` + `func_8012FE50(0x17,0x73,…)`). Se dejó así para no complicar el
