@@ -243,6 +243,9 @@ void refresh_save_edit();
 void refresh_load_game();
 const char* load_game_row_text(int index);   // texto de la fila (dibujo 1:1), o nullptr
 bool load_game_row_present(int index);       // true si la partida existe (registro presente)
+// Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
+// (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
+void open_load_game();
 
 // --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
 // `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).

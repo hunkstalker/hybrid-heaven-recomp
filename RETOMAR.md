@@ -4,11 +4,28 @@
 > (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
 > `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
+> **==> TAREA PRINCIPAL DE LA PRÓXIMA SESIÓN (desvío deliberado): EXTRAER/MAPEAR LAS TIPOGRAFÍAS DEL
+> DATA LOAD.** Documento de la tarea: **`notes/2026-09-29-tipografias-data-load-tarea.md`** (leer
+> PRIMERO). Resumen: el DATA LOAD nativo usa **3 tipografías** (título `DATA LOAD` ~11 ud, mensaje
+> `Select play data...` ~9.3 ud, cabeceras `AREA/LEVEL/TIME` ~7 ud = la del menú `color0`, ya la
+> tenemos). El compositor **`func_8001B204(a0,a1,a2,texto)`** elige el estilo por **`a0`** → tabla
+> **`D_8008EF70`** (BSS, la inicializa el motor cargando `color0..5`). Incógnita: `DATA LOAD` y el
+> mensaje usan el **mismo `a0=7`** pero salen con alturas distintas → hay que decodificar `func_8001B204`
+> (`a1`/`a2`) y volcar `D_8008EF70`. `color4` (8×12, in-game) ya está extraída
+> (`include/hh/game_font_color4.h`, `tools/text/build_font.py`).
+>
+> **Estado del enganche (Fase 3, HECHO `[MEDIDO]`, sin commitear):** al dar **CONTINUAR** sale nuestra
+> pantalla `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/oculta
+> toda la UI nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp` (visibilidad única `F8` + actividad
+> `g_file_select_active`); hooks de `func_801C3D84` (update) y `func_8001A804` (cajas). **NO enganchar
+> `func_801C3D50`** (dirección compartida → cuelga; medido). Cambios pendientes de commitear en:
+> `include/hh.h`, `include/hh/menu.h`, `src/hooks/menu_overlay.cpp`, `src/hooks/sections.cpp`,
+> `src/subsystems/input.cpp`, `src/subsystems/menu.cpp`.
+>
 > **DEPENDENCIA DE FORK (importante):** esta rama necesita **2 commits en el fork `N64ModernRuntime`
-> (rama `hybrid-heaven`), SIN pushear**: (1) `9b14604` `hh_pak_reload_from_disk()` y (2) el cambio de
-> `PAK_SIZE` a `0x40000` (commit **pendiente**, working tree). El **gitlink de `lib/N64ModernRuntime`
-> habrá que bumpearlo tras pushear el fork** (`AGENTS.md`). Antes de commitear: validar. Decisión
-> estructural: **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**.
+> (rama `hybrid-heaven`)**: `9b14604` `hh_pak_reload_from_disk()` y `3523bf3` `PAK_SIZE=0x40000`
+> (publicado). El **gitlink de `lib/N64ModernRuntime`** ya está bumpeado en `dbb209a`; el port está
+> **sin pushear**. Decisión estructural: **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**.
 >
 > **Sesión 2026-09-29 (hecha):** RESUELTO el mapeo de Áreas-Partes / puntos de carga. Documento
 > maestro: **`notes/2026-09-29-editor-area-parte-plan.md`** (todo medido: campo `0x564`, fórmula
@@ -22,19 +39,14 @@
 > **trailer de metadatos** (`hh::save`); `func_801423C8` carga slots altos; migración de `.pak` de 4
 > slots verificada offline. **Pendiente validar en Windows** (migración real + flujo de guardado).
 >
-> **TAREA: Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots).** Plan
-> COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fases 0-2 HECHAS**; **Fase 3
-> (enganche a CONTINUAR) es lo siguiente**; luego Fase 4 (guardar en cápsula + editor). Fase 2 (UI):
-> pantalla `LoadGame` + render 1:1 (`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`); revisable con
-> `HH_MENU_SCREEN=19`. **Pendiente en Windows**: afinado fino del 1:1 + ocultar el fondo del título.
+> **TAREA de fondo: Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots).**
+> Plan COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fases 0-3 HECHAS**
+> (Fase 3 = enganche + ocultado, sin commitear); pendiente el **afinado 1:1** (bloqueado por las
+> tipografías) y **Fase 4** (guardar en cápsula + editor).
 >
 > **ESTRATEGIA DE MERGE (mantenedor, 2026-09-29):** `menu-carga-guardado-partida` es una rama
 > **DERIVADA** (necesidad del menú) → **no** va a `main`. Al **terminar** esta tarea: merge a
 > **`menu-edicion-partida`**; y de `menu-edicion-partida` → **`main`**. Nada a `main` por ahora.
->
-> **Estado de commits (2026-09-29):** fork NMR `hybrid-heaven` **publicado** (`3523bf3`, `PAK_SIZE`);
-> port `menu-carga-guardado-partida` con `d4b7f02` (feat save 74 slots) + `dbb209a` (bump gitlink +
-> `runtime.lock` a `3523bf3`), **sin pushear**.
 >
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los

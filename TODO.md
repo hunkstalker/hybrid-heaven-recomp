@@ -46,9 +46,18 @@
     `LoadGame` (45 partidas del rango de juego, metadatos del trailer) + render 1:1 en overlay
     (`DATA LOAD`, caja de 3 líneas por partida, cursor/scroll/mensaje nativos). Validado headless con
     captura. **Pendiente**: afinado fino contra el nativo en Windows + ocultar el fondo del título.
-  - **Siguiente (Fase 3)**: enganchar `CONTINUAR` a `LoadGame` (ocultar el file-select nativo `func_8013E850`,
-    mutear input, publicar el overlay) y cerrar la transición de carga. Plan:
-    `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`.
+  - **Fase 3 (enganche a CONTINUAR) HECHA `[MEDIDO]` (2026-09-29, sin commitear)**: al dar CONTINUAR sale
+    `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/oculta la UI
+    nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp`; hooks `func_801C3D84`/`func_8001A804`.
+    **NO** enganchar `func_801C3D50` (cuelga). Pendiente: commit + validar en Windows.
+  - **BLOQUEANTE del 1:1 → TAREA APARTE**: las **tipografías del DATA LOAD** (3 fuentes distintas;
+    `func_8001B204` elige estilo por `a0` → tabla `D_8008EF70`). Documento:
+    **`notes/2026-09-29-tipografias-data-load-tarea.md`**. **Es la tarea principal ahora.**
+- [•] **Extracción/mapeo de las TIPOGRAFÍAS del DATA LOAD (2026-09-29, desvío deliberado)**: el DATA
+  LOAD nativo usa **3 tipografías** (título `DATA LOAD` ~11 ud, mensaje `Select play data...` ~9.3 ud,
+  cabeceras `AREA/LEVEL/TIME` ~7 ud = `color0`, ya la tenemos). Decodificar `func_8001B204(a0,a1,a2,texto)`
+  (estilo `a0` → tabla BSS `D_8008EF70`), volcarla en runtime, extraer las fuentes que falten (¿`color4`?)
+  y cablear el overlay. Documento: `notes/2026-09-29-tipografias-data-load-tarea.md`.
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere

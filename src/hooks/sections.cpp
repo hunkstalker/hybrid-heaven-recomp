@@ -63,6 +63,8 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx);   // de
 extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 extern "C" void hh_battle_creature_hook(uint8_t* rdram, recomp_context* ctx);  // definido abajo
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx);  // traza de combate
+extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx);   // Fase 3: file-select CARGAR
+extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // cajas nativas (func_8001A804)
 
 namespace {
 
@@ -564,6 +566,12 @@ void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x801C4200, hh_battle_menu_hook);
     // COMBATE DE CRIATURAS: pantalla interna (5 COMBATES / SUPERVIVENCIA), mismo control.
     recomp::overlays::add_loaded_function(0x801C44C4, hh_battle_creature_hook);
+    // Fase 3 (menú de carga): envuelve el UPDATE del file-select DATA LOAD (func_801C3D84, file_024)
+    // para ocultar el nativo, mutear su input y publicar nuestra LoadGame al dar a CONTINUAR.
+    recomp::overlays::add_loaded_function(0x801C3D84, hh_file_select_hook);
+    // Cajas nativas (func_8001A804, residente): se saltan cuando la categoría file-select está activa
+    // y el nativo oculto (suppress_box_draw()).
+    recomp::overlays::add_loaded_function(0x8001A804, hh_box_draw_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
@@ -1322,6 +1330,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size()) &&
             s.entries[s.cursor].action == hh::menu::Action::Continue) {
+            // Al elegir CONTINUAR ya sabemos que vamos al file-select: activa YA su categoría de
+            // ocultado para que su SETUP (que compone título/`CONTROLLER PAK`/caja) se blankee aunque
+            // no enganchemos `func_801C3D50` (su dirección la comparte otro módulo -> colgaba).
+            hh::menu_overlay::set_file_select_active(true);
             rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 1;   // sel = CONTINUE
             g_inject_native_a = true;
         }
@@ -1508,6 +1520,9 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
 // publica el frame del overlay del port. Con HH_MENU_TRACE=1 registra además la selección (0x801CC8C4).
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::overlay::set_screen_blackout(false);   // seguridad: el telon nunca tapa el menu
+    // Al correr el handler del TÍTULO ya no estamos en el file-select: desactiva su categoría de
+    // ocultado (si no, quedaría activa tras volver del DATA LOAD).
+    hh::menu_overlay::set_file_select_active(false);
     static const bool trace = env_set("HH_MENU_TRACE");
     static uint64_t calls = 0;
     if (trace && (calls++ % 30) == 0) {
@@ -1609,6 +1624,61 @@ extern "C" void hh_battle_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     if (goto_after == goto_before) {
         hh::menu_overlay::title_update(rdram);
     }
+}
+
+// Overlay A2: envuelve el file-select DATA LOAD (setup `func_801C3D50` y update `func_801C3D84`,
+// file_024 OVERLAY), el menú nativo de CARGAR partida al que llega CONTINUAR. Fase 3 del menú de
+// carga/guardado: el nativo se OCULTA y su input se MUTEA (el file-select lee A/Z/Start en
+// `0x80089478`), mientras publicamos NUESTRA pantalla LoadGame. Así no se ejecuta su máquina de
+// estados (ni sus mensajes de Controller/Rumble Pak).
+//
+// El ocultado por CATEGORÍAS vive en `menu_overlay.cpp` (texto del título, texto del file-select y
+// cajas); aquí solo se marca que la categoría FILE-SELECT está ACTIVA. La visibilidad la decide F8
+// (`native_visible`), única fuente de verdad.
+constexpr uint32_t kFileSelectInputAddr = 0x80089478u;   // +0x4 de 0x80089474 (A/Z/Start + D-pad)
+
+// NOTA: NO se engancha el SETUP del file-select (`func_801C3D50`): esa dirección la comparte otro
+// módulo (base solapada) y su hook colgaba el juego (medido). La categoría se activa desde el propio
+// CONTINUAR (antes de inyectar A), que es quien sabe que vamos a entrar al file-select.
+extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
+    hh::overlay::set_screen_blackout(false);
+    // La pantalla activa pasa a ser NUESTRA LoadGame (la pila del modelo).
+    hh::menu::open_load_game();
+    // Nuestro menú consume el input y mueve el cursor de la pantalla activa (LoadGame).
+    feed_menu_navigation(rdram, ctx);
+    hh::menu_overlay::suppress_native(rdram);
+    hh::menu_overlay::set_file_select_active(true);   // categoría FILE-SELECT activa (ocultado)
+    const bool controlling = hh::overlay::enabled();
+    // Mutea la lectura de A/Z/Start del file-select mientras controlamos: sin esto el nativo
+    // despacharía su rama al ver A (y mostraría sus mensajes). Se restaura el valor original.
+    uint16_t* in = reinterpret_cast<uint16_t*>(&rdram[(kFileSelectInputAddr ^ 2u) & 0x7FFFFFu]);
+    const uint16_t saved = *in;
+    if (controlling) {
+        *in = 0;
+    }
+    func_801C3D84_11BD854(rdram, ctx);   // update original del file-select, con su input neutralizado
+    *in = saved;
+    g_inject_native_a = false;           // la inyección (si la hubo) es de un solo frame
+    // F8 sobre el DATA LOAD: el título/`CONTROLLER PAK`/mensaje se componen SOLO en el setup, así que
+    // al alternar la visibilidad hay que re-componerlos (las filas se recomponen cada frame). Se
+    // re-ejecutan los compositores del setup LOAD (seguro: son funciones, no hooks).
+    if (hh::menu_overlay::native_toggle_pending()) {
+        recomp_context t = *ctx;
+        func_801426B0_103AE80(rdram, &t);   // título DATA LOAD + CONTROLLER PAK + caja
+        func_80142840_103B010(rdram, &t);   // mensaje "Select play data..."
+    }
+    // Publica NUESTRO overlay (la pantalla LoadGame en su sitio real, ocultando el nativo).
+    hh::menu_overlay::title_update(rdram);
+}
+
+// Cajas del file-select: `func_8001A804` (residente) dibuja las cajas de muchos menús. Mientras la
+// categoría FILE-SELECT está activa y el nativo oculto (`suppress_box_draw()`), se SALTA el original
+// (no se dibujan las cajas nativas del DATA LOAD). En cualquier otro caso, se delega.
+extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (hh::menu_overlay::suppress_box_draw()) {
+        return;
+    }
+    func_8001A804_1B404(rdram, ctx);
 }
 
 // Overlay A2: envuelve el update de COMBATE DE CRIATURAS (func_801C44C4, file_024). Igual que el

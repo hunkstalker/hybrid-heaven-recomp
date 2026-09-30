@@ -1025,6 +1025,19 @@ void push(ScreenId id) {
     g_stack.push_back(id);
 }
 
+// Fase 3: fija la pila a [Root, LoadGame] y refresca la lista. Idempotente. La llama el hook del
+// file-select al dar CONTINUAR, para que la pantalla activa sea la nuestra.
+void open_load_game() {
+    ensure();
+    rebuild_load_game();
+    if (g_stack.size() == 2 && g_stack[0] == ScreenId::Root && g_stack[1] == ScreenId::LoadGame) {
+        return;   // ya está abierta
+    }
+    g_stack.clear();
+    g_stack.push_back(ScreenId::Root);
+    g_stack.push_back(ScreenId::LoadGame);
+}
+
 int depth() {
     ensure();
     return static_cast<int>(g_stack.size());

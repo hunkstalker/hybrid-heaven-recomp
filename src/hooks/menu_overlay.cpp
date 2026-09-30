@@ -292,11 +292,28 @@ void append_box(hh::overlay::Frame& frame, float x, float y, float w, float h, u
 
 bool visible() { return g_visible; }
 
-// Menú nativo del juego (F6). Por defecto oculto; al mostrarlo se restauran sus etiquetas.
+// ============================================================================================
+// OCULTADO DE LA UI NATIVA (categorías)
+// --------------------------------------------------------------------------------------------
+// `g_native_visible` (F8) es la ÚNICA fuente de verdad: false = UI nativa oculta, true = visible.
+// Cada categoría de UI nativa tiene su propia función de ocultado, todas consultan `g_native_visible`:
+//   - Título/menús del módulo 23: `hide_title_labels` (tablas en RDRAM) + `hidden_title_field_len`
+//     (texto compuesto por `func_8001B204`).
+//   - File-select DATA LOAD/SAVE (`file_008`): `g_file_select_active` (lo marcan los hooks) +
+//     `hide_file_select_text` (blankea TODO el texto compuesto) + `suppress_box_draw` (cajas
+//     `func_8001A804`).
+// ============================================================================================
+
+// Menú nativo: `native_visible()`/`native_toggle()` (F8). Por defecto oculto.
 bool native_visible() { return g_native_visible; }
 void native_toggle() { g_native_visible = !g_native_visible; }
 
-// true UNA vez cada vez que F6 cambia la visibilidad (para forzar el re-registro del menú nativo).
+// Categoría FILE-SELECT (DATA LOAD/SAVE): activa mientras su pantalla corre (lo marcan los hooks en
+// `sections.cpp`). Independiente de la visibilidad: dice QUÉ UI nativa está en pantalla.
+bool g_file_select_active = false;
+void set_file_select_active(bool on) { g_file_select_active = on; }
+
+// true UNA vez cada vez que F8 cambia la visibilidad (para forzar el re-registro del menú nativo).
 bool native_toggle_pending() {
     if (g_native_visible != g_native_last_reported) {
         g_native_last_reported = g_native_visible;
@@ -305,9 +322,9 @@ bool native_toggle_pending() {
     return false;
 }
 
-// Oculta (o restaura) el texto del menú nativo en RDRAM: rellena con espacios (o repone el original)
-// las etiquetas idx0..5 y la flecha que el handler registra cada frame. El juego compone el texto
-// una sola vez por entrada (func_801C18FC), así que además hay que re-ejecutarlo al alternar (F6).
+// --- Categoría TÍTULO: etiquetas del módulo 23 (tablas en RDRAM) -------------------------------
+// Oculta (o restaura) las etiquetas idx0..5 y la flecha que el handler registra. El juego compone el
+// texto una sola vez por entrada (func_801C18FC), así que además hay que re-ejecutarlo al alternar.
 void suppress_native(uint8_t* rdram) {
     if (rdram == nullptr) {
         return;
@@ -338,14 +355,11 @@ void suppress_native(uint8_t* rdram) {
     }
 }
 
-// La COMPOSICIÓN del menú nativo (0x8001B204) lee el texto de las direcciones de enlace y lo copia
-// a su estructura interna. Si el menú está oculto, se meten espacios en el campo justo antes de que
-// lo lea: así el texto compuesto ya sale en blanco desde el primer frame (sin depender de cuándo se
-// ejecute el registro). Se llama desde el hook de 0x8001B204.
-// Longitud del campo de texto que hay que blankear para `a` (0 = no es texto del menú oculto).
+// --- Categoría TÍTULO: texto compuesto (`func_8001B204`) ----------------------------------------
+// Longitud del campo de texto del título que hay que blankear para `a` (0 = no es campo del título).
 // Campos: raíz = 16 B; submenú de batalla = 20 B (5 campos, paso 0x14); COMBATE DE CRIATURAS:
 // cabecera 20 B, flecha/opciones 12 B; flechas = 16 B.
-unsigned hidden_field_len(uint32_t a) {
+unsigned hidden_title_field_len(uint32_t a) {
     for (uint32_t base : kNativeLabelAddrs) {
         if (a >= base && a < base + kNativeLabelsLen) {
             return 16;
@@ -367,17 +381,45 @@ unsigned hidden_field_len(uint32_t a) {
     return 0;
 }
 
+// --- Categoría FILE-SELECT: texto compuesto (`func_8001B204`) y cajas (`func_8001A804`) --------
+// El DATA LOAD/SAVE compone su texto con `func_8001B204` desde sus tablas (file_008, base REUBICADA
+// en runtime). Se blankea el CAMPO COMPUESTO justo antes de leerlo, acotado a las direcciones de sus
+// tablas (blankear "cualquier campo" corrompía texto ajeno -> SEGV medido; blankear la tabla por
+// vaddr fija NO sirve porque la base está reubicada).
+unsigned file_select_field_len(uint32_t a) {
+    switch (a) {
+        case 0x8018F16Cu: case 0x8018F1BCu: return 20;   // título "DATA LOAD" / "DATA SAVE"
+        case 0x8018F184u: case 0x8018F1D4u: return 16;   // "CONTROLLER PAK"
+        case 0x8018F6BCu: case 0x8018F6DCu: case 0x8018F73Cu: return 20;   // AREA / LEVEL / TIME
+        case 0x8018F20Cu: case 0x8018F230u: return 20;   // mensaje "Select play data..."
+        default: return 0;
+    }
+}
+
+// Las cajas del file-select las dibuja `func_8001A804`: se saltan cuando la pantalla está activa.
+bool suppress_box_draw() { return !g_native_visible && g_file_select_active; }
+
+
+// --- Punto de entrada del ocultado de TEXTO (hook de func_8001B204) -----------------------------
+// La COMPOSICIÓN del texto (`func_8001B204`) lee la dirección de enlace y la copia a su estructura.
+// Si su categoría está oculta, se meten espacios en el campo justo antes de que lo lea.
 void filter_native_text(uint8_t* rdram, uint32_t text_addr) {
     if (rdram == nullptr || g_native_visible) {
         return;
     }
-    const unsigned len = hidden_field_len(text_addr);
+    const unsigned len = g_file_select_active ? file_select_field_len(text_addr)
+                                              : hidden_title_field_len(text_addr);
     if (len == 0) {
+        return;
+    }
+    const uint32_t off = text_addr - 0x80000000u;
+    if (off >= 0x800000u) {
         return;
     }
     hh::log("[native] filter text=%08X len=%u\n", text_addr, len);
     for (unsigned i = 0; i < len; ++i) {
-        rdram[((text_addr + i) - 0x80000000u) ^ 3u] = (i == len - 1) ? 0x00u : 0x20u;
+        if (off + i >= 0x800000u) break;
+        rdram[(off + i) ^ 3u] = (i == len - 1) ? 0x00u : 0x20u;
     }
 }
 
@@ -577,15 +619,14 @@ void title_update(uint8_t* rdram) {
             }
         }
         // Caja de mensaje inferior (como "Select play data to be loaded."): ancha, casi de borde a
-        // borde, con el texto centrado.
+        // borde; el texto va alineado a la IZQUIERDA de su caja (sangría de 1 glifo).
         {
             const float msg_y = 168.0f;
             const float msg_x = 22.0f, msg_w = 276.0f, msg_h = 20.0f;
             append_box(frame, msg_x, msg_y, msg_w, msg_h, kWhite, kBoxFill);
             const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
-            const float tw = static_cast<float>(cp_count(msg)) * step;
-            frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, msg_y + 6.0f, g_scale_x,
-                                    g_scale_y, kWhite, msg });
+            frame.texts.push_back({ msg_x + 4.0f, msg_y + 6.0f, g_scale_x, g_scale_y, kWhite,
+                                    " " + msg });
         }
         if (trace) {
             static int last_screen2 = -1;

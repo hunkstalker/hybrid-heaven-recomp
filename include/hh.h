@@ -236,6 +236,12 @@ namespace hh {
         // Hook de la composición de texto del juego (0x8001B204): si el menú nativo está oculto,
         // blankea el campo a componer para que salga en blanco desde el primer frame.
         void filter_native_text(uint8_t* rdram, uint32_t text_addr);
+        // Ocultado de la UI nativa por CATEGORÍAS. `native_visible()` (F8) es la única fuente de
+        // verdad de la visibilidad; `set_file_select_active` marca qué pantalla nativa (DATA LOAD/SAVE)
+        // está corriendo. El ocultado efectivo = `!native_visible() && <categoría activa>`.
+        void set_file_select_active(bool on);
+        // Cajas del file-select (`func_8001A804`): true = saltar su dibujo (no llamar al original).
+        bool suppress_box_draw();
         // Calibración en vivo (Ctrl+flechas/etc.): suma a offset/escala y lo escribe en hh.log.
         void adjust(float dx, float dy, float dsx, float dsy);
     }

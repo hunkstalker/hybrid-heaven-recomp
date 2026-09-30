@@ -1042,6 +1042,14 @@ void hh::poll_input() {
                     // en el mismo instante. Cada F7 abre una captura nueva; otro F7 la cancela.
                     hh::hud_capture_trigger();
                 }
+                else if (k.sym == SDLK_F8) {
+                    // Mostrar/ocultar el MENÚ NATIVO (comparar nuestro overlay con el original). F6
+                    // está ocupado por DEBUG NIVELES. Mientras el nativo está oculto el port blankea
+                    // sus tablas de etiquetas (y el texto del file-select); F8 las restaura.
+                    hh::menu_overlay::native_toggle();
+                    std::fprintf(stderr, "[HH] F8 -> menu nativo %s\n",
+                                 hh::menu_overlay::native_visible() ? "VISIBLE" : "oculto");
+                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);
