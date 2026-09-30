@@ -628,7 +628,9 @@ void title_update(uint8_t* rdram) {
             append_box(frame, msg_x, msg_y, msg_w, msg_h, kWhite, kBoxFill);
             const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
             // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD).
-            frame.texts.push_back({ msg_x + 2.0f, msg_y + 4.0f, g_scale_x, g_scale_y, kWhite,
+            // +4 px de sangría (2 px más que antes): el mantenedor pidió moverlo un par de px a la
+            // derecha respecto al borde de la caja. Ver notes/2026-09-30-tipografias-data-load-hallazgos.md.
+            frame.texts.push_back({ msg_x + 4.0f, msg_y + 4.0f, g_scale_x, g_scale_y, kWhite,
                                     " " + msg, hh::font::game::Face::Color4 });
         }
         if (trace) {

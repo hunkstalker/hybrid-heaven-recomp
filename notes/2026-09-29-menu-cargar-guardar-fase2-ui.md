@@ -60,6 +60,19 @@
   - **⚠️ NO enganchar `func_801C3D50`** (setup del file-select): su dirección la comparte otro módulo
     (base solapada) y el hook **cuelga el juego** (medido). La categoría se activa desde CONTINUAR.
   - **Qué quedó a medias (y por qué)**:
+    0. **⚠️ Ocultado INCOMPLETO en Windows (2026-09-30, reportado por el mantenedor)**: al dar
+       CONTINUAR se ve, detrás de nuestra `LoadGame`, el file-select **nativo de CONTINUAR** con
+       cadenas que **NO** ocultamos: `1P CONTROLLER` / `2P CONTROLLER` / `EMPTY SLOT`. `[MEDIDO]`
+       (headless): el enganche **sí** corre el file-select de CONTINUAR (`func_8013E850`, `screen=19`);
+       esas cadenas **no están** en las tablas que blankeamos (`D_8018F16C`/`D_8018F184`/`D_8018F20C`/
+       `D_8018F230`/`D_8018F6BC…`), que solo cubren `DATA LOAD`/`CONTROLLER PAK`/`AREA/LEVEL/TIME`/
+       mensaje. Hay que **localizar sus tablas** y añadirlas. *(El mantenedor lo describió como "menú
+       de modo batalla"; medido, es la misma pantalla de CONTINUAR con texto sin ocultar.)*
+       - **El "espacio doble" del mensaje** que reportó el mantenedor (inglés) se atribuye a la MISMA
+         superposición: nuestra línea `Select play data...` y la NATIVA (color4) quedan desalineadas y
+         al sumarse parecen el doble de ancho. `[MEDIDO]` en la captura (huecos irregulares 12..78 px,
+         glifos de 30-36 px = dos textos mezclados); en headless con el nativo oculto el espaciado es
+         normal. **No es un bug de avance de la fuente** (el avance de color4 es fijo = 8 px).
     1. **Afinado 1:1 ❌ bloqueado** por las **tipografías** (tarea aparte): el overlay dibuja TODO con
        la fuente del menú (`color0`), pero el DATA LOAD nativo usa 3 fuentes distintas → no se puede
        dejar idéntico hasta extraerlas/mapearlas.
