@@ -245,6 +245,9 @@ Los módulos se cargan **bajo demanda**; `hh_ovl.log` (port) registra cada carga
 
 ## 7. Texto del juego (fuente y render)
 
+> **Tipografías (extracción y uso en menús): `fonts.md`** — fuente de verdad de `color0..5`, mapeos por
+> fuente, API `hh::font::game::Face`/`overlay::Text.face` y avances del motor.
+
 El motor de texto **no usa una textura de fuente**: carga el bitmap de cada glifo desde **6 ficheros**
 de la tabla Nisitenma (uno por color/estilo) y lo compone en RDRAM. El menú de título usa **color0**
 (fichero Nisitenma 107): 8×8, **2bpp con DOS glifos empaquetados por bloque** (valor PAR → bits 2-3 de

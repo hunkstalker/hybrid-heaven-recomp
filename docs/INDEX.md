@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 169 | 2026-09-28 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 179 | 2026-09-29 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 402 | 2026-09-28 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 471 | 2026-09-30 |
 
 ## Técnico y guías (vivos)
 
@@ -20,10 +20,11 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 79 | 2026-09-27 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 403 | 2026-09-27 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 302 | 2026-09-24 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 305 | 2026-09-24 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 138 | 2026-09-30 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 80 | 2026-09-28 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 310 | 2026-09-28 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 313 | 2026-09-28 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -54,11 +55,20 @@
 | [ADR 0010 — Dependencias del runtime como submódulos git (estándar del ecosistema)](adr/0010-dependencias-runtime-como-submodulos.md) | - **Estado**: Aceptado (2026-09-20). Supersede la parte de **clonado por `port/runtime.lock`** de | 48 | 2026-09-21 |
 | [ADR 0011 — Adoptar la vía de recompilación de la referencia (ELF + splat + residente limpio)](adr/0011-via-recompilacion-elf-splat.md) | - **Estado**: Aceptado (2026-09-21). | 65 | 2026-09-21 |
 | [0012 — Soporte multi-idioma y acentos (menú + in-game)](adr/0012-soporte-multi-idioma-y-acentos.md) | - **Estado:** Aceptado (2026-09-25). | 31 | 2026-09-25 |
+| [0013 — PFS virtual ampliado y `.pak` de N slots (con trailer de metadatos)](adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md) | - **Estado:** Aceptado (2026-09-29). Rama `menu-carga-guardado-partida`. | 64 | 2026-09-29 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
+| [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [TIPOGRAFÍAS del DATA LOAD — hallazgos `[MEDIDO]` (2026-09-30)](../notes/2026-09-30-tipografias-data-load-hallazgos.md) | Evidencia para `notes/2026-09-29-tipografias-data-load-tarea.md` (tarea) y el menú propio de carga | 121 | 2026-09-30 |
+| [TAREA — Extracción/mapeo de las tipografías del DATA LOAD (menú de carga)](../notes/2026-09-29-tipografias-data-load-tarea.md) | **Tarea derivada** (desvío de la tarea principal "menú de carga/guardar", rama | 77 | 2026-09-29 |
+| [PLAN — Menú propio de cargar/guardar partida (slots "infinitos", un `.pak` con N slots)](../notes/2026-09-29-menu-cargar-guardar-partida-plan.md) | **Documento maestro de la tarea** (para una sesión nueva). Rama **`menu-carga-guardado-partida`** | 126 | 2026-09-29 |
+| [FASE 2 — UI de carga (pantalla CARGAR PARTIDA, overlay 1:1)](../notes/2026-09-29-menu-cargar-guardar-fase2-ui.md) | Evidencia de la **Fase 2** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`. Rama | 71 | 2026-09-29 |
+| [FASE 1 — Almacenamiento: un `.pak` con N=74 slots (45 partidas + 29 plantillas)](../notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md) | Evidencia de la **Fase 1** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`, elegida | 100 | 2026-09-29 |
+| [FASE 0 — Menú propio de cargar/guardar (trazado del file-select + prueba del `.pak` a N slots)](../notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md) | Evidencia de la **Fase 0** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`. | 137 | 2026-09-29 |
+| [2026-09-29 — Editor de partida: Área-Parte real y arranque desde un punto (plan + mediciones)](../notes/2026-09-29-editor-area-parte-plan.md) | Sesión `menu-edicion-partida`. Punto de partida: `RETOMAR.md` §1 (tarea principal) y | 357 | 2026-09-29 |
 | [2026-09-28 — Escalado de stats: corrección de dirección y funciones reales](../notes/2026-09-28-stats-recompute-correccion.md) | Sesión `menu-edicion-partida`, continuación del handoff `RETOMAR.md`. **Corrige un error de las | 317 | 2026-09-28 |
 | [2026-09-28 — Lógica de juego: técnicas, items y estadísticas (reconstrucción)](../notes/2026-09-28-logica-juego-tecnicas-items-y-stats.md) | Sesión `menu-edicion-partida`. Recopila la **lógica jugable** reconstruida para el editor de partida. | 232 | 2026-09-28 |
 | [2026-09-28 — Editor de partida: formato real del slot y lógica de juego (stats)](../notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md) | Sesión `menu-edicion-partida`. Documenta **toda** la lógica de guardado/estadísticas reconstruida | 208 | 2026-09-28 |

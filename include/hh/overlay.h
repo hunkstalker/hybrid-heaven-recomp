@@ -6,6 +6,8 @@
 // compuesto por el VI renderer de RT64 (ver RETOMAR.md y notes/2026-09-23-a2-overlay-primer-paso.md).
 // Flujo: hh_menu -> hh_overlay (paneles + texto con el atlas de la fuente del juego).
 
+#include "hh/font.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -35,6 +37,10 @@ struct Text {
     float scale_x = 1.0f, scale_y = 1.0f;
     uint32_t color = 0xFFFFFFFFu;
     std::string text;
+    // Tipografia (fichero Nisitenma). El DATA LOAD nativo usa color3 (titulo), color4 (mensaje) y
+    // color0 (filas/atlas historico del menu). Ver include/hh/font.h y
+    // notes/2026-09-30-tipografias-data-load-hallazgos.md.
+    hh::font::game::Face face = hh::font::game::Face::Color0;
 };
 
 // Contenido de un frame. El menú lo publica (game thread) y el draw hook lo dibuja (render thread).

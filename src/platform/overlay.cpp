@@ -570,11 +570,29 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     const uint32_t panel_index_count = static_cast<uint32_t>(indices.size());
 
     if (g_atlas_set != nullptr && g_atlas_w > 0.0f) {
-        const float cw = static_cast<float>(hh::font::game::char_width());
-        const float ch = static_cast<float>(hh::font::game::char_height());
         for (const Text& t : frame.texts) {
+            const float cw = static_cast<float>(hh::font::game::face_cell_w(t.face));
+            const float ch = static_cast<float>(hh::font::game::face_cell_h(t.face));
             float pen_x = t.x;
             size_t i = 0;
+            // color3 (titulo) / color4 (mensaje): dibujo simple, sin marcas ni kana (solo ASCII).
+            if (t.face != hh::font::game::Face::Color0) {
+                while (i < t.text.size()) {
+                    const unsigned cp = utf8_next_cp(t.text, i);
+                    unsigned gx = 0, gy = 0;
+                    if (cp < 0x80 &&
+                        hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy)) {
+                        const float u0 = static_cast<float>(gx) / g_atlas_w;
+                        const float v0 = static_cast<float>(gy) / g_atlas_h;
+                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
+                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
+                                    t.color, u0, v0, u1, v1);
+                    }
+                    pen_x += cw * t.scale_x;
+                }
+                continue;
+            }
             while (i < t.text.size()) {
                 const unsigned cp = utf8_next_cp(t.text, i);
                 unsigned value = 0, gx = 0, gy = 0;

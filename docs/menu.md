@@ -203,6 +203,9 @@ SALIR                                      (extra del port: cierra de forma orde
 
 ## Idiomas y acentos (2026-09-25)
 
+> **Tipografías (fuentes `color0..5`, API `overlay::Text.face`, avances): `fonts.md`** — fuente de
+> verdad. El menú usa `Color0`; el `DATA LOAD` propio usa `Color3` (título) y `Color4` (mensaje).
+
 - **Etiquetas localizadas**: las del modelo están en **español (canónico)** y se traducen al idioma
   activo con `hh::menu::localized()` (tabla `kMenuTr`, `src/subsystems/menu.cpp`), que el overlay usa
   al publicar el texto. Idiomas: **en/es/ca/fr/de**. La lista `IDIOMA` muestra **endónimos**

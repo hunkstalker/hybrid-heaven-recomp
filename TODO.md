@@ -53,11 +53,19 @@
   - **BLOQUEANTE del 1:1 → TAREA APARTE**: las **tipografías del DATA LOAD** (3 fuentes distintas;
     `func_8001B204` elige estilo por `a0` → tabla `D_8008EF70`). Documento:
     **`notes/2026-09-29-tipografias-data-load-tarea.md`**. **Es la tarea principal ahora.**
-- [•] **Extracción/mapeo de las TIPOGRAFÍAS del DATA LOAD (2026-09-29, desvío deliberado)**: el DATA
-  LOAD nativo usa **3 tipografías** (título `DATA LOAD` ~11 ud, mensaje `Select play data...` ~9.3 ud,
-  cabeceras `AREA/LEVEL/TIME` ~7 ud = `color0`, ya la tenemos). Decodificar `func_8001B204(a0,a1,a2,texto)`
-  (estilo `a0` → tabla BSS `D_8008EF70`), volcarla en runtime, extraer las fuentes que falten (¿`color4`?)
-  y cablear el overlay. Documento: `notes/2026-09-29-tipografias-data-load-tarea.md`.
+- [•] **Extracción/mapeo de las TIPOGRAFÍAS del DATA LOAD (2026-09-29/30, desvío deliberado)**: MAPEO
+  **RESUELTO `[MEDIDO]`** (traza `HH_FONT_TRACE`+`HH_FONT_DUMP_GLYPH` en headless). **Corrige** la
+  premisa: `a0` de `func_8001B204` es el **contexto/slot** (no la fuente); la fuente la elige el código
+  `%m <n>` **dentro** de la cadena (→ `colorN`). Reparto del DATA LOAD: título `DATA LOAD` = **color3**
+  (idx 106, 12×13, stride 78) `[MEDIDO]`; mensaje `Select play data to be loaded.` = **color4** (idx 108,
+  8×12, ya extraída); `CONTROLLER PAK` + cabeceras/filas `AREA/LEVEL/TIME` = **color0** (atlas actual).
+  Valores de glifo medidos del título: `A=0x76` (`valor = 0x76 + (c-'A')`). **CABLEADO HECHO** en la UI
+  propia (`LoadGame`): `Face{Color0,Color4,Color3}` en `font.h/cpp` (atlas 128×214 con franjas color4 y
+  color3), `overlay::Text.face` y uso en `menu_overlay.cpp` (título→color3, mensaje→color4,
+  filas→color0). Validado headless con captura (coincide con el nativo). Evidencia y detalle:
+  **`notes/2026-09-30-tipografias-data-load-hallazgos.md`** (doc. tarea:
+  `notes/2026-09-29-tipografias-data-load-tarea.md`). **Pendiente**: validar 1:1 en Windows (F7) —
+  queda sobre todo MAQUETA (posiciones/cajas, `CONTROLLER PAK`, rótulos).
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere

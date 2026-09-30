@@ -33,13 +33,65 @@ constexpr unsigned kMarkW = kGlyphW;                     // celda ancha de una m
 constexpr unsigned kMarkH = hh::kMenuGlyphH;             // 12
 constexpr unsigned kMarkCols = kAtlasWidth / kMarkW;     // 16
 constexpr unsigned kMarkRows = (hh::kMenuMarkCount + kMarkCols - 1) / kMarkCols;
-constexpr unsigned kFullHeight = kMarkTop + kMarkRows * kMarkH;
+constexpr unsigned kColor4Top = kMarkTop + kMarkRows * kMarkH;
+
+// --- Fuente color4 (Nisitenma US idx 108, 8x12, stride 48): texto in-game y mensaje del DATA LOAD ---
+constexpr uint32_t kColor4RomOffset = 0x6E4CD6;
+constexpr uint32_t kColor4RomSize = 2112;
+constexpr unsigned kColor4W = 8;
+constexpr unsigned kColor4H = 12;
+constexpr unsigned kColor4Stride = 48;
+constexpr unsigned kColor4Values = 64;                   // 0..63 (base ASCII: espacio/digitos/letras)
+constexpr unsigned kColor4Rows = (kColor4Values + kAtlasCols - 1) / kAtlasCols;
+
+// --- Fuente color3 (Nisitenma US idx 106, 12x13, stride 78): titulo grande ("DATA LOAD") ---
+constexpr uint32_t kColor3RomOffset = 0x6E1C86;
+constexpr uint32_t kColor3RomSize = 8272;
+constexpr unsigned kColor3W = 12;
+constexpr unsigned kColor3H = 13;
+constexpr unsigned kColor3Stride = 78;
+// Celdas: 0 = espacio, 1..26 = 'A'..'Z'. El valor del motor es 'A'=0x76 (valor = 0x76 + (c-'A')).
+// 12 px de ancho: caben 10 por fila (120 <= 128 del atlas).
+constexpr unsigned kColor3Cells = 27;
+constexpr unsigned kColor3Cols = kAtlasWidth / kColor3W;   // 10
+constexpr unsigned kColor3Rows = (kColor3Cells + kColor3Cols - 1) / kColor3Cols;
+constexpr unsigned kColor3Top = kColor4Top + kColor4Rows * kColor4H;
+constexpr unsigned kFullHeight = kColor3Top + kColor3Rows * kColor3H;
 
 uint8_t g_atlas[kAtlasWidth * kFullHeight * 4];
 bool g_ready = false;
 bool g_tried = false;
 
-void bake_atlas(const uint8_t* font) {
+// Decodifica y pinta una fuente generica (formato motor 2bpp, DOS glifos por bloque, `stride` bytes).
+// `values[i]` = valor de glifo del motor para la celda i del atlas (fila a fila). `keep_shadow`:
+// conserva el nivel >=2 (sombra del propio fichero); false para fuentes sin sombra fiable.
+void bake_face(const uint8_t* font, uint32_t stride, unsigned w, unsigned h, const unsigned* values,
+               unsigned count, unsigned cols, unsigned top, bool keep_shadow) {
+    for (unsigned i = 0; i < count; ++i) {
+        const unsigned v = values[i];
+        const unsigned block_num = v >> 1;
+        const unsigned parity = v & 1u;
+        const uint8_t* g = font + block_num * stride;
+        const unsigned gx = (i % cols) * w;
+        const unsigned gy = top + (i / cols) * h;
+        for (unsigned y = 0; y < h; ++y) {
+            for (unsigned x = 0; x < w; ++x) {
+                const unsigned pi = y * w + x;
+                const uint8_t byte = g[pi >> 1];
+                const uint8_t nibble = (pi & 1u) ? (byte & 0x0Fu) : ((byte >> 4) & 0x0Fu);
+                unsigned lvl = (parity == 0) ? ((nibble >> 2) & 3u) : (nibble & 3u);
+                if (lvl >= 2 && !keep_shadow) lvl = 0;
+                const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
+                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
+                g_atlas[p + 1] = 255;
+                g_atlas[p + 2] = 255;
+                g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
+            }
+        }
+    }
+}
+
+void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3) {
     for (unsigned v = 0; v < kMaxValue; ++v) {
         const unsigned block = v >> 1;
         const unsigned parity = v & 1u;
@@ -95,6 +147,21 @@ void bake_atlas(const uint8_t* font) {
             }
         }
     }
+    // color4 (texto in-game/mensaje): valores base ASCII 0..63 en orden.
+    {
+        unsigned vals[kColor4Values];
+        for (unsigned v = 0; v < kColor4Values; ++v) vals[v] = v;
+        bake_face(font4, kColor4Stride, kColor4W, kColor4H, vals, kColor4Values, kAtlasCols,
+                  kColor4Top, /*keep_shadow=*/true);
+    }
+    // color3 (titulo): celda 0 = espacio (valor 0), celdas 1..26 = 'A'..'Z' (valor 0x76 + idx).
+    {
+        unsigned vals[kColor3Cells];
+        vals[0] = 0;
+        for (unsigned i = 0; i < 26; ++i) vals[1 + i] = 0x76u + i;
+        bake_face(font3, kColor3Stride, kColor3W, kColor3H, vals, kColor3Cells, kColor3Cols,
+                  kColor3Top, /*keep_shadow=*/true);
+    }
 }
 
 }  // namespace
@@ -122,12 +189,30 @@ bool init() {
                 static_cast<long long>(f.gcount()));
         return false;
     }
+    std::string data4(kColor4RomSize, '\0');
+    f.seekg(kColor4RomOffset);
+    f.read(data4.data(), kColor4RomSize);
+    if (f.gcount() != static_cast<std::streamsize>(kColor4RomSize)) {
+        hh::log("[font] ROM corta al leer color4 (%lld B)\n", static_cast<long long>(f.gcount()));
+        return false;
+    }
+    std::string data3(kColor3RomSize, '\0');
+    f.seekg(kColor3RomOffset);
+    f.read(data3.data(), kColor3RomSize);
+    if (f.gcount() != static_cast<std::streamsize>(kColor3RomSize)) {
+        hh::log("[font] ROM corta al leer color3 (%lld B)\n", static_cast<long long>(f.gcount()));
+        return false;
+    }
 
-    bake_atlas(reinterpret_cast<const uint8_t*>(data.data()));
+    bake_atlas(reinterpret_cast<const uint8_t*>(data.data()),
+               reinterpret_cast<const uint8_t*>(data4.data()),
+               reinterpret_cast<const uint8_t*>(data3.data()));
     g_ready = true;
-    hh::log("[font] atlas RGBA8 color0: %ux%u (%u B; letras %ux%u + marcas %ux%u)\n",
-            kAtlasWidth, kFullHeight, kAtlasWidth * kFullHeight * 4,
-            kAtlasWidth, kAtlasHeight, kAtlasWidth, kMarkRows * kMarkH);
+    hh::log("[font] atlas RGBA8: %ux%u (%u B; color0 %ux%u + marcas %ux%u + color4 %ux%u + "
+            "color3 %ux%u)\n",
+            kAtlasWidth, kFullHeight, kAtlasWidth * kFullHeight * 4, kAtlasWidth, kAtlasHeight,
+            kAtlasWidth, kMarkRows * kMarkH, kAtlasWidth, kColor4Rows * kColor4H, kAtlasWidth,
+            kColor3Rows * kColor3H);
     return true;
 }
 
@@ -157,6 +242,49 @@ bool glyph_uv(unsigned char c, unsigned& x, unsigned& y) {
     unsigned v = 0;
     if (!glyph_value(c, v)) return false;
     return value_uv(v, x, y);
+}
+
+unsigned face_cell_w(Face f) {
+    switch (f) {
+        case Face::Color4: return kColor4W;
+        case Face::Color3: return kColor3W;
+        case Face::Color0:
+        default: return kGlyphW;
+    }
+}
+
+unsigned face_cell_h(Face f) {
+    switch (f) {
+        case Face::Color4: return kColor4H;
+        case Face::Color3: return kColor3H;
+        case Face::Color0:
+        default: return kGlyphH;
+    }
+}
+
+bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y) {
+    if (f == Face::Color0) {
+        return glyph_uv(c, x, y);
+    }
+    if (f == Face::Color4) {
+        unsigned v = 0;
+        if (!glyph_value(c, v) || v >= kColor4Values) return false;
+        x = (v % kAtlasCols) * kColor4W;
+        y = kColor4Top + (v / kAtlasCols) * kColor4H;
+        return true;
+    }
+    // Color3: solo espacio + mayusculas A-Z (el titulo "DATA LOAD").
+    unsigned cell = 0;
+    if (c == ' ') {
+        cell = 0;
+    } else if (c >= 'A' && c <= 'Z') {
+        cell = 1u + (c - 'A');
+    } else {
+        return false;
+    }
+    x = (cell % kColor3Cols) * kColor3W;
+    y = kColor3Top + (cell / kColor3Cols) * kColor3H;
+    return true;
 }
 
 bool menu_char(unsigned cp, unsigned& value, int& mark) {

@@ -35,6 +35,19 @@ unsigned atlas_height();   // 128 (glifos) + franja de marcas (140 con el set ac
 unsigned char_width();     // 8
 unsigned char_height();    // 8
 
+// Tipografia (fichero de fuente Nisitenma) del motor. El DATA LOAD usa las TRES:
+//   Color0 (8x8, idx 107) = menu/overlay y filas del DATA LOAD ("AREA/LEVEL/TIME", "CONTROLLER PAK").
+//   Color4 (8x12, idx 108) = texto in-game y mensaje "Select play data to be loaded.".
+//   Color3 (12x13, idx 106) = titulo grande ("DATA LOAD"). ASCII mayusculas: valor = 0x76 + (c-'A').
+enum class Face { Color0, Color4, Color3 };
+
+// Tamano de celda del glifo (px) de cada tipografia.
+unsigned face_cell_w(Face f);   // 8, 8, 12
+unsigned face_cell_h(Face f);   // 8, 12, 13
+
+// UV del glifo de `c` en la tipografia `f` (ASCII). false si no hay glifo.
+bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y);
+
 // Valor de glifo del motor para un caracter ASCII (0 = vacio). false si no hay glifo.
 bool glyph_value(unsigned char c, unsigned& value);
 // Posicion (px) del glifo en el atlas. false si no hay glifo.

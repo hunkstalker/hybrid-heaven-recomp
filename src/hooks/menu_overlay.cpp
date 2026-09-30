@@ -561,12 +561,14 @@ void title_update(uint8_t* rdram) {
     if (is_load_game) {
         const float step = 8.0f * g_scale_x;
         const float line = layout.dy;                    // 10 px por línea
-        // Título centrado arriba (como "DATA LOAD").
+        // Título centrado arriba (como "DATA LOAD"). Fuente NATIVA color3 (12x13), medida en
+        // headless: valor de glifo 'A'=0x76; ver notes/2026-09-30-tipografias-data-load-hallazgos.md.
         {
             const std::string title = hh::menu::localized("CARGAR PARTIDA");
-            const float tw = static_cast<float>(cp_count(title)) * step;
+            const float title_step = 12.0f * g_scale_x;
+            const float tw = static_cast<float>(cp_count(title)) * title_step;
             frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, 20.0f, g_scale_x,
-                                    g_scale_y, kWhite, " " + title });
+                                    g_scale_y, kWhite, title, hh::font::game::Face::Color3 });
         }
         const float box_x = 58.0f;
         const float box_w = 200.0f;
@@ -625,8 +627,9 @@ void title_update(uint8_t* rdram) {
             const float msg_x = 22.0f, msg_w = 276.0f, msg_h = 20.0f;
             append_box(frame, msg_x, msg_y, msg_w, msg_h, kWhite, kBoxFill);
             const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
-            frame.texts.push_back({ msg_x + 4.0f, msg_y + 6.0f, g_scale_x, g_scale_y, kWhite,
-                                    " " + msg });
+            // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD).
+            frame.texts.push_back({ msg_x + 2.0f, msg_y + 4.0f, g_scale_x, g_scale_y, kWhite,
+                                    " " + msg, hh::font::game::Face::Color4 });
         }
         if (trace) {
             static int last_screen2 = -1;
