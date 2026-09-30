@@ -495,51 +495,16 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     for (const Panel& p : frame.panels) {
         append_quad(vertices, indices, p.x, p.y, p.w, p.h, p.color, 0.5f, 0.5f, 0.5f, 0.5f);
     }
-    // Puntuación que la fuente del juego no incluye (`:`, `.`): se dibuja con rectángulos del color
-    // del texto (rango de paneles, textura blanca). El avance lo da `face_glyph_advance`.
+    // Unico simbolo que el overlay dibuja vectorial por NO estar en la fuente: el infinito `∞`
+    // (PODER ∞ / RESISTENCIA ∞). La puntuacion ASCII (`: . , - % ? ! @ ...`) SI esta en la fuente y se
+    // saca de la ROM via `hh::font::game::glyph_value` (no se dibuja a mano).
     {
         for (const Text& t : frame.texts) {
             float pen_x = t.x;
             size_t i = 0;
             while (i < t.text.size()) {
                 const unsigned cp = utf8_next_cp(t.text, i);
-                if (cp == ':') {
-                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 1.0f * t.scale_y,
-                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 4.0f * t.scale_y,
-                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                }
-                else if (cp == '.') {
-                    if (t.face == hh::font::game::Face::Color4) {
-                        // Punto de color4 (mensaje): 1x1 px en la fila del BASELINE (medido del nativo:
-                        // col. 2, fila 8 de la celda 8x12). El de color0 (menu) mantiene el 2x2 centrado.
-                        append_quad(vertices, indices, pen_x + 2.0f * t.scale_x,
-                                    t.y + 8.0f * t.scale_y, 1.0f * t.scale_x, 1.0f * t.scale_y, t.color,
-                                    0.5f, 0.5f, 0.5f, 0.5f);
-                    } else {
-                        append_quad(vertices, indices, pen_x + 3.0f * t.scale_x,
-                                    t.y + 5.0f * t.scale_y, 2.0f * t.scale_x, 2.0f * t.scale_y, t.color,
-                                    0.5f, 0.5f, 0.5f, 0.5f);
-                    }
-                }
-                else if (cp == '-') {
-                    // Guion (p. ej. "1-0" de PROGRESO): la fuente no lo tiene, se dibuja con un rect.
-                    append_quad(vertices, indices, pen_x + 2.0f * t.scale_x, t.y + 3.5f * t.scale_y,
-                                4.0f * t.scale_x, 1.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                }
-                else if (cp == '%') {
-                    // Porcentaje (la fuente no lo tiene): dos puntos 2x2 y una barra diagonal de 1 px.
-                    append_quad(vertices, indices, pen_x + 1.0f * t.scale_x, t.y + 1.0f * t.scale_y,
-                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                    append_quad(vertices, indices, pen_x + 5.0f * t.scale_x, t.y + 4.0f * t.scale_y,
-                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                    for (int row = 0; row < 5; ++row) {
-                        append_quad(vertices, indices, pen_x + static_cast<float>(5 - row) * t.scale_x,
-                                    t.y + static_cast<float>(1 + row) * t.scale_y, 1.0f * t.scale_x,
-                                    1.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
-                    }
-                }
-                else if (cp == 0x221E) {
+                if (cp == 0x221E) {
                     // Infinito (PODER ∞ / RESIS. ∞): la fuente no lo trae; 13x5 px vectorial (dos
                     // bucles). Mismo trazo con sombra +1,+1 (negro) que las letras del atlas.
                     static const int kInf[5][8] = {
@@ -592,12 +557,30 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 while (i < t.text.size()) {
                     const unsigned cp = utf8_next_cp(t.text, i);
                     unsigned gx = 0, gy = 0;
-                    if (cp < 0x80 &&
-                        hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy)) {
-                        const float u0 = static_cast<float>(gx) / g_atlas_w;
-                        const float v0 = static_cast<float>(gy) / g_atlas_h;
-                        const float u1 = static_cast<float>(gx) / g_atlas_w + cw / g_atlas_w;
-                        const float v1 = static_cast<float>(gy) / g_atlas_h + ch / g_atlas_h;
+                    bool have = false, flip = false;
+                    if (cp < 0x80) {
+                        have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp),
+                                                             gx, gy);
+                    } else if (t.face == hh::font::game::Face::Color1) {
+                        unsigned v = 0;
+                        if (hh::font::game::jp_kana_value(cp, v)) {
+                            have = hh::font::game::face_value_uv(t.face, v, gx, gy);
+                        }
+                    } else if (cp == 0xBF && t.face == hh::font::game::Face::Color4) {
+                        // '¿' (interrogante de apertura ES): mismo glifo '?' de la fuente (valor 75)
+                        // girado 180 grados -> se dibujan las UVs invertidas.
+                        have = hh::font::game::face_value_uv(t.face, 75, gx, gy);
+                        flip = true;
+                    }
+                    if (have) {
+                        float u0 = static_cast<float>(gx) / g_atlas_w;
+                        float v0 = static_cast<float>(gy) / g_atlas_h;
+                        float u1 = u0 + cw / g_atlas_w;
+                        float v1 = v0 + ch / g_atlas_h;
+                        if (flip) {
+                            std::swap(u0, u1);
+                            std::swap(v0, v1);
+                        }
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }

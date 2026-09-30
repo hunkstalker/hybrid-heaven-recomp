@@ -39,7 +39,15 @@ enum BodyStat { kOffense = 0, kDefense = 1, kHitCount = 2, kDamageCount = 3 };
 
 // Abre el `.pak` (idempotente). Los args se mantienen por compatibilidad; no se usan.
 bool load(int slot = 0, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
-bool save(int slot, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
+// `area`/`sub` >= 0 fijan AREA N/P de la cabecera; < 0 se derivan de PROGRESO (0x366).
+// `time` >= 0 fija TIME (u16) del slot en el trailer/cabecera; < 0 lo conserva.
+bool save(int slot, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr, int area = -1,
+          int sub = -1, int time = -1);
+// Guardado desde la cápsula: serializa los globals VIVOS con el serializador nativo (`func_80141F28`
+// en un buffer del heap del juego) y escribe el slot con `save()`. `slot` 0..kGameSlots-1.
+bool save_live(int slot, uint8_t* rdram, recomp_context* base_ctx);
+// Primer slot de PARTIDA libre (metadato `presente` a 0), o el último si todos están ocupados.
+int first_free_game_slot();
 // Escribe el `.pak` tal cual está en memoria (recalcula checksums de todos los slots) SIN tocar la
 // cabecera de la lista. Para ELIMINAR (que ya marca su registro como no presente).
 bool flush();

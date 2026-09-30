@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 179 | 2026-09-29 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 188 | 2026-09-29 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 491 | 2026-09-30 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 505 | 2026-09-30 |
 
 ## Técnico y guías (vivos)
 
@@ -63,7 +63,9 @@
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
 | [TIPOGRAFÍAS del DATA LOAD — hallazgos `[MEDIDO]` (2026-09-30)](../notes/2026-09-30-tipografias-data-load-hallazgos.md) | Evidencia para `notes/2026-09-29-tipografias-data-load-tarea.md` (tarea) y el menú propio de carga | 121 | 2026-09-30 |
-| [DATA LOAD — recrear la maqueta 1:1 (geometría) en el overlay](../notes/2026-09-30-data-load-maqueta-1a1.md) | Sesión 2026-09-30 (3.ª). Rama `menu-carga-guardado-partida`. Tarea de `RETOMAR.md`: "recrear la UI | 105 | 2026-09-30 |
+| [DATA SAVE — retoques de la UI propia (copia de CARGAR) + ocultado del nativo](../notes/2026-09-30-save-data-ui-retoques.md) | Sesión 2026-09-30 (4.ª). Rama **`menu-carga-guardado-partida`** (nada pusheado). Tarea de | 96 | 2026-09-30 |
+| [DATA SAVE — lógica de guardado en la cápsula (serializa y persiste)](../notes/2026-09-30-save-capsule-logica.md) | Sesión 2026-09-30 (5.ª). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md`: **cablear la | 202 | 2026-09-30 |
+| [DATA LOAD — recrear la maqueta 1:1 en el overlay](../notes/2026-09-30-data-load-maqueta-1a1.md) | Sesión 2026-09-30 (3.ª). Rama `menu-carga-guardado-partida`. Tarea de `RETOMAR.md`: "recrear la UI | 106 | 2026-09-30 |
 | [CONTINUAR → F8 pinta el `BATTLE DATA LOAD`: causa raíz (compositor equivocado) y fix](../notes/2026-09-30-continuar-enganche-y-ocultado.md) | Sesión 2026-09-30 (2ª). Rama `menu-carga-guardado-partida`. Tarea: "arreglar el enganche de | 74 | 2026-09-30 |
 | [TAREA — Extracción/mapeo de las tipografías del DATA LOAD (menú de carga)](../notes/2026-09-29-tipografias-data-load-tarea.md) | **Tarea derivada** (desvío de la tarea principal "menú de carga/guardar", rama | 77 | 2026-09-29 |
 | [PLAN — Menú propio de cargar/guardar partida (slots "infinitos", un `.pak` con N slots)](../notes/2026-09-29-menu-cargar-guardar-partida-plan.md) | **Documento maestro de la tarea** (para una sesión nueva). Rama **`menu-carga-guardado-partida`** | 126 | 2026-09-29 |

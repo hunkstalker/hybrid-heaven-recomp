@@ -4,52 +4,31 @@
 > (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
 > `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
-> ## 🎯 TAREA ACTUAL: recrear la UI del `DATA LOAD` a 1:1 con el original
+> ## 🎯 TAREA ACTUAL: TERMINAR el ciclo de CARGA (CONTINUAR)
 >
-> ### Hecho (2026-09-30, 2ª sesión)
-> - **CORREGIDO**: al pulsar **F8** aparecía el `BATTLE DATA LOAD` (MODO VS). Causa raíz `[MEDIDO]`:
->   el recompositor de F8 en `hh_file_select_hook` (`src/hooks/sections.cpp`) llamaba a
->   `func_80142840`, que compone la tabla `ＢＡＴＴＬＥ　ＤＡＴＡ　ＬＯＡＤ` + `1P/2P CONTROLLER` (no el
->   mensaje `Select play data…`, como decía el comentario). **Fix aplicado**: se deja solo
->   `func_801426B0` (setup real del `DATA LOAD`). **Validado en Windows por el mantenedor** ("mucho
->   mejor": ya sale el `DATA LOAD` de una columna). **Sin commitear.**
-> - El enganche de CONTINUAR en sí **es correcto** (llamada directa `func_800058DC(obj, 0x801C3CDC)`,
->   `7dacb58`): ruta a `func_801C3D50/801C3D84` → `DATA LOAD` de una columna.
-> - Evidencia y detalles: **`notes/2026-09-30-continuar-enganche-y-ocultado.md`**.
+> El **ciclo de GUARDADO de la cápsula (`DATA SAVE`) está HECHO y VALIDADO en Windows** (5.ª sesión):
+> guardar/sobrescribir, **AREA 1-1**, **TIME**, **salida** de la cápsula y **reentrada** (reinicio del
+> flujo). Documento maestro: **`notes/2026-09-30-save-capsule-logica.md`** (su **§9** es el handoff
+> concreto de CARGA).
 >
-> ### Hecho (2026-09-30, 3.ª sesión)
-> - **GEOMETRÍA 1:1 del `DATA LOAD` RECREADA** en el overlay (`menu_overlay.cpp`, rama `is_load_game`):
->   título (top y=28), `CONTROLLER PAK` (x=38, y=53), cajas de partida (x=37, w=112, h=37, paso 46,
->   texto +5/+4, paso de línea 12), caja de mensaje (x=29, y=171, w=262, h=51) y se **quita la flecha
->   de cursor** (el nativo marca la selección solo con el borde verde). Validado headless **pareado**
->   contra el render nativo del propio port (`work/gameplay screenshots/menu-carga/LOAD DATA
->   Continuar.png`): **Δ < 1 px** en todos los bordes. Evidencia:
->   **`notes/2026-09-30-data-load-maqueta-1a1.md`**. **Sin commitear.**
+> ### Siguiente: que un slot CARGUE de verdad desde CONTINUAR
+> - La UI `LoadGame` (Fase 2) y el enganche a CONTINUAR (Fase 3) ya existen (`hh_file_select_hook` en
+>   `sections.cpp`). Hoy `Action::LoadGamePick` solo hace `func_801423C8(0, slot)` (deserializa los
+>   globals) y **no arranca la escena**: falta la **transición**.
+> - Pasos y recetas en **`notes/2026-09-30-save-capsule-logica.md` §9**: replicar el final del flujo
+>   nativo de CONTINUE (`func_80142570()` + `func_8012FE50(tipo=0x17, …)` — **medir los args** con
+>   `HH_TRACE`), cerrar la sesión al salir (mismo bug que en guardar), y no republicar el overlay tras
+>   la transición. **Pendiente también**: el prompt `Please connect Controller Pak…` se cuela con F8.
+> - Reutilizar del guardado: `SavePhase`, reset de sesión (`g_save_open`/`close_save_game`), salida
+>   nativa explícita, `memcpy` crudo del slot y `area_sub_from_value`.
 >
-> - **AJUSTE FINO del mensaje + subtítulo (misma sesión, 3.ª)**: el mensaje salía con **espacios más
->   anchos** que el nativo; se ha **cableado el avance del motor** (`face_glyph_advance`): color4
->   **espacio=4**, `f i j l r t`=6. Medido pareado: el mensaje ahora **calca el nativo glifo a glifo**.
->   Además, el **punto final `.`** se dibujaba a mano como 2x2 (parecía un `·` grueso); ahora es un
->   **1x1 en el baseline** (Δ<0.3 px del nativo). Por decisión del mantenedor, el subtítulo
->   **`CONTROLLER PAK` → `MEMORY SLOTS`** (traducido: `RANURAS DE MEMORIA/MEMORY SLOTS/RANURES DE
->   MEMÒRIA/EMPLACEMENTS MÉMOIRE/SPEICHERPLÄTZE/メモリースロット`), en la misma posición 1:1.
->   `docs/fonts.md` §6 actualizado. **Además (misma sesión)**: **colores** medidos del nativo (el borde
->   del mensaje NO es blanco puro ~170; bordes de slot gris ~90; verde `19,255,13`; rellenos oscuros) y
->   **marco exterior que agrupa los slots** (rect del setup nativo `func_801426B0` x=32,y=66,w=122,
->   h=92, **expandido 1 px por lado** → x=31,y=65,w=124,h=94), **encima de él** van las cajas de slot.
->   Slot vacío = **`NO DATA` centrado y en blanco** (`SIN DATOS/SENSE DADES/…`). También: **sombra del
->   glifo nivel 2 = GRIS** (antes negro; el gancho de la `l` del mensaje salía mal). **Sin commitear.**
+> ### Aviso de método (AGENTS)
+> - Distinguir **medido** de **inferido**; **no validar el caso "todo vacío" con un `.pak` con datos**.
+> - **Un tema = un commit**; no commitear/pushear sin que lo pida el mantenedor.
 >
-> ### PENDIENTE (lo que retoma la próxima sesión)
-> 1. **Validar en Windows** (F7) la maqueta nueva: CONTINUAR → `LoadGame` debe calcar el nativo.
-> 2. **Contenido/alineado de las filas**: el nativo (US) usa `AREA/LEVEL/TIME` con el valor **alineado a
->    la derecha**; el overlay usa `ÁREA/NIVEL/TIEMPO` y valor pegado a la etiqueta. No es geometría;
->    confirmar antes de cambiarlo (AGENTS: no inventar UI).
->
-> ### Otros pendientes
-> - **Ocultado sin F8**: aún se cuela el prompt nativo `Please connect Controller Pak…` por detrás de
->   nuestras cajas (otra vía de dibujo, no pasa por `func_8001B204`; sin localizar).
-> - **Commit** del fix de F8 (un tema = un commit) cuando el mantenedor lo pida.
+> ### Pendiente menor (aparcado)
+> Restos de **japonés** sin consolidar (`Face::Color1`, `？/！` en `jp_kana.h`). La kana utilizable es
+> solo de `color0`/`color1`; el kanji vive en `color3` **JP** (no lo tenemos).
 >
 > ### Contexto
 > - **DEPENDENCIA DE FORK:** la rama necesita 2 commits del fork `N64ModernRuntime`: `9b14604`

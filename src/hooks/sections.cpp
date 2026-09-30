@@ -57,6 +57,13 @@ extern "C" void func_8013D520_1035CF0(uint8_t* rdram, recomp_context* ctx);  // 
 extern "C" void func_80144E68_103D638(uint8_t* rdram, recomp_context* ctx);  // deserializa el personaje
 extern "C" void func_80152240_104AA10(uint8_t* rdram, recomp_context* ctx);  // load: tablas de runtime
 extern "C" void func_80379F04_1303514(uint8_t* rdram, recomp_context* ctx);  // dano fuera de combate
+extern "C" void func_803771A4_13007B4(uint8_t* rdram, recomp_context* ctx);  // update del DATA SAVE (capsula)
+extern "C" void func_80377140_1300750(uint8_t* rdram, recomp_context* ctx);  // setup del DATA SAVE (capsula)
+extern "C" void func_80142778_103AF48(uint8_t* rdram, recomp_context* ctx);  // compositor del titulo DATA SAVE
+extern "C" void func_80142570_103AD40(uint8_t* rdram, recomp_context* ctx);  // VACIA las 0x1C ranuras de texto
+extern "C" void func_80002A94_3694(uint8_t* rdram, recomp_context* ctx);       // rama de salida del DATA SAVE
+extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx);       // UI de cargar encima del save
+extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx);      // setup del save (activa categoria)
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
 extern "C" void load_overlay_by_id(uint32_t id, uint32_t ram_addr);
@@ -571,6 +578,13 @@ void register_title_menu_hook() {
     // Fase 3 (menú de carga): envuelve el UPDATE del file-select DATA LOAD (func_801C3D84, file_024)
     // para ocultar el nativo, mutear su input y publicar nuestra LoadGame al dar a CONTINUAR.
     recomp::overlays::add_loaded_function(0x801C3D84, hh_file_select_hook);
+    // GUARDAR (cápsula): la vía nativa del DATA SAVE usa OTRO callback en el módulo de gameplay
+    // (0x803771A4 -> 0x8013EB2C), NO el file-select 0x801C3D84. Se envuelve su update para publicar la
+    // COPIA de la UI de cargar ENCIMA del DATA SAVE nativo (sin ocultarlo: comparación 1:1).
+    recomp::overlays::add_loaded_function(0x803771A4, hh_save_menu_hook);
+    // SETUP del DATA SAVE (0x80377140): activa la categoria FILE-SELECT ANTES de que se componga el
+    // titulo (para que F8 lo oculte igual que en CARGAR).
+    recomp::overlays::add_loaded_function(0x80377140, hh_save_setup_hook);
     // Cajas nativas (func_8001A804, residente): se saltan cuando la categoría file-select está activa
     // y el nativo oculto (suppress_box_draw()).
     recomp::overlays::add_loaded_function(0x8001A804, hh_box_draw_hook);
@@ -679,6 +693,30 @@ static inline uint16_t& guest_h16(uint8_t* rdram, uint32_t addr) {
     return *reinterpret_cast<uint16_t*>(&rdram[(addr ^ 2u) & 0x7FFFFFu]);
 }
 
+// DIAGNOSTICO de TIME (HH_SAVE_TIME_TRACE=1): el header de guardado lleva AREA/LEVEL/TIME; el
+// descriptor nativo (`func_80141268`) saca el TIME de `[0x801BBBF0+0xA]` (por eso se escribe aqui el
+// candidato). Se registran tambien vecinos del bloque y el nivel, con el contador VI (reloj monotono)
+// para identificar, en una run, CUAL de los valores avanza como un cronometro. No es codigo de juego.
+static void hh_time_trace(uint8_t* rdram, const char* tag) {
+    static const bool on = env_set("HH_SAVE_TIME_TRACE");
+    if (!on) {
+        return;
+    }
+    auto h = [&](uint32_t addr) -> uint16_t { return guest_h16(rdram, addr); };
+    const uint32_t base = 0x801BBBF0u;
+    // Todo el bloque 0x801BBBF0+0x00..0x3E como u16 (una linea): permite ver, en la run, que campo
+    // avanza como cronometro. Se añaden el nivel (DC88) y el struct del personaje.
+    char buf[512];
+    size_t n = 0;
+    for (uint32_t o = 0; o <= 0x3E && n + 16 < sizeof(buf); o += 2u) {
+        n += static_cast<size_t>(std::snprintf(buf + n, sizeof(buf) - n, " %02X:%u", o, h(base + o)));
+    }
+    buf[sizeof(buf) - 1] = '\0';
+    hh::log("[time-trace][%s] vi=%llu |%s | DC88=%u DC40+48=%u\n", tag,
+            static_cast<unsigned long long>(hh_get_vi_count()), buf, h(0x8017DC88u),
+            h(0x8017DC40u + 0x48u));
+}
+
 // Reloj por frame (poll de input func_800021B4): registra la primera variacion de cada palabra vigilada.
 extern "C" void func_800021B4_2DB4(uint8_t* rdram, recomp_context* ctx);
 // CICLO DE PUNTOS (diagnóstico): ejecuta un paso del recorrido de índices de escena. Carga la
@@ -710,6 +748,13 @@ static void run_cycle_step(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
     func_800021B4_2DB4(rdram, ctx);
+    // DIAGNOSTICO de TIME (HH_SAVE_TIME_TRACE=1): 1 muestra cada ~0.5 s (a ~60 Hz) durante la run.
+    if (env_set("HH_SAVE_TIME_TRACE")) {
+        static uint32_t tt = 0;
+        if ((tt++ % 30u) == 0u) {
+            hh_time_trace(rdram, "run");
+        }
+    }
     // CICLO DE PUNTOS: consume la petición de las teclas de ciclo (diagnóstico de mapeo de escenas).
     // El índice ya se movió en `cycle_step`; aquí se ejecuta la carga/warp.
     if (hh::menu::request_cycle()) {
@@ -1510,7 +1555,15 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
     // File-select (DATA LOAD/SAVE) controlado por el overlay y nativo oculto: SALTAR el compositor
     // de texto por completo (no compone ni dibuja). Es la vía robusta (no depende de listar tablas,
     // que resultó incompleta). F8 (`native_visible`) restaura el nativo. Ver notes 2026-09-30.
-    if (hh::menu_overlay::file_select_text_skip()) {
+    // `func_80142570` (lo llama el compositor) VACIA las 0x1C ranuras de texto componiendo cadenas
+    // VACIAS via 0x8001B204 con `a3=0x8018F0F0`. Esas llamadas hay que DEJARLAS PASAR aunque el nativo
+    // este oculto; si no, al ocultar (p. ej. F8-off) el texto ya compuesto no se borra y queda pegado.
+    constexpr uint32_t kFileSelectClearStr = 0x8018F0F0u;
+    if (hh::menu_overlay::file_select_text_skip() &&
+        static_cast<uint32_t>(ctx->r7) != kFileSelectClearStr) {
+        if (env_set("HH_MENU_TRACE")) {
+            hh::log("[entry] SKIP file-select a3=%08X\n", static_cast<uint32_t>(ctx->r7));
+        }
         return;
     }
     if (env_set("HH_MENU_TRACE")) {
@@ -1696,6 +1749,214 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::menu_overlay::title_update(rdram);
 }
 
+// GUARDAR (cápsula): la vía nativa del DATA SAVE es OTRA (módulo de gameplay): el callback del
+// file-select de guardado es `0x803771A4` -> `func_8013EB2C`; NO pasa por `0x801C3D84`. Medido con
+// `run_save_trace.bat`: `SAVE_setup 0x80377140 -> SAVE_compose 0x8013EA94 -> SAVE_title 0x80142778 ->
+// SAVE_update 0x803771A4 + SAVE_state 0x8013EB2C` cada frame.
+//
+// Publica la COPIA de la UI de cargar (`SaveGame`) y OCULTA el DATA SAVE nativo por la MISMA categoria
+// FILE-SELECT que CARGAR: **F8** alterna mostrar/ocultar (`g_native_visible`). Sin lógica de guardado.
+extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx) {
+    // Activa la categoria ANTES de que el setup componga el titulo `DATA SAVE` (asi se salta igual que
+    // en CARGAR, donde se activa antes de la transicion).
+    if (env_set("HH_MENU_TRACE")) {
+        static bool once = false;
+        if (!once) { once = true; hh::log("[save] setup hook (0x80377140) corre\n"); }
+    }
+    hh::menu_overlay::set_file_select_active(true);
+    func_80377140_1300750(rdram, ctx);
+}
+
+// Salir de la capsula replicando EXACTAMENTE la rama de salida NATIVA. El envoltorio del DATA SAVE
+// (`func_803771A4`), cuando la maquina de estados (`func_8013EB2C`) devuelve 1, hace:
+//   func_80142570()  +  func_800058DC(obj, func_80377478)
+// y la maquina, en su estado 3, hace antes `func_80002A94(0)` + `func_800023A8(0)`. Antes se intento
+// fijar el estado 3 y dejar que el update nativo la ejecutase, pero NO salia (la rama no se alcanza
+// en este flujo); replicamos la secuencia directamente. `obj` = a0 del callback (lo captura el hook).
+static void hh_leave_capsule(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
+    recomp_context t = *ctx;
+    t.r4 = 0;
+    func_80002A94_3694(rdram, &t);
+    t = *ctx;
+    t.r4 = 0;
+    func_800023A8_2FA8(rdram, &t);
+    t = *ctx;
+    func_80142570_103AD40(rdram, &t);
+    t = *ctx;
+    t.r4 = obj;
+    t.r5 = 0x80377478u;   // callback de salida (restaura camara/estado de gameplay)
+    func_800058DC_64DC(rdram, &t);
+    hh::menu_overlay::hide_now();
+    hh::menu::close_save_game();   // la próxima entrada en la cápsula reinicia el flujo
+    hh::log("[save] salir de la capsula (secuencia nativa)\n");
+}
+
+// Control de TODO el flujo de guardado (fases en hh::menu::SavePhase):
+//   Ask         -> "Save play data?" Yes/No; Yes -> lista; No -> ConfirmExit.
+//   Select      -> "Select location..." + slots (arriba/abajo con repeat; A elige).
+//   ConfirmHere -> "Saving current play data here." Yes/No; Yes guarda (serializa globals); No ->
+//                  ConfirmExit.
+//   ConfirmExit -> "Exit without saving?" Yes/No; Yes sale de la capsula; No vuelve a Select.
+//   Completed   -> "Save completed." + flecha; A cierra y sale de la capsula.
+static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
+    auto rh16 = [&](uint32_t a) -> uint16_t {
+        return *reinterpret_cast<uint16_t*>(&rdram[(a ^ 2u) & 0x7FFFFFu]);
+    };
+    const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
+    static uint32_t prev = 0;
+    const uint32_t pressed = btn & ~prev;
+    prev = btn;
+    const bool sfx = hh::overlay::enabled();
+    constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
+    const uint32_t dir = btn & (kUp | kDown);
+    const hh::menu::SavePhase phase = hh::menu::save_phase();
+
+    // Prompts Yes/No (Ask / ConfirmHere / ConfirmExit): arriba/abajo alterna, A confirma la resaltada.
+    if (phase == hh::menu::SavePhase::Ask || phase == hh::menu::SavePhase::ConfirmHere ||
+        phase == hh::menu::SavePhase::ConfirmExit) {
+        if (pressed & (kUp | kDown)) {
+            hh::menu::set_save_yes_selected(!hh::menu::save_yes_selected());
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+        }
+        if (pressed & 0x8000u) {
+            const bool yes = hh::menu::save_yes_selected();
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            if (phase == hh::menu::SavePhase::Ask) {
+                if (yes) {
+                    hh::menu::set_save_phase(hh::menu::SavePhase::Select);
+                } else {
+                    hh::menu::set_save_yes_selected(true);
+                    hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmExit);
+                }
+            } else if (phase == hh::menu::SavePhase::ConfirmHere) {
+                if (yes) {
+                    int slot = hh::menu::save_target_slot();
+                    if (slot < 0) slot = hh::save::first_free_game_slot();   // NEW GAME
+                    hh::log("[save] GUARDAR slot %d (serializa globals vivos)\n", slot);
+                    hh_time_trace(rdram, "save");
+                    if (hh::save::save_live(slot, rdram, ctx)) {
+                        hh::menu::set_save_phase(hh::menu::SavePhase::Completed);
+                    }
+                } else {
+                    hh::menu::set_save_yes_selected(true);
+                    hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmExit);
+                }
+            } else {   // ConfirmExit
+                if (yes) {
+                    hh_leave_capsule(rdram, ctx, obj);
+                    return true;
+                } else {
+                    hh::menu::set_save_phase(hh::menu::SavePhase::Select);
+                }
+            }
+        }
+        return false;
+    }
+    // Completed: cualquier A cierra el mensaje y sale de la capsula.
+    if (phase == hh::menu::SavePhase::Completed) {
+        if (pressed & 0x8000u) {
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            hh_leave_capsule(rdram, ctx, obj);
+            return true;
+        }
+        return false;
+    }
+
+    // Select: arriba/abajo mueven el cursor de slots (con el mismo repeat que feed_menu_navigation).
+    bool fire_up = false, fire_down = false;
+    {
+        static uint32_t held = 0;
+        static double dir_next = 0.0;
+        static int dir_repeats = 0;
+        static bool emitted = false;
+        const double t = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (dir == 0) {
+            held = 0;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (dir != held) {
+            held = dir;
+            dir_next = t + 0.40;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (t >= dir_next) {
+            dir_repeats++;
+            dir_next = t + std::max(0.03, 0.10 - 0.006 * dir_repeats);
+            emitted = false;
+        } else {
+            emitted = true;
+        }
+        if (!emitted) {
+            if (dir & kUp) fire_up = true;
+            else if (dir & kDown) fire_down = true;
+        }
+    }
+    if (fire_up || fire_down) {
+        const hh::menu::Event ev = fire_up ? hh::menu::move_up() : hh::menu::move_down();
+        if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+    }
+    if (pressed & 0x8000u) {
+        if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            hh::menu::set_save_target_slot(cur.index);   // -1 = NEW GAME
+            hh::menu::set_save_yes_selected(true);
+            hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmHere);
+        }
+    }
+    return false;
+}
+
+extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx) {
+    hh::overlay::set_screen_blackout(false);
+    // Objeto del menu (a0): lo necesita la transicion de salida (func_800058DC).
+    const uint32_t obj = static_cast<uint32_t>(ctx->r4);
+    // Pantalla activa = SaveGame (copia de LoadGame; `rebuild_load_game` la rellena con la lista).
+    hh::menu::open_save_game();
+    // Categoria FILE-SELECT activa: F8 (`g_native_visible`) oculta/muestra el DATA SAVE nativo.
+    hh::menu_overlay::set_file_select_active(true);
+    // F8 -> al re-MOSTRAR el nativo, recomponer el titulo `DATA SAVE` (se compone una sola vez; mientras
+    // el nativo esta oculto, `file_select_text_skip()` salta el compositor).
+    if (hh::menu_overlay::native_toggle_pending()) {
+        recomp_context t = *ctx;
+        func_80142778_103AF48(rdram, &t);
+    }
+    // Control propio + ANULACION del input nativo (el file-select lee A/Z/Start en `0x80089478`). Se
+    // deja a 0 TODO el frame (no solo alrededor del update) porque el prompt `Save play data?` lo
+    // maneja otra funcion de `file_008` que tambien lee esa direccion: asi el nativo NO puede avanzar
+    // (no selecciona su Yes ni dispara el aviso de Controller Pak). El poll de input lo reescribe el
+    // frame siguiente.
+    const bool controlling = hh::overlay::enabled();
+    if (controlling) {
+        *reinterpret_cast<uint16_t*>(&rdram[(kFileSelectInputAddr ^ 2u) & 0x7FFFFFu]) = 0;
+    }
+    // Control propio de TODO el flujo de guardado (fases SavePhase). Si ya salimos de la capsula
+    // (secuencia nativa disparada), NO se corre el update nativo ni se publica el overlay.
+    const bool exited = feed_save_flow(rdram, ctx, obj);
+    if (exited) {
+        g_inject_native_a = false;
+        return;
+    }
+    // Con el nativo OCULTO, vacia cada frame sus 0x1C ranuras de texto: el prompt `Save play data?` se
+    // compone por una via distinta al compositor que saltamos, asi que hay que limpiarlo aqui (si no,
+    // queda pegado por detras de nuestra UI). `func_80142570` compone cadenas VACIAS en cada ranura.
+    if (controlling && !hh::menu_overlay::native_visible()) {
+        recomp_context ct = *ctx;
+        func_80142570_103AD40(rdram, &ct);
+    }
+    // Update del juego (dibuja su UI, oculta por la categoria; ya no ve input). Si la salida de la
+    // capsula dispara una transicion (goto), NO se publica el overlay (evita parpadear el prompt).
+    const uint32_t goto_before = g_goto_count.load(std::memory_order_relaxed);
+    func_803771A4_13007B4(rdram, ctx);
+    g_inject_native_a = false;
+    const uint32_t goto_after = g_goto_count.load(std::memory_order_relaxed);
+    if (goto_after == goto_before) {
+        hh::menu_overlay::title_update(rdram);
+    }
+}
+
 // Cajas del file-select: `func_8001A804` (residente) dibuja las cajas de muchos menús. Mientras la
 // categoría FILE-SELECT está activa y el nativo oculto (`suppress_box_draw()`), se SALTA el original
 // (no se dibujan las cajas nativas del DATA LOAD). En cualquier otro caso, se delega.
@@ -1817,6 +2078,9 @@ report:
 
 extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     g_goto_count.fetch_add(1, std::memory_order_relaxed);
+    // Cualquier cambio de pantalla cierra la "sesión" de guardado: así, al volver a entrar en la
+    // cápsula, el flujo se reinicia en `Ask` (no se queda la última fase). No-op si no estaba abierta.
+    hh::menu::close_save_game();
     const uint32_t target = static_cast<uint32_t>(ctx->r5);
     // Intro de ARRANQUE (file 055): `0x80383AD4` es el estado que corre durante los logos nativos.
     // Al registrarlo entramos en la fase; cualquier otra pantalla la cierra -> retira el HD.

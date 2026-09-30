@@ -5,6 +5,20 @@
 
 ## Ahora (priorizado)
 
+- [x] **LÓGICA DE GUARDADO en la cápsula (`DATA SAVE`) — HECHA y VALIDADA en Windows (2026-09-30)**:
+  flujo con fases propias (`hh::menu::SavePhase`: `Ask`→`Select`→`ConfirmHere`→`Completed`, +
+  `ConfirmExit`); **guardado REAL** `hh::save::save_live()` (serializa los globals vivos con
+  `func_80141F28` y persiste con `hh::save`: checksums + cabecera/trailer + recarga del PFS);
+  `NEW GAME` = primer slot libre, slot con datos = sobrescribir; **salida** de la cápsula por la
+  secuencia nativa; **reentrada** reinicia el flujo. **AREA 1-1** y **TIME** correctos. Detalle:
+  **`notes/2026-09-30-save-capsule-logica.md`** (+ `notes/2026-09-30-save-data-ui-retoques.md`).
+- [•] **TERMINAR el ciclo de CARGA (CONTINUAR) — PRÓXIMA TAREA**: que un slot del `LoadGame` **cargue
+  de verdad** (hoy `Action::LoadGamePick` solo llama a `func_801423C8(0, slot)`, que deserializa, pero
+  **no arranca la escena**). Replicar el final del flujo nativo CONTINUE (`func_80142570()` +
+  `func_8012FE50(tipo=0x17, …)` — medir los args con `HH_TRACE`), cerrar la sesión al salir (mismo bug
+  que en guardar) y no republicar el overlay tras la transición. Pendiente también: el prompt
+  `Please connect Controller Pak…` se cuela con F8. **Receta completa en
+  `notes/2026-09-30-save-capsule-logica.md` §9**.
 - [x] **`DEBUG NIVELES` + `IR A ÁREA` (EXTRAS) — salto a cualquier nivel para TEST (2026-09-29,
   VALIDADO en Windows)**: **mecánica central descubierta y medida** (documento maestro:
   `notes/2026-09-29-editor-area-parte-plan.md`). Puntos clave:

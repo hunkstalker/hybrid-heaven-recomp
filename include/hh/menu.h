@@ -46,6 +46,7 @@ enum class ScreenId {
     SaveEditCombatSim, // EDICIÓN DE PARTIDA -> SIM. COMBATE (simula N combates)
     ChooseLevel,       // EXTRAS -> ELEGIR NIVEL (CARGAR/GUARDAR/ELIMINAR + IR A NIVEL)
     LoadGame,          // CARGAR PARTIDA (menú propio de carga; Fase 2 del menú de carga/guardado)
+    SaveGame,          // GUARDAR PARTIDA (copia 1:1 de la UI de cargar, encima del DATA SAVE nativo)
 };
 
 // Acción de una entrada. El modelo solo la describe.
@@ -115,6 +116,8 @@ enum class Action {
     ResolutionSelect,// selector RESOLUCIÓN (lista dependiente del ratio)
     OpenLoadGame,    // CARGAR PARTIDA: sustituye el CONTINUAR nativo (menú propio; Fase 2)
     LoadGamePick,    // CARGAR PARTIDA: A sobre una partida de la lista -> cargarla
+    SaveGameNew,     // GUARDAR PARTIDA: A sobre "NEW GAME" -> guardar en el siguiente slot libre
+    SaveGamePick,    // GUARDAR PARTIDA: A sobre un slot con datos -> sobrescribirlo
 };
 
 // Tipo de entrada dentro de una pantalla.
@@ -235,6 +238,11 @@ void set_save_edit_body_state(int state);
 uint16_t save_edit_progress_value(int index);   // índice del selector PROGRESO -> N*10+P
 void refresh_save_edit();
 
+// Valor de escena del slot (índice de mapa, `0x564`) -> Área-Parte (N-P) según la MISMA enumeración
+// que el selector PROGRESO (`kAreaPartsSave`). Lo usa el guardado de la cápsula para la cabecera.
+// Fallback si no está en la tabla: `area = v/10 + 1`, `sub = (v%10)/2 + 1`.
+void area_sub_from_value(uint16_t value, int& area, int& sub);
+
 // --- CARGAR PARTIDA (menú propio de carga; Fase 2 del menú de carga/guardado) --------------------
 // La pantalla `LoadGame` lista las 45 partidas del `.pak` (rango de partidas, sin las plantillas), con
 // los metadatos del trailer (Área-Level / nivel / tiempo). La fila i corresponde al slot i (0-based).
@@ -246,6 +254,38 @@ bool load_game_row_present(int index);       // true si la partida existe (regis
 // Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
 // (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
 void open_load_game();
+
+// --- GUARDAR PARTIDA (copia 1:1 de la UI de cargar sobre el DATA SAVE nativo) --------------------
+// La pantalla `SaveGame` parte como COPIA de `LoadGame` (mismos 45 slots y metadatos). El hook de la
+// vía de guardado (0x803771A4) la publica ENCIMA del DATA SAVE nativo (sin ocultarlo) para poder
+// comparar ambas UI y ajustar la de guardado a 1:1. No hay lógica de guardado todavía.
+void open_save_game();
+// Cierra la "sesión" de guardado: al volver a ENTRAR en la cápsula el flujo debe REINICIARSE en `Ask`
+// (si no, se quedaba la última fase, p. ej. `Completed`, y A solo salía). La llama el hook al salir.
+void close_save_game();
+
+// GUARDAR: fase del flujo de guardado en la capsula (DATA SAVE):
+//   Ask         -> "Save play data?" Yes/No (slots OCULTOS).
+//   Select      -> "Select location in which to save play data." + slots (sin Yes/No).
+//   ConfirmHere -> "Saving current play data here." Yes/No (slots VISIBLES; slot objetivo marcado).
+//   ConfirmExit -> "Exit without saving?" Yes/No (mensaje NUEVO del port, no nativo).
+//   Completed   -> "Save completed." + flecha abajo; A cierra y el PJ sale de la capsula.
+enum class SavePhase { Ask, Select, ConfirmHere, ConfirmExit, Completed };
+SavePhase save_phase();
+void set_save_phase(SavePhase phase);
+// GUARDAR: compatibilidad: `true` mientras el prompt INICIAL ("Save play data?") está activo. Es
+// equivalente a `save_phase() == SavePhase::Ask` (los slots permanecen ocultos).
+bool save_confirm();
+void set_save_confirm(bool on);
+// GUARDAR: opcion elegida en el prompt (true = Yes, false = No). El overlay dibuja el cursor en ella.
+bool save_yes_selected();
+void set_save_yes_selected(bool on);
+// GUARDAR: true cuando ya se eligio Yes Y ha pasado el retardo (~0.5 s); entonces se muestran los slots.
+bool save_slots_ready();
+// GUARDAR: slot objetivo (0-based) elegido en la lista para "Saving current play data here." (-1 = NEW
+// GAME / siguiente libre). Lo fija el handler de input al pulsar A sobre una fila.
+int save_target_slot();
+void set_save_target_slot(int slot);
 
 // --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
 // `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).

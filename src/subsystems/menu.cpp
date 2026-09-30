@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -50,7 +51,30 @@ const MenuTr kMenuTr[] = {
     // NOTA: el título y el mensaje NO se traducen: son EXACTAMENTE las cadenas del DATA LOAD nativo
     // ("DATA LOAD" y "Select play data to be loaded."). El overlay las dibuja literales para el 1:1.
     {"CARGAR PARTIDA", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD"},
-    {"ELIGE LA PARTIDA A CARGAR", "Select play data to be loaded.",
+    // GUARDAR PARTIDA (copia de la UI de cargar sobre el DATA SAVE nativo): el título es el rótulo
+    // nativo del guardado, "DATA SAVE" (no se traduce, igual que el de carga).
+    {"GUARDAR PARTIDA", "DATA SAVE", "DATA SAVE", "DATA SAVE", "DATA SAVE", "データセーブ"},
+    // Mensaje inferior del GUARDADO (DATA SAVE): el primer texto del flujo nativo es "Save play
+    // data?". JA en kana (se dibuja con Color0, la única fuente con kana; ver menu_overlay.cpp).
+    {"¿Guardar la partida?", "Save play data?", "Desar la partida?", "Sauvegarder la partie ?",
+     "Spielstand speichern?", "セーブしますか？"},
+    // Mensaje de la fase de SELECCION de slot de guardado (tras elegir Yes).
+    {"Elige dónde guardar la partida.", "Select location in which to\nsave play data.",
+     "Tria on desar la partida.", "Choisissez où sauvegarder la partie.",
+     "Speicherort auswählen.", "Select location in which to\nsave play data."},
+    // Fase de CONFIRMACION de slot: mensaje nativo del DATA SAVE ("Saving current play data here.")
+    // + Yes/No. El JA se deja en inglés (no hay kanji utilizable; ver backlog de textos JA).
+    {"Guardando la partida actual aquí.", "Saving current play data here.",
+     "Guardant la partida actual aquí.", "Sauvegarde des données de jeu ici.",
+     "Spielstand wird hier gespeichert.", "Saving current play data here."},
+    // Mensaje final del guardado NATIVO ("Save completed.") + flecha abajo; A cierra y sale.
+    {"Partida guardada.", "Save completed.", "Partida desada.", "Sauvegarde terminée.",
+     "Speichern abgeschlossen.", "Save completed."},
+    // Mensaje NUEVO del port (no del juego original): confirmar la salida de la cápsula sin guardar.
+    // Por decisión del mantenedor NO se traduce al japonés (se muestra en inglés).
+    {"¿Salir sin guardar?", "Exit without saving?", "Sortir sense desar?",
+     "Quitter sans sauvegarder ?", "Ohne Speichern beenden?", "Exit without saving?"},
+    {"Elige la partida a cargar.", "Select play data to be loaded.",
      "Select play data to be loaded.", "Select play data to be loaded.",
      "Select play data to be loaded.", "Select play data to be loaded."},
     // Port-specific: en PC no hay "Controller Pak"; el hueco del subtítulo del DATA LOAD muestra
@@ -660,6 +684,9 @@ void build_tree() {
     // CARGAR PARTIDA (menú propio de carga): lista de las 45 partidas del `.pak`. Se rellena en
     // rebuild_load_game con los metadatos del trailer. Ver notes/...fase2-ui.md.
     g_screens.push_back(make_screen(ScreenId::LoadGame, ScreenKind::Menu, {}));
+    // GUARDAR PARTIDA (copia 1:1 de la UI de cargar; se dibuja encima del DATA SAVE nativo). El
+    // rebuild de carga rellena también esta pantalla con la misma lista. Ver open_save_game().
+    g_screens.push_back(make_screen(ScreenId::SaveGame, ScreenKind::Menu, {}));
     rebuild_save_edit();
     rebuild_load_game();
 }
@@ -870,22 +897,21 @@ void rebuild_load_game() {
             const unsigned an = hh::save::meta_area_n(i);
             const unsigned ap = hh::save::meta_area_p(i);
             const unsigned lv = hh::save::meta_level(i);
-            // Tres líneas separadas por '\n' (el overlay las dibuja dentro de la caja, 1:1 con el
-            // DATA LOAD nativo). El ':' del tiempo y el '-' del área los vectoriza el overlay.
-            row = "ÁREA " + std::to_string(an) + "-" + std::to_string(ap) + "\n" +
-                  "NIVEL " + std::to_string(lv) + "\n" +
-                  "TIEMPO " + format_time(hh::save::meta_time(i));
+            // Tres líneas separadas por '\n'; cada línea es `ETIQUETA\tVALOR` (el overlay alinea el
+            // VALOR a la DERECHA, como el nativo). Rotulos NATIVOS en ingles (AREA/LEVEL/TIME), NO
+            // traducidos: el DATA LOAD/SAVE original del ROM US los muestra asi.
+            row = std::string("AREA\t") + std::to_string(an) + "-" + std::to_string(ap) + "\n" +
+                  "LEVEL\t" + std::to_string(lv) + "\n" +
+                  "TIME\t" + format_time(hh::save::meta_time(i));
         } else {
             row = hh::menu::localized("SIN DATOS");
         }
         g_load_game_rows.push_back(std::move(row));
     }
+    // CARGAR: las 45 partidas (las vacias salen "NO DATA").
     if (Screen* s = find_screen(ScreenId::LoadGame)) {
         std::vector<Entry> e;
         for (int i = 0; i < static_cast<int>(g_load_game_rows.size()); ++i) {
-            // Cada fila es un Item con Action::LoadGamePick; `index` = slot (0-based). Las partidas
-            // vacías siguen siendo seleccionables? NO: se marcan disabled (el cursor no se posa) para
-            // que solo se puedan cargar las existentes, como el nativo (lista de slots presentes).
             Entry it = make_item(g_load_game_rows[i].c_str(), Action::LoadGamePick,
                                  hh::save::slot_present(i));
             it.index = i;
@@ -893,10 +919,30 @@ void rebuild_load_game() {
         }
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
-        // Deja el cursor en la primera partida PRESENTE (como el nativo).
         for (int i = 0; i < static_cast<int>(s->entries.size()); ++i) {
             if (s->entries[i].enabled) { s->cursor = i; break; }
         }
+    }
+    // GUARDAR: primera opcion "NEW GAME" (guarda en el siguiente slot libre) + SOLO los slots CON
+    // DATOS. Todos seleccionables (el cursor no salta ninguno).
+    if (Screen* s = find_screen(ScreenId::SaveGame)) {
+        const int keep = s->cursor;
+        std::vector<Entry> e;
+        {
+            Entry it = make_item(localized("NUEVA PARTIDA").c_str(), Action::SaveGameNew,
+                                 /*enabled=*/true);
+            it.index = -1;
+            e.push_back(std::move(it));
+        }
+        for (int i = 0; i < static_cast<int>(g_load_game_rows.size()); ++i) {
+            if (!hh::save::slot_present(i)) continue;
+            // GUARDAR (a diferencia de CARGAR): A sobre una partida con datos la sobrescribe.
+            Entry it = make_item(g_load_game_rows[i].c_str(), Action::SaveGamePick, /*enabled=*/true);
+            it.index = i;
+            e.push_back(std::move(it));
+        }
+        s->entries = std::move(e);
+        s->cursor = (keep >= 0 && keep < static_cast<int>(s->entries.size())) ? keep : 0;
     }
 }
 
@@ -1000,6 +1046,20 @@ bool screen_for(Action action, ScreenId& out) {
 
 }  // namespace
 
+// Área-Parte (N-P) de un valor de escena (misma enumeración que el selector PROGRESO). Fuera del
+// namespace anónimo para exportarla (la usa `hh::save::save_live` para la cabecera del guardado).
+void area_sub_from_value(uint16_t value, int& area, int& sub) {
+    for (const AreaPart& ap : area_parts_save()) {
+        if (value == area_part_value(ap.area, ap.sub)) {
+            area = ap.area;
+            sub = ap.sub;
+            return;
+        }
+    }
+    area = static_cast<int>(value / 10u) + 1;
+    sub = static_cast<int>((value % 10u) / 2u) + 1;
+}
+
 void reset() {
     build_tree();
     g_stack.clear();
@@ -1040,6 +1100,72 @@ void open_load_game() {
     g_stack.push_back(ScreenId::Root);
     g_stack.push_back(ScreenId::LoadGame);
 }
+
+// Fase del flujo de guardado (capsula). `g_save_yes` = opcion resaltada en el Yes/No activo.
+// `g_save_select_tp` = instante en que se entro en la lista de slots, para retrasar su aparicion
+// (~0.5 s, como el nativo). `g_save_target_slot` = slot elegido (-1 = NEW GAME / siguiente libre).
+// Ver open_save_game()/save_phase()/save_yes_selected().
+static SavePhase g_save_phase = SavePhase::Ask;
+static bool g_save_yes = true;
+static std::chrono::steady_clock::time_point g_save_select_tp{};
+static int g_save_target_slot = -1;
+// ¿Sesión de guardado activa? Se pone al abrir y se limpia en close_save_game() (al salir de la
+// cápsula). Sirve para REINICIAR el flujo al reentrar aunque la pila siga siendo [Root, SaveGame].
+static bool g_save_open = false;
+
+// GUARDAR PARTIDA: fija la pila a [Root, SaveGame] (idempotente). La llama el hook de la vía de
+// guardado (0x803771A4) para publicar la COPIA de la UI de cargar ENCIMA del DATA SAVE nativo. Como
+// `rebuild_load_game()` rellena también SaveGame con la misma lista, aquí basta con el foco.
+void open_save_game() {
+    ensure();
+    rebuild_load_game();
+    if (!g_save_open) {
+        // (Re)entrada en la cápsula: el flujo arranca en `Ask` (`Save play data?` Yes/No, slots
+        // ocultos). Sin esto se quedaba la última fase (p. ej. `Completed`) y A solo salía.
+        g_save_phase = SavePhase::Ask;
+        g_save_yes = true;
+        g_save_target_slot = -1;
+        g_save_open = true;
+        if (Screen* s = find_screen(ScreenId::SaveGame)) {
+            s->cursor = 0;   // el cursor vuelve arriba (NEW GAME) en cada nuevo acceso
+        }
+    }
+    if (g_stack.size() == 2 && g_stack[0] == ScreenId::Root && g_stack[1] == ScreenId::SaveGame) {
+        return;   // ya está abierta
+    }
+    g_stack.clear();
+    g_stack.push_back(ScreenId::Root);
+    g_stack.push_back(ScreenId::SaveGame);
+}
+
+// Al salir de la cápsula: marca la sesión como cerrada para que la próxima entrada reinicie el flujo.
+void close_save_game() { g_save_open = false; }
+
+SavePhase save_phase() { return g_save_phase; }
+void set_save_phase(SavePhase phase) {
+    // Al entrar en la lista de slots desde el prompt inicial, arranca el retardo (~0.5 s).
+    if (phase == SavePhase::Select && g_save_phase == SavePhase::Ask) {
+        g_save_select_tp = std::chrono::steady_clock::now();
+    }
+    g_save_phase = phase;
+}
+bool save_confirm() { return g_save_phase == SavePhase::Ask; }
+void set_save_confirm(bool on) { set_save_phase(on ? SavePhase::Ask : SavePhase::Select); }
+bool save_yes_selected() { return g_save_yes; }
+void set_save_yes_selected(bool on) { g_save_yes = on; }
+// Los slots aparecen ~0.5 s despues de elegir Yes (el nativo no los muestra de golpe). En las fases
+// posteriores (prompt de guardar/salir, completado) ya se muestran.
+bool save_slots_ready() {
+    if (g_save_phase == SavePhase::Ask) {
+        return false;
+    }
+    if (g_save_phase == SavePhase::Select) {
+        return std::chrono::steady_clock::now() - g_save_select_tp >= std::chrono::milliseconds(500);
+    }
+    return true;
+}
+int save_target_slot() { return g_save_target_slot; }
+void set_save_target_slot(int slot) { g_save_target_slot = slot; }
 
 int depth() {
     ensure();
@@ -1220,7 +1346,7 @@ Event back() {
 
 void debug_show(int screen_id) {
     ensure();
-    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::LoadGame)) {
+    if (screen_id < 0 || screen_id > static_cast<int>(ScreenId::SaveGame)) {
         return;
     }
     const ScreenId id = static_cast<ScreenId>(screen_id);

@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-29**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-30**.
 
 ## 1. Objetivo
 
@@ -110,6 +110,15 @@ virtual ampliado (`PAK_SIZE=0x40000`, fork NMR) y `.pak` de **74 slots** (`hh::s
 partidas + 29 plantillas** y **trailer de metadatos**; `func_801423C8` carga slots altos; migración de
 `.pak` de 4 slots verificada offline. **Pendiente validar en Windows**. Decisión: **ADR 0013**; notas
 `notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md` y `...-fase1-formato-pak.md`.
+**UI propia del `DATA SAVE` en la cápsula (2026-09-30)**: vía de guardado enganchada (`0x803771A4` /
+`0x80377140`), copia de la UI de cargar con prompt `Save play data? Yes/No`, lista `NEW GAME` + slots con
+datos, valores alineados a la derecha, puntuación desde la ROM, SFX y **ocultado del nativo con F8**
+(fix del vaciado `func_80142570`). **Lógica de guardado HECHA y VALIDADA en Windows (2026-09-30)**:
+fases `hh::menu::SavePhase`, confirmación `Saving current play data here.` → `hh::save::save_live()`
+(serializa los globals vivos con `func_80141F28` y persiste con `hh::save`), `Save completed.` + flecha
+↓, salida nativa, **AREA 1-1** y **TIME** correctos, y reinicio del flujo al reentrar. **Próximo**:
+terminar el ciclo de CARGA desde `CONTINUAR` (handoff en `notes/2026-09-30-save-capsule-logica.md` §9).
+Notas: `notes/2026-09-30-save-capsule-logica.md` y `notes/2026-09-30-save-data-ui-retoques.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

@@ -39,7 +39,8 @@ unsigned char_height();    // 8
 //   Color0 (8x8, idx 107) = menu/overlay y filas del DATA LOAD ("AREA/LEVEL/TIME", "CONTROLLER PAK").
 //   Color4 (8x12, idx 108) = texto in-game y mensaje "Select play data to be loaded.".
 //   Color3 (12x13, idx 106) = titulo grande ("DATA LOAD"). ASCII mayusculas: valor = 0x76 + (c-'A').
-enum class Face { Color0, Color4, Color3 };
+//   Color1 (10x10, idx 109) = kana "grande" (titulo JA); mismo mapeo ASCII/kana que color0.
+enum class Face { Color0, Color4, Color3, Color1 };
 
 // Tamano de celda del glifo (px) de cada tipografia.
 unsigned face_cell_w(Face f);   // 8, 8, 12
@@ -51,6 +52,9 @@ unsigned face_glyph_advance(Face f, unsigned char c);
 
 // UV del glifo de `c` en la tipografia `f` (ASCII). false si no hay glifo.
 bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y);
+
+// UV del glifo por su VALOR de motor en la tipografia `f` (Color1/Color0; kana incluida). false si no.
+bool face_value_uv(Face f, unsigned value, unsigned& x, unsigned& y);
 
 // Valor de glifo del motor para un caracter ASCII (0 = vacio). false si no hay glifo.
 bool glyph_value(unsigned char c, unsigned& value);

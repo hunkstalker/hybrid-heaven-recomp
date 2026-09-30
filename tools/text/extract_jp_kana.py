@@ -112,8 +112,8 @@ def main():
         cp = euc_cp(0xA5, low)
         if cp is not None and v != 0:
             rows.append((cp, v, "katakana"))
-    # Simbolos utiles: ー (A1BC, choonpu) y 、。 (A1A2/A1A3) por si se usan.
-    for row_low, label in ((0xBC, "ー"), (0xA2, "、"), (0xA3, "。")):
+    # Simbolos utiles: ー (A1BC, choonpu), 、。 (A1A2/A1A3) y ？！ (A1A9/A1AA, para los mensajes).
+    for row_low, label in ((0xBC, "ー"), (0xA2, "、"), (0xA3, "。"), (0xA9, "？"), (0xAA, "！")):
         v = sym[row_low - 0xA1]
         cp = euc_cp(0xA1, row_low)
         if cp is not None and v != 0:

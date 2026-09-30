@@ -13,6 +13,7 @@
 // Tras guardar se fuerza la recarga del `.pak` del runtime (hh_pak_reload_from_disk, fork NMR).
 
 #include "hh.h"
+#include "hh/menu.h"       // area_sub_from_value() para la cabecera del guardado
 #include "hh/save_edit.h"
 
 #include <algorithm>
@@ -28,6 +29,18 @@
 // `.pak` hay que llamarlo, o el juego (CONTINUAR, previsualizacion de slots) seguira leyendo el
 // `g_pak` viejo en RAM (pak.cpp cachea el fichero en `g_pak` la primera vez).
 extern "C" void hh_pak_reload_from_disk(void);
+
+// Heap del juego (libultra) y serializador NATIVO del slot: `func_80141F28(buffer_0xD00)` vuelca los
+// globals VIVOS (personaje, técnicas, items, progreso/escena) al buffer en el MISMO layout de disco
+// que `osPfsReadWriteFile` escribiría. `func_80142450(slot)` = alloc(0xD00) + func_80141F28 + PFS
+// write; aquí replicamos solo alloc/serialize/free para que la escritura la siga haciendo hh::save
+// (un único dueño del `.pak`, con checksums/cabecera/trailer coherentes).
+extern "C" void func_8001F430_20030(uint8_t* rdram, recomp_context* ctx);    // alloc(0xD00) -> v0
+extern "C" void func_8001F540_20140(uint8_t* rdram, recomp_context* ctx);    // free(ptr)
+extern "C" void func_80141F28_103A6F8(uint8_t* rdram, recomp_context* ctx);  // serializa globals
+// Área/sub de la cabecera de guardado: `func_80141268` (flujo GUARDAR nativo) hace
+// `d[2] = func_80108280() >> 8`; es la MISMA fuente que usa el juego (los saves nativos salen 1-1).
+extern "C" void func_80108280_1000A50(uint8_t* rdram, recomp_context* ctx);
 
 namespace hh::save {
 namespace {
@@ -230,9 +243,14 @@ void bswap_header_in_place() {
         std::swap(h[i + 1], h[i + 2]);
     }
 }
+// El magic se guarda word-swapped ("RBYH…"); hay que revertir para comprobarlo. Se deja el buffer
+// como estaba (se vuelve a revertir), para no alterar el orden del fichero en memoria.
 bool header_magic_ok() {
-    return g_bytes.size() >= kDataOff + kHeaderSize &&
-           std::memcmp(g_bytes.data() + kDataOff, "HYBRID HEAVEN", 13) == 0;
+    if (g_bytes.size() < kDataOff + kHeaderSize) return false;
+    bswap_header_in_place();
+    const bool ok = std::memcmp(g_bytes.data() + kDataOff, "HYBRID HEAVEN", 13) == 0;
+    bswap_header_in_place();
+    return ok;
 }
 
 // Migra la cabecera del juego (solo slots 0..29) al trailer de metadatos. La cabecera es la fuente
@@ -250,31 +268,47 @@ void sync_meta_from_header() {
 }
 
 // Escribe el registro del slot en la cabecera del juego (solo 0..29) y en el trailer (todos).
-void update_save_header(int slot) {
+// `area`/`sub` >= 0 los fija el llamante (cápsula: de `func_80108280`); < 0 se derivan de
+// `PROGRESO` (`0x366`, u16 BE) = `area*10+sub`. `time` >= 0 fija TIME (u16, segundos); < 0 lo conserva.
+void update_save_header(int slot, int area = -1, int sub = -1, int time = -1) {
     if (!g_loaded || slot < 0 || slot >= kSlots || g_bytes.size() < kContainerSize) return;
-    const uint16_t prog = progress_of(slot);
+    if (area < 0 || sub < 0) {
+        const uint16_t prog = rd16(slot, kProgressOldOff);
+        area = (prog / 10) & 0xFF;
+        sub = (prog % 10) & 0xFF;
+    }
+    area &= 0xFF;
+    sub &= 0xFF;
     const uint16_t lvl = static_cast<uint16_t>(global_level_of(slot));   // DERIVADO de las partes
-    // Trailer: presente/AREA/LEVEL (TIME en +4..5 se conserva).
+    // Trailer: presente/AREA/LEVEL (+ TIME si se pasa).
     meta_wr(slot, 0, 1);
-    meta_wr(slot, 1, static_cast<uint8_t>((prog / 10) & 0xFF));
-    meta_wr(slot, 2, static_cast<uint8_t>((prog % 10) & 0xFF));
+    meta_wr(slot, 1, static_cast<uint8_t>(area));
+    meta_wr(slot, 2, static_cast<uint8_t>(sub));
     meta_wr(slot, 3, static_cast<uint8_t>(lvl > 255 ? 255 : lvl));
+    if (time >= 0) {
+        meta_wr(slot, 4, static_cast<uint8_t>((time >> 8) & 0xFF));
+        meta_wr(slot, 5, static_cast<uint8_t>(time & 0xFF));
+    }
     // Cabecera del juego (compatibilidad mientras el DATA LOAD nativo siga existiendo).
     if (slot < static_cast<int>(kHeaderRecords) && header_magic_ok()) {
         bswap_header_in_place();
         uint8_t* h = g_bytes.data() + kDataOff;
         const size_t rec = 0x10 + static_cast<size_t>(slot) * 8;
         h[rec + 0] = 1;
-        h[rec + 1] = static_cast<uint8_t>((prog / 10) & 0xFF);
-        h[rec + 2] = static_cast<uint8_t>((prog % 10) & 0xFF);
+        h[rec + 1] = static_cast<uint8_t>(area);
+        h[rec + 2] = static_cast<uint8_t>(sub);
         h[rec + 3] = static_cast<uint8_t>(lvl > 255 ? 255 : lvl);
+        if (time >= 0) {
+            h[rec + 4] = static_cast<uint8_t>((time >> 8) & 0xFF);
+            h[rec + 5] = static_cast<uint8_t>(time & 0xFF);
+        }
         unsigned sum = 0;
         for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
         h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
         bswap_header_in_place();
     }
-    hh::log("[save-edit] cabecera: slot %d -> AREA %u-%u LEVEL %u\n", slot, (unsigned)(prog / 10),
-            (unsigned)(prog % 10), (unsigned)lvl);
+    hh::log("[save-edit] cabecera: slot %d -> AREA %d-%d LEVEL %u TIME %d\n", slot, area, sub,
+            (unsigned)lvl, time);
 }
 
 // Marca el registro del slot como NO presente (para ELIMINAR) en cabecera (0..29) y trailer.
@@ -380,7 +414,7 @@ bool flush() {
     return true;
 }
 
-bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
+bool save(int slot, uint8_t* rdram, recomp_context* base_ctx, int area, int sub, int time) {
     (void)rdram; (void)base_ctx;
     if (!g_loaded || slot < 0 || slot >= kSlots) return false;
     set_pak_file_size();
@@ -394,8 +428,8 @@ bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
         g_bytes[base + kChecksumOff + 2] = 0;
         g_bytes[base + kChecksumOff + 3] = 0;
     }
-    // Y la cabecera de la lista de partidas (AREA/LEVEL del slot) para que DATA LOAD lo refleje.
-    update_save_header(slot);
+    // Y la cabecera de la lista de partidas (AREA/LEVEL/TIME del slot) para que DATA LOAD lo refleje.
+    update_save_header(slot, area, sub, time);
     const std::filesystem::path tmp = g_path.string() + ".tmp";
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
@@ -416,6 +450,67 @@ bool save(int slot, uint8_t* rdram, recomp_context* base_ctx) {
     hh_pak_reload_from_disk();
     hh::log("[save-edit] guardado slot %d (.pak) + pak del runtime recargado\n", slot);
     return true;
+}
+
+// GUARDAR desde la cápsula: serializa los globals VIVOS con el serializador NATIVO y escribe el slot
+// con `save()`. Es lo que falta frente a `save()` (que solo persiste lo que ya hay en memoria, válido
+// para el editor): aquí se captura la partida en curso en el momento de guardar. Ver nota
+// notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md §5.
+bool save_live(int slot, uint8_t* rdram, recomp_context* base_ctx) {
+    if (!g_loaded) load();
+    if (!g_loaded || slot < 0 || slot >= kSlots || rdram == nullptr || base_ctx == nullptr) {
+        hh::log("[save] save_live: slot %d no válido (loaded=%d)\n", slot, g_loaded ? 1 : 0);
+        return false;
+    }
+    // 1. Buffer temporal de 0xD00 en la RDRAM del juego (heap de libultra).
+    recomp_context t = *base_ctx;
+    t.r4 = static_cast<uint32_t>(kSlotSize);
+    func_8001F430_20030(rdram, &t);
+    const uint32_t buf = static_cast<uint32_t>(t.r2);
+    if (buf == 0) {
+        hh::log("[save] save_live: no se pudo reservar 0x%zX\n", kSlotSize);
+        return false;
+    }
+    // 2. Serializa los globals vivos al buffer (personaje, técnicas, items, progreso/escena…).
+    recomp_context s = *base_ctx;
+    s.r4 = buf;
+    func_80141F28_103A6F8(rdram, &s);
+    // 3. Copia VERBATIM al slot de g_bytes: el fichero guarda los bytes CRUDOS del buffer (igual que
+    //    osPfsReadWriteFile, que hace memcpy sin swap). Así el slot en disco queda word-swapped como
+    //    el original.
+    std::memcpy(g_bytes.data() + slot_off(slot), rdram + MEM_OFF(buf), kSlotSize);
+    // 4. Libera el buffer.
+    recomp_context f = *base_ctx;
+    f.r4 = buf;
+    func_8001F540_20140(rdram, &f);
+    // 5. TIME: de `[0x801BBBF0+0xA]` (u16 BE), la fuente que usa el descriptor nativo. [VALIDADO]
+    const uint32_t time_addr = 0x801BBBF0u + 0x0Au;
+    const int time = (static_cast<int>(grd8(time_addr)) << 8) | grd8(time_addr + 1u);
+    // 6. ÁREA-PARTE: del ÍNDICE DE ESCENA vivo `[0x801BBBF0+4]` (u16 BE; 0 en 1-1, 2 en 1-2,
+    //    10 en 2-1), mapeado con la MISMA enumeración que el selector PROGRESO. NO leer el área del
+    //    slot (`0x366` daba 0-3). Diagnóstico: se registra también `func_80108280` (fuente del header
+    //    nativo) y `0x564`/`0x366` del slot, por si hay que afinarlo.
+    const uint16_t scene = static_cast<uint16_t>((grd8(0x801BBBF4u) << 8) | grd8(0x801BBBF5u));
+    int area = 1, sub = 1;
+    hh::menu::area_sub_from_value(scene, area, sub);
+    recomp_context g = *base_ctx;
+    func_80108280_1000A50(rdram, &g);
+    hh::log("[save] save_live slot %d: scene=%u -> AREA %d-%d TIME=%d | fn8280=%08X 0x564=%u "
+            "0x366=%u\n",
+            slot, (unsigned)scene, area, sub, time, static_cast<uint32_t>(g.r2),
+            (unsigned)progress_of(slot), (unsigned)rd16(slot, kProgressOldOff));
+    return save(slot, rdram, base_ctx, area, sub, time);
+}
+
+// Primer slot de PARTIDA libre (metadato `presente` a 0). NO usa `slot_used` (progreso != 0): una
+// partida en 1-0 tiene progreso 0 y se consideraría "libre". Si los 45 están ocupados, devuelve el
+// último (se sobrescribe).
+int first_free_game_slot() {
+    if (!g_loaded) load();
+    for (int i = 0; i < kGameSlots; ++i) {
+        if (!slot_present(i)) return i;
+    }
+    return kGameSlots - 1;
 }
 
 bool loaded() { return g_loaded; }

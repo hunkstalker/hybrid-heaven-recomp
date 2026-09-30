@@ -41,7 +41,9 @@ constexpr uint32_t kColor4RomSize = 2112;
 constexpr unsigned kColor4W = 8;
 constexpr unsigned kColor4H = 12;
 constexpr unsigned kColor4Stride = 48;
-constexpr unsigned kColor4Values = 64;                   // 0..63 (base ASCII: espacio/digitos/letras)
+// 0..87: 0..63 ASCII (espacio/digitos/letras) + 64..87 puntuacion (., :, ?, !, ...) que la fuente SI
+// tiene; el mapeo ASCII->valor medido del motor se aplica en `face_glyph_uv`/`color4_punct_value`.
+constexpr unsigned kColor4Values = 88;
 constexpr unsigned kColor4Rows = (kColor4Values + kAtlasCols - 1) / kAtlasCols;
 
 // --- Fuente color3 (Nisitenma US idx 106, 12x13, stride 78): titulo grande ("DATA LOAD") ---
@@ -56,7 +58,22 @@ constexpr unsigned kColor3Cells = 27;
 constexpr unsigned kColor3Cols = kAtlasWidth / kColor3W;   // 10
 constexpr unsigned kColor3Rows = (kColor3Cells + kColor3Cols - 1) / kColor3Cols;
 constexpr unsigned kColor3Top = kColor4Top + kColor4Rows * kColor4H;
-constexpr unsigned kFullHeight = kColor3Top + kColor3Rows * kColor3H;
+
+// --- Fuente color1 (Nisitenma US idx 109, 10x10, stride 50): kana "grande" para el titulo JA ---
+// Igual que color0, su fichero es byte-identico US<->JP y el port lo LEE DE LA ROM en runtime (no se
+// guarda ningun asset). Mismo mapeo ASCII (glyph_value) y kana (jp_kana_value) que color0.
+// 0..255 valores; 12 columnas (120 <= 128 del atlas) -> 22 filas.
+constexpr uint32_t kColor1RomOffset = 0x6E5516;
+constexpr uint32_t kColor1RomSize = 8000;
+constexpr unsigned kColor1W = 10;
+constexpr unsigned kColor1H = 10;
+constexpr unsigned kColor1Stride = 50;
+constexpr unsigned kColor1Values = 256;
+constexpr unsigned kColor1Cols = kAtlasWidth / kColor1W;   // 12
+constexpr unsigned kColor1Rows = (kColor1Values + kColor1Cols - 1) / kColor1Cols;
+constexpr unsigned kColor1Top = kColor3Top + kColor3Rows * kColor3H;
+
+constexpr unsigned kFullHeight = kColor1Top + kColor1Rows * kColor1H;
 
 uint8_t g_atlas[kAtlasWidth * kFullHeight * 4];
 bool g_ready = false;
@@ -95,7 +112,8 @@ void bake_face(const uint8_t* font, uint32_t stride, unsigned w, unsigned h, con
     }
 }
 
-void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3) {
+void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3,
+                const uint8_t* font1) {
     for (unsigned v = 0; v < kMaxValue; ++v) {
         const unsigned block = v >> 1;
         const unsigned parity = v & 1u;
@@ -167,6 +185,13 @@ void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3)
         bake_face(font3, kColor3Stride, kColor3W, kColor3H, vals, kColor3Cells, kColor3Cols,
                   kColor3Top, /*keep_shadow=*/true);
     }
+    // color1 (kana "grande"): valores 0..255 en orden (ASCII + kana), como color0 pero celda 10x10.
+    {
+        unsigned vals[kColor1Values];
+        for (unsigned v = 0; v < kColor1Values; ++v) vals[v] = v;
+        bake_face(font1, kColor1Stride, kColor1W, kColor1H, vals, kColor1Values, kColor1Cols,
+                  kColor1Top, /*keep_shadow=*/true);
+    }
 }
 
 }  // namespace
@@ -208,10 +233,18 @@ bool init() {
         hh::log("[font] ROM corta al leer color3 (%lld B)\n", static_cast<long long>(f.gcount()));
         return false;
     }
+    std::string data1(kColor1RomSize, '\0');
+    f.seekg(kColor1RomOffset);
+    f.read(data1.data(), kColor1RomSize);
+    if (f.gcount() != static_cast<std::streamsize>(kColor1RomSize)) {
+        hh::log("[font] ROM corta al leer color1 (%lld B)\n", static_cast<long long>(f.gcount()));
+        return false;
+    }
 
     bake_atlas(reinterpret_cast<const uint8_t*>(data.data()),
                reinterpret_cast<const uint8_t*>(data4.data()),
-               reinterpret_cast<const uint8_t*>(data3.data()));
+               reinterpret_cast<const uint8_t*>(data3.data()),
+               reinterpret_cast<const uint8_t*>(data1.data()));
     g_ready = true;
     hh::log("[font] atlas RGBA8: %ux%u (%u B; color0 %ux%u + marcas %ux%u + color4 %ux%u + "
             "color3 %ux%u)\n",
@@ -233,7 +266,31 @@ bool glyph_value(unsigned char c, unsigned& value) {
     if (c >= '0' && c <= '9') { value = 1u + (c - '0'); return true; }   // '0' -> 1 ... '9' -> 10
     if (c >= 'A' && c <= 'Z') { value = 37u + (c - 'A'); return true; }
     if (c >= 'a' && c <= 'z') { value = 11u + (c - 'a'); return true; }
-    return false;
+    // Puntuacion: valores medidos del propio motor (`func_8001D394`), IDENTICOS en color0 y color4.
+    // Los simbolos que la fuente NO trae (comillas, corchetes, llaves, `^ _ \` ~`) devuelven false.
+    switch (c) {
+        case '!': value = 74; return true;
+        case '#': value = 76; return true;
+        case '$': value = 77; return true;
+        case '%': value = 78; return true;
+        case '&': value = 79; return true;
+        case '(': value = 81; return true;
+        case ')': value = 82; return true;
+        case '*': value = 72; return true;
+        case '+': value = 71; return true;
+        case ',': value = 63; return true;
+        case '-': value = 70; return true;
+        case '.': value = 64; return true;
+        case '/': value = 73; return true;
+        case ':': value = 66; return true;
+        case ';': value = 65; return true;
+        case '<': value = 83; return true;
+        case '=': value = 69; return true;
+        case '>': value = 84; return true;
+        case '?': value = 75; return true;
+        case '@': value = 80; return true;
+        default: return false;
+    }
 }
 
 bool value_uv(unsigned value, unsigned& x, unsigned& y) {
@@ -241,6 +298,22 @@ bool value_uv(unsigned value, unsigned& x, unsigned& y) {
     x = (value % kAtlasCols) * kGlyphW;
     y = (value / kAtlasCols) * kGlyphH;
     return true;
+}
+
+bool face_value_uv(Face f, unsigned value, unsigned& x, unsigned& y) {
+    if (f == Face::Color1) {
+        if (value >= kColor1Values) return false;
+        x = (value % kColor1Cols) * kColor1W;
+        y = kColor1Top + (value / kColor1Cols) * kColor1H;
+        return true;
+    }
+    if (f == Face::Color4) {
+        if (value >= kColor4Values) return false;
+        x = (value % kAtlasCols) * kColor4W;
+        y = kColor4Top + (value / kAtlasCols) * kColor4H;
+        return true;
+    }
+    return value_uv(value, x, y);   // Color0 (Color3 usa face_glyph_uv)
 }
 
 bool glyph_uv(unsigned char c, unsigned& x, unsigned& y) {
@@ -253,6 +326,7 @@ unsigned face_cell_w(Face f) {
     switch (f) {
         case Face::Color4: return kColor4W;
         case Face::Color3: return kColor3W;
+        case Face::Color1: return kColor1W;
         case Face::Color0:
         default: return kGlyphW;
     }
@@ -262,6 +336,7 @@ unsigned face_cell_h(Face f) {
     switch (f) {
         case Face::Color4: return kColor4H;
         case Face::Color3: return kColor3H;
+        case Face::Color1: return kColor1H;
         case Face::Color0:
         default: return kGlyphH;
     }
@@ -285,6 +360,11 @@ unsigned face_glyph_advance(Face f, unsigned char c) {
 bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y) {
     if (f == Face::Color0) {
         return glyph_uv(c, x, y);
+    }
+    if (f == Face::Color1) {
+        unsigned v = 0;
+        if (!glyph_value(c, v)) return false;
+        return face_value_uv(Face::Color1, v, x, y);
     }
     if (f == Face::Color4) {
         unsigned v = 0;

@@ -175,6 +175,8 @@ inline constexpr JpKana kJpKana[] = {
     { 0x30F4, 245, "katakana" },
     { 0x30F6,   1, "katakana" },
     { 0x30FC, 246, "ー" },
+    { 0xFF01,  74, "！" },
+    { 0xFF1F,  75, "？" },
 };
 inline constexpr unsigned kJpKanaCount = sizeof(kJpKana) / sizeof(kJpKana[0]);
 

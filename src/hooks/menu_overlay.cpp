@@ -480,7 +480,10 @@ void title_update(uint8_t* rdram) {
     const bool is_debug = (screen.id == hh::menu::ScreenId::Debug);
     // Menus del PORT con layout propio y VENTANA de 5 filas (listas largas): EXTRAS, CONTROLES, el
     // editor, GRÁFICOS y CARGAR PARTIDA (45 partidas -> necesita scroll).
-    const bool is_load_game = (screen.id == hh::menu::ScreenId::LoadGame);
+    // CARGAR y GUARDAR comparten dibujo 1:1: SaveGame es una COPIA de LoadGame (se publica encima del
+    // DATA SAVE nativo para comparar ambas UI). Ver open_save_game().
+    const bool is_load_game = (screen.id == hh::menu::ScreenId::LoadGame ||
+                               screen.id == hh::menu::ScreenId::SaveGame);
     const bool scroll_cap5 = is_controls || (screen.id == hh::menu::ScreenId::Extras) || is_save_edit ||
                              is_graphics || is_load_game;
     // Los menus del PORT (EXTRAS, CONTROLES, EDICIÓN DE PARTIDA), GRÁFICOS, SONIDO y CARGAR PARTIDA se
@@ -565,13 +568,24 @@ void title_update(uint8_t* rdram) {
     //   - caja de mensaje (color4): x=29, y=171, w=262, h=51; texto con sangría (+5 x, +3 y).
     // Ver notes/2026-09-30-tipografias-data-load-hallazgos.md y la nota de la maqueta de esta sesión.
     if (is_load_game) {
+        // GUARDAR es una copia de CARGAR que se va ajustando a la UI nativa de guardado (título y
+        // mensaje propios); el resto del dibujo es común.
+        const bool saving = (screen.id == hh::menu::ScreenId::SaveGame);
+        // JA: ni `color3` (título) ni `color4` (mensaje) tienen kana utilizable (el motor US y JP solo
+        // la mapean para `color0`/`color1`). En japonés se dibujan estos textos con `Color0` (kana,
+        // 8x8); en el resto de idiomas se mantiene la fuente nativa (color3/color4).
+        const bool ja = (hh::text_current_language() == "ja");
         // Título centrado arriba. Fuente NATIVA color3 (12x13): valor de glifo 'A'=0x76.
+        // CARGAR usa el rótulo nativo "DATA LOAD"; GUARDAR (copia), "DATA SAVE".
         {
-            const std::string title = hh::menu::localized("CARGAR PARTIDA");
-            const float title_step = 12.0f * g_scale_x;
+            const std::string title =
+                hh::menu::localized(saving ? "GUARDAR PARTIDA" : "CARGAR PARTIDA");
+            const hh::font::game::Face title_face =
+                ja ? hh::font::game::Face::Color0 : hh::font::game::Face::Color3;
+            const float title_step = (ja ? 8.0f : 12.0f) * g_scale_x;
             const float tw = static_cast<float>(cp_count(title)) * title_step;
             frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, 28.0f, g_scale_x,
-                                    g_scale_y, kWhite, title, hh::font::game::Face::Color3 });
+                                    g_scale_y, kWhite, title, title_face });
         }
         // Subtítulo: en PC no hay "Controller Pak"; se rotula "MEMORY SLOTS" (traducido). El nativo
         // ponía "CONTROLLER PAK" en x=38, top y=53 (se conserva la posición 1:1).
@@ -581,7 +595,7 @@ void title_update(uint8_t* rdram) {
         const float box_x = 37.0f;
         const float box_w = 112.0f;
         const float box0_y = 71.0f;
-        const float box_h = 37.0f;                       // caja de 3 líneas
+        const float box_h = 40.0f;                       // ALTO PAR: centra en px enteros (borde 1px + celda)
         const float box_step = 46.0f;                    // paso entre cajas
         const float line = 12.0f;                        // paso de línea dentro de la caja
         constexpr float kTextDx = 5.0f;                  // sangría de celda del texto (desde borde)
@@ -589,7 +603,7 @@ void title_update(uint8_t* rdram) {
         const float msg_x = 29.0f;
         const float msg_y = 171.0f;
         const float msg_w = 262.0f;
-        const float msg_h = 51.0f;
+        const float msg_h = 52.0f;   // +1 px por abajo (1:1 con el original)
         // Colores del DATA LOAD nativo (medidos en las capturas del emulador y del port): el borde del
         // mensaje NO es blanco puro (gris claro ~170), los bordes de slot son gris medio (~95), el
         // seleccionado es un verde saturado (19,255,13) y los rellenos son oscuros translucidos.
@@ -600,11 +614,14 @@ void title_update(uint8_t* rdram) {
         const uint32_t kLoadSlotFill = hh::overlay::rgba(0, 0, 0, 95);
         const uint32_t kLoadMsgFill = hh::overlay::rgba(70, 70, 70, 150);
         const uint32_t kLoadGreen = hh::overlay::rgba(20, 255, 16, 255);
-        const uint32_t kLoadArrow = hh::overlay::rgba(190, 190, 190, 255);
         // Marco exterior que agrupa TODOS los slots: rect del setup nativo `func_801426B0`
         // (x=32,y=66,w=122,h=92) EXPANDIDO 1 px por lado para calcar la medida del emulador
         // (x=31, y=65, w=124, h=94). Va DEBAJO de las cajas de slot (se dibuja antes).
-        append_box(frame, 31.0f, 65.0f, 124.0f, 94.0f, kLoadFrameBorder, kLoadFrameFill);
+        // El marco exterior que agrupa los slots SIEMPRE se muestra (no se oculta con el prompt).
+        append_box(frame, 31.0f, 65.0f, 124.0f, 98.0f, kLoadFrameBorder, kLoadFrameFill);
+        // Cajas de slot: OCULTAS en GUARDAR mientras se pregunta `Save play data?` (Yes/No); se muestran
+        // ~0.5 s despues de elegir Yes (retardo del nativo). En CARGAR siempre se muestran.
+        if (!saving || hh::menu::save_slots_ready()) {
         const int n_entries = static_cast<int>(screen.entries.size());
         // Caben cajas hasta el borde superior de la caja de mensaje (el nativo muestra 2).
         int kMaxBoxes = static_cast<int>((msg_y - 6.0f - box0_y) / box_step);
@@ -621,15 +638,17 @@ void title_update(uint8_t* rdram) {
             const float by = box0_y + static_cast<float>(i - first) * box_step;
             const bool present = e.enabled;
             const bool selected = (i == screen.cursor);
+            // `NEW GAME` (guardar nueva partida) se dibuja CENTRADO, no como una fila de datos.
+            const bool centered = (e.action == hh::menu::Action::SaveGameNew);
             // Como el nativo: borde de la caja seleccionada en verde; el resto, gris.
             const uint32_t border = selected ? kLoadGreen : kLoadSlotBorder;
             append_box(frame, box_x, by, box_w, box_h, border, kLoadSlotFill);
             // El label trae 3 líneas separadas por '\n' (partida con datos) o una sola etiqueta
-            // ("NO DATA") para el slot vacío. Las filas van a la izquierda; el slot vacío, centrado.
+            // ("NO DATA"/"NEW GAME") centrada en la caja.
             const std::string& lab = e.label;
-            if (!present) {
-                // Slot vacío ("NO DATA"): texto CENTRADO (horizontal y vertical) en la caja y en
-                // blanco, como el nativo (celda color0 de 8x8).
+            if (!present || centered) {
+                // Texto CENTRADO (horizontal y vertical) en blanco (celda color0 de 8x8): slot vacío
+                // ("NO DATA") o `NEW GAME`.
                 const float tw = static_cast<float>(cp_count(lab)) * 8.0f * g_scale_x;
                 frame.texts.push_back({ box_x + (box_w - tw) * 0.5f,
                                         by + (box_h - 8.0f) * 0.5f, g_scale_x, g_scale_y, kWhite,
@@ -641,29 +660,93 @@ void title_update(uint8_t* rdram) {
                     size_t p1 = lab.find('\n', p0);
                     const std::string ln = (p1 == std::string::npos) ? lab.substr(p0)
                                                                      : lab.substr(p0, p1 - p0);
-                    frame.texts.push_back({ box_x + kTextDx, ty, g_scale_x, g_scale_y, kWhite, ln });
+                    // Cada linea es `ETIQUETA\tVALOR`: la etiqueta a la izquierda y el VALOR alineado a
+                    // la DERECHA de la caja (como el nativo).
+                    const size_t tab = ln.find('\t');
+                    const std::string label = (tab == std::string::npos) ? ln : ln.substr(0, tab);
+                    const std::string value =
+                        (tab == std::string::npos) ? std::string() : ln.substr(tab + 1);
+                    frame.texts.push_back({ box_x + kTextDx, ty, g_scale_x, g_scale_y, kWhite, label });
+                    if (!value.empty()) {
+                        const float vw = static_cast<float>(cp_count(value)) * 8.0f * g_scale_x;
+                        frame.texts.push_back({ box_x + box_w - 7.0f - vw, ty, g_scale_x, g_scale_y,
+                                                kWhite, value });
+                    }
                     if (p1 == std::string::npos) break;
                     p0 = p1 + 1;
                     ty += line;
                 }
             }
         }
-        // Indicadores de scroll.
-        if (n_entries > kMaxBoxes) {
-            if (first > 0) append_scroll_arrow(frame, box_x - 15.0f, box0_y - 7.0f, true, kLoadArrow);
-            if (first + kMaxBoxes < n_entries) {
-                const float ay = box0_y + static_cast<float>(kMaxBoxes) * box_step;
-                append_scroll_arrow(frame, box_x - 15.0f, ay, false, kLoadArrow);
-            }
-        }
-        // Caja de mensaje inferior (como "Select play data to be loaded."): ancha y alta (geometría
-        // nativa medida); el texto va alineado a la IZQUIERDA (sangría de celda +5/+3).
+        }   // fin if (!saving || !save_confirm): slots ocultos en el prompt Yes/No
+        // SIN flechas de scroll: el original NO las muestra (comprobado en las capturas nativas del
+        // DATA LOAD/SAVE). La ventana sigue al cursor sin indicador.
+        // Caja de mensaje inferior: ancha y alta (geometría nativa medida); el texto va alineado a la
+        // IZQUIERDA (sangría de celda +5/+3). CARGAR: "Select play data to be loaded."; GUARDAR (copia
+        // que se ajusta al nativo): primer texto del flujo de guardado, "Save play data?" (traducido).
         {
             append_box(frame, msg_x, msg_y, msg_w, msg_h, kLoadMsgBorder, kLoadMsgFill);
-            const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
-            // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD).
-            frame.texts.push_back({ msg_x + kTextDx, msg_y + 3.0f, g_scale_x, g_scale_y, kWhite,
-                                    msg, hh::font::game::Face::Color4 });
+            // Mensaje segun la fase del guardado (SavePhase) o, si es CARGAR, el del DATA LOAD.
+            const hh::menu::SavePhase phase = hh::menu::save_phase();
+            std::string msg;
+            if (!saving) {
+                msg = hh::menu::localized("Elige la partida a cargar.");
+            } else {
+                switch (phase) {
+                    case hh::menu::SavePhase::Ask:
+                        msg = hh::menu::localized("¿Guardar la partida?"); break;
+                    case hh::menu::SavePhase::Select:
+                        msg = hh::menu::localized("Elige dónde guardar la partida."); break;
+                    case hh::menu::SavePhase::ConfirmHere:
+                        msg = hh::menu::localized("Guardando la partida actual aquí."); break;
+                    case hh::menu::SavePhase::ConfirmExit:
+                        msg = hh::menu::localized("¿Salir sin guardar?"); break;
+                    case hh::menu::SavePhase::Completed:
+                        msg = hh::menu::localized("Partida guardada."); break;
+                }
+            }
+            // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD); en JA,
+            // `Color0` (8x8) por ser la única con kana. El mensaje puede traer saltos de linea ('\n').
+            const hh::font::game::Face msg_face =
+                ja ? hh::font::game::Face::Color0 : hh::font::game::Face::Color4;
+            const float msg_line = ja ? 8.0f : 12.0f;
+            {
+                float my = msg_y + (ja ? 4.0f : 3.0f);
+                size_t mp0 = 0;
+                while (mp0 <= msg.size()) {
+                    const size_t mp1 = msg.find('\n', mp0);
+                    const std::string ml = (mp1 == std::string::npos) ? msg.substr(mp0)
+                                                                     : msg.substr(mp0, mp1 - mp0);
+                    frame.texts.push_back({ msg_x + kTextDx, my, g_scale_x, g_scale_y, kWhite, ml,
+                                            msg_face });
+                    if (mp1 == std::string::npos) break;
+                    mp0 = mp1 + 1;
+                    my += msg_line;
+                }
+            }
+            // GUARDAR: dentro de la misma caja, opciones `Yes`/`No` con el cursor de seleccion nativo
+            // (triangulo derecho) delante de la elegida. Se muestran en los prompts Yes/No (Ask,
+            // ConfirmHere, ConfirmExit). En `Completed` va una flecha ABAJO (pulsa A para continuar).
+            const bool save_prompt = saving && (phase == hh::menu::SavePhase::Ask ||
+                                                phase == hh::menu::SavePhase::ConfirmHere ||
+                                                phase == hh::menu::SavePhase::ConfirmExit);
+            if (save_prompt) {
+                // Posiciones MEDIDAS del nativo (captura emulador del prompt DATA SAVE): opciones en
+                // x = caja+32, cursor `▶` en x = caja+22; `Yes` y = caja+17, `No` y = caja+27.
+                const hh::font::game::Face opt_face = hh::font::game::Face::Color4;
+                const float opt_x = msg_x + 31.0f;
+                const float yes_y = msg_y + 15.0f;
+                const float no_y = msg_y + 27.5f;
+                frame.texts.push_back({ opt_x, yes_y, g_scale_x, g_scale_y, kWhite, "Yes", opt_face });
+                frame.texts.push_back({ opt_x, no_y, g_scale_x, g_scale_y, kWhite, "No", opt_face });
+                // Cursor junto a la opcion resaltada (Yes/No).
+                const float cur_y = hh::menu::save_yes_selected() ? yes_y : no_y;
+                append_native_cursor(frame, msg_x + 22.0f, cur_y + 3.0f, kWhite);
+            } else if (saving && phase == hh::menu::SavePhase::Completed) {
+                // Flecha abajo = "pulsa A para continuar" (cierra el mensaje y sale de la capsula).
+                append_scroll_arrow(frame, msg_x + msg_w * 0.5f - 4.5f, msg_y + 34.0f,
+                                    /*up=*/false, kWhite);
+            }
         }
         if (trace) {
             static int last_screen2 = -1;
