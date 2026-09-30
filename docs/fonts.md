@@ -25,10 +25,14 @@ Los offsets/sizes salen del manifiesto (`notes/us_manifest.yaml`). **EU** usa ot
 ## 2. Formato del glifo (regla dura)
 
 `2bpp`, **dos glifos empaquetados por bloque** de `stride` bytes: `bloque = valor>>1`, `paridad =
-valor&1`; el glifo PAR usa los bits 2-3 de cada nibble (`0xCC`), el IMPAR los bits 0-1 (`0x33`). Dentro
-del glifo: **nivel 1 = tinta**, **nivel ≥2 = sombra** (copia +1,+1). Decode correcto:
-`src/subsystems/font.cpp` (`bake_face`/`bake_atlas`). **No** usar la vista 4bpp de
-`tools/text/font_dump.py` (es la unión de los dos glifos empaquetados).
+valor&1`; el glifo PAR usa los bits 2-3 de cada nibble (`0xCC`), el IMPAR los bits 0-1 (`0x33`).
+**Niveles dentro del glifo** `[MEDIDO]` (2026-09-30): **1 = tinta** (color pleno del texto), **2 =
+gris** (sombra SUAVE del motor, ~`140/255`), **3 = negro** (sombra). El atlas guarda el nivel como
+**luminancia en R** y `shaders/OverlayPS.hlsl` hace `lerp(negro, color del texto, R/255)`; por eso el
+nivel 2 es un gris (no negro). Un ejemplo claro es la `l` de `color4`: su gancho superior es un único
+pixel de nivel 2 (gris), no un punto negro. Decode: `src/subsystems/font.cpp`
+(`bake_face`/`bake_atlas`). **No** usar la vista 4bpp de `tools/text/font_dump.py` (es la unión de los
+dos glifos empaquetados).
 
 ## 3. Cómo elige la fuente el motor `[MEDIDO]`
 
@@ -107,14 +111,15 @@ El motor **no** avanza un ancho fijo: `func_8001BD20(color, char)` devuelve el a
 
 | Face | base | correcciones (código EUC) |
 |---|---|---|
-| `Color4` | 8 | `-2` para `f i j l r t` (EUC `A3E6/A3E9/A3EA/A3EC/A3F2/A3F4`) y espacio `A1A1`; `-4` para `A1A5`/`A1AD` |
+| `Color4` | 8 | **espacio = 4**; `f i j l r t` (EUC `A3E6/A3E9/A3EA/A3EC/A3F2/A3F4`) = 6 |
 | `Color0` | 8 | (casos propios en `func_8001BD20`; el menú ya está validado) |
 | `Color3` | 12 | sin correcciones |
 
-**Estado:** el overlay dibuja hoy con avance = **ancho de celda** (`face_cell_w`). Para `Color4` hay que
-usar el avance del motor (el mensaje sale ~13% más ancho: 229 vs 202 ud); pendiente cablear un
-`face_glyph_advance(Face, char)`. El título `Color3` ya cuadra (avance 12). Evidencia y medidas:
-`../notes/2026-09-30-tipografias-data-load-hallazgos.md` §5-6.
+**Estado:** **cableado** `hh::font::game::face_glyph_advance(Face, char)` (2026-09-30) y usado en
+`src/platform/overlay.cpp` (pasada de puntuación y rama `face != Color0`). El avance del espacio de
+`Color4` se **midió en la captura pareada** (el mensaje nativo calca con espacio=4; `func_8001BD20` da
+`-2` sobre base 8, pero la medida del motor real es 4). El título `Color3` (12) y las filas `Color0` (8)
+no cambian. Evidencia y medidas: `../notes/2026-09-30-data-load-maqueta-1a1.md`.
 
 ## 7. Acentos, kana y añadir una fuente
 

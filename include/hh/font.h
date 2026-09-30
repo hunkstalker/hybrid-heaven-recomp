@@ -45,6 +45,10 @@ enum class Face { Color0, Color4, Color3 };
 unsigned face_cell_w(Face f);   // 8, 8, 12
 unsigned face_cell_h(Face f);   // 8, 12, 13
 
+// Avance (px) que el motor da al glifo `c` de la tipografia `f`. Base = ancho de celda; color4 tiene
+// correcciones por caracter (`func_8001BD20`): **espacio = 4** y `f i j l r t` = 6. Ver docs/fonts.md §6.
+unsigned face_glyph_advance(Face f, unsigned char c);
+
 // UV del glifo de `c` en la tipografia `f` (ASCII). false si no hay glifo.
 bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y);
 

@@ -496,9 +496,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         append_quad(vertices, indices, p.x, p.y, p.w, p.h, p.color, 0.5f, 0.5f, 0.5f, 0.5f);
     }
     // Puntuación que la fuente del juego no incluye (`:`, `.`): se dibuja con rectángulos del color
-    // del texto (rango de paneles, textura blanca). El avance es monospace (8 px/char).
+    // del texto (rango de paneles, textura blanca). El avance lo da `face_glyph_advance`.
     {
-        const float cw = static_cast<float>(hh::font::game::char_width());
         for (const Text& t : frame.texts) {
             float pen_x = t.x;
             size_t i = 0;
@@ -511,8 +510,17 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                                 2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
                 }
                 else if (cp == '.') {
-                    append_quad(vertices, indices, pen_x + 3.0f * t.scale_x, t.y + 5.0f * t.scale_y,
-                                2.0f * t.scale_x, 2.0f * t.scale_y, t.color, 0.5f, 0.5f, 0.5f, 0.5f);
+                    if (t.face == hh::font::game::Face::Color4) {
+                        // Punto de color4 (mensaje): 1x1 px en la fila del BASELINE (medido del nativo:
+                        // col. 2, fila 8 de la celda 8x12). El de color0 (menu) mantiene el 2x2 centrado.
+                        append_quad(vertices, indices, pen_x + 2.0f * t.scale_x,
+                                    t.y + 8.0f * t.scale_y, 1.0f * t.scale_x, 1.0f * t.scale_y, t.color,
+                                    0.5f, 0.5f, 0.5f, 0.5f);
+                    } else {
+                        append_quad(vertices, indices, pen_x + 3.0f * t.scale_x,
+                                    t.y + 5.0f * t.scale_y, 2.0f * t.scale_x, 2.0f * t.scale_y, t.color,
+                                    0.5f, 0.5f, 0.5f, 0.5f);
+                    }
                 }
                 else if (cp == '-') {
                     // Guion (p. ej. "1-0" de PROGRESO): la fuente no lo tiene, se dibuja con un rect.
@@ -563,7 +571,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         }
                     }
                 }
-                pen_x += cw * t.scale_x;
+                const unsigned adv =
+                    (cp < 0x80)
+                        ? hh::font::game::face_glyph_advance(t.face, static_cast<unsigned char>(cp))
+                        : hh::font::game::face_cell_w(t.face);
+                pen_x += static_cast<float>(adv) * t.scale_x;
             }
         }
     }
@@ -589,7 +601,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }
-                    pen_x += cw * t.scale_x;
+                    const unsigned adv =
+                        (cp < 0x80)
+                            ? hh::font::game::face_glyph_advance(t.face, static_cast<unsigned char>(cp))
+                            : hh::font::game::face_cell_w(t.face);
+                    pen_x += static_cast<float>(adv) * t.scale_x;
                 }
                 continue;
             }

@@ -82,7 +82,11 @@ void bake_face(const uint8_t* font, uint32_t stride, unsigned w, unsigned h, con
                 unsigned lvl = (parity == 0) ? ((nibble >> 2) & 3u) : (nibble & 3u);
                 if (lvl >= 2 && !keep_shadow) lvl = 0;
                 const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
-                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
+                // R = luminancia del pixel (el PS hace lerp de NEGRO al color del texto con R/255):
+                //   nivel 1 = tinta (color pleno); nivel 2 = gris (sombra SUAVE del motor, ~140);
+                //   nivel 3 = negro (sombra). El motor NO dibuja el nivel 2 en negro: eso hacia que el
+                //   gancho superior de la 'l' (un unico pixel de nivel 2) se viera como un punto negro.
+                g_atlas[p + 0] = (lvl == 1) ? 255u : (lvl == 2) ? 140u : 0u;
                 g_atlas[p + 1] = 255;
                 g_atlas[p + 2] = 255;
                 g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
@@ -122,8 +126,9 @@ void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3)
             for (unsigned x = 0; x < kGlyphW; ++x) {
                 const unsigned l = lvl[y][x];
                 const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
-                // R=255 -> color de vertice (tinta); R=0 -> negro (sombra). A = cobertura (solida).
-                g_atlas[p + 0] = (l == 1) ? 255u : 0u;      // R = tinta (1) / sombra (>=2)
+                // R = luminancia (el PS hace lerp de negro al color del texto): nivel 1 = tinta;
+                // nivel 2 = gris (sombra suave del motor); nivel 3 = negro (sombra). Ver bake_face.
+                g_atlas[p + 0] = (l == 1) ? 255u : (l == 2) ? 140u : 0u;
                 g_atlas[p + 1] = 255;                       // G
                 g_atlas[p + 2] = 255;                       // B
                 g_atlas[p + 3] = (l != 0) ? 255u : 0u;      // A = cobertura
@@ -260,6 +265,21 @@ unsigned face_cell_h(Face f) {
         case Face::Color0:
         default: return kGlyphH;
     }
+}
+
+unsigned face_glyph_advance(Face f, unsigned char c) {
+    // Avance del motor (`func_8001BD20`). color4 (texto in-game/mensaje) es la unica con correcciones
+    // por caracter: el ESPACIO avanza 4 px (medido en la captura pareada: cada espacio del mensaje
+    // nativo ocupa 4, no 8) y `f i j l r t` (EUC A3E6/A3E9/A3EA/A3EC/A3F2/A3F4) 6 px. El resto, 8.
+    // color0 (8) y color3 (12) avanzan el ancho de celda. Ver docs/fonts.md §6.
+    if (f == Face::Color4) {
+        switch (c) {
+            case ' ': return 4;
+            case 'f': case 'i': case 'j': case 'l': case 'r': case 't': return 6;
+            default: return 8;
+        }
+    }
+    return face_cell_w(f);
 }
 
 bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y) {

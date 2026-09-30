@@ -124,8 +124,6 @@ constexpr uint32_t kGreen = hh::overlay::rgba(96, 255, 96, 255);
 constexpr uint32_t kGray = hh::overlay::rgba(130, 130, 130, 255);
 // Sombra del texto/UI (negra, +1 px derecha/abajo), como la horneada en el atlas de la fuente.
 constexpr uint32_t kShadow = hh::overlay::rgba(0, 0, 0, 255);
-// Relleno de las cajas del DATA LOAD (oscuro semitransparente, como el nativo).
-constexpr uint32_t kBoxFill = hh::overlay::rgba(0, 0, 0, 160);
 
 // El handler del menú de título se ejecuta en el hilo del juego; `tick` en el de render. El contador
 // permite ocultar el overlay cuando el menú deja de publicarlo (p. ej. al salir del título).
@@ -558,30 +556,58 @@ void title_update(uint8_t* rdram) {
     frame.visible = true;
 
     // --- CARGAR PARTIDA (menú propio de carga; Fase 2) --------------------------------------------
-    // Dibujo 1:1 con el DATA LOAD nativo: título "DATA LOAD", subtítulo "CONTROLLER PAK", una CAJA con
-    // borde por partida (3 filas: ÁREA N-P / NIVEL n / TIEMPO M:SS) y una caja de mensaje abajo. Los
-    // valores de cada fila salen de los metadatos del trailer del `.pak`. El cursor (flecha nativa) se
-    // posa sobre la partida actual. Ver notes/2026-09-29-menu-cargar-guardar-fase2-ui.md.
+    // Dibujo 1:1 con el DATA LOAD nativo (geometría medida en el espacio virtual 320×240 sobre la
+    // captura pareada del port `work/gameplay screenshots/menu-carga/LOAD DATA Continuar.png`, F7):
+    //   - título "DATA LOAD" (color3 12×13): centro x=160, top de celda y=28.
+    //   - subtítulo "MEMORY SLOTS" (color0, sustituye a "CONTROLLER PAK"): x=38, top de celda y=53.
+    //   - caja de partida: x=37, w=112, h=37, paso entre cajas y=46; texto color0 con paso de línea
+    //     12 y sangría de celda (+5 x, +4 y). La selección la marca SOLO el borde verde (sin flecha).
+    //   - caja de mensaje (color4): x=29, y=171, w=262, h=51; texto con sangría (+5 x, +3 y).
+    // Ver notes/2026-09-30-tipografias-data-load-hallazgos.md y la nota de la maqueta de esta sesión.
     if (is_load_game) {
-        const float step = 8.0f * g_scale_x;
-        const float line = layout.dy;                    // 10 px por línea
-        // Título centrado arriba (como "DATA LOAD"). Fuente NATIVA color3 (12x13), medida en
-        // headless: valor de glifo 'A'=0x76; ver notes/2026-09-30-tipografias-data-load-hallazgos.md.
+        // Título centrado arriba. Fuente NATIVA color3 (12x13): valor de glifo 'A'=0x76.
         {
             const std::string title = hh::menu::localized("CARGAR PARTIDA");
             const float title_step = 12.0f * g_scale_x;
             const float tw = static_cast<float>(cp_count(title)) * title_step;
-            frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, 20.0f, g_scale_x,
+            frame.texts.push_back({ (hh::overlay::kVirtualWidth - tw) * 0.5f, 28.0f, g_scale_x,
                                     g_scale_y, kWhite, title, hh::font::game::Face::Color3 });
         }
-        const float box_x = 58.0f;
-        const float box_w = 200.0f;
-        const float box0_y = 34.0f;
-        const float box_h = line * 3.0f + 4.0f;          // caja de 3 líneas
-        const float box_step = box_h + 2.0f;             // separación entre cajas
+        // Subtítulo: en PC no hay "Controller Pak"; se rotula "MEMORY SLOTS" (traducido). El nativo
+        // ponía "CONTROLLER PAK" en x=38, top y=53 (se conserva la posición 1:1).
+        frame.texts.push_back({ 38.0f, 53.0f, g_scale_x, g_scale_y, kWhite,
+                                hh::menu::localized("RANURAS DE MEMORIA"),
+                                hh::font::game::Face::Color0 });
+        const float box_x = 37.0f;
+        const float box_w = 112.0f;
+        const float box0_y = 71.0f;
+        const float box_h = 37.0f;                       // caja de 3 líneas
+        const float box_step = 46.0f;                    // paso entre cajas
+        const float line = 12.0f;                        // paso de línea dentro de la caja
+        constexpr float kTextDx = 5.0f;                  // sangría de celda del texto (desde borde)
+        constexpr float kTextDy = 4.0f;                  // top de la 1.ª celda (desde borde superior)
+        const float msg_x = 29.0f;
+        const float msg_y = 171.0f;
+        const float msg_w = 262.0f;
+        const float msg_h = 51.0f;
+        // Colores del DATA LOAD nativo (medidos en las capturas del emulador y del port): el borde del
+        // mensaje NO es blanco puro (gris claro ~170), los bordes de slot son gris medio (~95), el
+        // seleccionado es un verde saturado (19,255,13) y los rellenos son oscuros translucidos.
+        const uint32_t kLoadMsgBorder = hh::overlay::rgba(175, 171, 169, 255);
+        const uint32_t kLoadSlotBorder = hh::overlay::rgba(96, 96, 96, 255);
+        const uint32_t kLoadFrameBorder = hh::overlay::rgba(96, 96, 96, 255);
+        const uint32_t kLoadFrameFill = hh::overlay::rgba(60, 60, 60, 128);
+        const uint32_t kLoadSlotFill = hh::overlay::rgba(0, 0, 0, 95);
+        const uint32_t kLoadMsgFill = hh::overlay::rgba(70, 70, 70, 150);
+        const uint32_t kLoadGreen = hh::overlay::rgba(20, 255, 16, 255);
+        const uint32_t kLoadArrow = hh::overlay::rgba(190, 190, 190, 255);
+        // Marco exterior que agrupa TODOS los slots: rect del setup nativo `func_801426B0`
+        // (x=32,y=66,w=122,h=92) EXPANDIDO 1 px por lado para calcar la medida del emulador
+        // (x=31, y=65, w=124, h=94). Va DEBAJO de las cajas de slot (se dibuja antes).
+        append_box(frame, 31.0f, 65.0f, 124.0f, 94.0f, kLoadFrameBorder, kLoadFrameFill);
         const int n_entries = static_cast<int>(screen.entries.size());
-        // Caben cajas hasta y≈150 (deja la caja de mensaje abajo).
-        int kMaxBoxes = static_cast<int>((150.0f - box0_y) / box_step);
+        // Caben cajas hasta el borde superior de la caja de mensaje (el nativo muestra 2).
+        int kMaxBoxes = static_cast<int>((msg_y - 6.0f - box0_y) / box_step);
         if (kMaxBoxes < 1) kMaxBoxes = 1;
         int first = 0;
         if (n_entries > kMaxBoxes) {
@@ -595,47 +621,49 @@ void title_update(uint8_t* rdram) {
             const float by = box0_y + static_cast<float>(i - first) * box_step;
             const bool present = e.enabled;
             const bool selected = (i == screen.cursor);
-            // Como el nativo: borde de la caja seleccionada en verde; el resto, blanco/gris.
-            const uint32_t border = selected ? kGreen : (present ? kWhite : kGray);
-            append_box(frame, box_x, by, box_w, box_h, border, kBoxFill);
-            // El label trae 3 líneas separadas por '\n'.
+            // Como el nativo: borde de la caja seleccionada en verde; el resto, gris.
+            const uint32_t border = selected ? kLoadGreen : kLoadSlotBorder;
+            append_box(frame, box_x, by, box_w, box_h, border, kLoadSlotFill);
+            // El label trae 3 líneas separadas por '\n' (partida con datos) o una sola etiqueta
+            // ("NO DATA") para el slot vacío. Las filas van a la izquierda; el slot vacío, centrado.
             const std::string& lab = e.label;
-            float ty = by + 3.0f;
-            size_t p0 = 0;
-            while (p0 <= lab.size()) {
-                size_t p1 = lab.find('\n', p0);
-                const std::string ln = (p1 == std::string::npos) ? lab.substr(p0)
-                                                                 : lab.substr(p0, p1 - p0);
-                frame.texts.push_back({ box_x + 4.0f, ty, g_scale_x, g_scale_y,
-                                        present ? kWhite : kGray, " " + ln });
-                if (p1 == std::string::npos) break;
-                p0 = p1 + 1;
-                ty += line;
-            }
-            if (selected) {
-                append_native_cursor(frame, box_x - 9.0f, by + 3.0f, kWhite);
+            if (!present) {
+                // Slot vacío ("NO DATA"): texto CENTRADO (horizontal y vertical) en la caja y en
+                // blanco, como el nativo (celda color0 de 8x8).
+                const float tw = static_cast<float>(cp_count(lab)) * 8.0f * g_scale_x;
+                frame.texts.push_back({ box_x + (box_w - tw) * 0.5f,
+                                        by + (box_h - 8.0f) * 0.5f, g_scale_x, g_scale_y, kWhite,
+                                        lab });
+            } else {
+                float ty = by + kTextDy;
+                size_t p0 = 0;
+                while (p0 <= lab.size()) {
+                    size_t p1 = lab.find('\n', p0);
+                    const std::string ln = (p1 == std::string::npos) ? lab.substr(p0)
+                                                                     : lab.substr(p0, p1 - p0);
+                    frame.texts.push_back({ box_x + kTextDx, ty, g_scale_x, g_scale_y, kWhite, ln });
+                    if (p1 == std::string::npos) break;
+                    p0 = p1 + 1;
+                    ty += line;
+                }
             }
         }
         // Indicadores de scroll.
         if (n_entries > kMaxBoxes) {
-            if (first > 0) append_scroll_arrow(frame, box_x - 15.0f, box0_y - 7.0f, true, kWhite);
+            if (first > 0) append_scroll_arrow(frame, box_x - 15.0f, box0_y - 7.0f, true, kLoadArrow);
             if (first + kMaxBoxes < n_entries) {
                 const float ay = box0_y + static_cast<float>(kMaxBoxes) * box_step;
-                append_scroll_arrow(frame, box_x - 15.0f, ay, false, kWhite);
+                append_scroll_arrow(frame, box_x - 15.0f, ay, false, kLoadArrow);
             }
         }
-        // Caja de mensaje inferior (como "Select play data to be loaded."): ancha, casi de borde a
-        // borde; el texto va alineado a la IZQUIERDA de su caja (sangría de 1 glifo).
+        // Caja de mensaje inferior (como "Select play data to be loaded."): ancha y alta (geometría
+        // nativa medida); el texto va alineado a la IZQUIERDA (sangría de celda +5/+3).
         {
-            const float msg_y = 168.0f;
-            const float msg_x = 22.0f, msg_w = 276.0f, msg_h = 20.0f;
-            append_box(frame, msg_x, msg_y, msg_w, msg_h, kWhite, kBoxFill);
+            append_box(frame, msg_x, msg_y, msg_w, msg_h, kLoadMsgBorder, kLoadMsgFill);
             const std::string msg = hh::menu::localized("ELIGE LA PARTIDA A CARGAR");
             // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD).
-            // +4 px de sangría (2 px más que antes): el mantenedor pidió moverlo un par de px a la
-            // derecha respecto al borde de la caja. Ver notes/2026-09-30-tipografias-data-load-hallazgos.md.
-            frame.texts.push_back({ msg_x + 4.0f, msg_y + 4.0f, g_scale_x, g_scale_y, kWhite,
-                                    " " + msg, hh::font::game::Face::Color4 });
+            frame.texts.push_back({ msg_x + kTextDx, msg_y + 3.0f, g_scale_x, g_scale_y, kWhite,
+                                    msg, hh::font::game::Face::Color4 });
         }
         if (trace) {
             static int last_screen2 = -1;

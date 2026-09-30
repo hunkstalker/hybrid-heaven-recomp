@@ -1,52 +1,68 @@
-# RETOMAR — handoff (2026-09-29)
+# RETOMAR — handoff (2026-09-30)
 
 > Handoff para la próxima sesión. **Rama de trabajo actual: `menu-carga-guardado-partida`**
 > (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
 > `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
-> **==> TAREA PRINCIPAL DE LA PRÓXIMA SESIÓN (desvío deliberado): EXTRAER/MAPEAR LAS TIPOGRAFÍAS DEL
-> DATA LOAD.** Documento de la tarea: **`notes/2026-09-29-tipografias-data-load-tarea.md`** (leer
-> PRIMERO). Resumen: el DATA LOAD nativo usa **3 tipografías** (título `DATA LOAD` ~11 ud, mensaje
-> `Select play data...` ~9.3 ud, cabeceras `AREA/LEVEL/TIME` ~7 ud = la del menú `color0`, ya la
-> tenemos). El compositor **`func_8001B204(a0,a1,a2,texto)`** elige el estilo por **`a0`** → tabla
-> **`D_8008EF70`** (BSS, la inicializa el motor cargando `color0..5`). Incógnita: `DATA LOAD` y el
-> mensaje usan el **mismo `a0=7`** pero salen con alturas distintas → hay que decodificar `func_8001B204`
-> (`a1`/`a2`) y volcar `D_8008EF70`. `color4` (8×12, in-game) ya está extraída
-> (`include/hh/game_font_color4.h`, `tools/text/build_font.py`).
+> ## 🎯 TAREA ACTUAL: recrear la UI del `DATA LOAD` a 1:1 con el original
 >
-> **Estado del enganche (Fase 3, HECHO `[MEDIDO]`, sin commitear):** al dar **CONTINUAR** sale nuestra
-> pantalla `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/oculta
-> toda la UI nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp` (visibilidad única `F8` + actividad
-> `g_file_select_active`); hooks de `func_801C3D84` (update) y `func_8001A804` (cajas). **NO enganchar
-> `func_801C3D50`** (dirección compartida → cuelga; medido). Cambios pendientes de commitear en:
-> `include/hh.h`, `include/hh/menu.h`, `src/hooks/menu_overlay.cpp`, `src/hooks/sections.cpp`,
-> `src/subsystems/input.cpp`, `src/subsystems/menu.cpp`.
+> ### Hecho (2026-09-30, 2ª sesión)
+> - **CORREGIDO**: al pulsar **F8** aparecía el `BATTLE DATA LOAD` (MODO VS). Causa raíz `[MEDIDO]`:
+>   el recompositor de F8 en `hh_file_select_hook` (`src/hooks/sections.cpp`) llamaba a
+>   `func_80142840`, que compone la tabla `ＢＡＴＴＬＥ　ＤＡＴＡ　ＬＯＡＤ` + `1P/2P CONTROLLER` (no el
+>   mensaje `Select play data…`, como decía el comentario). **Fix aplicado**: se deja solo
+>   `func_801426B0` (setup real del `DATA LOAD`). **Validado en Windows por el mantenedor** ("mucho
+>   mejor": ya sale el `DATA LOAD` de una columna). **Sin commitear.**
+> - El enganche de CONTINUAR en sí **es correcto** (llamada directa `func_800058DC(obj, 0x801C3CDC)`,
+>   `7dacb58`): ruta a `func_801C3D50/801C3D84` → `DATA LOAD` de una columna.
+> - Evidencia y detalles: **`notes/2026-09-30-continuar-enganche-y-ocultado.md`**.
 >
-> **DEPENDENCIA DE FORK (importante):** esta rama necesita **2 commits en el fork `N64ModernRuntime`
-> (rama `hybrid-heaven`)**: `9b14604` `hh_pak_reload_from_disk()` y `3523bf3` `PAK_SIZE=0x40000`
-> (publicado). El **gitlink de `lib/N64ModernRuntime`** ya está bumpeado en `dbb209a`; el port está
-> **sin pushear**. Decisión estructural: **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**.
+> ### Hecho (2026-09-30, 3.ª sesión)
+> - **GEOMETRÍA 1:1 del `DATA LOAD` RECREADA** en el overlay (`menu_overlay.cpp`, rama `is_load_game`):
+>   título (top y=28), `CONTROLLER PAK` (x=38, y=53), cajas de partida (x=37, w=112, h=37, paso 46,
+>   texto +5/+4, paso de línea 12), caja de mensaje (x=29, y=171, w=262, h=51) y se **quita la flecha
+>   de cursor** (el nativo marca la selección solo con el borde verde). Validado headless **pareado**
+>   contra el render nativo del propio port (`work/gameplay screenshots/menu-carga/LOAD DATA
+>   Continuar.png`): **Δ < 1 px** en todos los bordes. Evidencia:
+>   **`notes/2026-09-30-data-load-maqueta-1a1.md`**. **Sin commitear.**
 >
-> **Sesión 2026-09-29 (hecha):** RESUELTO el mapeo de Áreas-Partes / puntos de carga. Documento
-> maestro: **`notes/2026-09-29-editor-area-parte-plan.md`** (todo medido: campo `0x564`, fórmula
-> `idx=(area-1)*10` de los `N-0`, `EXTRAS > DEBUG NIVELES` con el ciclo F5/F6, `EXTRAS > IR A ÁREA`,
-> plantilla `assets/save/template_slot.bin`, `skip_indices.txt`).
+> - **AJUSTE FINO del mensaje + subtítulo (misma sesión, 3.ª)**: el mensaje salía con **espacios más
+>   anchos** que el nativo; se ha **cableado el avance del motor** (`face_glyph_advance`): color4
+>   **espacio=4**, `f i j l r t`=6. Medido pareado: el mensaje ahora **calca el nativo glifo a glifo**.
+>   Además, el **punto final `.`** se dibujaba a mano como 2x2 (parecía un `·` grueso); ahora es un
+>   **1x1 en el baseline** (Δ<0.3 px del nativo). Por decisión del mantenedor, el subtítulo
+>   **`CONTROLLER PAK` → `MEMORY SLOTS`** (traducido: `RANURAS DE MEMORIA/MEMORY SLOTS/RANURES DE
+>   MEMÒRIA/EMPLACEMENTS MÉMOIRE/SPEICHERPLÄTZE/メモリースロット`), en la misma posición 1:1.
+>   `docs/fonts.md` §6 actualizado. **Además (misma sesión)**: **colores** medidos del nativo (el borde
+>   del mensaje NO es blanco puro ~170; bordes de slot gris ~90; verde `19,255,13`; rellenos oscuros) y
+>   **marco exterior que agrupa los slots** (rect del setup nativo `func_801426B0` x=32,y=66,w=122,
+>   h=92, **expandido 1 px por lado** → x=31,y=65,w=124,h=94), **encima de él** van las cajas de slot.
+>   Slot vacío = **`NO DATA` centrado y en blanco** (`SIN DATOS/SENSE DADES/…`). También: **sombra del
+>   glifo nivel 2 = GRIS** (antes negro; el gancho de la `l` del mensaje salía mal). **Sin commitear.**
 >
-> **Sesión 2026-09-29 (Fases 0 y 1 del menú de carga/guardado, HECHAS `[MEDIDO]`):** ver
-> **`notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md`** y **`...-fase1-formato-pak.md`**.
-> Resumen: file-select nativo trazado (estado `D_801BEBCC`, cursor `D_801BEC05`); `.pak` ampliado a
-> **74 slots** (`PAK_SIZE=0x40000`) con reparto **45 partidas (0..44) + 29 plantillas (45..73)** y
-> **trailer de metadatos** (`hh::save`); `func_801423C8` carga slots altos; migración de `.pak` de 4
-> slots verificada offline. **Pendiente validar en Windows** (migración real + flujo de guardado).
+> ### PENDIENTE (lo que retoma la próxima sesión)
+> 1. **Validar en Windows** (F7) la maqueta nueva: CONTINUAR → `LoadGame` debe calcar el nativo.
+> 2. **Contenido/alineado de las filas**: el nativo (US) usa `AREA/LEVEL/TIME` con el valor **alineado a
+>    la derecha**; el overlay usa `ÁREA/NIVEL/TIEMPO` y valor pegado a la etiqueta. No es geometría;
+>    confirmar antes de cambiarlo (AGENTS: no inventar UI).
 >
-> **TAREA de fondo: Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots).**
-> Plan COMPLETO: **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**. **Fases 0-3 HECHAS**
-> (Fase 3 = enganche + ocultado, sin commitear); pendiente el **afinado 1:1** (bloqueado por las
-> tipografías) y **Fase 4** (guardar en cápsula + editor).
+> ### Otros pendientes
+> - **Ocultado sin F8**: aún se cuela el prompt nativo `Please connect Controller Pak…` por detrás de
+>   nuestras cajas (otra vía de dibujo, no pasa por `func_8001B204`; sin localizar).
+> - **Commit** del fix de F8 (un tema = un commit) cuando el mantenedor lo pida.
 >
-> **ESTRATEGIA DE MERGE (mantenedor, 2026-09-29):** `menu-carga-guardado-partida` es una rama
-> **DERIVADA** (necesidad del menú) → **no** va a `main`. Al **terminar** esta tarea: merge a
-> **`menu-edicion-partida`**; y de `menu-edicion-partida` → **`main`**. Nada a `main` por ahora.
+> ### Contexto
+> - **DEPENDENCIA DE FORK:** la rama necesita 2 commits del fork `N64ModernRuntime`: `9b14604`
+>   `hh_pak_reload_from_disk()` y `3523bf3` `PAK_SIZE=0x40000` (publicado). Gitlink bumpeado en
+>   `dbb209a`; port **sin pushear**. ADR: `docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`.
+> - **Plan de fondo**: "Menú propio de CARGAR/GUARDAR partida (un `.pak` con N=74 slots: 45 partidas +
+>   29 plantillas, trailer de metadatos)": **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**.
+>   Estado UI Fase 2/3: **`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`**. Tipografías:
+>   **`notes/2026-09-30-tipografias-data-load-hallazgos.md`**.
+> - **ESTRATEGIA DE MERGE**: `menu-carga-guardado-partida` es **DERIVADA** → **no** va a `main`. Al
+>   terminar: merge a **`menu-edicion-partida`**; luego → **`main`**.
+>
+> **Puntos de guardado del mantenedor**: `notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`.
 >
 > **Puntos de guardado aportados por el mantenedor**: registro vivo en
 > **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los

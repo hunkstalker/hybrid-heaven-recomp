@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 179 | 2026-09-29 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 471 | 2026-09-30 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 491 | 2026-09-30 |
 
 ## Técnico y guías (vivos)
 
@@ -20,11 +20,11 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 79 | 2026-09-27 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 403 | 2026-09-27 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 305 | 2026-09-24 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 305 | 2026-09-30 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
-| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 138 | 2026-09-30 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 143 | 2026-09-30 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 80 | 2026-09-28 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 313 | 2026-09-28 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 313 | 2026-09-30 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -63,9 +63,11 @@
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
 | [TIPOGRAFÍAS del DATA LOAD — hallazgos `[MEDIDO]` (2026-09-30)](../notes/2026-09-30-tipografias-data-load-hallazgos.md) | Evidencia para `notes/2026-09-29-tipografias-data-load-tarea.md` (tarea) y el menú propio de carga | 121 | 2026-09-30 |
+| [DATA LOAD — recrear la maqueta 1:1 (geometría) en el overlay](../notes/2026-09-30-data-load-maqueta-1a1.md) | Sesión 2026-09-30 (3.ª). Rama `menu-carga-guardado-partida`. Tarea de `RETOMAR.md`: "recrear la UI | 105 | 2026-09-30 |
+| [CONTINUAR → F8 pinta el `BATTLE DATA LOAD`: causa raíz (compositor equivocado) y fix](../notes/2026-09-30-continuar-enganche-y-ocultado.md) | Sesión 2026-09-30 (2ª). Rama `menu-carga-guardado-partida`. Tarea: "arreglar el enganche de | 74 | 2026-09-30 |
 | [TAREA — Extracción/mapeo de las tipografías del DATA LOAD (menú de carga)](../notes/2026-09-29-tipografias-data-load-tarea.md) | **Tarea derivada** (desvío de la tarea principal "menú de carga/guardar", rama | 77 | 2026-09-29 |
 | [PLAN — Menú propio de cargar/guardar partida (slots "infinitos", un `.pak` con N slots)](../notes/2026-09-29-menu-cargar-guardar-partida-plan.md) | **Documento maestro de la tarea** (para una sesión nueva). Rama **`menu-carga-guardado-partida`** | 126 | 2026-09-29 |
-| [FASE 2 — UI de carga (pantalla CARGAR PARTIDA, overlay 1:1)](../notes/2026-09-29-menu-cargar-guardar-fase2-ui.md) | Evidencia de la **Fase 2** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`. Rama | 71 | 2026-09-29 |
+| [FASE 2 — UI de carga (pantalla CARGAR PARTIDA, overlay 1:1)](../notes/2026-09-29-menu-cargar-guardar-fase2-ui.md) | Evidencia de la **Fase 2** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`. Rama | 88 | 2026-09-29 |
 | [FASE 1 — Almacenamiento: un `.pak` con N=74 slots (45 partidas + 29 plantillas)](../notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md) | Evidencia de la **Fase 1** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`, elegida | 100 | 2026-09-29 |
 | [FASE 0 — Menú propio de cargar/guardar (trazado del file-select + prueba del `.pak` a N slots)](../notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md) | Evidencia de la **Fase 0** del plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`. | 137 | 2026-09-29 |
 | [2026-09-29 — Editor de partida: Área-Parte real y arranque desde un punto (plan + mediciones)](../notes/2026-09-29-editor-area-parte-plan.md) | Sesión `menu-edicion-partida`. Punto de partida: `RETOMAR.md` §1 (tarea principal) y | 357 | 2026-09-29 |

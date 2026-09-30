@@ -53,8 +53,11 @@ const MenuTr kMenuTr[] = {
     {"ELIGE LA PARTIDA A CARGAR", "Select play data to be loaded.",
      "Select play data to be loaded.", "Select play data to be loaded.",
      "Select play data to be loaded.", "Select play data to be loaded."},
-    {"PARTIDA VACÍA", "EMPTY SLOT", "PARTIDA BUIDA", "EMPLACEMENT VIDE", "LEERER PLATZ",
-     "カラノスロット"},
+    // Port-specific: en PC no hay "Controller Pak"; el hueco del subtítulo del DATA LOAD muestra
+    // "MEMORY SLOTS" (traducido). Sustituye al rótulo nativo "CONTROLLER PAK" (decisión del mantenedor).
+    {"RANURAS DE MEMORIA", "MEMORY SLOTS", "RANURES DE MEMÒRIA", "EMPLACEMENTS MÉMOIRE",
+     "SPEICHERPLÄTZE", "メモリースロット"},
+    {"SIN DATOS", "NO DATA", "SENSE DADES", "PAS DE DONNÉES", "KEINE DATEN", "データナシ"},
     {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL", "ニューゲーム"},
     {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS", "バトルモード"},
     // MODO COMBATE (subpantallas recreadas con nuestro menu; ver docs/menu.md)
@@ -873,7 +876,7 @@ void rebuild_load_game() {
                   "NIVEL " + std::to_string(lv) + "\n" +
                   "TIEMPO " + format_time(hh::save::meta_time(i));
         } else {
-            row = hh::menu::localized("PARTIDA VACÍA");
+            row = hh::menu::localized("SIN DATOS");
         }
         g_load_game_rows.push_back(std::move(row));
     }

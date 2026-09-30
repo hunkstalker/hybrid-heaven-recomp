@@ -44,12 +44,23 @@
     `lib/N64ModernRuntime` tras push** (`AGENTS.md`).
   - **Fase 2 (UI 1:1) HECHA `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`): pantalla
     `LoadGame` (45 partidas del rango de juego, metadatos del trailer) + render 1:1 en overlay
-    (`DATA LOAD`, caja de 3 líneas por partida, cursor/scroll/mensaje nativos). Validado headless con
-    captura. **Pendiente**: afinado fino contra el nativo en Windows + ocultar el fondo del título.
-  - **Fase 3 (enganche a CONTINUAR) HECHA `[MEDIDO]` (2026-09-29, sin commitear)**: al dar CONTINUAR sale
-    `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/oculta la UI
-    nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp`; hooks `func_801C3D84`/`func_8001A804`.
-    **NO** enganchar `func_801C3D50` (cuelga). Pendiente: commit + validar en Windows.
+    (`DATA LOAD`, caja de 3 líneas por partida, scroll/mensaje nativos). Validado headless con captura.
+    **MAQUETA 1:1 (geometría) HECHA (2026-09-30, 3.ª sesión)**: título (y=28), `CONTROLLER PAK`
+    (x=38,y=53), cajas (x=37,w=112,h=37,paso 46; texto +5/+4, línea 12), mensaje (x=29,y=171,w=262,
+    h=51) y **sin flecha de cursor** (el nativo marca con el borde verde). Medido **pareado** contra el
+    render nativo del port (`work/.../LOAD DATA Continuar.png`), **Δ<1 px**. Evidencia:
+    `notes/2026-09-30-data-load-maqueta-1a1.md`. **Pendiente**: validar en Windows (F7) + ocultar el
+    fondo del título.
+  - **Fase 3 (enganche a CONTINUAR) HECHA `[MEDIDO]` (2026-09-29; 2ª sesión 2026-09-30)**: al dar
+    CONTINUAR sale `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/
+    oculta la UI nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp`; hooks
+    `func_801C3D84`/`func_8001A804`. **NO** enganchar `func_801C3D50` (cuelga). **Fix 2026-09-30**:
+    F8 pintaba el `BATTLE DATA LOAD` porque el recompositor llamaba a `func_80142840` (tabla
+    `ＢＡＴＴＬＥ　ＤＡＴＡ　ＬＯＡＤ` + `1P/2P CONTROLLER`); ahora solo llama a `func_801426B0`
+    (setup real del `DATA LOAD`). El enganche de CONTINUAR en sí era correcto. Evidencia:
+    `notes/2026-09-30-continuar-enganche-y-ocultado.md`. **Pendiente**: (a) validar en Windows
+    CONTINUAR→F8→A; (b) el ocultado sin F8 aún se cuela el prompt `Please connect Controller Pak…`;
+    (c) commit.
   - **BLOQUEANTE del 1:1 → TAREA APARTE**: las **tipografías del DATA LOAD** (3 fuentes distintas;
     `func_8001B204` elige estilo por `a0` → tabla `D_8008EF70`). Documento:
     **`notes/2026-09-29-tipografias-data-load-tarea.md`**. **Es la tarea principal ahora.**
@@ -64,8 +75,17 @@
   color3), `overlay::Text.face` y uso en `menu_overlay.cpp` (título→color3, mensaje→color4,
   filas→color0). Validado headless con captura (coincide con el nativo). Evidencia y detalle:
   **`notes/2026-09-30-tipografias-data-load-hallazgos.md`** (doc. tarea:
-  `notes/2026-09-29-tipografias-data-load-tarea.md`). **Pendiente**: validar 1:1 en Windows (F7) —
-  queda sobre todo MAQUETA (posiciones/cajas, `CONTROLLER PAK`, rótulos).
+    `notes/2026-09-29-tipografias-data-load-tarea.md`).     **Pendiente**: validar 1:1 en Windows (F7).
+    **Maqueta/geometría HECHA (2026-09-30)**: ver `notes/2026-09-30-data-load-maqueta-1a1.md`.
+    **Avance color4 del mensaje HECHO**: `face_glyph_advance` (espacio=4, `f i j l r t`=6) → el mensaje
+    **calca el nativo glifo a glifo**; **punto final `.` rehecho** (1x1 en el baseline, antes 2x2).
+    **Subtítulo `CONTROLLER PAK` → `MEMORY SLOTS`** (traducido), por decisión del mantenedor. **Colores
+    1:1** (borde del mensaje gris ~170, bordes de slot gris ~90, verde `19,255,13`) y **marco exterior
+    que agrupa los slots** (x=31,y=65,w=124,h=94; del setup nativo +1 px por lado), con las cajas de
+    slot por encima. Slot vacío = **`NO DATA` centrado y en blanco** (`SIN DATOS/SENSE DADES/…`).
+    **Sombra de glifo nivel 2 = gris** (antes negro; corregía el gancho de la `l` del mensaje).
+    Queda **pendiente de decisión**: el **contenido/alineado de las filas**
+    (`AREA/LEVEL/TIME` nativo con valor a la derecha vs `ÁREA/NIVEL/TIEMPO` del overlay).
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere

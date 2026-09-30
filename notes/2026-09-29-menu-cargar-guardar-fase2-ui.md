@@ -60,15 +60,17 @@
   - **⚠️ NO enganchar `func_801C3D50`** (setup del file-select): su dirección la comparte otro módulo
     (base solapada) y el hook **cuelga el juego** (medido). La categoría se activa desde CONTINUAR.
   - **Qué quedó a medias (y por qué)**:
-    0. **✅ RESUELTO (2026-09-30): el enganche abría la pantalla EQUIVOCADA (BATTLE DATA LOAD / MODO
-       VS), no el DATA LOAD de CONTINUAR.** Causa `[MEDIDO]`: `CONTINUAR` fijaba `sel=1` +
-       `g_inject_native_a`, pero el handler del título (`func_801C1DB8`) **RECALCULA `sel`** desde su
-       cursor (D-pad) antes de leer la jump table `jtbl_801CF264` (`0`=NEW GAME, `1`=CONTINUE,
-       `2`=BATTLE MODE, …) → pisaba el 1 y abría otra rama (MODO COMBATE → MODO VS → BATTLE DATA LOAD).
-       **Fix**: `CONTINUAR` ahora llama **directamente** a la rama CONTINUE nativa (replicando
-       `jtbl[1]` = `0x801C1F30`): `func_800023A8(0)` + `func_80020718(8)` + `func_800058DC(obj,
-       func_801C3CDC)`; sin `sel` ni A inyectada. Verificado headless: `goto pantalla=801C3CDC` (no
-       `801BF…`/BATTLE) y `screen=19`.
+    0. **❗BLOQUEANTE (2026-09-30, mantenedor): CONTINUAR carga el `BATTLE DATA LOAD` (MODO VERSUS),
+       NO el `DATA LOAD` de CONTINUAR.** Aunque ocultemos la UI, **el flujo nativo monta la pantalla
+       equivocada**; hay que cargar la correcta por detrás. `[MEDIDO]`: `DATA LOAD` (CONTINUAR) y
+       `BATTLE DATA LOAD` (MODO VS) viven en el **MISMO overlay/módulo 23** (`0x5F1190`, base
+       `0x801BF1A0`, rango `0x801BF1A0..0x801C9ED6`): CONTINUE = `func_801C3CDC`; BATTLE DATA LOAD =
+       `func_801BF2DC` (registrado por `func_801BF288`←`func_801BF248`←`func_801BF1A0`, llamado desde
+       `0x801C1FE0`, rama del handler del título). **Hipótesis**: bases solapadas → el dispatch por
+       puntero/callback resuelve a la función equivocada (o se entra a la rama BATTLE del jump
+       `jtbl_801CF264`). **`CONTINUAR` ahora llama directo** a `func_800023A8(0)`+`func_80020718(8)`+
+       `func_800058DC(obj, 0x801C3CDC)` (commit `7dacb58`); headless da `goto 801C3CDC` ✔, pero en
+       Windows sigue saliendo el BATTLE. **Ver `RETOMAR.md` (tarea principal de la próxima sesión).**
     1. **Ocultado**: vía **robusta** (2026-09-30, 2ª iteración): en vez de blankear tablas (lista
        incompleta), se **SALTAN las funciones de dibujo** del file-select mientras está activo y el
        nativo oculto: el compositor de texto `func_8001B204` (`file_select_text_skip()`) y las cajas
