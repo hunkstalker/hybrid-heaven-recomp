@@ -399,6 +399,10 @@ unsigned file_select_field_len(uint32_t a) {
 // Las cajas del file-select las dibuja `func_8001A804`: se saltan cuando la pantalla está activa.
 bool suppress_box_draw() { return !g_native_visible && g_file_select_active; }
 
+// El texto del file-select lo compone/dibuja `func_8001B204`: cuando la pantalla está activa y el
+// nativo oculto, se SALTA el compositor entero (vía robusta: oculta TODO su texto sin listar tablas).
+bool file_select_text_skip() { return !g_native_visible && g_file_select_active; }
+
 
 // --- Punto de entrada del ocultado de TEXTO (hook de func_8001B204) -----------------------------
 // La COMPOSICIÓN del texto (`func_8001B204`) lee la dirección de enlace y la copia a su estructura.

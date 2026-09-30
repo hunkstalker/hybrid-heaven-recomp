@@ -1507,6 +1507,12 @@ extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx) {
 // está oculto, lo blankea justo antes de que el original lo lea. Es la pieza que elimina el flash:
 // cubre la PRIMERA composición (fase de fade-in), en la que el handler del menú aún no corre.
 extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
+    // File-select (DATA LOAD/SAVE) controlado por el overlay y nativo oculto: SALTAR el compositor
+    // de texto por completo (no compone ni dibuja). Es la vía robusta (no depende de listar tablas,
+    // que resultó incompleta). F8 (`native_visible`) restaura el nativo. Ver notes 2026-09-30.
+    if (hh::menu_overlay::file_select_text_skip()) {
+        return;
+    }
     if (env_set("HH_MENU_TRACE")) {
         // Cada `a3` (dirección del texto compuesto) distinto, una vez: sirve para mapear QUÉ tablas
         // de etiquetas pasa cada pantalla (p. ej. al entrar/salir de submenús).

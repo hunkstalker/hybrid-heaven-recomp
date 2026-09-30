@@ -69,11 +69,14 @@
        `jtbl[1]` = `0x801C1F30`): `func_800023A8(0)` + `func_80020718(8)` + `func_800058DC(obj,
        func_801C3CDC)`; sin `sel` ni A inyectada. Verificado headless: `goto pantalla=801C3CDC` (no
        `801BF…`/BATTLE) y `screen=19`.
-    1. **Ocultado INCOMPLETO** (tras el fix sigue viéndose tenue el nativo de CONTINUAR): faltan las
-       cadenas `1P CONTROLLER`/`2P CONTROLLER`/`Select play data...`/`EMPTY SLOT` del file-select, que
-       **no** están en las tablas que blankeamos. Hay que localizar sus tablas y añadirlas.
-       - El "espacio doble" y el "texto duplicado" que reportó el mantenedor eran de la **pantalla
-         equivocada** (BATTLE + nuestra UI encima); con la pantalla correcta hay un solo mensaje.
+    1. **Ocultado**: vía **robusta** (2026-09-30, 2ª iteración): en vez de blankear tablas (lista
+       incompleta), se **SALTAN las funciones de dibujo** del file-select mientras está activo y el
+       nativo oculto: el compositor de texto `func_8001B204` (`file_select_text_skip()`) y las cajas
+       `func_8001A804` (`suppress_box_draw()`). F8 (`native_visible`) restaura. Headless: el nativo
+       queda **casi totalmente oculto**; resta un fantasma tenue de texto que **no pasa por
+       `func_8001B204`** (otra vía de dibujo, p. ej. el residente) — **pendiente de localizar**.
+       - F8 estaba "roto" (cosas aparecían y otras no) porque recomponía con `func_801426B0`/
+         `func_80142840`; con el skip ya no hace falta recomponer (F8 solo activa/desactiva el skip).
     2. **Afinado 1:1 ❌ bloqueado** por las **tipografías** (ya extraídas, ver `2026-09-30-...hallazgos`).
     2. **Al elegir una partida NO carga todavía**: hoy solo llama a `func_801423C8(0, slot)` (lee el
        slot y deserializa a los globals); **falta la transición de escena** que hace el flujo nativo

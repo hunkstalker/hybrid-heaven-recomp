@@ -242,6 +242,8 @@ namespace hh {
         void set_file_select_active(bool on);
         // Cajas del file-select (`func_8001A804`): true = saltar su dibujo (no llamar al original).
         bool suppress_box_draw();
+        // Texto del file-select: true = saltar el compositor `func_8001B204` (oculta TODO su texto).
+        bool file_select_text_skip();
         // Calibración en vivo (Ctrl+flechas/etc.): suma a offset/escala y lo escribe en hh.log.
         void adjust(float dx, float dy, float dsx, float dsy);
     }
