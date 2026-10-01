@@ -5,7 +5,16 @@
 
 ## Ahora (priorizado)
 
-- [•] **TÍTULO DEL ÁREA al cargar partida — EN CURSO (2026-10-01)**: al cargar un slot
+- [ ] **i18n — unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A) — PLANEADO (2026-10-01)**:
+  hoy hay **dos mecanismos** con claves distintas (UI del port en código `kMenuTr`, clave **español**;
+  texto nativo de la ROM en datos, clave **inglés**). Unificar en **una sola fuente** (ficheros por
+  idioma, clave = **inglés**); el código solo referencia **claves**; `hh::text::translate()` + `menu::localized`
+  delegando; se borran `kMenuTr`/`kEsDefaults`; `kEndonyms` se quedan en código; `en` = identidad. Incluye
+  **script de migración** (una vez) y **guard** de comprobación (clave usada ⇒ existe en `assets/lang/`).
+  Beneficio: el jugador edita una traducción sin recompilar. Plan completo + decisiones robustas:
+  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`**; handoff en **`RETOMAR.md`** (TAREA ACTUAL).
+
+- [x] **TÍTULO DEL ÁREA al cargar partida — HECHO (commit `874b9f6`, 2026-10-01)**: al cargar un slot
   (`CONTINUAR` → partida) el juego muestra **pantalla negra con el título del Área** (nombre del Área
   del progreso) que se quita con botón/tecla (o espera) y da paso al gameplay.
   - **[MEDIDO] El `AREA N` es TEXTO** (`func_801C3F48` → `func_8001B204(a3=0x801CED98)`, con el índice

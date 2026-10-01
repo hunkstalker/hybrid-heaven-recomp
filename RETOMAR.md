@@ -2,74 +2,48 @@
 
 > Handoff para la próxima sesión. **Rama de trabajo: `menu-carga-guardado-partida`** (creada desde
 > `menu-edicion-partida`; nada pusheado; `main` = v0.5.1). Reglas: `AGENTS.md` y `docs/documentation.md`.
-> (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
+> Último commit de la rama: **`874b9f6`** (título del Área al cargar partida). (El editor/niveles vive en
+> `menu-edicion-partida`.)
 
-## 🎯 TAREA ACTUAL: cuadrar el TEXTO del título del Área con el ORIGINAL
+## 🎯 TAREA ACTUAL: unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A)
 
-Al cargar una partida (`CONTINUAR` → slot) el juego muestra **pantalla negra con el título del Área**
-(el nombre del Área del progreso). El port ya lo pinta con **overlay propio** (el nombre nativo es un
-**gráfico intraducible**, no texto). **La función está hecha y verificada headless**; lo que falta es
-**afinar el texto** para que se vea 1:1 con el original y **validarlo en Windows**.
+Hoy las traducciones están en **dos mecanismos con claves distintas**: la **UI del port** en código
+(`kMenuTr` en `menu.cpp`, ~170; `kAreaNames`; clave = **español**) y el **texto nativo de la ROM** en
+datos (`assets/lang/<code>.txt`, clave = **inglés**). Objetivo: **una sola fuente** (ficheros por
+idioma), clave = **texto original en inglés**; el código solo referencia **claves**. Beneficio extra: un
+jugador puede corregir una traducción editando el `.txt` sin recompilar.
 
-### Hecho (esta tanda)
-- **Work Sans SemiBold** para el nombre, **INCRUSTADA** en el exe (CMake genera el array en configure; el
-  `.ttf` **no** se distribuye suelto) + `licences/OFL.txt` (SIL OFL-1.1). Para **iterar sin recompilar**
-  se puede forzar un `.ttf` con `HH_TTF=<ruta>` (release: solo la incrustada).
-- **Overlay del título** (`hh::menu_overlay::publish_area_title`): telón negro a **pantalla completa** +
-  `AREA N` (fuente del juego color0, posición nativa, **sin tocar**) + nombre en Work Sans (traducido).
-- **Idiomas**: overlay+traducción en `en, es, ca, fr, de`; **`ja` nativo**. Tabla de nombres en
-  `src/hooks/menu_overlay.cpp` (`kAreaNames`; el ORIGINAL medido del juego, p. ej. `Dr.Bross lab`).
-- **Timing**: cuelga de la cadena nativa (`func_801C3F48` fade → `func_801C4018` espera →
-  `func_801C4074` transición). **Anti-parpadeo**: `hide_now()` no puede borrar el título mientras está
-  activo (candado) y se mantiene ~900 ms tras la transición (cubre el nombre nativo hasta el gameplay).
-- Hooks registrados **siempre** (`func_801C3F48`/`func_801C4018`/`func_801C4074`/`func_8013EA54`); el
-  índice del Área (`func_8013EA54`→`D_801CCAE0`) no depende de `HH_LOAD_TRACE`.
-- Nombres originales (US) medidos, p. ej.: 1 `bioweapon storage facility`, 2 `Dr.Bross lab`,
-  5 `underground shelter lowest area`, 9 `underground shelter top level`. Evidencia:
-  `work/area_titles_montage.png`.
+**Plan completo (leer antes de empezar): `notes/2026-10-01-i18n-unificar-traducciones-plan.md`.**
 
-### Pendiente (TAREA)
-1. **Afinar el texto** hasta que se parezca al original. **Defaults CALIBRADOS [MEDIDO] (esta tanda)**:
-   anclando en el `AREA N` (que NO se toca), el nombre del original mide **~200.6 v × 14.1 v** (aspecto
-   14.2; = 0.8358·alto / 0.4400·ancho); Work Sans "natural" mide ~180 v a 14.1 v de alto → se compensa
-   el ancho, y **`word_space`** (Work Sans mete los espacios ~40 % más estrechos que el original).
-   **Peso = SemiBold (600)** (medido: el trazo del original cae entre Medium y SemiBold; Bold sobra).
-   Defaults fijados en `publish_area_title` (`src/hooks/menu_overlay.cpp`): `HH_TITLE_SCALE=0.80`,
-   `HH_TITLE_STRETCH=1.10`, `HH_TITLE_TRACK=-0.27` (negativo: las letras **se tocan**, como el original),
-   `HH_TITLE_WORDSPACE=5.67`, `HH_TITLE_Y=111.0` (ancho total fijo ≈200.6 v). Mocks:
-   `work/area_title_match_mock.png`, `work/area_title_weight_mock.png`, `work/area_title_metric_mock.png`,
-   `work/area_title_variants.png` (estirado vertical).
-   **Fuente INCRUSTADA (hecho)**: `CMakeLists.txt` incrusta `WorkSans-SemiBold.ttf` (único peso) en el
-   exe; no se copia `.ttf` junto al exe (solo la licencia, en `licences/OFL.txt`). Para iterar:
-   `HH_TTF=<ruta>`; en release, incrustada.
-   - **Nota**: `HH_TITLE_SCALE=1` (lo que probó el mantenedor) da ~241 v de ancho (**~20 % más ancho**
-     que el original); no cuadra 1:1. Si prefiere ese tamaño, basta con `HH_TITLE_SCALE=1` por entorno.
-   - Knobs por entorno (sin recompilar): `HH_TITLE_SCALE` (ancho), `HH_TITLE_STRETCH` (alto),
-     `HH_TITLE_TRACK` (**+ = separa**, − aprieta), `HH_TITLE_Y` (línea base), `HH_TITLE_NUM_Y`
-     (`AREA N`, def `89`, NO tocar).
-   - **OJO**: el tracking **sí** funciona (0→3.0 cambia el ancho 861→1131 px). Si "no le cambia", su
-     **build es antiguo** → recompilar.
-2. **Validar en Windows**: tamaño/posición/fade/tiempos 1:1; sin parpadeo; `en/es/ca/fr/de` y `ja`.
-   - **Salto de línea**: en **4:3** los 4 nombres más largos (A7 es/ca, A5 de, A9 de) se parten en 2
-     líneas centradas (ancho visible real; en 16:9 no cambian). Ver nota de calibración §3bis.
-   - Build: `rmdir /s /q hybrid-heaven-recomp\build\windows` + `hybrid-heaven-recomp\build_windows_release.bat`.
-3. **Decidir** si inglés usa overlay (actual) o nativo 1:1 (cambiar `!= "ja"` por `!= "en"`).
-4. **Limpieza (HECHA)**: fuente **incrustada** (SemiBold) y **sin copia** de `.ttf` junto al exe;
-   en `assets/fonts/` solo `WorkSans-SemiBold.ttf` + `OFL.txt`. **Eliminado** el scaffolding de test de
-   la tarea: `HH_SET_AREA`, `HH_MAKE_AREAS`, `HH_AUTOPLAY`, `HH_DUMP_AREA` (dump `hh_area_rdram.bin`).
-   Se **conservan** `HH_LOAD_TRACE` (lo usa `run_load_trace.bat`) y `HH_FONT_TRACE` (diagnóstico de
-   fuentes preexistente). `work/*` (mocks) se conserva (gitignored).
-   El mantenedor **acepta el salto de línea sin validarlo en Windows** (se fía).
-5. **Un tema = un commit**; no commitear/pushear sin permiso.
+### Resumen del plan
+- **Clave = inglés** (la que ya usan los `lang/*.txt` y la que necesita la sustitución nativa). `en` =
+  identidad (sin fichero). Formato `.txt` sin cambios (`CLAVE=VALOR`, `^` = centrado).
+- **API**: `hh::text::translate(key)` (búsqueda **exacta**; devuelve la clave si no hay o `en`);
+  `hh::menu::localized` **delega** en ella. La sustitución nativa (`hh_text_translate_guest`) queda igual
+  (misma tabla). **`kEndonyms` se quedan en código** (no son traducción); **`kEsDefaults` fuera**;
+  *override* por mods **aplazado**.
+- **Pasos**: (1) `translate()` + declaración en `include/hh.h`; (2) script de migración
+  (`tools/text/`) que genere `assets/lang/{es,ca,fr,de,ja}.txt` desde `kMenuTr` + `kAreaNames` + lo ya
+  existente; (3) claves de la UI a inglés (`menu.cpp`, `menu_overlay.cpp`); (4) nombres de Área por clave
+  (`kAreaKey[9]`); (5) borrar `kMenuTr`/columnas; (6) retirar `kEsDefaults`; (7) docs (`architecture.md`
+  §7, `menu.md`, `INDEX.md`) y nota.
+- **Validación**: build + F5 (todos los idiomas), sustitución in-game, editar un valor y verlo, `ja` kana.
+- **Riesgos**: colisiones de clave (misma cadena inglesa con distinto sentido), `=`/`\t`/`\n` en claves,
+  longitud de registros nativos, glifos (acentos/kana/∞), reload en vivo.
 
-### Archivos tocados (sin commitear)
-- `CMakeLists.txt` (incrustar **SemiBold**; sin copia de `.ttf`), `assets/fonts/{*.ttf,OFL.txt}`, `CREDITS.md`.
-- Nuevos: `include/hh/ttf.h`, `src/subsystems/ttf.cpp` (rasteriza Work Sans con stb_truetype).
-- `include/hh/overlay.h`, `src/platform/overlay.cpp` (`TtfText`, `word_space`, `visible_width`, hold).
-- `src/hooks/menu_overlay.cpp` (`publish_area_title`, tabla de nombres, calibración, salto de línea, candado).
-- `src/hooks/sections.cpp` (hooks del título, supresión nativa, timing, candado).
-- Diagnóstico/test: **eliminado** `HH_SET_AREA`/`HH_MAKE_AREAS`/`HH_AUTOPLAY`/`HH_DUMP_AREA`; se
-  conservan `HH_LOAD_TRACE` (tooling) y `HH_FONT_TRACE` (diagnóstico de fuentes).
+### Hecho reciente — commit `874b9f6`: título del Área al cargar partida
+Al cargar un slot, el nombre del Área (gráfico nativo intraducible) se pinta con **overlay propio**:
+telón negro + `AREA N` (fuente del juego) + nombre en **Work Sans SemiBold incrustada**, traducido en
+`en/es/ca/fr/de` (`ja` nativo). **Calibrado 1:1** con el original (ancho/alto/peso/métrica) y **salto de
+línea** centrado cuando no cabe en el ancho visible (p. ej. 4:3). Candado anti-parpadeo; timing colgado
+de la cadena nativa. Fuente **incrustada** (sin `.ttf` suelto; `licences/OFL.txt`). Además, reorg de
+carpetas junto al exe: `assets/{lang,logos,sounds}`, `licences/`, `saves/{,templates}`. Detalle:
+`notes/2026-10-01-titulo-area-carga.md` y `...-calibracion.md`.
+- **Pendiente menor**: recompilar Windows (limpio) para regenerar estructura + embebido.
+- **Decisión abierta**: ¿inglés usa overlay (actual) o nativo 1:1 (cambiar `!= "ja"` por `!= "en"`)?
+
+> Nota: el bloque de traducción de la UI se **reutilizará** en la TAREA ACTUAL (los nombres de Área y las
+> etiquetas del menú pasarán a ser claves en `assets/lang/*.txt`).
 
 ---
 

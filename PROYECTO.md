@@ -137,6 +137,10 @@ sin parpadeo ni superposición al título, y mensajes Controller/Rumble Pak ocul
 **Calibrado 1:1** con el original (ancho/alto/peso/métrica) y **salto de línea automático** en 4:3 para
 los nombres largos (centrado; en 16:9 no cambia). Verificado headless; **pendiente validar en Windows**.
 Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
+**i18n — unificar traducciones (PLANEADO, 2026-10-01)**: hoy conviven dos mecanismos (UI del port en
+código, clave español; texto nativo en `assets/lang/*.txt`, clave inglés). Plan: **una sola fuente**
+(ficheros por idioma, clave inglés) con `hh::text::translate()` y las tablas de UI movidas a datos;
+el jugador podrá editar traducciones. Plan: `notes/2026-10-01-i18n-unificar-traducciones-plan.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
