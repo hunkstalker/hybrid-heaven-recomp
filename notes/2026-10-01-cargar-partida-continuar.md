@@ -89,6 +89,30 @@ rama de **CANCELAR** nativa (ret==2): `func_8012FE50(0x17, 0x73, 1, 1, 0)` + cal
 - `X` sobre una partida → `Remove play data?` → `Remove completed.` → A vuelve a la lista.
 - Sin cartel de Controller/Rumble Pak. F8 (nativo visible) sigue mostrando el DATA LOAD nativo.
 
+## 6bis. Traza HH_LOAD_TRACE y bugs encontrados en el run de Windows (2026-10-01)
+
+Traza `HH_LOAD_TRACE=1` (en `hh_file_select_hook`, tags `pre`/`post` del update nativo) → `hh_trace.log`
+con: fase, cursor del modelo, cursor/top/estado/página NATIVOS del file-select
+(`D_801BEC05/D_801BEC04/D_801BEBCC/D_801BEC02`) y `fs_active`/`native_visible`. Launcher:
+`run_load_trace.bat`.
+
+**Hallazgos [MEDIDO]:**
+1. **Cursor que "volvía arriba"** (corregido en `6a916c7`): `open_load_game()` rehacía
+   `rebuild_load_game()` cada frame y este fuerza el cursor al primer slot con datos. Ahora
+   `open_load_game` hace early-return si ya está abierta.
+2. **`g_file_select_active` no se reseteaba al salir** (corregido en `3c5ca37`): tras `B`/cargar,
+   `file_select_text_skip()`/`suppress_box_draw()` seguían a true hasta que corría
+   `hh_title_menu_hook` (varios frames después). Efecto: el compositor de texto **blanqueaba las
+   etiquetas del MENÚ DE TÍTULO** (comparte el hook `func_8001B204`) → título vacío/texto fantasma y,
+   al agotar el idle, attract. Prueba en la traza: `native cur/st=0` siempre y `fs_active=1`
+   persistente tras salir; `[native] filter text=801CECFC` (etiqueta del TÍTULO) blanqueada 914 veces.
+   Fix: `set_file_select_active(false)` en `hh_leave_load_game`/`hh_do_load_game`.
+
+**Nota de comportamiento (a confirmar en Windows):** el flujo nativo de CONTINUE/CANCELAR usa
+`func_80005670(obj, 0x80044090)` (mismo descriptor de transición que GAME START), y la rama de
+cancelar `func_801C3E24`/`func_801C40EC`. La secuencia replica la del juego; si al volver se reproduce
+parte de la intro, es la ruta nativa de esta pantalla, no un bug del port.
+
 ## 7. Referencias
 
 - Ciclo de guardado (plantilla): `notes/2026-09-30-save-capsule-logica.md`.
