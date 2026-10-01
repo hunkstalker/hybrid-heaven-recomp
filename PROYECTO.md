@@ -130,6 +130,13 @@ sin parpadeo ni superposición al título, y mensajes Controller/Rumble Pak ocul
 `func_800179B0`). Textos: mensaje de `Browse` con bindings
 (`Select play data to be loaded pressing A/J or X/H to remove.`). Nota:
 `notes/2026-10-01-cargar-partida-continuar.md`.
+**Título del Área al cargar partida (2026-10-01, rama `menu-carga-guardado-partida`)**: el nombre del
+Área es un **gráfico nativo intraducible**; el port lo pinta con **overlay propio** (telón negro +
+`AREA N` con la fuente del juego + nombre en **Work Sans SemiBold**), traducido en **EN/ES/CA/FR/DE**
+(`ja` nativo), colgado de la cadena nativa (fade/espera/transición) y con **candado anti-parpadeo**.
+**Calibrado 1:1** con el original (ancho/alto/peso/métrica) y **salto de línea automático** en 4:3 para
+los nombres largos (centrado; en 16:9 no cambia). Verificado headless; **pendiente validar en Windows**.
+Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

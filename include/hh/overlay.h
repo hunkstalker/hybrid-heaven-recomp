@@ -43,15 +43,35 @@ struct Text {
     hh::font::game::Face face = hh::font::game::Face::Color0;
 };
 
+// Texto con la fuente Work Sans embebida (SIL OFL-1.1): para el título del Área traducido. `x`/`y` en
+// unidades virtuales; `y` es la LÍNEA BASE. `scale` 1.0 = px del atlas de la fuente (rasterizada a
+// ~22 px); 0.5 = ~11 px virtuales.
+struct TtfText {
+    float x = 0.0f, y = 0.0f;
+    float scale = 0.5f;      // escala horizontal (y vertical si scale_y == 0)
+    float scale_y = 0.0f;    // escala vertical independiente (0 = usar `scale`); estira el ALTO
+    float tracking = 0.0f;   // espaciado extra entre letras (unidades virtuales)
+    float word_space = 0.0f; // espaciado extra ADICIONAL tras cada espacio (unidades virtuales)
+    uint32_t color = 0xFFFFFFFFu;
+    std::string text;
+};
+
 // Contenido de un frame. El menú lo publica (game thread) y el draw hook lo dibuja (render thread).
 struct Frame {
     bool visible = false;
     std::vector<Panel> panels;
     std::vector<Text> texts;
+    std::vector<TtfText> ttf_texts;   // Work Sans (título del Área traducido)
 };
 
 // Publica el frame a dibujar. Thread-safe (copia bajo mutex). Llamar cada frame desde el menú.
 void publish(Frame frame);
+
+// Mantiene el último frame publicado al menos `ms` ms ADICIONALES aunque no se vuelva a publicar (se
+// usa para el título del Área: tras la transición no hay más publicaciones, pero hay que seguir
+// tapando el nombre nativo hasta que arranca el gameplay). Se extiende con cada llamada.
+void hold_ms(int ms);
+long hold_remaining_ms();   // ms que quedan de hold (0 si no hay)
 
 // true si el overlay está activo (HH_OVERLAY!=0). El menú PC lo usa para decidir si toma el control
 // total del menú de título (neutralizando el input del handler nativo); con el overlay desactivado,
@@ -100,6 +120,12 @@ void set_cycle_indicator(bool enabled, int idx);
 // llega al swapchain, incluidos los interpolados). Lo usa el indicador de FPS para medir la tasa
 // real de presentación (no la de update_screen, que corre a la tasa VI).
 uint64_t presented_frames();
+
+// Ancho VISIBLE en unidades virtuales según el aspecto real (240 * ancho/alto): 320 en 4:3, ~427 en
+// 16:9. Lo fija el draw hook (render thread) y lo consulta el título del Área (game thread) para
+// decidir si partir el nombre en dos líneas. `visible_width()` devuelve el último valor conocido.
+void set_visible_width(float vw);
+float visible_width();
 
 // Registra los render hooks de RT64 (init/draw/deinit). OJO: el hook `init` se invoca DENTRO de
 // `Application::setup()`, asi que hay que llamar a esto ANTES de crear/configurar la aplicacion

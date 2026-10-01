@@ -264,6 +264,13 @@ cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel
 - Render del overlay del menú PC (ADR 0008): `RT64::SetRenderHooks` + plume
   (`src/platform/overlay.cpp`), con **proyección uniforme (píxel cuadrado, área 4:3 centrada)**, porque
   el texto 2D del juego **no** va estirado a 16:9 (el widescreen solo expande el 3D).
+- **Título del Área traducido (Work Sans)**: el nombre del Área es un **gráfico nativo intraducible**;
+  se pinta con texto TTF (**Work Sans SemiBold**, OFL; incrustado o cargado por fichero) sobre el telón
+  negro, traducido en EN/ES/CA/FR/DE (`ja` usa el nativo) — `src/subsystems/ttf.cpp` +
+  `overlay::TtfText` (`scale`/`scale_y`/`tracking`/`word_space`). El draw hook publica el **ancho
+  visible** (`240·ancho/alto`) y `publish_area_title` **parte el nombre en líneas centradas** si no
+  cabe (p. ej. en 4:3). Detalle: `notes/2026-10-01-titulo-area-carga.md` y
+  `notes/2026-10-01-titulo-area-calibracion.md`.
 - **Alineación / bearing**: el motor dibuja cada glifo en su celda de 8 px **sin compensar**, y la
   primera tinta no cae en la misma columna en todos: `M O V W X Z m w` en la **0**, `I h j k l r t`
   en la **2**, `i` en la **3**, el resto en la **1**. Solo importa para el **primer glifo de una

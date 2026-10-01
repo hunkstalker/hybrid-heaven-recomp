@@ -78,6 +78,20 @@ extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx);  // t
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx);   // Fase 3: file-select CARGAR
 extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // cajas nativas (func_8001A804)
 extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // mensaje Controller Pak
+extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
+extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
+extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
+extern "C" void func_8013EA54_1037224(uint8_t* rdram, recomp_context* ctx);  // indice de escena del slot
+extern "C" void hh_area_title_hook(uint8_t* rdram, recomp_context* ctx);     // titulo Area (fade)
+extern "C" void hh_area_wait_hook(uint8_t* rdram, recomp_context* ctx);      // titulo Area (espera)
+extern "C" void hh_area_trans_hook(uint8_t* rdram, recomp_context* ctx);     // titulo Area (transicion)
+extern "C" void hh_area_scene_idx_hook(uint8_t* rdram, recomp_context* ctx); // diagnostico indice escena
+
+namespace hh::menu_overlay {
+void publish_area_title(int area_num, const std::string& name, int alpha);
+std::string area_title_name(int area_num);
+void set_area_title_lock(bool on);
+}  // namespace hh::menu_overlay
 
 namespace {
 
@@ -97,6 +111,12 @@ bool g_mute_native_input = false;
 // partida). Ver `feed_menu_navigation` y `hh_title_menu_hook`.
 bool g_inject_native_a = false;
 
+// NOTA (2026-10-01): se probó a cargar por la MÁQUINA NATIVA del file-select (inyectarle A y dejar
+// que corra state 2→3→4). Está BLOQUEADO: el state machine se congela en state 3 mientras el
+// subsistema de mensajes no limpie `D_8008EE78` (`func_800178E8` → 0), y en el port el mensaje
+// avanza una vez y se queda. Por eso la carga sigue siendo directa (`hh_do_load_game`, rama de ÉXITO
+// replicada). Ver `RETOMAR.md` / nota del título del Área.
+
 // ¿Estamos en la TRANSICIÓN del menú de título al file-select de CARGAR? Se activa al pulsar
 // CONTINUAR y la consume el primer frame de `hh_file_select_hook`. Mientras dura, el handler del
 // TÍTULO no debe apagar la categoría FILE-SELECT (el callback nativo puede seguir siendo el del título
@@ -104,6 +124,21 @@ bool g_inject_native_a = false;
 bool g_load_enter = false;
 // Contador de frames de la transición a CARGAR (solo para la traza: mide el hueco CONTINUAR->UI).
 long g_load_enter_frame = 0;
+
+// TÍTULO DEL ÁREA por OVERLAY (idiomas != inglés): el nombre nativo es un gráfico; con overlay lo
+// dibujamos nosotros (AREA N + nombre traducido con Work Sans). `g_area_title_active` dura desde que
+// se compone el título hasta que arranca la transición de escena.
+bool g_area_title_active = false;
+bool g_area_title_in_transition = false;   // ya se alcanzó func_801C4074 (transición)
+long long g_area_title_trans_ms = 0;       // instante (steady ms) de la transición
+int g_area_title_num = 0;
+long g_area_title_frames = 0;   // frames desde el inicio del título (para el fade-in del overlay)
+// Alfa del fade-in del título (réplica del original: rampa ~4/frame). Se satura a 255.
+int area_title_alpha() {
+    long a = g_area_title_frames * 4;
+    return a > 255 ? 255 : static_cast<int>(a);
+}
+
 // Contador global de frames (lo incrementan los hooks de título/file-select): permite medir cuántos
 // frames reales pasan entre CONTINUAR y la primera UI de carga. Solo diagnóstico.
 long g_hook_frame = 0;
@@ -313,7 +348,7 @@ uint32_t g_logo_prev_dir = 0;              // flanco de direcciones
 uint32_t g_logo_prev_ab = 0;               // flanco de A/B/START
 
 std::string logo_path(const char* name) {
-    return (hh::get_app_folder_path() / "logos" / name).string();
+    return (hh::get_app_folder_path() / "assets" / "logos" / name).string();
 }
 
 void show_logo(const char* name) {
@@ -618,6 +653,16 @@ void register_title_menu_hook() {
     // Composición de texto (residente): blankea el texto del menú nativo justo antes de leerlo, de
     // modo que sale en blanco ya desde el primer frame (sin ventana visible).
     recomp::overlays::add_loaded_function(0x8001B204, hh_entry_register_hook);
+    // TÍTULO DEL ÁREA al cargar: `func_801C3F48` (fade) y `func_801C4018` (espera de input) se
+    // envuelven SIEMPRE: publican el overlay del título (idiomas != inglés) y, además, hh_area_title_hook
+    // lleva la traza de diagnóstico (gated por HH_LOAD_TRACE).
+    recomp::overlays::add_loaded_function(0x801C3F48, hh_area_title_hook);
+    recomp::overlays::add_loaded_function(0x801C4018, hh_area_wait_hook);
+    recomp::overlays::add_loaded_function(0x801C4074, hh_area_trans_hook);
+    // `func_8013EA54` (índice de escena del Área): se envuelve SIEMPRE para capturar su retorno, que
+    // es el que usan `func_801C3E24`/`func_801C3F48` para indexar `D_801CCAE0` (nº de Área). Su
+    // logging va gated por HH_LOAD_TRACE/HH_FONT_TRACE.
+    recomp::overlays::add_loaded_function(0x8013EA54, hh_area_scene_idx_hook);
     // Paso 5: lectores de botones del handler nativo (direcciones y A/B/START), muteables.
     recomp::overlays::add_loaded_function(0x801C1340, hh_native_dir_input);
     recomp::overlays::add_loaded_function(0x801C1334, hh_native_ab_input);
@@ -1557,6 +1602,119 @@ extern "C" void hh_title_ctor_hook(uint8_t* rdram, recomp_context* ctx) {
     func_801C18FC_11BB3CC(rdram, ctx);
 }
 
+extern "C" int g_font_all_countdown;   // definido abajo (ventana de volcado de glifos)
+
+// DIAGNOSTICO (HH_LOAD_TRACE): indice de escena del slot que devuelve `func_8013EA54` (0xFF = cancelar).
+static uint32_t g_area_last_scene_idx = 0xFFFFFFFFu;
+
+extern "C" void hh_area_scene_idx_hook(uint8_t* rdram, recomp_context* ctx) {
+    func_8013EA54_1037224(rdram, ctx);
+    g_area_last_scene_idx = static_cast<uint32_t>(ctx->r2);
+    if (env_set("HH_FONT_TRACE")) {
+        // `func_8013EA54` se llama desde `func_801C3E24` ANTES de `func_80146208` (que puede cargar
+        // los glifos del nombre). Activar aquí la ventana cubre esa llamada.
+        g_font_all_countdown = 400;
+    }
+    if (env_set("HH_LOAD_TRACE")) {
+        // `func_8013EA54` lee el cursor nativo del file-select (D_801BEC05) y la entrada D_801BEB80[cursor]
+        // (8 B): si el campo +4 != 1 devuelve BASURA de pila (bug del original); si == 1 devuelve el
+        // campo +6 (el indice que usan func_801C3E24/801C3F48 para indexar sus tablas). Lo registramos
+        // todo para ver en el run real si el indice es valido.
+        const unsigned cur = rdram[(0x801BEC05u - 0x80000000u) ^ 3u];
+        const uint32_t ent = 0x801BEB80u + (static_cast<uint32_t>(cur) * 8u);
+        char eb[40];
+        for (int i = 0; i < 8; ++i) {
+            std::snprintf(eb + i * 3, 4, "%02X ", rdram[((ent + i) - 0x80000000u) ^ 3u]);
+        }
+        hh::log("[load-trace] AREA func_8013EA54 ret=%u (st=%u cur=%u top=%u pak=%u ent[%02X]=%s)\n",
+                g_area_last_scene_idx,
+                rdram[(0x801BEBCCu - 0x80000000u) ^ 3u],   // estado nativo (2 = lista interactiva)
+                cur, rdram[(0x801BEC04u - 0x80000000u) ^ 3u],
+                rdram[(0x801BBF42u - 0x80000000u) ^ 3u],   // flag de arranque del pak
+                ent & 0xFFFFFFu, eb);
+    }
+}
+
+// DIAGNOSTICO (HH_LOAD_TRACE): envuelve el callback `func_801C3F48` (titulo del Area). Registra si
+// corre, el `D_801CC8CC` y, tras el original, el byte `t0` de la tabla `D_801CCAE0[índice]` (si es 0
+// el original NO llama al compositor `func_8001B204`).
+extern "C" void hh_area_title_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (env_set("HH_LOAD_TRACE")) {
+        hh::log("[load-trace] AREA TITLE callback enter obj=%08X D_801CC8CC=%u\n",
+                static_cast<uint32_t>(ctx->r4),
+                rdram[(0x801CC8CCu - 0x80000000u) ^ 3u]);
+    }
+    func_801C3F48_11BDA18(rdram, ctx);
+    if (env_set("HH_LOAD_TRACE")) {
+        uint8_t t0 = 0;
+        const uint32_t idx = g_area_last_scene_idx;
+        char tb[48];
+        for (int i = 0; i < 12; ++i) {
+            std::snprintf(tb + i * 3, 4, "%02X ", rdram[((0x801CCAE0u + i) - 0x80000000u) ^ 3u]);
+        }
+        if (idx < (0x800000u - (0x801CCAE0u - 0x80000000u))) {
+            t0 = rdram[((0x801CCAE0u + idx) - 0x80000000u) ^ 3u];
+        }
+        const unsigned scene = (static_cast<unsigned>(rdram[(0x801BBBF4u - 0x80000000u) ^ 3u]) << 8) |
+                               static_cast<unsigned>(rdram[(0x801BBBF5u - 0x80000000u) ^ 3u]);
+        hh::log("[load-trace] AREA TITLE callback exit idx=%u t0=%u D_801CCAE0=[%s] "
+                "D_801BBBF4=%u\n",
+                idx, t0, tb, scene);
+    }
+    if (env_set("HH_FONT_TRACE")) {
+        g_font_all_countdown = 400;   // ventana: volcar los glifos del título del Área
+    }
+    // Overlay traducido (idiomas != inglés): marca el título activo y lo publica cada frame del fade.
+    // El índice del Área se lee DEL MODELO nativo (cursor `D_801BEC05` + entrada `D_801BEB80[cursor]`
+    // campo +6), NO del hook de diagnóstico (que solo existe con HH_LOAD_TRACE).
+    if (hh::overlay::enabled() && hh::text_current_language() != "ja") {
+        uint8_t t0 = 0;
+        const uint32_t idx = g_area_last_scene_idx;   // retorno de func_8013EA54 (hook siempre activo)
+        if (idx < 12u) {
+            t0 = rdram[((0x801CCAE0u + idx) - 0x80000000u) ^ 3u];
+        }
+        if (env_set("HH_LOAD_TRACE")) {
+            hh::log("[load-trace] AREA overlay: idx=%u t0=%u\n", idx, t0);
+        }
+        if (t0 >= 1 && t0 <= 9) {
+            if (!g_area_title_active) {
+                g_area_title_frames = 0;          // nuevo título: reinicia el fade
+                g_area_title_in_transition = false;
+            }
+            g_area_title_num = t0;
+            g_area_title_active = true;
+            ++g_area_title_frames;
+            hh::menu_overlay::publish_area_title(t0, hh::menu_overlay::area_title_name(t0),
+                                                 area_title_alpha());
+        }
+    }
+}
+
+// Espera de input del título del Área (`func_801C4018`): sigue publicando el overlay traducido cada
+// frame (el original espera A/espera para pasar a la transición de escena).
+extern "C" void hh_area_wait_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (g_area_title_active) {
+        ++g_area_title_frames;
+        hh::menu_overlay::publish_area_title(g_area_title_num,
+                                             hh::menu_overlay::area_title_name(g_area_title_num),
+                                             area_title_alpha());
+    }
+    func_801C4018_11BDAE8(rdram, ctx);
+}
+
+// Transición de escena del título (`func_801C4074`): se sigue publicando el overlay para CUBRIR el
+// nombre nativo (que persiste) hasta que arranca el gameplay. Se deja de dibujar cuando un goto
+// posterior cambia el callback (ver hh_goto_hook).
+extern "C" void hh_area_trans_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (g_area_title_active) {
+        ++g_area_title_frames;
+        hh::menu_overlay::publish_area_title(g_area_title_num,
+                                             hh::menu_overlay::area_title_name(g_area_title_num),
+                                             area_title_alpha());
+    }
+    func_801C4074_11BDB44(rdram, ctx);
+}
+
 // Overlay A2: envuelve la composición de texto (0x8001B204). Si el texto es del menú nativo y éste
 // está oculto, lo blankea justo antes de que el original lo lea. Es la pieza que elimina el flash:
 // cubre la PRIMERA composición (fase de fade-in), en la que el handler del menú aún no corre.
@@ -1568,17 +1726,39 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
     // VACIAS via 0x8001B204 con `a3=0x8018F0F0`. Esas llamadas hay que DEJARLAS PASAR aunque el nativo
     // este oculto; si no, al ocultar (p. ej. F8-off) el texto ya compuesto no se borra y queda pegado.
     constexpr uint32_t kFileSelectClearStr = 0x8018F0F0u;
+    // TÍTULO DEL ÁREA al CARGAR partida: `func_801C3F48` (callback de ÉXITO que fija `func_801C3E24`)
+    // compone el nombre del Área por este compositor con `a3=0x801CED98` (ver nota
+    // `notes/2026-10-01-titulo-area-carga.md`). Es texto del juego, NO del file-select: hay que
+    // DEJARLO PASAR aunque la categoría FILE-SELECT siga activa, o el port muestra solo negro sin
+    // título. No está en las tablas de blankeo, así que `filter_native_text` no lo toca.
+    constexpr uint32_t kAreaTitleField = 0x801CED98u;
+    const uint32_t a3 = static_cast<uint32_t>(ctx->r7);
     // DIAGNÓSTICO de la transición a CARGAR (HH_LOAD_TRACE): registra cada composición de texto con
     // su `a3` mientras `g_load_enter` está activo, para ver QUÉ texto se compone (y si se cuela) antes
     // de que nuestra UI de carga publique. `skip` = se habría saltado el compositor.
     if (env_set("HH_LOAD_TRACE") && g_load_enter) {
         // `skip=0` aquí significa que este texto NO se saltó: si es del file-select, se cuela.
-        hh::log("[load-trace] entry compose a3=%08X skip=%d\n",
-                static_cast<uint32_t>(ctx->r7),
+        hh::log("[load-trace] entry compose a3=%08X skip=%d\n", a3,
                 hh::menu_overlay::file_select_text_skip() ? 1 : 0);
     }
+    // Título del Área (a3 = campo de enlace): el juego lo compone con la plantilla "%m%aAREA %d".
+    //  - JAPONÉS o overlay desactivado: se deja pasar (el juego dibuja el título nativo).
+    //  - Resto de idiomas (en/es/ca/fr/de): NO se compone (el nombre es un gráfico intraducible) y lo
+    //    pinta NUESTRO overlay traducido (ver hh_area_title_hook / publish_area_title).
+    if (a3 == kAreaTitleField) {
+        const bool translate = hh::overlay::enabled() && hh::text_current_language() != "ja";
+        if (env_set("HH_LOAD_TRACE")) {
+            hh::log("[load-trace] AREA TITLE compose a3=%08X (%s)\n", a3,
+                    translate ? "overlay" : "dejar pasar");
+        }
+        if (translate) {
+            return;   // lo dibuja el overlay
+        }
+        func_8001B204_1BE04(rdram, ctx);
+        return;
+    }
     if (hh::menu_overlay::file_select_text_skip() &&
-        static_cast<uint32_t>(ctx->r7) != kFileSelectClearStr) {
+        a3 != kFileSelectClearStr) {
         if (env_set("HH_MENU_TRACE")) {
             hh::log("[entry] SKIP file-select a3=%08X\n", static_cast<uint32_t>(ctx->r7));
         }
@@ -1589,7 +1769,6 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
         // de etiquetas pasa cada pantalla (p. ej. al entrar/salir de submenús).
         static std::vector<uint32_t> seen;
         static uint64_t n = 0;
-        const uint32_t a3 = static_cast<uint32_t>(ctx->r7);
         bool dup = false;
         for (uint32_t v : seen) {
             if (v == a3) { dup = true; break; }
@@ -1790,6 +1969,17 @@ static void hh_do_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj, i
     t.r4 = 0;                        // canal 0
     t.r5 = static_cast<uint32_t>(slot);
     func_801423C8_103AB98(rdram, &t);   // lee el slot 0xD00 y deserializa a los globals
+    if (env_set("HH_LOAD_TRACE")) {
+        // Estado nativo del file-select EN EL MOMENTO de cargar: si `st`!=2 o las entradas del modelo
+        // están a cero, `func_8013EA54` (que usa el cursor nativo) devolverá basura y no habrá título.
+        const unsigned scene = (static_cast<unsigned>(rdram[(0x801BBBF4u - 0x80000000u) ^ 3u]) << 8) |
+                               static_cast<unsigned>(rdram[(0x801BBBF5u - 0x80000000u) ^ 3u]);
+        hh::log("[load-trace] AREA load slot=%d ncur=%u ntop=%u st=%u pak=%u scene=%u\n", slot,
+                rdram[(0x801BEC05u - 0x80000000u) ^ 3u],
+                rdram[(0x801BEC04u - 0x80000000u) ^ 3u],
+                rdram[(0x801BEBCCu - 0x80000000u) ^ 3u],
+                rdram[(0x801BBF42u - 0x80000000u) ^ 3u], scene);
+    }
     // `func_801C3E24` solo ejecuta la transición si `D_801CC8CC == 2` (flag del flujo de carga).
     rdram[(0x801CC8CCu - 0x80000000u) ^ 3u] = 2;
     t = *ctx;
@@ -1920,6 +2110,9 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             if (cur.enabled && cur.index >= 0 && hh::save::slot_present(cur.index)) {
                 if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
                 hh::menu::set_load_target_slot(cur.index);
+                // CARGA DIRECTA (rama de ÉXITO nativa replicada). Ver RETOMAR: la vía "dejar que la
+                // máquina nativa haga state 2→3→4" está BLOQUEADA porque su gate de mensaje
+                // (`D_8008EE78`) no se limpia en el port (medido 2026-10-01: se queda en state 3).
                 hh_do_load_game(rdram, ctx, obj, cur.index);
                 return true;
             }
@@ -2366,9 +2559,24 @@ extern "C" void hh_font_trace_d394(uint8_t* rdram, recomp_context* ctx) {
     }
 }
 
+// DIAGNOSTICO: si `g_font_all_countdown > 0`, hh_font_trace_bfe4 registra TODOS los códigos de glifo
+// (sin dedup) durante esa ventana. Sirve para volcar la secuencia exacta del título del Área.
+extern "C" int g_font_all_countdown = 0;
+
 extern "C" void hh_font_trace_bfe4(uint8_t* rdram, recomp_context* ctx) {
     const unsigned color = static_cast<uint32_t>(ctx->r4) & 0xFFu;
     const unsigned code = static_cast<uint32_t>(ctx->r5) & 0xFFFFu;
+    if (g_font_all_countdown > 0) {
+        --g_font_all_countdown;
+        hh::log("[fontall] color=%u code=%04X\n", color, code);
+    }
+    if (env_set("HH_FONT_LOWER") && code >= 1 && code <= 36) {
+        static unsigned n = 0;
+        if (n < 4000) {
+            ++n;
+            hh::log("[fontlower] color=%u code=%04X t=%ld\n", color, code, g_hook_frame);
+        }
+    }
     const unsigned stride = rdram[(0x80044624u + color - 0x80000000u) ^ 3u];
     const unsigned fileidx = guest_u16(rdram, 0x8004462Cu + color * 2u);
     func_8001BFE4_1CBE4(rdram, ctx);
@@ -2436,6 +2644,21 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
         hh::menu::close_load_game();
     }
     const uint32_t target = static_cast<uint32_t>(ctx->r5);
+    // Título del Área: `func_801C4074` es la transición de escena. El nombre nativo PERSISTE durante
+    // la carga de escena (que sigue en negro); se mantiene el overlay tapándolo hasta ~HH_TITLE_HOLD_MS
+    // después de la transición (cuando ya arranca el gameplay) y entonces se retira.
+    const long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                 std::chrono::steady_clock::now().time_since_epoch())
+                                 .count();
+    if (target == 0x801C4074u) {
+        g_area_title_in_transition = true;
+        g_area_title_trans_ms = now_ms;
+    } else if (g_area_title_active && g_area_title_in_transition && (now_ms - g_area_title_trans_ms) > 900) {
+        g_area_title_active = false;
+        g_area_title_in_transition = false;
+        hh::menu_overlay::set_area_title_lock(false);
+        hh::menu_overlay::hide_now();
+    }
     // Intro de ARRANQUE (file 055): `0x80383AD4` es el estado que corre durante los logos nativos.
     // Al registrarlo entramos en la fase; cualquier otra pantalla la cierra -> retira el HD.
     if (target == 0x80383AD4u) {
@@ -2467,7 +2690,9 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     // EXCEPCIÓN: durante la transición de entrada a CARGAR (`g_load_enter`) NO se oculta: ya estamos
     // publicando NUESTRA UI de carga y los gotos internos del file-select la ocultarían un frame
     // (parpadeo). El título no republica la raíz en esos frames (ver hh_title_menu_hook).
-    if (!g_load_enter) {
+    // EXCEPCIÓN: mientras el título del Área está activo (overlay traducido) NO se oculta: el nombre
+    // nativo persiste durante la transición y hay que seguir tapándolo (lo retira el bloque de arriba).
+    if (!g_load_enter && !g_area_title_active) {
         hh::menu_overlay::hide_now();
     }
     func_800058DC_64DC(rdram, ctx);

@@ -28,6 +28,7 @@
 
 #include "hh.h"
 #include "hh/font.h"
+#include "hh/ttf.h"
 #include "hh/overlay.h"
 
 #include "shaders/OverlayVS.hlsl.spirv.h"
@@ -109,6 +110,10 @@ std::atomic<bool> g_cycle_on{ false };
 std::atomic<int> g_cycle_value{ 0 };
 // Frames realmente presentados (se incrementa una vez por draw del render hook).
 std::atomic<uint64_t> g_presented_frames{ 0 };
+// Ancho VISIBLE en unidades virtuales (240 * ancho/alto del framebuffer) según el aspecto real de la
+// ventana. 320 en 4:3, ~427 en 16:9, etc. Lo consulta el título del Área para decidir si partir el
+// nombre en dos líneas cuando no cabe. Lo fija el draw hook cada frame.
+std::atomic<float> g_visible_width{ kVirtualWidth };
 
 RenderDevice* g_device = nullptr;
 std::unique_ptr<RenderShader> g_vs;
@@ -132,6 +137,13 @@ std::unique_ptr<RenderTexture> g_atlas_texture;
 std::unique_ptr<RenderDescriptorSet> g_atlas_set;
 float g_atlas_w = 0.0f;
 float g_atlas_h = 0.0f;
+
+// Atlas de la fuente Work Sans embebida (para el título del Área traducido). Se sube del atlas host
+// RGBA8 de `hh::ttf` (cobertura en R+A). El PS mode 0 usa R como tinta, así que vale el mismo shader.
+std::unique_ptr<RenderTexture> g_ttf_texture;
+std::unique_ptr<RenderDescriptorSet> g_ttf_set;
+float g_ttf_w = 0.0f;
+float g_ttf_h = 0.0f;
 
 // Capa de IMAGEN a pantalla completa (logos de la intro, etc.). Se sube una textura RGBA8 y se
 // dibuja cubriendo el framebuffer con su propia proyeccion en pixeles de ventana (letterbox si el
@@ -310,6 +322,15 @@ void init_hook(RenderInterface* rhi, RenderDevice* device) {
         g_atlas_set = make_texture_set(g_atlas_texture.get());
     }
 
+    // Atlas de Work Sans (fuente embebida): para el título del Área traducido.
+    if (hh::ttf::ready()) {
+        g_ttf_w = static_cast<float>(hh::ttf::atlas_width());
+        g_ttf_h = static_cast<float>(hh::ttf::atlas_height());
+        g_ttf_texture = upload_texture(hh::ttf::atlas_width(), hh::ttf::atlas_height(),
+                                       hh::ttf::atlas_rgba8());
+        g_ttf_set = make_texture_set(g_ttf_texture.get());
+    }
+
     hh::log("[overlay] init: shaderFormat=%d pipeline=%d atlas=%d (%.0fx%.0f)\n",
             static_cast<int>(shader_format), g_pipeline != nullptr, g_atlas_texture != nullptr,
             g_atlas_w, g_atlas_h);
@@ -432,6 +453,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     if (width == 0 || height == 0) {
         return;
     }
+    // Ancho visible en unidades virtuales (proyección uniforme centrada): 240 * ancho/alto.
+    set_visible_width(kVirtualHeight * static_cast<float>(width) / static_cast<float>(height));
 
     // Construye TODA la geometria del frame en un unico buffer (subida unica). Los paneles y el
     // texto se dibujan por rangos de indices con distinta textura: escribir dos veces el mismo
@@ -712,6 +735,36 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         }
     }
 
+    // TEXTO con Work Sans (fuente embebida): título del Área traducido. Se acumula al final (para no
+    // romper los rangos de índice existentes) y se dibuja con su propio descriptor set (mode 0: R =
+    // cobertura). `y` es la línea base; stb entrega `yoff` negativo hacia arriba.
+    uint32_t ttf_begin = 0, ttf_index_count = 0;
+    if (!frame.ttf_texts.empty() && g_ttf_set != nullptr && g_ttf_w > 0.0f) {
+        ttf_begin = static_cast<uint32_t>(indices.size());
+        for (const TtfText& t : frame.ttf_texts) {
+            const float sy = (t.scale_y > 0.0f) ? t.scale_y : t.scale;   // estirado vertical
+            float pen_x = t.x;
+            size_t i = 0;
+            while (i < t.text.size()) {
+                const unsigned cp = utf8_next_cp(t.text, i);
+                const hh::ttf::Glyph g = hh::ttf::glyph(cp);
+                if (g.ok && g.w > 0 && g.h > 0) {
+                    const float u0 = static_cast<float>(g.x) / g_ttf_w;
+                    const float v0 = static_cast<float>(g.y) / g_ttf_h;
+                    const float u1 = u0 + static_cast<float>(g.w) / g_ttf_w;
+                    const float v1 = v0 + static_cast<float>(g.h) / g_ttf_h;
+                    const float gx = pen_x + g.xoff * t.scale;
+                    const float gy = t.y + g.yoff * sy;
+                    append_quad(vertices, indices, gx, gy, static_cast<float>(g.w) * t.scale,
+                                static_cast<float>(g.h) * sy, t.color, u0, v0, u1, v1);
+                }
+                pen_x += g.advance * t.scale + t.tracking;
+                if (cp == ' ') pen_x += t.word_space;   // separación extra entre palabras
+            }
+        }
+        ttf_index_count = static_cast<uint32_t>(indices.size()) - ttf_begin;
+    }
+
     // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
     // logos nativos del boot). Solo mientras la intro no retire la bandera.
     uint32_t blackout_begin = 0;
@@ -790,6 +843,11 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     draw_range(list, g_white_set.get(), image_index_count,
                panel_index_count - image_index_count);
     draw_range(list, g_atlas_set.get(), panel_index_count, text_index_count);
+
+    // Texto Work Sans (título del Área) con la proyección VIRTUAL que sigue activa (pc).
+    if (ttf_index_count > 0 && g_ttf_set != nullptr) {
+        draw_range(list, g_ttf_set.get(), ttf_begin, ttf_index_count);
+    }
 
     // Indicador de FPS con proyeccion en PIXELES (1 unidad = 1 px, origen arriba-izquierda).
     if (fps_index_count > 0) {
@@ -939,9 +997,32 @@ uint64_t presented_frames() {
     return g_presented_frames.load(std::memory_order_relaxed);
 }
 
+void set_visible_width(float vw) {
+    if (vw > 0.0f) g_visible_width.store(vw, std::memory_order_relaxed);
+}
+
+float visible_width() {
+    return g_visible_width.load(std::memory_order_relaxed);
+}
+
 void publish(Frame frame) {
     const std::lock_guard<std::mutex> lock(g_frame_mutex);
     g_frame = std::move(frame);
+}
+
+// Hold del frame: deadline (steady_clock ms) hasta el que NO se oculta aunque no se publique.
+std::atomic<long long> g_hold_until_ms{ 0 };
+long long now_ms_steady() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+void hold_ms(int ms) {
+    g_hold_until_ms.store(now_ms_steady() + ms, std::memory_order_relaxed);
+}
+long hold_remaining_ms() {
+    const long long rem = g_hold_until_ms.load(std::memory_order_relaxed) - now_ms_steady();
+    return rem > 0 ? static_cast<long>(rem) : 0;
 }
 
 void register_hooks() {

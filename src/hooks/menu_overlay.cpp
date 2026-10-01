@@ -23,6 +23,9 @@
 #include "hh/font.h"
 #include "hh/menu.h"
 #include "hh/overlay.h"
+#include "hh/ttf.h"
+
+#include <cstring>
 
 namespace hh::menu_overlay {
 namespace {
@@ -1022,7 +1025,16 @@ void title_update(uint8_t* rdram) {
 // publicando nuestro frame (el de la raíz) durante la transición; ocultarlo aquí lo hace instantáneo
 // en vez de esperar al debounce de `tick`. Si la nueva pantalla sigue siendo la raíz, el handler
 // vuelve a publicar en el frame siguiente y el overlay reaparece.
+// Candado del título del Área: mientras está activo, `hide_now()` (llamado en cada cambio de pantalla)
+// y el ocultado por inactividad NO borran el frame -> evita el parpadeo (un frame en que desaparece
+// nuestro texto y se ve el nombre nativo).
+static bool g_area_title_lock = false;
+void set_area_title_lock(bool on) { g_area_title_lock = on; }
+
 void hide_now() {
+    if (g_area_title_lock) {
+        return;
+    }
     hh::overlay::publish(hh::overlay::Frame{});
 }
 
@@ -1031,6 +1043,9 @@ void hide_now() {
 // ~30-110 Hz) y contar 30 ticks daba ~1 s de retardo al salir del menú (bug 2026-09-24). Con 150 ms
 // desaparece "al momento" sin parpadear. Ajustable: HH_MENU_STALE_MS=<ms>.
 void tick() {
+    if (g_area_title_lock) {
+        return;   // título del Área activo: no ocultar por inactividad
+    }
     using clock = std::chrono::steady_clock;
     static const int stale_ms = [] {
         const char* e = std::getenv("HH_MENU_STALE_MS");
@@ -1051,7 +1066,10 @@ void tick() {
         return;
     }
     const long elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_publish).count();
-    if (elapsed >= stale_ms) {
+    // El hold del frame (p. ej. el título del Área) retrasa el ocultado aunque no se publique.
+    const long hold = hh::overlay::hold_remaining_ms();
+    const long limit = hold > stale_ms ? hold : stale_ms;
+    if (elapsed >= limit) {
         hidden = true;
         static const bool trace = [] {
             const char* e = std::getenv("HH_MENU_TRACE");
@@ -1062,6 +1080,187 @@ void tick() {
         }
         hh::overlay::publish(hh::overlay::Frame{});
     }
+}
+
+// ============================================================================================
+// TÍTULO DEL ÁREA al CARGAR partida (telón negro + "AREA N" + nombre)
+// --------------------------------------------------------------------------------------------
+// El nombre del Área es un GRÁFICO nativo (no texto traducible); con idioma != inglés publicamos
+// este overlay y saltamos la composición nativa (`hh_entry_register_hook`). El "AREA N" lo dibujamos
+// con la fuente del juego (color0) a la posición medida; el nombre, con Work Sans (traducido).
+// Nombres originales medidos del juego (US); traducciones del port.
+// ============================================================================================
+namespace {
+struct AreaName {
+    const char* en;
+    const char* es;
+    const char* ca;
+    const char* fr;
+    const char* de;
+};
+const AreaName kAreaNames[9] = {
+    { "bioweapon storage facility", "instalación de armas biológicas",
+      "instal·lació d'armes biològiques", "installation d'armes biologiques", "Biowaffen-Lager" },
+    { "Dr.Bross lab", "laboratorio del Dr.Bross", "laboratori del Dr.Bross",
+      "laboratoire du Dr.Bross", "Dr.Bross-Labor" },
+    { "clone storage facility", "instalación de almacenamiento de clones",
+      "instal·lació d'emmagatzematge de clons", "installation de stockage de clones", "Klonlager" },
+    { "weapon factory", "fábrica de armas", "fàbrica d'armes", "usine d'armes", "Waffenfabrik" },
+    { "underground shelter lowest area", "refugio subterráneo nivel inferior",
+      "refugi subterrani nivell inferior", "abri souterrain niveau inférieur",
+      "Unterirdischer Schutzraum, unterste Ebene" },
+    { "bioweapon factory", "fábrica de armas biológicas", "fàbrica d'armes biològiques",
+      "usine d'armes biologiques", "Biowaffenfabrik" },
+    { "clone storage facility 2", "instalación de almacenamiento de clones 2",
+      "instal·lació d'emmagatzematge de clons 2", "installation de stockage de clones 2", "Klonlager 2" },
+    { "clone cultivation site", "centro de cultivo de clones", "centre de conreu de clons",
+      "site de culture de clones", "Klon-Zuchtstätte" },
+    { "underground shelter top level", "refugio subterráneo nivel superior",
+      "refugi subterrani nivell superior", "abri souterrain niveau supérieur",
+      "Unterirdischer Schutzraum, oberste Ebene" },
+};
+}  // namespace
+
+// Devuelve el nombre del Área `area_num` (1..9) en el idioma activo.
+std::string area_title_name(int area_num) {
+    if (area_num < 1 || area_num > 9) return std::string();
+    const AreaName& a = kAreaNames[area_num - 1];
+    const std::string lang = hh::text_current_language();
+    if (lang == "es") return a.es;
+    if (lang == "ca") return a.ca;
+    if (lang == "fr") return a.fr;
+    if (lang == "de") return a.de;
+    return a.en;
+}
+
+// Publica el frame del título del Área (telón negro + "AREA N" + nombre traducido). `alpha` (0..255)
+// funde la entrada del texto (el original hace fade-in ~0.5-1 s).
+void publish_area_title(int area_num, const std::string& name, int alpha) {
+    if (alpha < 0) alpha = 0;
+    if (alpha > 255) alpha = 255;
+    // Hold: mantiene el frame (telón+nombres) tras la transición, hasta que arranca el gameplay,
+    // porque el nombre nativo persiste y no hay más publicaciones. Tunable con HH_TITLE_HOLD_MS.
+    static const int hold = [] {
+        const char* e = std::getenv("HH_TITLE_HOLD_MS");
+        return (e != nullptr && *e != '\0') ? std::atoi(e) : 1500;
+    }();
+    hh::overlay::hold_ms(hold);
+    hh::overlay::Frame f;
+    f.visible = true;
+    // Telón negro a PANTALLA COMPLETA (no solo el área 4:3): el panel se dibuja con la proyección
+    // virtual uniforme, así que se extiende de sobra en X/Y para cubrir también el widescreen.
+    f.panels.push_back({ -2000.0f, -2000.0f, 4000.0f, 4000.0f, hh::overlay::rgba(0, 0, 0, 255) });
+    // Ajustes ajustables por entorno (iterar sin recompilar): tamaño, estirado de ALTO, tracking y Y.
+    set_area_title_lock(true);   // mientras se pinta el título, no dejar que hide_now lo borre
+    const auto env_f = [](const char* k, float def) -> float {
+        const char* e = std::getenv(k);
+        return (e != nullptr && *e != '\0') ? std::strtof(e, nullptr) : def;
+    };
+    // "AREA N" (fuente del juego color0), centrado; posición medida (centro y≈93 -> top≈89).
+    char buf[32];
+    std::snprintf(buf, sizeof buf, "AREA %d", area_num);
+    const float cw = static_cast<float>(hh::font::game::char_width());
+    const float num_w = static_cast<float>(std::strlen(buf)) * cw;
+    hh::overlay::Text area;
+    area.x = (hh::overlay::kVirtualWidth - num_w) * 0.5f;
+    area.y = env_f("HH_TITLE_NUM_Y", 89.0f);
+    area.face = hh::font::game::Face::Color0;
+    area.color = hh::overlay::rgba(255, 255, 255, static_cast<uint8_t>(alpha));
+    area.text = buf;
+    f.texts.push_back(area);
+    // Nombre (Work Sans), centrado; línea base medida (centro y≈107). Tamaño/estirado/tracking por env.
+    if (!name.empty()) {
+        // Defaults MEDIDOS/ITERADOS contra el original (montaje nativo `work/area_titles_montage.png`,
+        // anclados en `AREA N`, que no se toca): nombre ancho ~200.6 v; peso **SemiBold**; y MÉTRICA
+        // como el original: las letras **se tocan** (tracking NEGATIVO) y hay **hueco ancho entre
+        // palabras** (`WORDSPACE`). Con el ancho total FIXO, para que las letras se toquen el glifo
+        // debe crecer (SCALE 0,80) y se estira en ALTO (STRETCH 1,10). Evidencia:
+        // `work/area_title_variants.png` (original + variantes de estirado), `work/area_title_weight_mock.png`.
+        const float scale = env_f("HH_TITLE_SCALE", 0.80f);        // ancho (alto glifo = 19*scale*stretch)
+        const float stretch = env_f("HH_TITLE_STRETCH", 1.10f);    // multiplica solo el ALTO
+        const float tracking = env_f("HH_TITLE_TRACK", -0.27f);    // NEGATIVO: las letras SE TOCAN (como el original)
+        const float wspace = env_f("HH_TITLE_WORDSPACE", 5.67f);   // extra TRAS cada espacio
+        const float sy = scale * stretch;
+        const float ybase = env_f("HH_TITLE_Y", 111.0f);           // línea base (1 línea): centro ≈107 v
+        const float name_cy = ybase - 4.5f * sy;                   // centro vertical del nombre
+        const uint32_t color = hh::overlay::rgba(255, 255, 255, static_cast<uint8_t>(alpha));
+        // Ancho de una línea con esta métrica (nº de codepoints y de espacios de la propia línea).
+        auto line_width = [&](const std::string& s) {
+            size_t ncp = 0, nsp = 0;
+            for (size_t i = 0; i < s.size();) {
+                unsigned char c = static_cast<unsigned char>(s[i]);
+                i += (c < 0x80) ? 1 : ((c >> 5) == 0x6 ? 2 : 3);
+                ++ncp;
+                if (c == ' ') ++nsp;
+            }
+            return hh::ttf::text_width(s.c_str()) * scale +
+                   (ncp > 0 ? tracking * static_cast<float>(ncp - 1) : 0.0f) +
+                   wspace * static_cast<float>(nsp);
+        };
+        // SALTO DE LÍNEA: si el nombre no cabe en el ancho VISIBLE real (aspecto de la ventana: 320 v
+        // en 4:3, ~427 v en 16:9), se PARTE por palabras en varias líneas, cada una CENTRADA. Así los
+        // idiomas largos (es/ca/de) no se recortan en 4:3. En 16:9 caben y no se parte.
+        const float avail = hh::overlay::visible_width() - 0.5f;
+        std::vector<std::string> lines;
+        if (line_width(name) <= avail) {
+            lines.push_back(name);
+        } else {
+            std::string cur;
+            size_t pos = 0;
+            while (pos < name.size()) {
+                const size_t sp = name.find(' ', pos);
+                const std::string word =
+                    name.substr(pos, (sp == std::string::npos) ? std::string::npos : sp - pos);
+                const std::string cand = cur.empty() ? word : cur + " " + word;
+                if (cur.empty() || line_width(cand) <= avail) {
+                    cur = cand;
+                } else {
+                    lines.push_back(cur);
+                    cur = word;
+                }
+                if (sp == std::string::npos) break;
+                pos = sp + 1;
+            }
+            if (!cur.empty()) lines.push_back(cur);
+        }
+        // Reequilibrio: evita una última línea de una sola palabra (p. ej. "…clones / 2"); arrastra
+        // palabras de la línea anterior mientras la última siga siendo una sola palabra y quepan.
+        while (lines.size() >= 2) {
+            std::string& last = lines.back();
+            if (last.find(' ') != std::string::npos) break;
+            std::string& prev = lines[lines.size() - 2];
+            const size_t sp = prev.rfind(' ');
+            if (sp == std::string::npos) break;
+            const std::string merged = prev.substr(sp + 1) + " " + last;
+            if (line_width(merged) > avail) break;
+            last = merged;
+            prev = prev.substr(0, sp);
+        }
+        // Reparto vertical: bloque centrado en el centro del nombre; si la 1.ª línea chocara con el
+        // `AREA N` (celda hasta y≈97 v), se baja el bloque lo justo.
+        const float glyph_h = 19.0f * sy;
+        const float line_step = glyph_h + 2.0f;
+        const int n = static_cast<int>(lines.size());
+        float top_cy = name_cy - static_cast<float>(n - 1) * line_step * 0.5f;
+        const float kAreaBottom = 97.0f;
+        if (top_cy - glyph_h * 0.5f < kAreaBottom + 1.0f) {
+            top_cy = kAreaBottom + 1.0f + glyph_h * 0.5f;
+        }
+        for (int i = 0; i < n; ++i) {
+            const float lw = line_width(lines[i]);
+            hh::overlay::TtfText t;
+            t.x = (hh::overlay::kVirtualWidth - lw) * 0.5f;
+            t.y = top_cy + static_cast<float>(i) * line_step + 4.5f * sy;   // centro -> línea base
+            t.scale = scale;
+            t.scale_y = sy;
+            t.tracking = tracking;
+            t.word_space = wspace;
+            t.color = color;
+            t.text = lines[i];
+            f.ttf_texts.push_back(t);
+        }
+    }
+    hh::overlay::publish(std::move(f));
 }
 
 }  // namespace hh::menu_overlay

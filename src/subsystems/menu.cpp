@@ -1664,7 +1664,7 @@ static std::atomic<int> g_cycle_request{ 0 };
 // Índices que NO son cargables (cuelgan o son inválidos): el ciclo los salta. `[MEDIDO 2026-09-29]`:
 // 5, 6, 8 = cuelgan / negro ("opening"). Ampliar según se descubran más. 7 = Intro antes del menú
 // (por eso NO se salta: sirve como "volver al menú").
-// Lista de saltos cargada de `skip_indices.txt` (junto al ejecutable). Se relee cada vez que se
+// Lista de saltos cargada de `saves/skip_indices.txt`. Se relee cada vez que se
 // consulta (barato: fichero pequeño) para poder editarla sin recompilar. Si falta, se crea con los
 // índices por defecto. Formato: un índice por línea; `#` comenta; comas/espacios también separan.
 static std::set<int> g_cycle_skip_cache;
@@ -1672,8 +1672,9 @@ static std::filesystem::file_time_type g_cycle_skip_mtime{};
 static bool g_cycle_skip_loaded = false;
 
 static void cycle_skip_load(bool force) {
-    const std::filesystem::path path = hh::get_app_folder_path() / "skip_indices.txt";
+    const std::filesystem::path path = hh::get_app_folder_path() / "saves" / "skip_indices.txt";
     std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
     const bool exists = std::filesystem::exists(path, ec);
     if (exists) {
         const auto mt = std::filesystem::last_write_time(path, ec);

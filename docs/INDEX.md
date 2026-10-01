@@ -9,18 +9,18 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 199 | 2026-10-01 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 206 | 2026-10-01 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 532 | 2026-10-01 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 548 | 2026-10-01 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 79 | 2026-09-27 |
+| [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-09-27 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 403 | 2026-09-27 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 305 | 2026-09-30 |
+| [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 312 | 2026-09-30 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 143 | 2026-09-30 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 80 | 2026-09-28 |
@@ -62,6 +62,8 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |
+| [TÍTULO DEL ÁREA — calibración del texto (1:1 con el original)](../notes/2026-10-01-titulo-area-calibracion.md) | Sesión 2026-10-01 (3.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Continúa | 131 | 2026-10-01 |
 | [menu.cpp — higiene y correcciones en el flujo de guardado/editor (pre-tarea de CARGAR)](../notes/2026-10-01-menu-save-edit-higiene.md) | Sesión 2026-10-01. Rama **`menu-carga-guardado-partida`**. Revisión de | 57 | 2026-10-01 |
 | [CARGAR PARTIDA — UI propia y carga real en CONTINUAR (DATA LOAD)](../notes/2026-10-01-cargar-partida-continuar.md) | Sesión 2026-10-01. Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md`: la **UI de CARGA** | 168 | 2026-10-01 |
 | [TIPOGRAFÍAS del DATA LOAD — hallazgos `[MEDIDO]` (2026-09-30)](../notes/2026-09-30-tipografias-data-load-hallazgos.md) | Evidencia para `notes/2026-09-29-tipografias-data-load-tarea.md` (tarea) y el menú propio de carga | 121 | 2026-09-30 |

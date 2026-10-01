@@ -5,14 +5,30 @@
 
 ## Ahora (priorizado)
 
-- [ ] **TÍTULO DEL ÁREA al cargar partida — FALLO (próxima tarea, 2026-10-01)**: al cargar un slot
-  (`CONTINUAR` → partida) el juego debe mostrar **pantalla negra unos segundos con el título del Área
-  en blanco** (el nombre del Área del progreso, **sin números**), que se quita con un botón/tecla (o esperando);
-  después ya sale el gameplay (PJ saliendo de la cápsula). **En el port ese título NO aparece**: solo
-  negro y luego el gameplay. Trazar el flujo de ÉXITO de `hh_do_load_game` (`func_801C3E24` y cadena)
-  para localizar quién compone/dibuja el título y por qué no sale (¿compositor `func_8001B204`
-  saltado?, ¿categoría FILE-SELECT aún activa?). Plan/handoff: **`RETOMAR.md`** (TAREA ACTUAL);
-  detalle del flujo: `notes/2026-10-01-cargar-partida-continuar.md` §3.
+- [•] **TÍTULO DEL ÁREA al cargar partida — EN CURSO (2026-10-01)**: al cargar un slot
+  (`CONTINUAR` → partida) el juego muestra **pantalla negra con el título del Área** (nombre del Área
+  del progreso) que se quita con botón/tecla (o espera) y da paso al gameplay.
+  - **[MEDIDO] El `AREA N` es TEXTO** (`func_801C3F48` → `func_8001B204(a3=0x801CED98)`, con el índice
+    de `func_8013EA54`); **el NOMBRE es un GRÁFICO nativo intraducible**. Por eso el port lo pinta con
+    **overlay propio** (telón negro + `AREA N` con la fuente del juego + nombre en **Work Sans**
+    incrustada), traducido en `en/es/ca/fr/de` (`ja` nativo), colgado de la cadena nativa (fade/espera/
+    transición) y con candado anti-parpadeo.
+  - **Defaults CALIBRADOS [MEDIDO] (2026-10-01)**: anclando en el `AREA N` (que no se toca), el nombre
+    del original mide **~200.6 v × 14.1 v** (aspecto 14.2); Work Sans "natural" mide ~180 v a 14.1 v de
+    alto y **espacios** (Work Sans los mete ~40 % más estrechos). Peso **SemiBold (600)** (Medium queda
+    fino, Bold sobra). Defaults en `publish_area_title`: `HH_TITLE_SCALE=0.80`, `HH_TITLE_STRETCH=1.10`,
+    `HH_TITLE_TRACK=-0.27` (negativo: se tocan), `HH_TITLE_WORDSPACE=5.67`, `HH_TITLE_Y=111.0`.
+    `assets/fonts/WorkSans-SemiBold.ttf` (OFL) va **INCRUSTADA** en el exe (`CMakeLists.txt`; fallback
+    Regular) y **no** se copia `.ttf` junto al exe. Evidencia: `work/area_title_match_mock.png`, `work/area_title_weight_mock.png`,
+    `work/area_title_metric_mock.png`, `work/area_title_variants.png`. **Salto de línea auto**: si el
+    nombre no cabe en el ancho visible real (en 4:3 parten A7 es/ca, A5 de, A9 de), se parte por
+    palabras en líneas centradas (en 16:9 no cambia).
+    Detalle: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
+  - **Limpieza HECHA**: fuente **SemiBold incrustada** (sin `.ttf` junto al exe); eliminado el
+    scaffolding de test de la tarea (`HH_SET_AREA`, `HH_MAKE_AREAS`, `HH_AUTOPLAY`, `HH_DUMP_AREA`).
+  - **Pendiente**: **recompilar Windows** (para que el exe embeba SemiBold) y validación visual general
+    (tamaño/posición/fade, `en/es/ca/fr/de`+`ja`); el **salto de línea** lo da el mantenedor por bueno
+    sin validar (se fía). Nombres originales/análisis: `work/area_titles_montage.png`.
 - [x] **LÓGICA DE GUARDADO en la cápsula (`DATA SAVE`) — HECHA y VALIDADA en Windows (2026-09-30)**:
   flujo con fases propias (`hh::menu::SavePhase`: `Ask`→`Select`→`ConfirmHere`→`Completed`, +
   `ConfirmExit`); **guardado REAL** `hh::save::save_live()` (serializa los globals vivos con
@@ -59,7 +75,7 @@
     **`skip_indices.txt`** (junto al ejecutable, editable sin recompilar).
   - **`EXTRAS > IR A ÁREA`**: submenú con CARGAR/GUARDAR/ELIMINAR + selector **`ÁREA < N-N >`** (solo
     `N-0`) que **teletransporta** (`func_8012FE50`). Si no hay partida, carga la **plantilla**
-    (`assets/save/template_slot.bin`: stats base + Code Key/Map Viewer/Defuser; la Code Key se quita
+    (`assets/saves/templates/template_slot.bin`: stats base + Code Key/Map Viewer/Defuser; la Code Key se quita
     al cargar 1-0). Verificado en Windows.
   - **Mapa de escenas medido**: `1-0`=0 … `9-0`=90; `100`=Demo Play #1; sub-puntos (`1-1a/b/...`) y
     estaciones por área. `skip_indices.txt` con la lista de los que cuelgan.
@@ -130,7 +146,7 @@
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere
-  **plantillas por punto de guardado** (`assets/save/templates/<n-p>.bin`, generadas jugando). Detalle:
+  **plantillas por punto de guardado** (`assets/saves/templates/<n-p>.bin`, generadas jugando). Detalle:
   `notes/2026-09-29-editor-area-parte-plan.md` §6bis.
 - [ ] **Editor `PROGRESO` del slot**: ahora escribe **`0x564` (u16 LE)** con
   `(area-1)*10+(sub-1)*2` y lista solo puntos de guardado (sin `N-0`). **Pendiente validar en Windows**

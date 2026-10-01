@@ -11,10 +11,10 @@
 //
 // Knobs:
 //   HH_LANG=es        activa el idioma (por ahora solo "es"); sin definir -> sin traduccion.
-//   HH_LANG_FILE=ruta usa un fichero distinto de lang/<lang>.txt.
+//   HH_LANG_FILE=ruta usa un fichero distinto de assets/lang/<lang>.txt.
 //   HH_TEXT_TRACE=1   escribe en hh.log cada sustitucion (y las que no caben).
 //
-// La tabla por defecto esta embebida en `kEsDefaults`. Si existe `lang/es.txt` junto al .exe se
+// La tabla por defecto esta embebida en `kEsDefaults`. Si existe `assets/lang/es.txt` junto al .exe se
 // usa ese fichero (permite editar traducciones sin recompilar). Formato: lineas `ORIGINAL=TRAD`;
 // las lineas vacias o que empiezan por '#' se ignoran.
 
@@ -171,11 +171,11 @@ bool load_file(State& s, const std::filesystem::path& path) {
     return true;  // el fichero existe (aunque no tenga entradas)
 }
 
-// Directorios donde buscar tablas de idioma: lang/ junto al .exe + lang/ de cada mod.
+// Directorios donde buscar tablas de idioma: assets/lang/ junto al .exe + lang/ de cada mod.
 std::vector<std::filesystem::path> lang_dirs() {
     std::vector<std::filesystem::path> dirs;
     std::filesystem::path base = hh::get_app_folder_path();
-    dirs.push_back(base / "lang");
+    dirs.push_back(base / "assets" / "lang");
 
     std::error_code ec;
     std::filesystem::path mods = base / "mods";
@@ -277,7 +277,7 @@ void write_config_language(const std::string& code) {
     hh::log("[text] idioma persistido en config.ini: %s\n", code.c_str());
 }
 
-// Carga la tabla del idioma `code` (fichero lang/ + mods). Devuelve false si no hay fichero.
+// Carga la tabla del idioma `code` (fichero assets/lang/ + mods). Devuelve false si no hay fichero.
 bool load_language_table(State& s, const std::string& code) {
     const char* override_path = std::getenv("HH_LANG_FILE");
     if (override_path != nullptr && *override_path != '\0') {

@@ -42,7 +42,7 @@ std::vector<Instance> g_active;
 void init_once() {
     if (g_tried) return;
     g_tried = true;
-    const std::filesystem::path dir = hh::get_app_folder_path() / "sounds";
+    const std::filesystem::path dir = hh::get_app_folder_path() / "assets" / "sounds";
     for (int i = 0; i < kNumSfx; ++i) {
         SDL_AudioSpec spec{};
         uint8_t* buf = nullptr;

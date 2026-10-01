@@ -517,12 +517,13 @@ bool loaded() { return g_loaded; }
 void unload() { g_bytes.clear(); g_path.clear(); g_loaded = false; }
 int slot_count() { return kSlots; }
 
-// PLANTILLA BASE: carga `save/template_slot.bin` (0xD00) y la escribe en el slot `slot` del `.pak` en
+// PLANTILLA BASE: carga `saves/templates/template_slot.bin` (0xD00) y la escribe en el slot `slot` del `.pak` en
 // memoria (no toca el fichero). Se usa desde EXTRAS -> ELEGIR NIVEL -> IR A NIVEL cuando no hay
 // partida cargada: da un estado de partida valido (stats base + Map Viewer/Defuser).
 bool load_template(int slot) {
     if (slot < 0 || slot >= kSlots) return false;
-    const std::filesystem::path p = hh::get_app_folder_path() / "save" / "template_slot.bin";
+    const std::filesystem::path p =
+        hh::get_app_folder_path() / "saves" / "templates" / "template_slot.bin";
     std::ifstream in(p, std::ios::binary);
     if (!in) {
         hh::log("[save-edit] no encuentro la plantilla %s\n", p.string().c_str());

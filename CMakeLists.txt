@@ -107,6 +107,27 @@ if(MSVC)
         PROPERTIES COMPILE_OPTIONS "/W0")
 endif()
 
+# Fuente Work Sans (SIL OFL-1.1, Wei Huang): se INCRUSTA el .ttf en el ejecutable para no distribuir
+# el fichero suelto; el overlay la carga de memoria. Licencia/copyright en assets/fonts/OFL.txt.
+# El .cpp con el array de bytes se genera en configure (sin Python). Ver src/subsystems/ttf.cpp.
+# Peso: **SemiBold** (medido contra el original). Es el UNICO .ttf que se conserva.
+set(WS_TTF "${PROJECT_SOURCE_DIR}/assets/fonts/WorkSans-SemiBold.ttf")
+if(EXISTS "${WS_TTF}")
+    file(READ "${WS_TTF}" WS_HEX HEX)
+    string(REGEX REPLACE "(..)" "0x\\1," WS_BYTES "${WS_HEX}")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/worksans_ttf.cpp"
+        "// Generado por CMake desde assets/fonts/WorkSans-SemiBold.ttf (Work Sans, OFL-1.1). No editar.\n"
+        "extern const unsigned char kWorkSansTtf[];\n"
+        "extern const unsigned long kWorkSansTtfSize;\n"
+        "extern const unsigned char kWorkSansTtf[] = {${WS_BYTES}};\n"
+        "extern const unsigned long kWorkSansTtfSize = sizeof(kWorkSansTtf);\n")
+    set(WS_TTF_CPP "${CMAKE_CURRENT_BINARY_DIR}/worksans_ttf.cpp")
+    # Se anade a las fuentes del target mas abajo (en la lista de add_executable).
+else()
+    message(STATUS "assets/fonts/WorkSans-SemiBold.ttf no presente: sin fuente Work Sans embebida")
+    set(WS_TTF_CPP "")
+endif()
+
 add_executable(HybridHeavenRecomp
     # platform: harness (SDL, RT64, arranque)
     src/platform/main.cpp
@@ -129,6 +150,7 @@ add_executable(HybridHeavenRecomp
     src/subsystems/trans_cache.cpp
     src/subsystems/text.cpp
     src/subsystems/font.cpp
+    src/subsystems/ttf.cpp
     src/subsystems/menu.cpp
     src/subsystems/save_edit.cpp
     src/subsystems/firmware.c
@@ -139,6 +161,9 @@ add_executable(HybridHeavenRecomp
 
     # Microcodigo RSP recompilado (generado con RSPRecomp; no editar a mano).
     build/recomp/rsp/hh_aspMain.cpp
+
+    # Fuente Work Sans embebida (generada en configure; vacio si no esta el .ttf).
+    ${WS_TTF_CPP}
 )
 
 # Shaders del overlay (A2): se compilan a SPIRV (y DXIL/MSL segun plataforma) y se embeben como
@@ -182,43 +207,52 @@ target_link_libraries(HybridHeavenRecomp PRIVATE
 # Nombre del archivo de salida (sin afectar al nombre interno del target).
 set_target_properties(HybridHeavenRecomp PROPERTIES OUTPUT_NAME "Hybrid Heaven Recomp")
 
-# Tablas de idioma "de serie": copiar assets/lang junto al ejecutable (lang/<code>.txt). Los idiomas
-# extra se aportan como mods (mods/*/lang/<code>.txt). Ver src/subsystems/text.cpp.
+# Datos del port junto al ejecutable: `assets/` (lang/logos/sounds), `licences/` (licencias) y
+# `saves/` (datos del usuario). Ver AGENTS.md y docs/architecture.md.
+
+# Tablas de idioma "de serie": copiar assets/lang a assets/lang/<code>.txt. Los idiomas extra se
+# aportan como mods (mods/*/lang/<code>.txt). Ver src/subsystems/text.cpp.
 add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets/lang"
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/lang")
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/lang")
 
-# Efectos de sonido del menú: copiar solo los WAV junto al ejecutable (sounds/*.wav). Los .mp3 de
-# origen no van a la release. Ver src/platform/menu_sfx.cpp.
+# Licencias de terceros junto al ejecutable (licences/). La fuente Work Sans va INCRUSTADA; la OFL
+# exige acompañar la licencia/copyright (licences/OFL.txt). Aquí irán las futuras.
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/licences"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${PROJECT_SOURCE_DIR}/assets/fonts/OFL.txt"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/licences/OFL.txt")
+
+# Efectos de sonido del menú: copiar solo los WAV a assets/sounds/*.wav. Los .mp3 de origen no van a
+# la release. Ver src/platform/menu_sfx.cpp.
 file(GLOB MENU_SFX_WAVS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/assets/sounds/*.wav")
 add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/sounds"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/sounds"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${MENU_SFX_WAVS}
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/sounds")
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/sounds")
 
-# Logos de la intro en HD (KONAMI/KCEO): copiar assets/logos junto al ejecutable (logos/*.png).
-# Son assets de PRODUCTO (derivados de la ROM, pero obra del port); el overlay los dibuja. Ver
-# src/hooks/sections.cpp (control de la secuencia de intro).
+# Logos de la intro en HD (KONAMI/KCEO): copiar assets/logos a assets/logos/*.png. Son assets de
+# PRODUCTO (derivados de la ROM, pero obra del port); el overlay los dibuja. Ver src/hooks/sections.cpp.
 file(GLOB INTRO_LOGO_PNGS CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/assets/logos/*.png")
 add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/logos"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/logos"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${INTRO_LOGO_PNGS}
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/logos")
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/logos")
 
-# Plantilla base de partida (slot 0xD00 clonado, con solo Map Viewer + Defuser): la usa EXTRAS ->
-# ELEGIR NIVEL -> IR A NIVEL cuando no hay partida cargada. Copiar junto al ejecutable (save/).
+# Plantillas de partida a `saves/templates/` (las usa EXTRAS -> ELEGIR NIVEL -> IR A NIVEL sin
+# partida). `skip_indices.txt` NO se copia: lo crea el port si falta y el usuario lo edita.
 # Ver src/subsystems/save_edit.cpp (load_template) y notes/2026-09-29-editor-area-parte-plan.md.
 add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/save"
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${PROJECT_SOURCE_DIR}/assets/save"
-        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/save")
+        "${PROJECT_SOURCE_DIR}/assets/saves/templates"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/saves/templates")
 
 # NOTA: `skip_indices.txt` NO se copia en el build: lo crea el propio port con la lista por defecto
 # embebida si no existe, y el usuario lo edita. Asi no se pisa nunca. Ver src/subsystems/menu.cpp.

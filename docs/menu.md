@@ -271,11 +271,11 @@ input nativo muteado quedaba en silencio y nunca disparaba `back`. Solo suena co
 
 ## Assets de sonido
 
-`assets/sounds/`: `.mp3` (origen) + `.wav` 48 kHz/S16. El build **solo copia los `.wav`** a `sounds/`
-junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con `ffmpeg`
+`assets/sounds/`: `.mp3` (origen) + `.wav` 48 kHz/S16. El build **solo copia los `.wav`** a `assets/sounds/`
+a `assets/sounds/` junto al `.exe`; **cambiar un `.mp3` NO regenera el `.wav`** → reconvertir con `ffmpeg`
 (`-ar 48000 -ac 2 -sample_fmt s16`) y commitear el `.wav`. Nombres que carga `src/platform/menu_sfx.cpp`:
 `menu-move.wav`, `menu-accept.wav`, `menu-back.wav`. `test_sounds/` = sonidos antiguos (backup).
-**Personalización**: el usuario puede reemplazar los `.wav` de `sounds/` (mismos nombres, **48 kHz /
+**Personalización**: el usuario puede reemplazar los `.wav` de `assets/sounds/` (mismos nombres, **48 kHz /
 S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `MENÚ SFX = NO` los silencia.
 
 ## Estado de implementación

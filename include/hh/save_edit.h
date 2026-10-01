@@ -59,8 +59,8 @@ int slot_count();
 bool slot_used(int slot);
 
 // PLANTILLA BASE (EXTRAS -> ELEGIR NIVEL -> IR A NIVEL): escribe el slot `slot` del `.pak` en memoria
-// con la plantilla `assets/save/template_slot.bin` (clon del slot0, con solo Map Viewer + Defuser).
-// Devuelve false si no encuentra la plantilla. No escribe el fichero (requiere GUARDAR).
+// con la plantilla `assets/saves/templates/template_slot.bin` (clon del slot0, con solo Map
+// Viewer + Defuser). Devuelve false si no encuentra la plantilla. No escribe el fichero (requiere GUARDAR).
 bool load_template(int slot);
 
 // Metadatos por slot (fuente de la UI): registro de 8 B al FINAL del fichero PFS (trailer), layout

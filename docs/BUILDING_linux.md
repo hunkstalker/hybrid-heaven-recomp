@@ -20,8 +20,17 @@ Arch/Steam Deck: `sudo pacman -S sdl2 gtk3 vulkan-icd-loader mesa`
 ```
 
 - La config del mando se crea como `config.ini` junto al binario (editable).
-- Los saves (Controller Pak) van a `saves/*.bin.pak` **junto al ejecutable** (portable). Si esa
-  carpeta no es escribible se usa el directorio de datos del usuario; `HH_DATA_DIR=<ruta>` lo fuerza.
+- **Layout junto al ejecutable** (portable):
+  ```
+  assets/    lang/  logos/  sounds/   (datos del port; copiados por CMake)
+  licences/  OFL.txt (y futuras)       (licencias de terceros)
+  saves/     *.bin.pak  skip_indices.txt  templates/*.bin
+  config.ini
+  mods/      */lang/...                (idiomas extra)
+  ```
+  La fuente Work Sans va **incrustada** (no hay carpeta `fonts/`). Los saves (Controller Pak) van a
+  `saves/*.bin.pak`; si esa carpeta no es escribible se usa el directorio de datos del usuario;
+  `HH_DATA_DIR=<ruta>` lo fuerza.
 - Logs: solo **`hh.log`** por defecto (se sobrescribe cada run). Los volcados de diagnóstico
   (`hh_audio/tick/slow/state/slice/hang/flag/pak/crash*`) son **opt-in** (v0.5.1): `HH_DIAG=1`,
   `HH_CRASH_LOG=1`, `HH_PAKLOG=1`.

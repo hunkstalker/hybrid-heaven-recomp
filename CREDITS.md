@@ -13,6 +13,12 @@ siguiente. Se conservan sus avisos de copyright y licencias.
 | [RT64](https://github.com/rt64/rt64) | RT64 Contributors (Mr-Wiseguy y colaboradores) | MIT | renderer N64 (RDP/RSP) sobre Vulkan |
 | [SDL2](https://github.com/libsdl-org/SDL) | Sam Lantinga y colaboradores | Zlib | ventana, entrada (mando/teclado) y audio |
 
+## Fuentes tipográficas
+
+| Fuente | Autoría | Licencia | Uso en el port |
+|---|---|---|---|
+| [Work Sans](https://github.com/weiweihuanghuang/Work-Sans) | Wei Huang / The Work Sans Project Authors (© 2019) | **SIL OFL-1.1** | título del Área traducido en el overlay (**peso SemiBold**, medido contra el original). El `.ttf` va **incrustado** en el ejecutable (no se distribuye el fichero suelto); la licencia y el copyright acompañan al binario (`fonts/OFL.txt`). Durante el desarrollo también puede cargarse por fichero (`fonts/WorkSans-SemiBold.ttf`). Ver `assets/fonts/OFL.txt`. |
+
 Dependencias del sistema que se enlazan en Linux (no se distribuyen; licencias propias): Vulkan
 Loader (Apache-2.0), Vulkan ICD/lavapipe y demás drivers, GTK3 (LGPL-2.1+) y las bibliotecas de
 X11/zlib del sistema.
