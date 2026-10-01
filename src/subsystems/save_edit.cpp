@@ -270,7 +270,7 @@ void sync_meta_from_header() {
 // Escribe el registro del slot en la cabecera del juego (solo 0..29) y en el trailer (todos).
 // `area`/`sub` >= 0 los fija el llamante (cápsula: de `func_80108280`); < 0 se derivan de
 // `PROGRESO` (`0x366`, u16 BE) = `area*10+sub`. `time` >= 0 fija TIME (u16, segundos); < 0 lo conserva.
-void update_save_header(int slot, int area = -1, int sub = -1, int time = -1) {
+void update_save_header(int slot, int area = -1, int sub = -1, int time = -1, int difficulty = -1) {
     if (!g_loaded || slot < 0 || slot >= kSlots || g_bytes.size() < kContainerSize) return;
     if (area < 0 || sub < 0) {
         const uint16_t prog = rd16(slot, kProgressOldOff);
@@ -289,6 +289,8 @@ void update_save_header(int slot, int area = -1, int sub = -1, int time = -1) {
         meta_wr(slot, 4, static_cast<uint8_t>((time >> 8) & 0xFF));
         meta_wr(slot, 5, static_cast<uint8_t>(time & 0xFF));
     }
+    // Dificultad (0=NORMAL, 1=HARD, 2=ULTIMATE): byte +7. No se toca si `difficulty` < 0.
+    if (difficulty >= 0) meta_wr(slot, 7, static_cast<uint8_t>(difficulty & 0xFF));
     // Cabecera del juego (compatibilidad mientras el DATA LOAD nativo siga existiendo).
     if (slot < static_cast<int>(kHeaderRecords) && header_magic_ok()) {
         bswap_header_in_place();
@@ -302,6 +304,7 @@ void update_save_header(int slot, int area = -1, int sub = -1, int time = -1) {
             h[rec + 4] = static_cast<uint8_t>((time >> 8) & 0xFF);
             h[rec + 5] = static_cast<uint8_t>(time & 0xFF);
         }
+        if (difficulty >= 0) h[rec + 7] = static_cast<uint8_t>(difficulty & 0xFF);
         unsigned sum = 0;
         for (size_t i = 0; i < 0xFF; ++i) sum += h[i];
         h[0xFF] = static_cast<uint8_t>(sum & 0xFF);
@@ -414,7 +417,8 @@ bool flush() {
     return true;
 }
 
-bool save(int slot, uint8_t* rdram, recomp_context* base_ctx, int area, int sub, int time) {
+bool save(int slot, uint8_t* rdram, recomp_context* base_ctx, int area, int sub, int time,
+          int difficulty) {
     (void)rdram; (void)base_ctx;
     if (!g_loaded || slot < 0 || slot >= kSlots) return false;
     set_pak_file_size();
@@ -428,8 +432,8 @@ bool save(int slot, uint8_t* rdram, recomp_context* base_ctx, int area, int sub,
         g_bytes[base + kChecksumOff + 2] = 0;
         g_bytes[base + kChecksumOff + 3] = 0;
     }
-    // Y la cabecera de la lista de partidas (AREA/LEVEL/TIME del slot) para que DATA LOAD lo refleje.
-    update_save_header(slot, area, sub, time);
+    // Y la cabecera de la lista de partidas (AREA/LEVEL/TIME/dificultad del slot) para DATA LOAD.
+    update_save_header(slot, area, sub, time, difficulty);
     const std::filesystem::path tmp = g_path.string() + ".tmp";
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
@@ -493,13 +497,16 @@ bool save_live(int slot, uint8_t* rdram, recomp_context* base_ctx) {
     const uint16_t scene = static_cast<uint16_t>((grd8(0x801BBBF4u) << 8) | grd8(0x801BBBF5u));
     int area = 1, sub = 1;
     hh::menu::area_sub_from_value(scene, area, sub);
+    // 7. DIFICULTAD: del byte global `0x801BBC0D` (0=NORMAL, 1=HARD, 2=ULTIMATE). Se persiste en el
+    //    trailer/cabecera (byte +7) para que la UI del slot la muestre también tras reiniciar.
+    const int difficulty = grd8(0x801BBC0Du);
     recomp_context g = *base_ctx;
     func_80108280_1000A50(rdram, &g);
-    hh::log("[save] save_live slot %d: scene=%u -> AREA %d-%d TIME=%d | fn8280=%08X 0x564=%u "
+    hh::log("[save] save_live slot %d: scene=%u -> AREA %d-%d TIME=%d DIFF=%d | fn8280=%08X 0x564=%u "
             "0x366=%u\n",
-            slot, (unsigned)scene, area, sub, time, static_cast<uint32_t>(g.r2),
+            slot, (unsigned)scene, area, sub, time, difficulty, static_cast<uint32_t>(g.r2),
             (unsigned)progress_of(slot), (unsigned)rd16(slot, kProgressOldOff));
-    return save(slot, rdram, base_ctx, area, sub, time);
+    return save(slot, rdram, base_ctx, area, sub, time, difficulty);
 }
 
 // Primer slot de PARTIDA libre (metadato `presente` a 0). NO usa `slot_used` (progreso != 0): una
@@ -575,6 +582,10 @@ uint8_t meta_level(int slot) {
 uint16_t meta_time(int slot) {
     if (!g_loaded) load(slot, nullptr, nullptr);
     return static_cast<uint16_t>((meta_rd(slot, 4) << 8) | meta_rd(slot, 5));
+}
+uint8_t meta_difficulty(int slot) {
+    if (!g_loaded) load(slot, nullptr, nullptr);
+    return meta_rd(slot, 7);
 }
 // Nombre para la UI: `savegame_slot<N>` (1-based; el índice interno es 0-based).
 std::string slot_name(int slot) { return "savegame_slot" + std::to_string(slot + 1); }

@@ -366,7 +366,6 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {
         make_item("VS MODE", Action::BattleModeVs),
         make_item("CREATURE BATTLE", Action::BattleModeCreature),
-        make_item("DATA EDIT", Action::BattleModeDataEdit),
     }));
 
     // COMBATE DE CRIATURAS: subpantalla interna (el original: 5 MATCHES / SURVIVAL, cursor 0x801CC8C8
@@ -730,6 +729,23 @@ std::string format_time(uint16_t t) {
     return buf;
 }
 
+// Primer glifo (codepoint UTF-8) de una cadena: la letra de dificultad (ASCII en en/es/ca/fr/de;
+// kana en ja). No parte multibyte.
+std::string first_glyph(const std::string& s) {
+    if (s.empty()) return {};
+    const unsigned char c = static_cast<unsigned char>(s[0]);
+    size_t n = 1;
+    if (c >= 0xF0) n = 4;
+    else if (c >= 0xE0) n = 3;
+    else if (c >= 0xC0) n = 2;
+    return s.substr(0, std::min(n, s.size()));
+}
+// Letra de dificultad localizada (0=NORMAL, 1=HARD, 2=ULTIMATE): la PRIMERA letra de la traducción.
+std::string difficulty_letter(uint8_t d) {
+    const char* key = (d == 1) ? "HARD" : (d == 2) ? "ULTIMATE" : "NORMAL";
+    return first_glyph(localized(key));
+}
+
 void rebuild_load_game() {
     if (!hh::save::loaded()) {
         hh::save::load();
@@ -742,12 +758,15 @@ void rebuild_load_game() {
             const unsigned an = hh::save::meta_area_n(i);
             const unsigned ap = hh::save::meta_area_p(i);
             const unsigned lv = hh::save::meta_level(i);
-            // Tres líneas separadas por '\n'; cada línea es `ETIQUETA\tVALOR` (el overlay alinea el
-            // VALOR a la DERECHA, como el nativo). Rotulos NATIVOS en ingles (AREA/LEVEL/TIME), NO
-            // traducidos: el DATA LOAD/SAVE original del ROM US los muestra asi.
-            row = std::string("AREA\t") + std::to_string(an) + "-" + std::to_string(ap) + "\n" +
-                  "LEVEL\t" + std::to_string(lv) + "\n" +
-                  "TIME\t" + format_time(hh::save::meta_time(i));
+            // Tres líneas separadas por '\n'; cada línea es `ETIQUETA[\tLETRA]\tVALOR` (el overlay
+            // dibuja la ETIQUETA a la izquierda y el VALOR a la DERECHA, como el nativo). Rótulos
+            // TRADUCIDOS (clave inglesa AREA/LEVEL/TIME). La linea de NIVEL lleva la LETRA de
+            // dificultad a la IZQUIERDA del numero (columna fija en el overlay), como en el original
+            // (N/H/U), pero con la 1.a letra de la palabra TRADUCIDA.
+            row = localized("AREA") + "\t" + std::to_string(an) + "-" + std::to_string(ap) + "\n" +
+                  localized("LEVEL") + "\t" + difficulty_letter(hh::save::meta_difficulty(i)) + "\t" +
+                  std::to_string(lv) + "\n" +
+                  localized("TIME") + "\t" + format_time(hh::save::meta_time(i));
         } else {
             row = hh::menu::localized("NO DATA");
         }

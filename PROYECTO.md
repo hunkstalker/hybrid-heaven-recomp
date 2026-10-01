@@ -151,6 +151,12 @@ seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< 
 del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y
 sincronizando su estado (`rt64_render_context.cpp`). Nota:
 `notes/2026-10-01-menu-continuar-salida-fullscreen.md`.
+**Tareas pequeñas de menú (HECHO, 2026-10-01; validado en Windows)**: `DATA EDIT` **quitado** de `MODO
+COMBATE`; **letra de dificultad** a la izquierda del nivel en la caja del slot (1.ª letra de la
+traducción; dato en el byte `+7` del registro = `0x801BBC0D`, `save::meta_difficulty` + persistencia en
+`save_live`), en **columna fija** (no se mueve con 2/3 dígitos, el 100 no se sale); **`AREA/LEVEL/TIME`
+traducidos** (clave `TIME`); `ULTIMATE` fr corregido a `ULTIME` y `NO DATA` fr a 2 líneas
+(`PAS DE\nDONNÉES`). Nota: `notes/2026-10-01-slot-dificultad-y-traduccion.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

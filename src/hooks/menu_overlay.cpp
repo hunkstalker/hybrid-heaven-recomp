@@ -654,11 +654,26 @@ void title_update(uint8_t* rdram) {
             const std::string& lab = e.label;
             if (!present || centered) {
                 // Texto CENTRADO (horizontal y vertical) en blanco (celda color0 de 8x8): slot vacío
-                // ("NO DATA") o `NEW GAME`.
-                const float tw = static_cast<float>(cp_count(lab)) * 8.0f * g_scale_x;
-                frame.texts.push_back({ box_x + (box_w - tw) * 0.5f,
-                                        by + (box_h - 8.0f) * 0.5f, g_scale_x, g_scale_y, kWhite,
-                                        lab });
+                // ("NO DATA") o `NEW GAME`. Puede traer '\n' (frases largas, p. ej. FR "PAS DE
+                // DONNÉES"): se centra cada linea y el BLOQUE se centra verticalmente.
+                unsigned n_lines = 1;
+                for (char ch : lab) {
+                    if (ch == '\n') ++n_lines;
+                }
+                const float lh = 10.0f * g_scale_y;   // 8 de glifo + 2 px de aire entre líneas
+                float ys = by + (box_h - (static_cast<float>(n_lines - 1) * lh + 8.0f)) * 0.5f;
+                size_t q0 = 0;
+                while (q0 <= lab.size()) {
+                    const size_t q1 = lab.find('\n', q0);
+                    const std::string ln =
+                        (q1 == std::string::npos) ? lab.substr(q0) : lab.substr(q0, q1 - q0);
+                    const float tw = static_cast<float>(cp_count(ln)) * 8.0f * g_scale_x;
+                    frame.texts.push_back({ box_x + (box_w - tw) * 0.5f, ys, g_scale_x, g_scale_y,
+                                            kWhite, ln });
+                    if (q1 == std::string::npos) break;
+                    q0 = q1 + 1;
+                    ys += lh;
+                }
             } else {
                 float ty = by + kTextDy;
                 size_t p0 = 0;
@@ -666,13 +681,29 @@ void title_update(uint8_t* rdram) {
                     size_t p1 = lab.find('\n', p0);
                     const std::string ln = (p1 == std::string::npos) ? lab.substr(p0)
                                                                      : lab.substr(p0, p1 - p0);
-                    // Cada linea es `ETIQUETA\tVALOR`: la etiqueta a la izquierda y el VALOR alineado a
-                    // la DERECHA de la caja (como el nativo).
-                    const size_t tab = ln.find('\t');
-                    const std::string label = (tab == std::string::npos) ? ln : ln.substr(0, tab);
-                    const std::string value =
-                        (tab == std::string::npos) ? std::string() : ln.substr(tab + 1);
+                    // Cada linea es `ETIQUETA\tVALOR` o `ETIQUETA\tLETRA\tVALOR` (letra de dificultad).
+                    // La ETIQUETA va a la izquierda y el VALOR alineado a la DERECHA de la caja (como el
+                    // nativo). La LETRA va en una COLUMNA FIJA (5 celdas a la izquierda del borde
+                    // derecho): no se mueve aunque el valor tenga 2 o 3 digitos, y el 100 no se sale.
+                    const size_t tab1 = ln.find('\t');
+                    std::string label, mid, value;
+                    if (tab1 == std::string::npos) {
+                        label = ln;
+                    } else {
+                        label = ln.substr(0, tab1);
+                        const size_t tab2 = ln.find('\t', tab1 + 1);
+                        if (tab2 == std::string::npos) {
+                            value = ln.substr(tab1 + 1);
+                        } else {
+                            mid = ln.substr(tab1 + 1, tab2 - tab1 - 1);
+                            value = ln.substr(tab2 + 1);
+                        }
+                    }
                     frame.texts.push_back({ box_x + kTextDx, ty, g_scale_x, g_scale_y, kWhite, label });
+                    if (!mid.empty()) {
+                        frame.texts.push_back({ box_x + box_w - 7.0f - 5.0f * 8.0f * g_scale_x, ty,
+                                                g_scale_x, g_scale_y, kWhite, mid });
+                    }
                     if (!value.empty()) {
                         const float vw = static_cast<float>(cp_count(value)) * 8.0f * g_scale_x;
                         frame.texts.push_back({ box_x + box_w - 7.0f - vw, ty, g_scale_x, g_scale_y,

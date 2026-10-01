@@ -6,13 +6,24 @@
 >
 > **Sesión 2026-10-01 (commits ya en la rama)**: título del Área al cargar (`874b9f6`); **i18n — fuente
 > única de traducciones** (`assets/lang/*.txt`, clave = inglés; ADR 0014); **pulido de menú/vídeo**
-> (`CONTINUAR` gris sin partidas, `SALIDA` stepper, arreglo pantalla completa ↔ ventana). Detalle:
-> `notes/2026-10-01-i18n-*.md` y `notes/2026-10-01-menu-continuar-salida-fullscreen.md`.
+> (`CONTINUAR` gris sin partidas, `SALIDA` stepper, arreglo pantalla completa ↔ ventana); **tareas
+> pequeñas de menú** (`DATA EDIT` fuera de `MODO COMBATE`, **letra de dificultad** en el slot, `AREA/
+> LEVEL/TIME` traducidos, `ULTIMATE` fr y `NO DATA` fr a 2 líneas). Detalle: `notes/2026-10-01-i18n-*.md`,
+> `notes/2026-10-01-menu-continuar-salida-fullscreen.md` y `notes/2026-10-01-slot-dificultad-y-traduccion.md`.
 
-## 🎯 TAREA ACTUAL: unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A)
+## 🎯 TAREA ACTUAL: tareas pequeñas de menú (HECHAS y VALIDADAS en Windows, 2026-10-01)
 
-> **ESTADO 2026-10-01: HECHO y VALIDADO en Windows (build + F5, todos los idiomas).** Detalle en
-> `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8. Un tema = un commit (todo el bloque i18n).
+> **ESTADO 2026-10-01: HECHO y VALIDADO en Windows.** (a) `DATA EDIT` fuera de `MODO COMBATE` (no
+> deshabilitado); (b) **letra de dificultad** a la izquierda del nivel en la caja del slot (1.ª letra
+> de la traducción NORMAL/HARD/ULTIMATE; dato = byte `+7` del registro = `0x801BBC0D`, leído con
+> `save::meta_difficulty`, persistido en `save_live`), en **columna fija** (5 celdas del borde derecho)
+> → no se mueve con 2/3 dígitos y el `100` no se sale; (c) rótulos `AREA/LEVEL/TIME` **traducidos**
+> (clave nueva `TIME`); (d) `ULTIMATE` fr corregido (`SUPRÊME` → `ULTIME`) y `NO DATA` fr a 2 líneas
+> (`PAS DE\nDONNÉES`; el centrado del slot ya soporta `\n`). Detalle y margen por idioma:
+> **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**. Un tema = un commit.
+
+### Tareas de i18n (bloque anterior) — HECHO y VALIDADO en Windows
+> Detalle en `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
 
 Hoy las traducciones están en **dos mecanismos con claves distintas**: la **UI del port** en código
 (`kMenuTr` en `menu.cpp`, ~170; `kAreaNames`; clave = **español**) y el **texto nativo de la ROM** en

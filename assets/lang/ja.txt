@@ -83,6 +83,7 @@ LOAD SAVE=ロードセーブ
 SAVE GAME=セーブする
 PROGRESS=シンコウ
 LEVEL=レベル
+TIME=タイム
 ABILITIES=ノウリョク
 BODY=カラダ
 STATE=ジョウタイ

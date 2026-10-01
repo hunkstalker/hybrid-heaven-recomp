@@ -41,8 +41,10 @@ enum BodyStat { kOffense = 0, kDefense = 1, kHitCount = 2, kDamageCount = 3 };
 bool load(int slot = 0, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr);
 // `area`/`sub` >= 0 fijan AREA N/P de la cabecera; < 0 se derivan de PROGRESO (0x366).
 // `time` >= 0 fija TIME (u16) del slot en el trailer/cabecera; < 0 lo conserva.
+// `difficulty` >= 0 fija la dificultad (0=NORMAL, 1=HARD, 2=ULTIMATE) en el trailer/cabecera; < 0 la
+// conserva.
 bool save(int slot, uint8_t* rdram = nullptr, recomp_context* base_ctx = nullptr, int area = -1,
-          int sub = -1, int time = -1);
+          int sub = -1, int time = -1, int difficulty = -1);
 // Guardado desde la cápsula: serializa los globals VIVOS con el serializador nativo (`func_80141F28`
 // en un buffer del heap del juego) y escribe el slot con `save()`. `slot` 0..kGameSlots-1.
 bool save_live(int slot, uint8_t* rdram, recomp_context* base_ctx);
@@ -72,6 +74,9 @@ uint8_t meta_area_n(int slot);
 uint8_t meta_area_p(int slot);
 uint8_t meta_level(int slot);
 uint16_t meta_time(int slot);
+// Dificultad de la partida (0=NORMAL, 1=HARD, 2=ULTIMATE). Byte +7 del registro (= campo +B del
+// descriptor nativo = global 0x801BBC0D). 0 si el slot no la trae.
+uint8_t meta_difficulty(int slot);
 std::string slot_name(int slot);   // "savegame_slot<N>" (1-based)
 
 // Reparto de slots (contrato del layout, ADR 0013): 0..kGameSlots-1 = partidas; kTemplateBase..kSlots-1

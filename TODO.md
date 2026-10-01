@@ -5,6 +5,16 @@
 
 ## Ahora (priorizado)
 
+- [x] **Tareas pequeñas de menú (DATA EDIT, dificultad en el slot, traducción de las filas) — HECHO y
+  VALIDADO en Windows (2026-10-01)**: (a) **quitado `DATA EDIT`** del menú `MODO COMBATE` (no
+  deshabilitado; `menu.cpp`); (b) **letra de dificultad** a la izquierda del nivel en la caja del slot
+  (1.ª letra de la traducción de NORMAL/HARD/ULTIMATE; dato en el byte `+7` del registro del slot =
+  `0x801BBC0D`, leído con `save::meta_difficulty` y persistido al guardar con `save_live`); la letra va
+  en **columna fija** (5 celdas del borde derecho) → no se mueve con 2/3 dígitos ni el 100 se sale;
+  (c) **`AREA/LEVEL/TIME` traducidos** (clave nueva `TIME`); (d) `ULTIMATE` fr corregido (`SUPRÊME` →
+  `ULTIME`) y `NO DATA` fr a 2 líneas (`PAS DE\nDONNÉES`; el centrado del slot ahora soporta `\n`).
+  Detalle: **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**.
+
 - [x] **i18n — unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A) — HECHO y VALIDADO en Windows (2026-10-01)**:
   hecho: `hh::text::translate()` (único punto), `localized` delega, clave = **inglés**, única fuente los
   ficheros `assets/lang/*.txt`; borrados `kMenuTr`/`kAreaNames`/`kEsDefaults`; `kEndonyms` siguen en código;
