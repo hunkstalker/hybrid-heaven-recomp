@@ -81,6 +81,20 @@ const MenuTr kMenuTr[] = {
     // Mensaje final del guardado NATIVO ("Save completed.") + flecha abajo; A cierra y sale.
     {"Partida guardada.", "Save completed.", "Partida desada.", "Sauvegarde terminée.",
      "Speichern abgeschlossen.", "Save completed."},
+    // CARGAR (CONTINUAR): fase `Browse`. SUSTITUYE al `Select play data to be loaded.` nativo
+    // insertando los bindings REALES de ACEPTAR (cargar) y AGACHARSE (eliminar), coherente con la
+    // versión del GUARDADO pero con "load" (aquí se CARGA, no se guarda). CLAVE en ESPAÑOL con los
+    // `%s` (como save_select_message). Original nativo: "Select play data to be loaded."
+    {"Selecciona la partida a cargar\npulsando %s o %s\npara borrar.",
+     "Select play data to be loaded\npressing %s or %s\nto remove.",
+     "Selecciona la partida a carregar\nprement %s o %s per esborrar.",
+     "Sélectionnez la partie à charger\navec %s ou %s\npour supprimer.",
+     "Spielstand zum Laden wählen\nmit %s oder %s zum Löschen.",
+     "Select play data to be loaded\npressing %s or %s\nto remove."},
+    // Mensaje final de la carga ("Load completed.") + flecha abajo; A sale (arranca la escena). El JA
+    // se deja en inglés (no hay kanji utilizable; ver backlog de textos JA), igual que el del guardado.
+    {"Partida cargada.", "Load completed.", "Partida carregada.", "Chargement terminé.",
+     "Laden abgeschlossen.", "Load completed."},
     // Mensaje NUEVO del port (no del juego original): confirmar la salida de la cápsula sin guardar.
     // Por decisión del mantenedor NO se traduce al japonés (se muestra en inglés).
     {"¿Salir sin guardar?", "Exit without saving?", "Sortir sense desar?",
@@ -1096,17 +1110,46 @@ void push(ScreenId id) {
     g_stack.push_back(id);
 }
 
+// --- CARGAR PARTIDA: estado del flujo de fases (análogo al del GUARDADO) --------------------------
+// La carga (CONTINUAR / DATA LOAD) es una copia estructural del guardado: `LoadPhase` con las fases
+// del flujo propio. Se declara aquí (antes de open_load_game) para poder reiniciar la sesión al
+// entrar. Las funciones de acceso están más abajo (junto a `localized`).
+static LoadPhase g_load_phase = LoadPhase::Browse;
+static bool g_load_yes = true;
+static int g_load_target_slot = -1;
+// Marca temporal al entrar en `Browse`/`Removed` para ignorar el input del frame de la transición.
+static std::chrono::steady_clock::time_point g_load_ignore_input_tp{};
+// ¿Sesión de carga activa? Se pone al abrir y se limpia en close_load_game() (al salir de CONTINUAR).
+// Sirve para REINICIAR el flujo al reentrar aunque la pila siga siendo [Root, LoadGame].
+static bool g_load_open = false;
+
 // Fase 3: fija la pila a [Root, LoadGame] y refresca la lista. Idempotente. La llama el hook del
 // file-select al dar CONTINUAR, para que la pantalla activa sea la nuestra.
 void open_load_game() {
     ensure();
     rebuild_load_game();
+    if (!g_load_open) {
+        // (Re)entrada en CONTINUAR: el flujo arranca en `Browse` (lista interactiva). Sin esto se
+        // quedaría la última fase (p. ej. `Loaded`) y A solo saldría. El cursor va a la primera
+        // partida con datos (rebuild_load_game ya lo coloca).
+        g_load_phase = LoadPhase::Browse;
+        g_load_yes = true;
+        g_load_target_slot = -1;
+        g_load_open = true;
+    }
     if (g_stack.size() == 2 && g_stack[0] == ScreenId::Root && g_stack[1] == ScreenId::LoadGame) {
         return;   // ya está abierta
     }
     g_stack.clear();
     g_stack.push_back(ScreenId::Root);
     g_stack.push_back(ScreenId::LoadGame);
+}
+
+// Al salir de CONTINUAR (transición de escena / B al título): marca la sesión como cerrada para que
+// la próxima entrada reinicie el flujo en `Browse`.
+void close_load_game() {
+    g_load_open = false;
+    g_load_target_slot = -1;
 }
 
 // Fase del flujo de guardado (capsula). `g_save_yes` = opcion resaltada en el Yes/No activo.
@@ -1192,6 +1235,45 @@ const Layout& layout() {
 std::string save_select_message() {
     constexpr const char* kKey =
         "Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.";
+    const auto binding = [](const char* key) -> std::string {
+        const std::string gp = hh::pad_binding_gamepad(key);
+        const std::string kb = hh::pad_binding_key(key);
+        if (gp == "-" || gp.empty()) return kb;
+        if (kb == "-" || kb.empty() || kb == gp) return gp;
+        return gp + "/" + kb;
+    };
+    char buf[256];
+    std::snprintf(buf, sizeof(buf), localized(kKey).c_str(), binding("a").c_str(),
+                  binding("z").c_str());
+    return buf;
+}
+
+// --- CARGAR PARTIDA: funciones de acceso al flujo de fases (estado declarado arriba) --------------
+// `Browse` = lista interactiva (A carga directo, X borra); el borrado reutiliza el patrón del guardado
+// (Yes/No + `Removed`). La selección de una partida la ejecuta el handler (`hh_file_select_hook`),
+// que además arranca la escena (transición nativa).
+LoadPhase load_phase() { return g_load_phase; }
+void set_load_phase(LoadPhase phase) {
+    // Al entrar en `Browse` (o `Removed`) se ignora el input de ESTE frame: la A que confirmó el
+    // prompt anterior (o el `Removed`) no debe contar como selección de slot/carga.
+    if (phase == LoadPhase::Browse || phase == LoadPhase::Removed) {
+        g_load_ignore_input_tp = std::chrono::steady_clock::now();
+    }
+    g_load_phase = phase;
+}
+bool load_yes_selected() { return g_load_yes; }
+void set_load_yes_selected(bool on) { g_load_yes = on; }
+int load_target_slot() { return g_load_target_slot; }
+void set_load_target_slot(int slot) { g_load_target_slot = slot; }
+bool load_input_blocked() {
+    return (std::chrono::steady_clock::now() - g_load_ignore_input_tp) < std::chrono::milliseconds(120);
+}
+// Bindings REALES de ACEPTAR (cargar) y AGACHARSE (borrar): botón/tecla, p. ej. `A/J` y `X/H`. La
+// CLAVE es la cadena española EXACTA de `kMenuTr` (con sus `\n`); los `%s` se sustituyen DESPUÉS de
+// localizar (mismo patrón que `save_select_message`).
+std::string load_select_message() {
+    constexpr const char* kKey =
+        "Selecciona la partida a cargar\npulsando %s o %s\npara borrar.";
     const auto binding = [](const char* key) -> std::string {
         const std::string gp = hh::pad_binding_gamepad(key);
         const std::string kb = hh::pad_binding_key(key);

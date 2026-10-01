@@ -686,11 +686,22 @@ void title_update(uint8_t* rdram) {
         // que se ajusta al nativo): primer texto del flujo de guardado, "Save play data?" (traducido).
         {
             append_box(frame, msg_x, msg_y, msg_w, msg_h, kLoadMsgBorder, kLoadMsgFill);
-            // Mensaje segun la fase del guardado (SavePhase) o, si es CARGAR, el del DATA LOAD.
+            // Mensaje según la fase: GUARDAR (SavePhase) o CARGAR (LoadPhase). En CARGAR `Browse`
+            // SUSTITUYE al `Select play data to be loaded.` nativo por la frase con bindings reales.
             const hh::menu::SavePhase phase = hh::menu::save_phase();
+            const hh::menu::LoadPhase lphase = hh::menu::load_phase();
             std::string msg;
             if (!saving) {
-                msg = hh::menu::localized("Elige la partida a cargar.");
+                switch (lphase) {
+                    case hh::menu::LoadPhase::Browse:
+                        msg = hh::menu::load_select_message(); break;
+                    case hh::menu::LoadPhase::ConfirmDelete:
+                        msg = hh::menu::localized("¿Borrar la partida?"); break;
+                    case hh::menu::LoadPhase::Loaded:
+                        msg = hh::menu::localized("Partida cargada."); break;
+                    case hh::menu::LoadPhase::Removed:
+                        msg = hh::menu::localized("Partida borrada."); break;
+                }
             } else {
                 switch (phase) {
                     case hh::menu::SavePhase::Ask:
@@ -739,14 +750,16 @@ void title_update(uint8_t* rdram) {
                     my += msg_line;
                 }
             }
-            // GUARDAR: dentro de la misma caja, opciones `Yes`/`No` con el cursor de seleccion nativo
-            // (triangulo derecho) delante de la elegida. Se muestran en los prompts Yes/No (Ask,
-            // ConfirmHere, ConfirmExit). En `Completed` va una flecha ABAJO (pulsa A para continuar).
+            // YES/NO: dentro de la misma caja, opciones `Yes`/`No` con el cursor de seleccion nativo
+            // (triangulo derecho) delante de la elegida. Prompt Yes/No del GUARDAR (Ask/ConfirmHere/
+            // ConfirmExit/ConfirmDelete) y del CARGAR (ConfirmDelete). En `Completed`/`Loaded`/
+            // `Removed` va una flecha ABAJO (pulsa A para continuar).
             const bool save_prompt = saving && (phase == hh::menu::SavePhase::Ask ||
                                                 phase == hh::menu::SavePhase::ConfirmHere ||
                                                 phase == hh::menu::SavePhase::ConfirmExit ||
                                                 phase == hh::menu::SavePhase::ConfirmDelete);
-            if (save_prompt) {
+            const bool load_prompt = !saving && (lphase == hh::menu::LoadPhase::ConfirmDelete);
+            if (save_prompt || load_prompt) {
                 // Posiciones MEDIDAS del nativo (captura emulador del prompt DATA SAVE): opciones en
                 // x = caja+32, cursor `▶` en x = caja+22; `Yes` y = caja+17, `No` y = caja+27.
                 const hh::font::game::Face opt_face = hh::font::game::Face::Color4;
@@ -756,12 +769,16 @@ void title_update(uint8_t* rdram) {
                 frame.texts.push_back({ opt_x, yes_y, g_scale_x, g_scale_y, kWhite, "Yes", opt_face });
                 frame.texts.push_back({ opt_x, no_y, g_scale_x, g_scale_y, kWhite, "No", opt_face });
                 // Cursor junto a la opcion resaltada (Yes/No).
-                const float cur_y = hh::menu::save_yes_selected() ? yes_y : no_y;
+                const bool yes = saving ? hh::menu::save_yes_selected() : hh::menu::load_yes_selected();
+                const float cur_y = yes ? yes_y : no_y;
                 append_native_cursor(frame, msg_x + 22.0f, cur_y + 3.0f, kWhite);
-            } else if (saving && (phase == hh::menu::SavePhase::Completed ||
-                                  phase == hh::menu::SavePhase::Removed)) {
-                // Flecha abajo = "pulsa A para continuar". En `Completed` cierra y sale de la
-                // capsula; en `Removed` vuelve a la lista de slots (no sale).
+            } else if ((saving && (phase == hh::menu::SavePhase::Completed ||
+                                   phase == hh::menu::SavePhase::Removed)) ||
+                       (!saving && (lphase == hh::menu::LoadPhase::Loaded ||
+                                    lphase == hh::menu::LoadPhase::Removed))) {
+                // Flecha abajo = "pulsa A para continuar". GUARDAR: `Completed` cierra y sale de la
+                // capsula; `Removed` vuelve a la lista. CARGAR: `Loaded` sale (arranca la escena ya
+                // montada); `Removed` vuelve a la lista.
                 append_scroll_arrow(frame, msg_x + msg_w * 0.5f - 4.5f, msg_y + 34.0f,
                                     /*up=*/false, kWhite);
             }

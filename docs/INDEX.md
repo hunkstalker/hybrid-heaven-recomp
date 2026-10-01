@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 192 | 2026-09-30 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 198 | 2026-10-01 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 519 | 2026-10-01 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 521 | 2026-10-01 |
 
 ## Técnico y guías (vivos)
 
@@ -63,6 +63,7 @@
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
 | [menu.cpp — higiene y correcciones en el flujo de guardado/editor (pre-tarea de CARGAR)](../notes/2026-10-01-menu-save-edit-higiene.md) | Sesión 2026-10-01. Rama **`menu-carga-guardado-partida`**. Revisión de | 57 | 2026-10-01 |
+| [CARGAR PARTIDA — UI propia y carga real en CONTINUAR (DATA LOAD)](../notes/2026-10-01-cargar-partida-continuar.md) | Sesión 2026-10-01. Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md`: la **UI de CARGA** | 96 | 2026-10-01 |
 | [TIPOGRAFÍAS del DATA LOAD — hallazgos `[MEDIDO]` (2026-09-30)](../notes/2026-09-30-tipografias-data-load-hallazgos.md) | Evidencia para `notes/2026-09-29-tipografias-data-load-tarea.md` (tarea) y el menú propio de carga | 121 | 2026-09-30 |
 | [DATA SAVE — retoques de la UI propia (copia de CARGAR) + ocultado del nativo](../notes/2026-09-30-save-data-ui-retoques.md) | Sesión 2026-09-30 (4.ª). Rama **`menu-carga-guardado-partida`** (nada pusheado). Tarea de | 96 | 2026-09-30 |
 | [DATA SAVE — lógica de guardado en la cápsula (serializa y persiste)](../notes/2026-09-30-save-capsule-logica.md) | Sesión 2026-09-30 (5.ª). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md`: **cablear la | 246 | 2026-09-30 |

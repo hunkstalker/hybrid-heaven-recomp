@@ -62,6 +62,8 @@ extern "C" void func_80377140_1300750(uint8_t* rdram, recomp_context* ctx);  // 
 extern "C" void func_80142778_103AF48(uint8_t* rdram, recomp_context* ctx);  // compositor del titulo DATA SAVE
 extern "C" void func_80142570_103AD40(uint8_t* rdram, recomp_context* ctx);  // VACIA las 0x1C ranuras de texto
 extern "C" void func_80002A94_3694(uint8_t* rdram, recomp_context* ctx);       // rama de salida del DATA SAVE
+extern "C" void func_801C3D84_11BD854(uint8_t* rdram, recomp_context* ctx);    // update file-select (envuelto)
+extern "C" void func_801426B0_103AE80(uint8_t* rdram, recomp_context* ctx);    // setup del DATA LOAD
 extern "C" bool hh_input_button_down(const char* action_key);   // binding real (mando+teclado) pulsado
 extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx);       // UI de cargar encima del save
 extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx);      // setup del save (activa categoria)
@@ -1397,28 +1399,9 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             hh::log("[menu] CONTINUAR -> rama CONTINUE nativa (func_801C3CDC)\n");
         }
     }
-    // CARGAR PARTIDA (menú propio de carga, Fase 2): A sobre una partida de la lista carga ESE slot
-    // reutilizando el flujo nativo (`func_801423C8(0, slot)` + `func_80142570` + transición de
-    // escena). El despacho desde CONTINUAR es la Fase 3; hasta entonces esta pantalla se alcanza por
-    // `HH_MENU_SCREEN` (valor de ScreenId::LoadGame) para revisar el dibujo 1:1.
-    if (ev == hh::menu::Event::Accept && same_screen && hh::overlay::enabled()) {
-        const hh::menu::Screen& s = hh::menu::current_screen();
-        if (s.id == hh::menu::ScreenId::LoadGame && s.cursor >= 0 &&
-            s.cursor < static_cast<int>(s.entries.size())) {
-            const hh::menu::Entry& cur = s.entries[s.cursor];
-            if (cur.enabled && cur.action == hh::menu::Action::LoadGamePick) {
-                const int slot = cur.index;
-                hh::log("[load-game] cargar slot=%d (%s)\n", slot,
-                        hh::save::slot_name(slot).c_str());
-                recomp_context t = *ctx;
-                t.r4 = 0;                        // canal 0
-                t.r5 = static_cast<uint32_t>(slot);
-                func_801423C8_103AB98(rdram, &t);   // lee el slot y deserializa a los globals
-                // NOTA: la transición de escena completa se cierra en la Fase 3 (enganche a
-                // CONTINUAR); aquí solo se deserializa el slot a los globals.
-            }
-        }
-    }
+    // CARGAR PARTIDA (menú propio de carga): el control del flujo vive en `feed_load_flow`, invocado
+    // desde `hh_file_select_hook` (la pantalla `LoadGame` solo se alcanza ahí; este handler del título
+    // no la procesa). Ver notes 2026-10-01.
     // EMPEZAR PARTIDA (NUEVA PARTIDA): arranca la partida con la dificultad elegida, reutilizando el
     // flujo NATIVO de GAME START. La rama idx0 del submenú de NUEVA PARTIDA (func_801C3A40) hace
     // func_80005670(obj, 0x80044090) y fija el callback func_801C3BA4; a partir de ahí la cadena
@@ -1713,15 +1696,202 @@ constexpr uint32_t kFileSelectInputAddr = 0x80089478u;   // +0x4 de 0x80089474 (
 // NOTA: NO se engancha el SETUP del file-select (`func_801C3D50`): esa dirección la comparte otro
 // módulo (base solapada) y su hook colgaba el juego (medido). La categoría se activa desde el propio
 // CONTINUAR (antes de inyectar A), que es quien sabe que vamos a entrar al file-select.
+
+// Salir de CARGAR volviendo al MENÚ DE TÍTULO (NO a la cápsula; ese es el flujo del GUARDADO). Se
+// replica la rama de CANCELAR nativa de `func_801C3D84` (ret==2): `func_80142570()` vacía el texto y
+// `func_8012FE50(0x17, 0x73, 1, 1, 0)` + callback `func_801C40EC` vuelven al título.
+static void hh_leave_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
+    recomp_context t = *ctx;
+    func_80142570_103AD40(rdram, &t);
+    t = *ctx;
+    t.r4 = 0x17;
+    t.r5 = 0x73;
+    t.r6 = 1;
+    t.r7 = 1;
+    t.r8 = 0;
+    func_8012FE50_1028620(rdram, &t);
+    t = *ctx;
+    t.r4 = obj;
+    t.r5 = 0x801C40ECu;   // callback de cancelar (vuelve al título)
+    func_800058DC_64DC(rdram, &t);
+    hh::menu_overlay::hide_now();
+    hh::menu::close_load_game();
+    hh::log("[load] salir de CARGAR -> menu de titulo (rama nativa)\n");
+}
+
+// Confirmar la carga de `slot`: deserializa el slot y arranca la escena replicando la rama de ÉXITO
+// nativa de `func_801C3D84` (ret==1): `func_80142570()` + `func_800179B0(0)` + `func_801C11BC(0xA)` +
+// callback `func_801C3E24`. `func_801C11BC` monta la transición y `func_801C3E24` (con `D_801CC8CC=2`)
+// ejecuta `func_8012FE50` con el ÍNDICE DE ESCENA deserializado (`D_801BBBF4`). Es el inverso del
+// guardado (`save_live`) y no pasa por la cápsula.
+static void hh_do_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj, int slot) {
+    hh::log("[load] CARGAR slot %d (%s)\n", slot, hh::save::slot_name(slot).c_str());
+    recomp_context t = *ctx;
+    t.r4 = 0;                        // canal 0
+    t.r5 = static_cast<uint32_t>(slot);
+    func_801423C8_103AB98(rdram, &t);   // lee el slot 0xD00 y deserializa a los globals
+    // `func_801C3E24` solo ejecuta la transición si `D_801CC8CC == 2` (flag del flujo de carga).
+    rdram[(0x801CC8CCu - 0x80000000u) ^ 3u] = 2;
+    t = *ctx;
+    func_80142570_103AD40(rdram, &t);   // vacía las 0x1C ranuras de texto
+    t = *ctx;
+    t.r4 = 0;
+    func_800179B0_185B0(rdram, &t);
+    t = *ctx;
+    t.r4 = 0xA;
+    func_801C11BC_11BAC8C(rdram, &t);   // monta el objeto de transición
+    t = *ctx;
+    t.r4 = obj;
+    t.r5 = 0x801C3E24u;                 // callback de éxito (transición de escena)
+    func_800058DC_64DC(rdram, &t);
+    hh::menu_overlay::hide_now();
+    hh::menu::close_load_game();
+}
+
+// Control del flujo de CARGAR (`hh::menu::LoadPhase`), análogo a `feed_save_flow`:
+//   Browse        -> arriba/abajo mueven el cursor; A carga el slot; X borra (ConfirmDelete); B vuelve.
+//   ConfirmDelete -> Yes/No; Yes borra -> Removed; No -> Browse.
+//   Loaded        -> A sale (la escena ya se montó al cargar). Removed -> A vuelve a Browse.
+// Devuelve true si el flujo salió (se disparó una transición): el hook NO debe seguir dibujando.
+static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
+    auto rh16 = [&](uint32_t a) -> uint16_t {
+        return *reinterpret_cast<uint16_t*>(&rdram[(a ^ 2u) & 0x7FFFFFu]);
+    };
+    const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
+    static uint32_t prev = 0;
+    const uint32_t pressed = btn & ~prev;
+    prev = btn;
+    const bool sfx = hh::overlay::enabled();
+    constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
+    const uint32_t dir = btn & (kUp | kDown);
+    const hh::menu::LoadPhase phase = hh::menu::load_phase();
+    const bool del_btn = hh_input_button_down("z");   // agacharse = boton X del mando / tecla H
+    const bool acc_btn = hh_input_button_down("a");   // aceptar  = boton A del mando / tecla J
+
+    // Prompts Yes/No (ConfirmDelete): arriba/abajo alternan, A confirma la resaltada.
+    if (phase == hh::menu::LoadPhase::ConfirmDelete) {
+        if (pressed & (kUp | kDown)) {
+            hh::menu::set_load_yes_selected(!hh::menu::load_yes_selected());
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+        }
+        if (pressed & 0x8000u) {
+            const bool yes = hh::menu::load_yes_selected();
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            if (yes) {
+                const int dslot = hh::menu::load_target_slot();
+                if (dslot >= 0) {
+                    hh::log("[load] BORRAR slot %d\n", dslot);
+                    hh::save::delete_slot(dslot);
+                    hh::save::flush();
+                }
+                hh::menu::set_load_yes_selected(true);
+                hh::menu::refresh_load_game();
+                hh::menu::set_load_phase(hh::menu::LoadPhase::Removed);
+            } else {
+                hh::menu::set_load_phase(hh::menu::LoadPhase::Browse);
+            }
+        }
+        return false;
+    }
+    // Loaded: A sale (la escena ya está montada). Removed: A vuelve a Browse (NO sale).
+    if (phase == hh::menu::LoadPhase::Loaded || phase == hh::menu::LoadPhase::Removed) {
+        if (pressed & 0x8000u) {
+            if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            if (phase == hh::menu::LoadPhase::Removed) {
+                hh::menu::set_load_phase(hh::menu::LoadPhase::Browse);
+            } else {
+                hh_leave_load_game(rdram, ctx, obj);   // sale al título (la escena ya cargó)
+                return true;
+            }
+        }
+        return false;
+    }
+    // Browse: B -> volver al MENÚ DE TÍTULO (rama de cancelar nativa; NO es la cápsula del guardado).
+    if (pressed & 0x4000u) {
+        hh_leave_load_game(rdram, ctx, obj);
+        return true;
+    }
+    // Browse: si acabamos de entrar (bloqueo ~120 ms), se ignora el input de la transición.
+    if (hh::menu::load_input_blocked()) {
+        return false;
+    }
+    // Browse: arriba/abajo mueven el cursor de la lista (mismo repeat que feed_menu_navigation).
+    {
+        static uint32_t held = 0;
+        static double dir_next = 0.0;
+        static int dir_repeats = 0;
+        static bool emitted = false;
+        bool fire_up = false, fire_down = false;
+        const double t = std::chrono::duration<double>(
+                             std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (dir == 0) {
+            held = 0;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (dir != held) {
+            held = dir;
+            dir_next = t + 0.40;
+            dir_repeats = 0;
+            emitted = false;
+        } else if (t >= dir_next) {
+            dir_repeats++;
+            dir_next = t + std::max(0.03, 0.10 - 0.006 * dir_repeats);
+            emitted = false;
+        } else {
+            emitted = true;
+        }
+        if (!emitted) {
+            if (dir & kUp) fire_up = true;
+            else if (dir & kDown) fire_down = true;
+        }
+        if (fire_up || fire_down) {
+            const hh::menu::Event ev = fire_up ? hh::menu::move_up() : hh::menu::move_down();
+            if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
+        }
+    }
+    // A carga (solo slots con datos); X pide borrar (solo slots con datos). Bindings en vivo.
+    if (acc_btn || (pressed & 0x8000u)) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (cur.enabled && cur.index >= 0 && hh::save::slot_present(cur.index)) {
+                if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+                hh::menu::set_load_target_slot(cur.index);
+                hh_do_load_game(rdram, ctx, obj, cur.index);
+                return true;
+            }
+        }
+    } else if (del_btn) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (cur.index >= 0 && hh::save::slot_present(cur.index)) {
+                if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+                hh::menu::set_load_target_slot(cur.index);
+                hh::menu::set_load_yes_selected(true);
+                hh::menu::set_load_phase(hh::menu::LoadPhase::ConfirmDelete);
+            }
+        }
+    }
+    return false;
+}
+
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::overlay::set_screen_blackout(false);
+    // Objeto del menu (a0): lo necesita la transición de salida (func_800058DC) y la de carga.
+    const uint32_t obj = static_cast<uint32_t>(ctx->r4);
     // La pantalla activa pasa a ser NUESTRA LoadGame (la pila del modelo).
     hh::menu::open_load_game();
-    // Nuestro menú consume el input y mueve el cursor de la pantalla activa (LoadGame).
-    feed_menu_navigation(rdram, ctx);
     hh::menu_overlay::suppress_native(rdram);
     hh::menu_overlay::set_file_select_active(true);   // categoría FILE-SELECT activa (ocultado)
     const bool controlling = hh::overlay::enabled();
+    // Control propio del flujo de carga. Si salimos (carga/volver), NO se corre el update nativo ni
+    // se publica el overlay.
+    const bool exited = controlling && feed_load_flow(rdram, ctx, obj);
+    if (exited) {
+        g_inject_native_a = false;
+        return;
+    }
     // Mutea la lectura de A/Z/Start del file-select mientras controlamos: sin esto el nativo
     // despacharía su rama al ver A (y mostraría sus mensajes). Se restaura el valor original.
     uint16_t* in = reinterpret_cast<uint16_t*>(&rdram[(kFileSelectInputAddr ^ 2u) & 0x7FFFFFu]);
@@ -1745,6 +1915,14 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     if (hh::menu_overlay::native_toggle_pending()) {
         recomp_context t = *ctx;
         func_801426B0_103AE80(rdram, &t);   // SETUP del DATA LOAD (CONTINUE): título + CONTROLLER PAK + caja
+    }
+    // Con el nativo OCULTO, vacia cada frame sus 0x1C ranuras de texto: el prompt `Please connect
+    // Controller Pak…` (y el de Rumble Pak) se compone por una via distinta al compositor que
+    // saltamos, asi que hay que limpiarlo aqui (si no, se cuela por detras de nuestra UI). Mismo
+    // patron que el GUARDADO (feed_save_flow). `func_80142570` compone cadenas VACIAS en cada ranura.
+    if (controlling && !hh::menu_overlay::native_visible()) {
+        recomp_context ct = *ctx;
+        func_80142570_103AD40(rdram, &ct);
     }
     // Publica NUESTRO overlay (la pantalla LoadGame en su sitio real, ocultando el nativo).
     hh::menu_overlay::title_update(rdram);
@@ -2132,6 +2310,8 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     // Cualquier cambio de pantalla cierra la "sesión" de guardado: así, al volver a entrar en la
     // cápsula, el flujo se reinicia en `Ask` (no se queda la última fase). No-op si no estaba abierta.
     hh::menu::close_save_game();
+    // Ídem para CARGAR: al volver a entrar en CONTINUAR el flujo se reinicia en `Browse`.
+    hh::menu::close_load_game();
     const uint32_t target = static_cast<uint32_t>(ctx->r5);
     // Intro de ARRANQUE (file 055): `0x80383AD4` es el estado que corre durante los logos nativos.
     // Al registrarlo entramos en la fase; cualquier otra pantalla la cierra -> retira el HD.

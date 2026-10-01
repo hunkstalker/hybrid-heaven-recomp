@@ -253,6 +253,30 @@ void refresh_load_game();                    // reconstruye LoadGame/SaveGame de
 // Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
 // (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
 void open_load_game();
+// Cierra la "sesión" de carga: al volver a ENTRAR en CONTINUAR el flujo debe REINICIARSE en `Browse`
+// (si no, se quedaría la última fase, p. ej. `Loaded`, y A solo saldría). La llama el hook al salir.
+void close_load_game();
+
+// CARGAR: fase del flujo de carga en CONTINUAR (DATA LOAD):
+//   Browse        -> lista de partidas; A sobre una carga DIRECTA (sin Yes/No); X borra.
+//   ConfirmDelete -> "Remove play data?" Yes/No (al pulsar X sobre una partida con datos).
+//   Loaded        -> "Load completed." + flecha abajo; A sale (arranca la escena ya montada).
+//   Removed       -> "Remove completed." + flecha abajo; A vuelve a Browse (NO sale).
+// Análogas a SavePhase; el guardado usa sus propias fases.
+enum class LoadPhase { Browse, ConfirmDelete, Loaded, Removed };
+LoadPhase load_phase();
+void set_load_phase(LoadPhase phase);
+// CARGAR: opción resaltada en el Yes/No activo (true = Yes).
+bool load_yes_selected();
+void set_load_yes_selected(bool on);
+// CARGAR: slot resaltado en `Browse` (el que carga A y borra X). -1 = ninguno.
+int load_target_slot();
+void set_load_target_slot(int slot);
+// CARGAR: mensaje de la fase `Browse` con los bindings REALES insertados (p. ej. `A/J` carga,
+// `X/H` borra). Sustituye al `Select play data to be loaded.` nativo.
+std::string load_select_message();
+// true durante ~120 ms tras entrar en `Browse`/`Removed`: ignora el input que provocó la transición.
+bool load_input_blocked();
 
 // --- GUARDAR PARTIDA (copia 1:1 de la UI de cargar sobre el DATA SAVE nativo) --------------------
 // La pantalla `SaveGame` parte como COPIA de `LoadGame` (mismos 45 slots y metadatos). El hook de la

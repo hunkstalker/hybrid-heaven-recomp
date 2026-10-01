@@ -123,6 +123,12 @@ Notas: `notes/2026-09-30-save-capsule-logica.md` y `notes/2026-09-30-save-data-u
 `g_save_target_slot`/`g_save_delete_slot` unificadas; "slot libre" del editor alineado con la cápsula
 (`first_free_game_slot`); retirado el código muerto `load_game_row_present`. Sin cambio de UI.
 Nota: `notes/2026-10-01-menu-save-edit-higiene.md`.
+**UI de CARGA en `CONTINUAR` (2026-10-01, pendiente validar en Windows)**: flujo propio por fases
+(`hh::menu::LoadPhase`), **A carga directo**, **X borra**, **B vuelve al título**; **carga real**
+(replica la rama de ÉXITO nativa → transición con el índice de escena del slot); mensajes
+Controller/Rumble Pak ocultos (vaciado del texto nativo). Textos: mensaje de `Browse` con bindings
+(`Select play data to be loaded pressing A/J or X/H to remove.`). Nota:
+`notes/2026-10-01-cargar-partida-continuar.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
