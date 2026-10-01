@@ -2401,7 +2401,11 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     // cápsula, el flujo se reinicia en `Ask` (no se queda la última fase). No-op si no estaba abierta.
     hh::menu::close_save_game();
     // Ídem para CARGAR: al volver a entrar en CONTINUAR el flujo se reinicia en `Browse`.
-    hh::menu::close_load_game();
+    // EXCEPCIÓN: durante la transición de entrada (`g_load_enter`) NO se cierra la sesión: los gotos
+    // internos del setup/update del file-select (`0x801C3D50`, `0x801C3D84`) no deben reiniciarla.
+    if (!g_load_enter) {
+        hh::menu::close_load_game();
+    }
     const uint32_t target = static_cast<uint32_t>(ctx->r5);
     // Intro de ARRANQUE (file 055): `0x80383AD4` es el estado que corre durante los logos nativos.
     // Al registrarlo entramos en la fase; cualquier otra pantalla la cierra -> retira el HD.
@@ -2431,7 +2435,12 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     }
     // A2: cambio de pantalla -> oculta el overlay al instante (el handler nativo puede seguir
     // publicando el frame de la raíz durante la transición; ver menu_overlay::hide_now).
-    hh::menu_overlay::hide_now();
+    // EXCEPCIÓN: durante la transición de entrada a CARGAR (`g_load_enter`) NO se oculta: ya estamos
+    // publicando NUESTRA UI de carga y los gotos internos del file-select la ocultarían un frame
+    // (parpadeo). El título no republica la raíz en esos frames (ver hh_title_menu_hook).
+    if (!g_load_enter) {
+        hh::menu_overlay::hide_now();
+    }
     func_800058DC_64DC(rdram, ctx);
 }
 
