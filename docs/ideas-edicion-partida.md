@@ -61,8 +61,9 @@ El `DATA EDIT` original está pensado para **copiar partidas entre dos controlle
 
 ## 6. Estilo y textos
 
-- Se **imita el estilo** del original; los **textos** (etiquetas/traducciones) ya se verán cómo
-  (añadir a `kMenuTr`, endónimos, etc.). **Pronto** para decidirlo; no bloquea nada.
+- Se **imita el estilo** del original; los **textos** (etiquetas/traducciones) se añaden como claves
+  en `assets/lang/*.txt` (fuente única, ADR 0014), salvo los endónimos. **Pronto** para decidirlo; no
+  bloquea nada.
 
 ## 7. Pendiente de decidir (cuando se aborde)
 

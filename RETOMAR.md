@@ -7,6 +7,9 @@
 
 ## 🎯 TAREA ACTUAL: unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A)
 
+> **ESTADO 2026-10-01: HECHO y VALIDADO en Windows (build + F5, todos los idiomas).** Detalle en
+> `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8. Un tema = un commit (todo el bloque i18n).
+
 Hoy las traducciones están en **dos mecanismos con claves distintas**: la **UI del port** en código
 (`kMenuTr` en `menu.cpp`, ~170; `kAreaNames`; clave = **español**) y el **texto nativo de la ROM** en
 datos (`assets/lang/<code>.txt`, clave = **inglés**). Objetivo: **una sola fuente** (ficheros por

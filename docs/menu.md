@@ -221,10 +221,13 @@ SALIR                                      (extra del port: cierra de forma orde
 > **Tipografías (fuentes `color0..5`, API `overlay::Text.face`, avances): `fonts.md`** — fuente de
 > verdad. El menú usa `Color0`; el `DATA LOAD` propio usa `Color3` (título) y `Color4` (mensaje).
 
-- **Etiquetas localizadas**: las del modelo están en **español (canónico)** y se traducen al idioma
-  activo con `hh::menu::localized()` (tabla `kMenuTr`, `src/subsystems/menu.cpp`), que el overlay usa
-  al publicar el texto. Idiomas: **en/es/ca/fr/de**. La lista `IDIOMA` muestra **endónimos**
-  (`ENGLISH · ESPAÑOL · CATALÀ · FRANÇAIS · DEUTSCH · NIHONGO`) iguales en todos los idiomas.
+- **Etiquetas localizadas**: el modelo guarda **claves** (texto original en **inglés**) y se traducen
+  al idioma activo con `hh::menu::localized()`, que **delega** en `hh::text::translate()` (único punto
+  de traducción). La **única fuente** son los ficheros `assets/lang/<code>.txt` (la MISMA tabla que el
+  texto nativo de la ROM; clave = inglés; `en` = identidad, sin fichero). Idiomas:
+  **en/es/ca/fr/de/ja**. La lista `IDIOMA` muestra **endónimos** (`ENGLISH · ESPAÑOL · CATALÀ ·
+  FRANÇAIS · DEUTSCH · ニホンゴ`) iguales en todos los idiomas (viven en código, `kEndonyms`). Editar un
+  `.txt` no requiere recompilar.
 - **Acentos del menú = letra + marca**: el overlay pinta la **letra base** (color0 8×8, **sin
   deformar**) + una **marca** (agudo, grave, circunflejo, diéresis, virgulilla, cedilla, punto medio)
   dibujada por el propio overlay (`kMarkShapes` en `src/platform/overlay.cpp`) con la **forma que
@@ -244,9 +247,10 @@ SALIR                                      (extra del port: cierra de forma orde
   (no hay que extraerla de `jp.z64`). Mapping kana→glifo desde las tablas EUC→slot del `.resident`
   del ELF (`tools/text/extract_jp_kana.py` → `include/hh/jp_kana.h`, 165 entradas). El atlas pasa a
   **128×128** (+ franja de marcas); el overlay resuelve los codepoints kana con `jp_kana_value`. La
-  columna **JA** de `kMenuTr` va en **kana** (no hay kanji en `color0`) y `localized()` ya **no cae a
-  inglés**; el endónimo de la lista `IDIOMA` es `ニホンゴ`. El texto in-game (EUC-JP con kanji) sigue
-  por su propia vía (`assets/lang/ja.txt`, pendiente). Como `color0` **no trae sombra fiable** en los
+  las entradas **JA** de `assets/lang/ja.txt` van en **kana** (no hay kanji en `color0`) y
+  `localized()` ya **no cae a inglés**; el endónimo de la lista `IDIOMA` es `ニホンゴ`. El texto in-game
+  (EUC-JP con kanji) sigue pendiente: la sustitución nativa **omite** las traducciones kana (no tienen
+  glifo en la fuente nativa, `utf8_to_game` devuelve fallo) para no escribir `????`. Como `color0` **no trae sombra fiable** en los
   valores **>=64** (kana/símbolos), `hh::font::game::bake_atlas` la **descarta** y el overlay dibuja la
   sombra de la kana como **copia negra del glifo +1,+1** (puede salir de la celda de 8 px, sin
   recortes); el latino (0..63) no se toca (ya la trae).

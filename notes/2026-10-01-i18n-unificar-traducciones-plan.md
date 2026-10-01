@@ -107,3 +107,36 @@ Criterio: que **no podamos volver a tener "traducción repartida"** ni una regre
 - `src/subsystems/menu.cpp` (`kMenuTr`, `kEndonyms`, `localized`); `include/hh/menu.h`.
 - `src/hooks/menu_overlay.cpp` (`kAreaNames`, `area_title_name`); `include/hh.h` (API `text_*`).
 - `docs/menu.md` (§Idiomas), `docs/architecture.md` §7.
+
+## 8. ESTADO: HECHO Y VALIDADO EN WINDOWS (2026-10-01)
+
+Hechos los pasos del §3 (build Linux OK; árbol sin commitear):
+
+1. **API**: `hh::text::translate(key)` en `src/subsystems/text.cpp` + declaración en `include/hh.h`.
+   Búsqueda exacta; devuelve la clave si no hay entrada o el idioma es `en`. `localized` **delega**.
+2. **Migración**: `tools/text/migrate_menu_tr.py` (un solo uso) volcó `kMenuTr` + `kAreaNames` +
+   nativo existente a `assets/lang/{es,ca,fr,de,ja}.txt` (clave = inglés). Colisiones `SAVE`/`BODY`
+   resueltas (fila cuya versión se usa); colisiones UI↔nativo resueltas a favor de la UI.
+   Ficheros: `es`=120, `ca/fr/de`=112, `ja`=103.
+3. **Claves de UI a inglés** en `menu.cpp` y `menu_overlay.cpp` (títulos `DATA LOAD`/`DATA SAVE`);
+   `kPartLabels` a inglés; mensajes multi-línea con clave inglesa.
+4. **Áreas**: `kAreaKey[9]` (nombres en inglés) + `area_title_name` → `translate`.
+5. **`kMenuTr` borrado**; `kAreaNames` borrado.
+6. **`kEsDefaults` retirado**; `es.txt` es la única fuente. Añadido `unescape` (`\n`/`\t`/`\\`) en el
+   loader (las claves/valores multi-línea de la UI no pueden llevar saltos reales).
+7. **Extras de robustez**: la sustitución nativa **omite** traducciones con glifos no representables
+   (`utf8_to_game` devuelve fallo; p. ej. kana `ja`) en vez de escribir `????`. Guard
+   `tools/text/check_translations.py` (enganchado a `docs_index.py --check`). Docs: `architecture.md`
+   §7, `menu.md` §Idiomas, ADR 0014 (sustituye el punto 2 del ADR 0012).
+
+**Validación Linux `[MEDIDO]`**: las 6 lenguas cargan N entradas correctas; `translate()` probado con
+sondeo temporal en `es/ca/fr/de/ja` (incluida la clave multi-línea con `%s` y nombres de Área; `ja`
+sin Área devuelve la clave). Build Linux limpio.
+
+**Validación Windows `[MEDIDO]` (mantenedor, 2026-10-01)**: compilado y revisado; todo correcto
+(build limpio + F5 por idiomas). Commit: bloque i18n en un solo commit.
+
+**Riesgos observados** (sin incidencia en la validación): (a) la tabla nativa incorpora las claves
+cortas de la UI (`SAVE`, `HEAD`, `MENU`…), que pueden sustituir texto in-game por coincidencia exacta
+de core (acotado por el límite de longitud del registro); (b) glifos/acentos por fuente en cada
+pantalla; (c) las filas del DATA LOAD usan `\t` pero se construyen en código (no son claves).

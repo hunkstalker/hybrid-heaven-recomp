@@ -12,6 +12,8 @@
      comprime la mayúscula. `¿ ¡` = `? !` girados.
   2. **Localización del menú:** etiquetas canónicas en español + tabla `kMenuTr` →
      `hh::menu::localized()` (idioma activo). La lista `IDIOMA` usa **endónimos**.
+     *(Sustituido por el ADR 0014: la clave canónica pasa a ser el texto original en inglés y la
+     única fuente son los ficheros `assets/lang/*.txt`; `kMenuTr` se elimina.)*
   3. **Selección de idioma:** `IDIOMA` funcional (`hh::text_set_language`), persiste en
      `config.ini [lang]`. Sin preferencia: **idioma del sistema** si es `en/es/ca/fr/de/ja`; si no,
      **inglés**. Prioridad `HH_LANG` > `[lang]` > sistema > `en`.

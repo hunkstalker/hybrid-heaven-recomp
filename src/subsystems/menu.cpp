@@ -31,199 +31,10 @@ Layout g_layout;
 // configurarlo). Al volver a los valores por defecto deja de estar persistido -> oculto al arrancar.
 bool g_extras_unlocked_state = false;
 
-// Traducciones de las etiquetas/opciones del menú. Clave = etiqueta canónica en ESPAÑOL (la del
-// modelo). Columnas: en, ca, fr, de, ja. El JAPONÉS se escribe en KANA (la fuente color0 del juego
-// tiene kana en los valores 64..255; ver tools/text/extract_jp_kana.py e include/hh/jp_kana.h). No
-// hay kanji en esa fuente, así que todo va en katakana/hiragana. Uppercase (la fuente del menú no
-// tiene minúsculas acentuadas). Las tildes salen de las marcas del overlay (A/N/C).
-struct MenuTr {
-    const char* es;
-    const char* en;
-    const char* ca;
-    const char* fr;
-    const char* de;
-    const char* ja;
-};
-const MenuTr kMenuTr[] = {
-    // Pantallas / entradas
-    {"CONTINUAR", "CONTINUE", "CONTINUAR", "CONTINUER", "FORTSETZEN", "コンティニュー"},
-    // CARGAR PARTIDA (menú propio de carga, Fase 2)
-    // NOTA: el título y el mensaje NO se traducen: son EXACTAMENTE las cadenas del DATA LOAD nativo
-    // ("DATA LOAD" y "Select play data to be loaded."). El overlay las dibuja literales para el 1:1.
-    {"CARGAR PARTIDA", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD", "DATA LOAD"},
-    // GUARDAR PARTIDA (copia de la UI de cargar sobre el DATA SAVE nativo): el título es el rótulo
-    // nativo del guardado, "DATA SAVE" (no se traduce, igual que el de carga).
-    {"GUARDAR PARTIDA", "DATA SAVE", "DATA SAVE", "DATA SAVE", "DATA SAVE", "データセーブ"},
-    // Mensaje inferior del GUARDADO (DATA SAVE): el primer texto del flujo nativo es "Save play
-    // data?". JA en kana (se dibuja con Color0, la única fuente con kana; ver menu_overlay.cpp).
-    {"¿Guardar la partida?", "Save play data?", "Desar la partida?", "Sauvegarder la partie ?",
-     "Spielstand speichern?", "セーブしますか？"},
-    // Mensaje de la fase de SELECCION de slot de guardado (SUSTITUYE al `Select location in which to
-    // save play data.` nativo). CLAVE en ESPAÑOL (columna 1, como el resto de la tabla); los `%s` son
-    // los bindings REALES de ACEPTAR (guardar) y AGACHARSE (eliminar): p. ej. `A/J` y `X/H`.
-    {"Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.",
-     "Select location in which to\nsave play data pressing %s or %s\nto remove.",
-     "Selecciona on desar la partida\nprement %s o %s per esborrar.",
-     "Sélectionnez où sauvegarder\nla partie avec %s ou %s\npour supprimer.",
-     "Speicherort wählen mit %s\noder %s zum Löschen.",
-     "Select location in which to\nsave play data pressing %s or %s\nto remove."},
-    // Confirmacion de BORRADO (mensaje NUEVO del port; el juego original no borra desde el DATA SAVE).
-    {"¿Borrar la partida?", "Remove play data?", "Esborrar la partida?", "Supprimer la partie ?",
-     "Spielstand löschen?", "Remove play data?"},
-    // Mensaje final del borrado (analogo a "Save completed.").
-    {"Partida borrada.", "Remove completed.", "Partida esborrada.", "Suppression terminée.",
-     "Löschen abgeschlossen.", "Remove completed."},
-    // Fase de CONFIRMACION de slot: mensaje nativo del DATA SAVE ("Saving current play data here.")
-    // + Yes/No. El JA se deja en inglés (no hay kanji utilizable; ver backlog de textos JA).
-    {"Guardando la partida actual aquí.", "Saving current play data here.",
-     "Guardant la partida actual aquí.", "Sauvegarde des données de jeu ici.",
-     "Spielstand wird hier gespeichert.", "Saving current play data here."},
-    // Mensaje final del guardado NATIVO ("Save completed.") + flecha abajo; A cierra y sale.
-    {"Partida guardada.", "Save completed.", "Partida desada.", "Sauvegarde terminée.",
-     "Speichern abgeschlossen.", "Save completed."},
-    // CARGAR (CONTINUAR): fase `Browse`. SUSTITUYE al `Select play data to be loaded.` nativo
-    // insertando los bindings REALES de ACEPTAR (cargar) y AGACHARSE (eliminar), coherente con la
-    // versión del GUARDADO pero con "load" (aquí se CARGA, no se guarda). CLAVE en ESPAÑOL con los
-    // `%s` (como save_select_message). Original nativo: "Select play data to be loaded."
-    {"Selecciona la partida a cargar\npulsando %s o %s\npara borrar.",
-     "Select play data to be loaded\npressing %s or %s\nto remove.",
-     "Selecciona la partida a carregar\nprement %s o %s per esborrar.",
-     "Sélectionnez la partie à charger\navec %s ou %s\npour supprimer.",
-     "Spielstand zum Laden wählen\nmit %s oder %s zum Löschen.",
-     "Select play data to be loaded\npressing %s or %s\nto remove."},
-    // Mensaje final de la carga ("Load completed.") + flecha abajo; A sale (arranca la escena). El JA
-    // se deja en inglés (no hay kanji utilizable; ver backlog de textos JA), igual que el del guardado.
-    {"Partida cargada.", "Load completed.", "Partida carregada.", "Chargement terminé.",
-     "Laden abgeschlossen.", "Load completed."},
-    // Mensaje NUEVO del port (no del juego original): confirmar la salida de la cápsula sin guardar.
-    // Por decisión del mantenedor NO se traduce al japonés (se muestra en inglés).
-    {"¿Salir sin guardar?", "Exit without saving?", "Sortir sense desar?",
-     "Quitter sans sauvegarder ?", "Ohne Speichern beenden?", "Exit without saving?"},
-    {"Elige la partida a cargar.", "Select play data to be loaded.",
-     "Select play data to be loaded.", "Select play data to be loaded.",
-     "Select play data to be loaded.", "Select play data to be loaded."},
-    // Port-specific: en PC no hay "Controller Pak"; el hueco del subtítulo del DATA LOAD muestra
-    // "MEMORY SLOTS" (traducido). Sustituye al rótulo nativo "CONTROLLER PAK" (decisión del mantenedor).
-    {"RANURAS DE MEMORIA", "MEMORY SLOTS", "RANURES DE MEMÒRIA", "EMPLACEMENTS MÉMOIRE",
-     "SPEICHERPLÄTZE", "メモリースロット"},
-    {"SIN DATOS", "NO DATA", "SENSE DADES", "PAS DE DONNÉES", "KEINE DATEN", "データナシ"},
-    {"NUEVA PARTIDA", "NEW GAME", "NOVA PARTIDA", "NOUVELLE PARTIE", "NEUES SPIEL", "ニューゲーム"},
-    {"MODO COMBATE", "BATTLE MODE", "MODE COMBAT", "MODE COMBAT", "KAMPFMODUS", "バトルモード"},
-    // MODO COMBATE (subpantallas recreadas con nuestro menu; ver docs/menu.md)
-    {"MODO VS", "VS MODE", "MODE VS", "MODE VS", "VS-MODUS", "タイセンモード"},
-    {"COMBATE DE CRIATURAS", "CREATURE BATTLE", "COMBAT DE CRIATURES", "COMBAT DE CRÉATURES",
-     "KREATURENKAMPF", "クリーチャーバトル"},
-    {"EDITAR DATOS", "DATA EDIT", "EDITAR DADES", "ÉDITER DONNÉES", "DATEN BEARBEITEN",
-     "データエディット"},
-    {"5 COMBATES", "5 MATCHES", "5 COMBATS", "5 COMBATS", "5 KÄMPFE", "5タイセン"},
-    {"SUPERVIVENCIA", "SURVIVAL", "SUPERVIVÈNCIA", "SURVIE", "ÜBERLEBEN", "サバイバル"},
-    {"CONFIGURACIÓN", "SETTINGS", "CONFIGURACIÓ", "CONFIGURATION", "KONFIGURATION", "コンフィグ"},
-    {"SALIR", "EXIT", "SORTIR", "QUITTER", "BEENDEN", "シュウリョウ"},
-    {"EMPEZAR PARTIDA", "START GAME", "COMENÇAR PARTIDA", "COMMENCER", "SPIEL STARTEN",
-     "ゲームスタート"},
-    {"DIFICULTAD", "DIFFICULTY", "DIFICULTAT", "DIFFICULTÉ", "SCHWIERIGKEIT", "ナンイド"},
-    {"IDIOMA", "LANGUAGE", "IDIOMA", "LANGUE", "SPRACHE", "ゲンゴ"},
-    {"GRÁFICOS", "GRAPHICS", "GRÀFICS", "GRAPHIQUES", "GRAFIK", "グラフィック"},
-    {"SONIDO", "SOUND", "SO", "SON", "TON", "サウンド"},
-    {"DEBUG", "DEBUG", "DEBUG", "DEBUG", "DEBUG", "デバッグ"},
-    {"EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "EXTRAS", "エクストラ"},
-    {"MANTENER LOS EXTRAS", "KEEP EXTRAS", "MANTENIR ELS EXTRAS", "GARDER LES EXTRAS",
-     "EXTRAS BEHALTEN", "エクストラホゾン"},
-    {"LOGOS ORIGINALES", "ORIGINAL LOGOS", "LOGOS ORIGINALS", "LOGOS ORIGINAUX", "ORIGINAL-LOGOS",
-     "オリジナルロゴ"},
-    {"SIEMPRE EN VENTAJA", "ALWAYS ADVANTAGE", "SEMPRE EN AVANTATGE", "TOUJOURS AVANTAGE",
-     "IMMER VORTEIL", "アドバンテージ"},
-    // ∞ = simbolo vectorial (la fuente no lo trae); se dibuja en overlay.cpp.
-    {"PODER ∞", "POWER ∞", "PODER ∞", "PUISSANCE ∞", "KRAFT ∞", "パワー∞"},
-    {"RESISTENCIA ∞", "STAMINA ∞", "RESISTÈNCIA ∞", "ENDURANCE ∞", "AUSDAUER ∞", "スタミナ∞"},
-    {"CONTROLES", "CONTROLS", "CONTROLS", "CONTRÔLES", "STEUERUNG", "コントロール"},
-    {"ARRIBA/ADELANTE", "UP/FORWARD", "AMUNT/ENDAVANT", "HAUT/AVANT", "HOCH/VORWÄRTS",
-     "ウエ/ススム"},
-    {"ABAJO/ATRÁS", "DOWN/BACK", "AVALL/ENRERE", "BAS/ARRIÈRE", "RUNTER/ZURÜCK", "シタ/モドル"},
-    {"IZQUIERDA", "LEFT", "ESQUERRA", "GAUCHE", "LINKS", "ヒダリ"},
-    {"DERECHA", "RIGHT", "DRETA", "DROITE", "RECHTS", "ミギ"},
-    {"MENÚ ARRIBA", "MENU UP", "MENÚ AMUNT", "MENU HAUT", "MENÜ HOCH", "メニューウエ"},
-    {"MENÚ ABAJO", "MENU DOWN", "MENÚ AVALL", "MENU BAS", "MENÜ RUNTER", "メニューシタ"},
-    {"MENÚ IZQUIERDA", "MENU LEFT", "MENÚ ESQUERRA", "MENU GAUCHE", "MENÜ LINKS",
-     "メニューヒダリ"},
-    {"MENÚ DERECHA", "MENU RIGHT", "MENÚ DRETA", "MENU DROITE", "MENÜ RECHTS", "メニューミギ"},
-    {"ACCIÓN/ACEPTAR", "ACTION/ACCEPT", "ACCIÓ/ACCEPTAR", "ACTION/ACCEPTER", "AKTION/OK",
-     "ケッテイ"},
-    {"MAPA/ATRÁS", "MAP/BACK", "MAPA/ENRERE", "CARTE/RETOUR", "KARTE/ZURÜCK", "マップ/モドル"},
-    {"AGACHARSE", "CROUCH", "AJUPIR-SE", "S'ACCROUPIR", "DUCKEN", "シャガム"},
-    {"MENÚ", "MENU", "MENÚ", "MENU", "MENÜ", "メニュー"},
-    {"APUNTAR", "AIM", "APUNTAR", "VISER", "ZIELEN", "エイム"},
-    {"VIBRACIÓN", "VIBRATION", "VIBRACIÓ", "VIBRATION", "VIBRATION", "シンドウ"},
-    {"ALTURA CÁMARA", "CAMERA HEIGHT", "ALÇADA CÀMERA", "HAUTEUR CAMÉRA", "KAMERAHÖHE",
-     "カメラノタカサ"},
-    {"PRIMERA PERSONA", "FIRST PERSON", "PRIMERA PERSONA", "PREMIÈRE PERSONNE", "ERSTE PERSON",
-     "イチニンショウ"},
-    {"PULSA...", "PRESS...", "PREM...", "APPUYEZ...", "DRÜCKEN...", "オシテ..."},
-    {"D-PAD ARRIBA", "D-PAD UP", "D-PAD AMUNT", "D-PAD HAUT", "D-PAD HOCH", "ジュウジキウエ"},
-    {"D-PAD ABAJO", "D-PAD DOWN", "D-PAD AVALL", "D-PAD BAS", "D-PAD RUNTER", "ジュウジキシタ"},
-    {"D-PAD IZQ", "D-PAD LEFT", "D-PAD ESQ", "D-PAD GAUCHE", "D-PAD LINKS", "ジュウジキヒダリ"},
-    {"D-PAD DER", "D-PAD RIGHT", "D-PAD DRETA", "D-PAD DROITE", "D-PAD RECHTS", "ジュウジキミギ"},
-    {"CÁMARA LIBRE", "FREE CAMERA", "CÀMERA LLIURE", "CAMÉRA LIBRE", "FREIE KAMERA", "フリーカメラ"},
-    {"APUNTADO LIBRE", "FREE AIM", "APUNTAT LLIURE", "VISÉE LIBRE", "FREIES ZIELEN",
-     "フリーエイム"},
-    {"RATIO", "RATIO", "RATIO", "RATIO", "RATIO", "ガメンヒ"},
-    {"RESOLUCIÓN", "RESOLUTION", "RESOLUCIÓ", "RÉSOLUTION", "AUFLÖSUNG", "カイゾウド"},
-    {"P. COMPLETA", "FULLSCREEN", "P. COMPLETA", "PLEIN ÉCRAN", "VOLLBILD", "フルスクリーン"},
-    {"ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING", "ANTIALIASING",
-     "アンチエイリアス"},
-    {"VSYNC", "VSYNC", "VSYNC", "VSYNC", "VSYNC", "ブイシンク"},
-    {"LÍMITE DE FPS", "FPS LIMIT", "LÍMIT DE FPS", "LIMITE FPS", "FPS-LIMIT", "FPSセイゲン"},
-    {"DEBUG PANEL", "DEBUG PANEL", "PANELL DEBUG", "PANNEAU DEBUG", "DEBUG-PANEL",
-     "デバッグパネル"},
-    {"DEBUG NIVELES", "DEBUG LEVELS", "DEBUG NIVELLS", "DEBUG NIVEAUX", "DEBUG-LEVEL",
-     "レベルデバッグ"},
-    {"IR A ÁREA", "GO TO AREA", "ANAR A ÀREA", "ALLER À ZONE", "ZU BEREICH", "エリアイキ"},
-    {"ÁREA", "AREA", "ÀREA", "ZONE", "BEREICH", "エリア"},
-    {"MOSTRAR FPS", "SHOW FPS", "MOSTRAR FPS", "AFFICHER FPS", "FPS ANZEIGEN", "FPSヒョウジ"},
-    {"VOLUMEN", "VOLUME", "VOLUM", "VOLUME", "LAUTSTÄRKE", "オンリョウ"},
-    {"SALIDA", "OUTPUT", "SORTIDA", "SORTIE", "AUSGABE", "シュツリョク"},
-    {"MENÚ SFX", "MENU SFX", "MENÚ SFX", "MENU SFX", "MENÜ-SFX", "メニューオンセイ"},
-    // EDICIÓN DE PARTIDA (editor de save)
-    {"EDICIÓN DE PARTIDA", "SAVE EDIT", "EDICIÓ DE PARTIDA", "ÉDITION DE PARTIE",
-     "SPIELSTAND-EDITOR", "セーブエディット"},
-    {"PARTIDA", "SAVE", "PARTIDA", "PARTIE", "SPIELSTAND", "セーブ"},
-    {"CARGAR PARTIDA", "LOAD SAVE", "CARREGAR PARTIDA", "CHARGER PARTIE", "SPIELSTAND LADEN",
-     "ロードセーブ"},
-    {"GUARDAR PARTIDA", "SAVE GAME", "DESAR PARTIDA", "SAUVEGARDER", "SPEICHERN", "セーブする"},
-    {"PROGRESO", "PROGRESS", "PROGRÉS", "PROGRÈS", "FORTSCHRITT", "シンコウ"},
-    {"NIVEL", "LEVEL", "NIVELL", "NIVEAU", "LEVEL", "レベル"},
-    {"HABILIDADES", "ABILITIES", "HABILITATS", "CAPACITÉS", "FÄHIGKEITEN", "ノウリョク"},
-    {"BODY", "BODY", "COS", "CORPS", "KÖRPER", "ボディ"},
-    {"GUARDAR", "SAVE", "DESAR", "SAUVEGARDER", "SPEICHERN", "セーブ"},
-    {"ESTADO", "STATE", "ESTAT", "ÉTAT", "STATUS", "ジョウタイ"},
-    {"CABEZA", "HEAD", "CAP", "TÊTE", "KOPF", "アタマ"},
-    {"BRAZO IZQ", "LEFT ARM", "BRAÇ ESQ", "BRAS GAUCHE", "LINKER ARM", "ヒダリウデ"},
-    {"BRAZO DER", "RIGHT ARM", "BRAÇ DRET", "BRAS DROIT", "RECHTER ARM", "ミギウデ"},
-    {"PIERNA IZQ", "LEFT LEG", "CAMA ESQ", "JAMBE GAUCHE", "LINKES BEIN", "ヒダリアシ"},
-    {"PIERNA DER", "RIGHT LEG", "CAMA DRET", "JAMBE DROITE", "RECHTES BEIN", "ミギアシ"},
-    {"CUERPO", "BODY", "COS", "CORPS", "KÖRPER", "カラダ"},
-    {"OFENSIVO", "OFFENSIVE", "OFENSIU", "OFFENSIF", "OFFENSIV", "コウゲキ"},
-    {"DEFENSIVO", "DEFENSIVE", "DEFENSIU", "DÉFENSIF", "DEFENSIV", "ボウギョ"},
-    {"HIT COUNT", "HIT COUNT", "HIT COUNT", "HIT COUNT", "TREFFER", "ヒットスウ"},
-    {"DAMAGE COUNT", "DAMAGE COUNT", "DAMAGE COUNT", "DAMAGE COUNT", "SCHADEN", "ダメージスウ"},
-    // Opciones (mismos valores en todos los idiomas si no cambian)
-    {"SÍ", "YES", "SÍ", "OUI", "JA", "ハイ"},
-    {"NO", "NO", "NO", "NON", "NEIN", "イイエ"},
-    {"AUTO", "AUTO", "AUTO", "AUTO", "AUTO", "オート"},
-    {"ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "ORIGINAL", "オリジナル"},
-    {"NATIVO", "NATIVE", "NATIU", "NATIF", "NATIV", "ネイティブ"},
-    {"MONO", "MONO", "MONO", "MONO", "MONO", "モノ"},
-    {"ESTÉREO", "STEREO", "ESTÈREO", "STÉRÉO", "STEREO", "ステレオ"},
-    {"AURICULARES", "HEADPHONES", "AURICULARS", "CASQUE", "KOPFHÖRER", "ヘッドホン"},
-    {"DEFINITIVO", "ULTIMATE", "DEFINITIU", "SUPRÊME", "ULTIMATIV", "アルティメット"},
-    {"DIFÍCIL", "HARD", "DIFÍCIL", "DIFFICILE", "SCHWER", "ハード"},
-    {"NORMAL", "NORMAL", "NORMAL", "NORMAL", "NORMAL", "ノーマル"},
-};
-
-// Endónimos de la lista IDIOMA: SIEMPRE en su propia lengua (no dependen del idioma activo). Clave =
-// nombre canónico en español; valor = endónimo a mostrar. Uppercase (la fuente del menú no tiene
-// minúsculas acentuadas: à/ñ/ç). JA en kana (ニホンゴ): color0 no tiene kanji (日本語 sería imposible),
-// pero la kana sí (ver jp_kana.h).
+// Endónimos de la lista IDIOMA: SIEMPRE en su propia lengua (no dependen del idioma activo; por eso
+// viven en código y NO en assets/lang). Clave = nombre interno (en español, solo como identificador);
+// valor = endónimo a mostrar. Uppercase (la fuente del menú no tiene minúsculas acentuadas: à/ñ/ç).
+// JA en kana (ニホンゴ): color0 no tiene kanji (日本語 sería imposible), pero la kana sí (ver jp_kana.h).
 struct Endonym { const char* es; const char* shown; };
 const Endonym kEndonyms[] = {
     {"INGLÉS", "ENGLISH"},  {"ESPAÑOL", "ESPAÑOL"}, {"CATALÁN", "CATALÀ"},
@@ -473,8 +284,8 @@ std::vector<std::string> warp_options() {
 // Orden de las partes como las muestra el port (mapa al orden del juego en el struct):
 // CABEZA, CUERPO, BRAZO IZQ, BRAZO DER, PIERNA IZQ, PIERNA DER.
 const int kPartIndex[6] = {0, 1, 3, 2, 5, 4};
-const char* const kPartLabels[6] = {"CABEZA", "CUERPO", "BRAZO IZQ", "BRAZO DER", "PIERNA IZQ",
-                                    "PIERNA DER"};
+const char* const kPartLabels[6] = {"HEAD", "BODY", "LEFT ARM", "RIGHT ARM", "LEFT LEG",
+                                    "RIGHT LEG"};
 
 void rebuild_save_edit();   // definida tras find_screen
 
@@ -510,10 +321,10 @@ void build_tree() {
     g_screens.clear();
 
     std::vector<Entry> root = {
-        make_item("CONTINUAR", Action::Continue),
-        make_submenu("NUEVA PARTIDA", Action::OpenNewGame),
-        make_submenu("MODO COMBATE", Action::BattleMode),
-        make_submenu("CONFIGURACIÓN", Action::OpenSettings),
+        make_item("CONTINUE", Action::Continue),
+        make_submenu("NEW GAME", Action::OpenNewGame),
+        make_submenu("BATTLE MODE", Action::BattleMode),
+        make_submenu("SETTINGS", Action::OpenSettings),
     };
     // EXTRAS: solo aparece si se ha desbloqueado con el codigo Konami (arriba de SALIR).
     if (extras_unlocked()) {
@@ -521,7 +332,7 @@ void build_tree() {
     }
     // SALIR: extra del port (no existe en el nativo); cierra de forma ordenada. Decidido por el
     // mantenedor (2026-09-25); ver docs/menu.md.
-    root.push_back(make_item("SALIR", Action::Exit));
+    root.push_back(make_item("EXIT", Action::Exit));
     g_screens.push_back(make_screen(ScreenId::Root, ScreenKind::Menu, std::move(root)));
 
     // NUEVA PARTIDA: iniciar la partida y elegir dificultad.
@@ -530,15 +341,15 @@ void build_tree() {
     // (`make_selector(..., enabled=false)` + el salto de `!enabled` en move_up/move_down) se conserva
     // por si se deshabilitan otras entradas en el futuro.
     g_screens.push_back(make_screen(ScreenId::NewGame, ScreenKind::Menu, {
-        make_item("EMPEZAR PARTIDA", Action::StartGame),
-        make_submenu("DIFICULTAD", Action::OpenDifficulty),
+        make_item("START GAME", Action::StartGame),
+        make_submenu("DIFFICULTY", Action::OpenDifficulty),
     }));
 
     // DIFICULTAD: lista (A marca la aplicada; el resto sale en gris). La opción marcada es el valor
     // en memoria; vendrá de la config en el paso 6.
     g_screens.push_back(make_screen(ScreenId::Difficulty, ScreenKind::List, {
-        make_option("DEFINITIVO"),
-        make_option("DIFÍCIL"),
+        make_option("ULTIMATE"),
+        make_option("HARD"),
         make_option("NORMAL", /*marked=*/true),
     }));
 
@@ -546,24 +357,24 @@ void build_tree() {
     // traduccida a todos los idiomas. El despacho nativo de cada entrada se cablea en el hook del
     // submenu de batalla (0x801C4200); ver docs/menu.md y notes/2026-09-27-battle-mode-recon.md.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {
-        make_item("MODO VS", Action::BattleModeVs),
-        make_item("COMBATE DE CRIATURAS", Action::BattleModeCreature),
-        make_item("EDITAR DATOS", Action::BattleModeDataEdit),
+        make_item("VS MODE", Action::BattleModeVs),
+        make_item("CREATURE BATTLE", Action::BattleModeCreature),
+        make_item("DATA EDIT", Action::BattleModeDataEdit),
     }));
 
     // COMBATE DE CRIATURAS: subpantalla interna (el original: 5 MATCHES / SURVIVAL, cursor 0x801CC8C8
     // en func_801C44C4). Se entra desde MODO COMBATE (nativo, cursor 1) y se sale con B (va a la raiz).
     g_screens.push_back(make_screen(ScreenId::BattleCreature, ScreenKind::Menu, {
-        make_item("5 COMBATES", Action::BattleCreatureMatches),
-        make_item("SUPERVIVENCIA", Action::BattleCreatureSurvival),
+        make_item("5 MATCHES", Action::BattleCreatureMatches),
+        make_item("SURVIVAL", Action::BattleCreatureSurvival),
     }));
 
     // CONFIGURACIÓN: IDIOMA / GRÁFICOS / SONIDO y DEBUG al final (submenú con las opciones de depuración).
     g_screens.push_back(make_screen(ScreenId::Settings, ScreenKind::Menu, {
-        make_submenu("IDIOMA", Action::OpenLanguage),
-        make_submenu("GRÁFICOS", Action::OpenGraphics),
-        make_submenu("SONIDO", Action::OpenSound),
-        make_submenu("CONTROLES", Action::OpenControls),
+        make_submenu("LANGUAGE", Action::OpenLanguage),
+        make_submenu("GRAPHICS", Action::OpenGraphics),
+        make_submenu("SOUND", Action::OpenSound),
+        make_submenu("CONTROLS", Action::OpenControls),
     }));
 
     // IDIOMA: lista (INGLÉS...JAPONÉS). La opción activa es el idioma actual (negrita/verde).
@@ -585,22 +396,22 @@ void build_tree() {
     g_screens.push_back(make_screen(ScreenId::Graphics, ScreenKind::Menu, {
         make_selector_with_action("RATIO", {"AUTO", "ORIGINAL", "4:3", "16:9", "16:10", "21:9"},
                                   Action::RatioSelect, ratio_default()),
-        make_selector_with_action("RESOLUCIÓN", {"AUTO", "ORIGINAL"}, Action::ResolutionSelect),
+        make_selector_with_action("RESOLUTION", {"AUTO", "ORIGINAL"}, Action::ResolutionSelect),
         // Los tres siguientes persisten en config.ini [video] y aplican en vivo (ver
         // feed_menu_navigation). El valor inicial sale de la config (default: borderless/SÍ/NATIVO).
-        make_selector_with_action("P. COMPLETA", {"NO", "SÍ"}, Action::ToggleFullscreen,
+        make_selector_with_action("FULLSCREEN", {"NO", "YES"}, Action::ToggleFullscreen,
                                   fullscreen_default()),
         // stepper=true: mostrar como < x2 > (solo el activo, con chevrons) en vez de x0/x2/x4/x8.
         make_selector_with_action("ANTIALIASING", {"x0", "x2", "x4", "x8"}, Action::MsaaSelect,
                                   msaa_default(), true),
-        make_selector_with_action("VSYNC", {"NO", "SÍ"}, Action::ToggleVsync, vsync_default()),
+        make_selector_with_action("VSYNC", {"NO", "YES"}, Action::ToggleVsync, vsync_default()),
         // NATIVO = refresco del monitor; un número = tasa fija (RT64 refreshRate). Orden ascendente;
         // incluye 40 (Steam Deck), 90 (Deck/VR) y 75 (monitores antiguos). Se recorta al monitor.
-        make_selector_with_action("LÍMITE DE FPS",
-                                  {"NATIVO", "30", "40", "60", "75", "90", "120", "144", "165", "240"},
+        make_selector_with_action("FPS LIMIT",
+                                  {"NATIVE", "30", "40", "60", "75", "90", "120", "144", "165", "240"},
                                   Action::FpsLimit, fps_limit_default()),
         // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
-        make_selector_with_action("MOSTRAR FPS", {"NO", "SÍ"}, Action::ToggleShowFps,
+        make_selector_with_action("SHOW FPS", {"NO", "YES"}, Action::ToggleShowFps,
                                   show_fps_default()),
     }));
 
@@ -614,30 +425,30 @@ void build_tree() {
         // MODO HEAVEN: modo GLOBAL (no depende de la partida ni del editor). Al poner SÍ persiste y,
         // al cargar/empezar cualquier partida, se aplica al personaje vivo ATRIBUTOS/ESTADO al máx +
         // las 86 habilidades, y en runtime invulnerabilidad + items no consumibles (ver RETOMAR.md).
-        make_selector_with_action("MODO HEAVEN", {"NO", "SÍ"}, Action::ToggleHeavenMode,
+        make_selector_with_action("MODO HEAVEN", {"NO", "YES"}, Action::ToggleHeavenMode,
                                   heaven_default()),
-        make_submenu("EDICIÓN DE PARTIDA", Action::OpenSaveEdit),
+        make_submenu("SAVE EDIT", Action::OpenSaveEdit),
         // DEBUG NIVELES: activa los atajos del CICLO DE PUNTOS (F5/F6, RePag/AvPag) + indicador
         // `idx=`, y da acceso a ELEGIR NIVEL. Persiste en config.ini [extras].debug_levels.
-        make_selector_with_action("DEBUG NIVELES", {"NO", "SÍ"}, Action::ToggleDebugLevels,
+        make_selector_with_action("DEBUG LEVELS", {"NO", "YES"}, Action::ToggleDebugLevels,
                                   hh::extras_config().debug_levels == "si" ? 1 : 0),
-        make_submenu("IR A ÁREA", Action::OpenChooseLevel),
+        make_submenu("GO TO AREA", Action::OpenChooseLevel),
         // PODER ∞ / RESIS. ∞: el gauge de combate no se gasta (se pinnea a max por frame). El ∞ se
         // dibuja como simbolo vectorial (la fuente no lo trae). Persisten en config.ini [extras].
-        make_selector_with_action("PODER ∞", {"NO", "SÍ"}, Action::ToggleInfinitePower,
+        make_selector_with_action("POWER ∞", {"NO", "YES"}, Action::ToggleInfinitePower,
                                   infinite_power_default()),
-        make_selector_with_action("RESISTENCIA ∞", {"NO", "SÍ"}, Action::ToggleInfiniteStamina,
+        make_selector_with_action("STAMINA ∞", {"NO", "YES"}, Action::ToggleInfiniteStamina,
                                   infinite_stamina_default()),
         // SIEMPRE EN VENTAJA (antes VENTAJA): independiente de MODO HEAVEN (permite la ventaja de
         // combate sola). Persiste en config.ini [extras].advantage.
-        make_selector_with_action("SIEMPRE EN VENTAJA", {"NO", "SÍ"}, Action::ToggleAdvantage,
+        make_selector_with_action("ALWAYS ADVANTAGE", {"NO", "YES"}, Action::ToggleAdvantage,
                                   advantage_default()),
-        make_selector_with_action("MANTENER LOS EXTRAS", {"NO", "SÍ"}, Action::ToggleExtrasPersist,
+        make_selector_with_action("KEEP EXTRAS", {"NO", "YES"}, Action::ToggleExtrasPersist,
                                   extras_persist_default()),
-        make_selector_with_action("LOGOS ORIGINALES", {"NO", "SÍ"}, Action::ToggleOriginalLogos,
+        make_selector_with_action("ORIGINAL LOGOS", {"NO", "YES"}, Action::ToggleOriginalLogos,
                                   original_logos_default()),
         // DEBUG PANEL (antes VENTANA DEBUG, en el submenú DEBUG): habilita el Inspector de RT64 (F1).
-        make_selector_with_action("DEBUG PANEL", {"NO", "SÍ"}, Action::ToggleDebug,
+        make_selector_with_action("DEBUG PANEL", {"NO", "YES"}, Action::ToggleDebug,
                                   developer_default()),
     }));
 
@@ -645,25 +456,25 @@ void build_tree() {
     // lista es larga; el overlay la hace scrollear cuando no cabe en pantalla.
     g_screens.push_back(make_screen(ScreenId::Controls, ScreenKind::Menu, {
         // MOVIMIENTO: direccion del stick y/o tecla (por defecto W/S/A/D).
-        make_binding("ARRIBA/ADELANTE", "axis_up"),
-        make_binding("ABAJO/ATRÁS", "axis_down"),
-        make_binding("IZQUIERDA", "axis_left"),
-        make_binding("DERECHA", "axis_right"),
+        make_binding("UP/FORWARD", "axis_up"),
+        make_binding("DOWN/BACK", "axis_down"),
+        make_binding("LEFT", "axis_left"),
+        make_binding("RIGHT", "axis_right"),
         // Etiquetas = ACCION del juego (no el boton N64); a la derecha, MANDO y TECLADO.
-        make_binding("ACCIÓN/ACEPTAR", "a"),
-        make_binding("MAPA/ATRÁS", "b"),
-        make_binding("AGACHARSE", "z"),
-        make_binding("PRIMERA PERSONA", "cdown"),
-        make_binding("MENÚ", "start"),
-        make_binding("APUNTAR", "r"),
+        make_binding("ACTION/ACCEPT", "a"),
+        make_binding("MAP/BACK", "b"),
+        make_binding("CROUCH", "z"),
+        make_binding("FIRST PERSON", "cdown"),
+        make_binding("MENU", "start"),
+        make_binding("AIM", "r"),
         // C: solo C-arriba (altura de camara); C-abajo = PRIMERA PERSONA; C-izq/der no hacen nada.
-        make_binding("ALTURA CÁMARA", "cup"),
-        make_binding("MENÚ ARRIBA", "dup"),
-        make_binding("MENÚ ABAJO", "ddown"),
-        make_binding("MENÚ IZQUIERDA", "dleft"),
-        make_binding("MENÚ DERECHA", "dright"),
+        make_binding("CAMERA HEIGHT", "cup"),
+        make_binding("MENU UP", "dup"),
+        make_binding("MENU DOWN", "ddown"),
+        make_binding("MENU LEFT", "dleft"),
+        make_binding("MENU RIGHT", "dright"),
         // VIBRACIÓN (encima de RESET) y RESET (abajo del todo).
-        make_selector_with_action("VIBRACIÓN", {"NO", "SÍ"}, Action::ToggleVibration,
+        make_selector_with_action("VIBRATION", {"NO", "YES"}, Action::ToggleVibration,
                                   vibration_default()),
         make_item("RESET", Action::ResetControls),
     }));
@@ -687,13 +498,13 @@ void build_tree() {
     // SONIDO: VOLUMEN general (0-100 % en pasos de 10) y SALIDA (ESTÉREO/MONO/AURICULARES). Antes
     // era la lista vanilla ESTÉREO/MONO; ahora es un menu de selectores. Ambos persisten en [audio].
     g_screens.push_back(make_screen(ScreenId::Sound, ScreenKind::Menu, {
-        make_selector_with_action("VOLUMEN",
+        make_selector_with_action("VOLUME",
                                   {"0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%",
                                    "90%", "100%"},
                                   Action::VolumeSelect, volume_default()),
-        make_selector_with_action("SALIDA", {"MONO", "ESTÉREO", "AURICULARES"}, Action::OutputSelect,
+        make_selector_with_action("OUTPUT", {"MONO", "STEREO", "HEADPHONES"}, Action::OutputSelect,
                                   output_default()),
-        make_selector_with_action("MENÚ SFX", {"NO", "SÍ"}, Action::MenuSfxToggle,
+        make_selector_with_action("MENU SFX", {"NO", "YES"}, Action::MenuSfxToggle,
                                   menu_sfx_default()),
     }));
 
@@ -741,9 +552,9 @@ void rebuild_save_edit() {
         std::vector<std::string> slots;
         for (int i = 1; i <= hh::save::kSlots; ++i) slots.push_back("PARTIDA " + std::to_string(i));
         e.push_back(make_selector_with_action("CARGAR", slots, Action::SaveEditSlot, slot));
-        std::vector<std::string> save_slots{"NUEVA PARTIDA"};
+        std::vector<std::string> save_slots{"NEW GAME"};
         for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
-        e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
+        e.push_back(make_selector_with_action("SAVE", save_slots, Action::SaveEditSave,
                                               g_edit_save_target));
         // ELIMINAR: mismo selector de partidas; A borra el slot elegido (persiste al instante).
         // `g_edit_delete_target` es 1-based; el `value` del selector es el indice 0-based -> -1.
@@ -754,7 +565,7 @@ void rebuild_save_edit() {
         e.push_back(make_item("RESTAURAR", Action::SaveEditRestore));
         e.push_back(make_item("", Action::None));   // hueco visual (fila vacía)
         // PROGRESO: lista de N-P válidos; el guion lo dibuja el overlay (la fuente no tiene '-').
-        e.push_back(make_selector_with_action("PROGRESO", progress_options(),
+        e.push_back(make_selector_with_action("PROGRESS", progress_options(),
                                               Action::SaveEditProgress,
                                               progress_index_of(hh::save::progress_of(slot))));
         // NIVEL GLOBAL: DERIVADO de los niveles de las 6 partes (func_8037865C = media redondeada
@@ -764,8 +575,8 @@ void rebuild_save_edit() {
         const std::string lvl_label = "NIVEL " + std::to_string(lvl >= 1 ? lvl : 1);
         e.push_back(make_item(lvl_label.c_str(), Action::None, /*enabled=*/true));
         e.push_back(make_submenu("ATRIBUTOS", Action::OpenSaveEditCombatSim));
-        e.push_back(make_submenu("ESTADO", Action::OpenSaveEditBody));   // antes "BODY"
-        e.push_back(make_submenu("HABILIDADES", Action::OpenSaveEditAbilities));
+        e.push_back(make_submenu("STATE", Action::OpenSaveEditBody));   // antes "BODY"
+        e.push_back(make_submenu("ABILITIES", Action::OpenSaveEditAbilities));
         e.push_back(make_submenu("ITEMS", Action::OpenSaveEditItems));
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
@@ -778,16 +589,16 @@ void rebuild_save_edit() {
         std::vector<std::string> slots;
         for (int i = 1; i <= hh::save::kSlots; ++i) slots.push_back("PARTIDA " + std::to_string(i));
         e.push_back(make_selector_with_action("CARGAR", slots, Action::SaveEditSlot, slot));
-        std::vector<std::string> save_slots{"NUEVA PARTIDA"};
+        std::vector<std::string> save_slots{"NEW GAME"};
         for (int i = 1; i <= hh::save::kSlots; ++i) save_slots.push_back("PARTIDA " + std::to_string(i));
-        e.push_back(make_selector_with_action("GUARDAR", save_slots, Action::SaveEditSave,
+        e.push_back(make_selector_with_action("SAVE", save_slots, Action::SaveEditSave,
                                               g_edit_save_target));
         e.push_back(make_selector_with_action("ELIMINAR", slots, Action::SaveEditDelete,
                                               g_edit_delete_target - 1));
         e.push_back(make_item("", Action::None));   // separacion
         // IR A NIVEL: destino = Area-Parte (con inicios N-0). Con A se inyecta la transicion. Si no
         // hay partida cargada, el port carga la plantilla base de forma transparente y luego warpea.
-        e.push_back(make_selector_with_action("ÁREA", warp_options(), Action::WarpToLevel, 0));
+        e.push_back(make_selector_with_action("AREA", warp_options(), Action::WarpToLevel, 0));
         s->entries = std::move(e);
         if (s->cursor >= static_cast<int>(s->entries.size())) s->cursor = 0;
     }
@@ -796,7 +607,7 @@ void rebuild_save_edit() {
         std::vector<Entry> e;
         // Cabecera: selector lateral < RESET / TODO SÍ / TODO NO > (accion masiva sobre la lista;
         // RESET restaura las habilidades a como estaban al entrar, sin guardar).
-        e.push_back(make_selector_with_action("HABILIDADES", {"RESET", "TODO SÍ", "TODO NO"},
+        e.push_back(make_selector_with_action("ABILITIES", {"RESET", "TODO SÍ", "TODO NO"},
                                               Action::SaveEditAbilitiesBulk, g_edit_tech_bulk));
         e.push_back(make_item("", Action::None));   // hueco visual
         for (int id = 0; id < hh::save::kTechCount; ++id) {
@@ -813,7 +624,7 @@ void rebuild_save_edit() {
         // HIT/DAMAGE (contadores de uso sin efecto util) y NIVEL/PROGRESO (son de ATRIBUTO, ya en
         // ATRIBUTOS). Los niveles de parte no tienen tabla: se editan en crudo.
         e.push_back(make_selector_with_action(
-            "TIPO", {"OFENSIVO", "DEFENSIVO"}, Action::SaveEditBodyState, g_edit_body_state));
+            "TIPO", {"OFFENSIVE", "DEFENSIVE"}, Action::SaveEditBodyState, g_edit_body_state));
         // TODOS: fija las 6 partes del eje activo al nivel elegido (0..99). El valor mostrado es el
         // nivel actual más alto; izq/der lo cambian y aplican a las 6.
         int maxp = 0;
@@ -929,7 +740,7 @@ void rebuild_load_game() {
                   "LEVEL\t" + std::to_string(lv) + "\n" +
                   "TIME\t" + format_time(hh::save::meta_time(i));
         } else {
-            row = hh::menu::localized("SIN DATOS");
+            row = hh::menu::localized("NO DATA");
         }
         g_load_game_rows.push_back(std::move(row));
     }
@@ -954,7 +765,7 @@ void rebuild_load_game() {
         const int keep = s->cursor;
         std::vector<Entry> e;
         {
-            Entry it = make_item(localized("NUEVA PARTIDA").c_str(), Action::SaveGameNew,
+            Entry it = make_item(localized("NEW GAME").c_str(), Action::SaveGameNew,
                                  /*enabled=*/true);
             it.index = -1;
             e.push_back(std::move(it));
@@ -1239,11 +1050,11 @@ const Layout& layout() {
 
 // Mensaje de la fase `Select` del GUARDAR: SUSTITUYE al `Select location in which to save play data.`
 // nativo insertando los bindings REALES de ACEPTAR (guardar) y AGACHARSE (eliminar): boton/tecla,
-// p. ej. `A/J` y `X/H`. La CLAVE es la cadena espanola EXACTA de `kMenuTr` (con sus `\n`); los `%s`
-// se sustituyen DESPUES de localizar, sobre el texto ya traducido.
+// p. ej. `A/J` y `X/H`. La CLAVE es el texto original en INGLES (con sus `\n`, entrada de
+// assets/lang/*.txt); los `%s` se sustituyen DESPUES de traducir, sobre el texto traducido.
 std::string save_select_message() {
     constexpr const char* kKey =
-        "Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.";
+        "Select location in which to\nsave play data pressing %s or %s\nto remove.";
     const auto binding = [](const char* key) -> std::string {
         const std::string gp = hh::pad_binding_gamepad(key);
         const std::string kb = hh::pad_binding_key(key);
@@ -1278,11 +1089,11 @@ bool load_input_blocked() {
     return (std::chrono::steady_clock::now() - g_load_ignore_input_tp) < std::chrono::milliseconds(120);
 }
 // Bindings REALES de ACEPTAR (cargar) y AGACHARSE (borrar): botón/tecla, p. ej. `A/J` y `X/H`. La
-// CLAVE es la cadena española EXACTA de `kMenuTr` (con sus `\n`); los `%s` se sustituyen DESPUÉS de
-// localizar (mismo patrón que `save_select_message`).
+// CLAVE es el texto original en INGLES (con sus `\n`, entrada de assets/lang/*.txt); los `%s` se
+// sustituyen DESPUÉS de traducir (mismo patrón que `save_select_message`).
 std::string load_select_message() {
     constexpr const char* kKey =
-        "Selecciona la partida a cargar\npulsando %s o %s\npara borrar.";
+        "Select play data to be loaded\npressing %s or %s\nto remove.";
     const auto binding = [](const char* key) -> std::string {
         const std::string gp = hh::pad_binding_gamepad(key);
         const std::string kb = hh::pad_binding_key(key);
@@ -1296,31 +1107,16 @@ std::string load_select_message() {
     return buf;
 }
 
+// Traduce una CLAVE (texto original en inglés) al idioma activo. Delega en el único punto de
+// traducción `hh::text::translate` (que usa la MISMA tabla que la sustitución nativa). Los endónimos
+// del selector IDIOMA son la única excepción: se muestran siempre en su propia lengua (no se traducen)
+// y viven en código (`kEndonyms`).
 std::string localized(const std::string& label) {
     if (label.empty()) return label;
-    // Endónimos de la lista IDIOMA: fijos (no se traducen).
     for (const Endonym& e : kEndonyms) {
         if (label == e.es) return e.shown;
     }
-    const std::string& c = hh::text_current_language();
-    int lang = 0;   // 0=es, 1=en, 2=ca, 3=fr, 4=de, 5=ja
-    if (c == "en") lang = 1;
-    else if (c == "ca") lang = 2;
-    else if (c == "fr") lang = 3;
-    else if (c == "de") lang = 4;
-    else if (c == "ja") lang = 5;
-    for (const MenuTr& t : kMenuTr) {
-        if (label != t.es) continue;
-        switch (lang) {
-            case 1: return t.en;
-            case 2: return t.ca;
-            case 3: return t.fr;
-            case 4: return t.de;
-            case 5: return t.ja;
-            default: return t.es;
-        }
-    }
-    return label;
+    return hh::text::translate(label);
 }
 
 Event move_up() {

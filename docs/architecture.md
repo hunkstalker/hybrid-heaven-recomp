@@ -271,6 +271,15 @@ cada nibble, IMPAR → bits 0-1; `bloque = valor>>1`). Dentro del glifo, **nivel
   visible** (`240·ancho/alto`) y `publish_area_title` **parte el nombre en líneas centradas** si no
   cabe (p. ej. en 4:3). Detalle: `notes/2026-10-01-titulo-area-carga.md` y
   `notes/2026-10-01-titulo-area-calibracion.md`.
+- **Traducción unificada (única fuente)**: TODAS las traducciones (texto nativo de la ROM + UI del
+  port) viven en `assets/lang/<code>.txt` con **clave = texto original en inglés** (`en` = identidad,
+  sin fichero). Único punto de traducción: `hh::text::translate(key)` (búsqueda exacta; devuelve la
+  clave si no hay entrada o el idioma es `en`); `hh::menu::localized` **delega** en él y la sustitución
+  nativa (`hh_text_translate_guest`) usa la MISMA tabla. El código solo referencia **claves**: no hay
+  traducciones en código (editar el `.txt` no requiere recompilar). `kEndonyms` (selector IDIOMA) se
+  quedan en código (no son traducciones). Formato: `CLAVE=VALOR`, `^` = centrado, escapes `\n`/`\t`.
+  Guard anti-recaída: `tools/text/check_translations.py` (enganchado a `docs_index.py --check`);
+  migración de un solo uso: `tools/text/migrate_menu_tr.py`. Ver `notes/2026-10-01-i18n-unificar-traducciones-plan.md`.
 - **Alineación / bearing**: el motor dibuja cada glifo en su celda de 8 px **sin compensar**, y la
   primera tinta no cae en la misma columna en todos: `M O V W X Z m w` en la **0**, `I h j k l r t`
   en la **2**, `i` en la **3**, el resto en la **1**. Solo importa para el **primer glifo de una

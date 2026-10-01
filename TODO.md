@@ -5,14 +5,13 @@
 
 ## Ahora (priorizado)
 
-- [ ] **i18n — unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A) — PLANEADO (2026-10-01)**:
-  hoy hay **dos mecanismos** con claves distintas (UI del port en código `kMenuTr`, clave **español**;
-  texto nativo de la ROM en datos, clave **inglés**). Unificar en **una sola fuente** (ficheros por
-  idioma, clave = **inglés**); el código solo referencia **claves**; `hh::text::translate()` + `menu::localized`
-  delegando; se borran `kMenuTr`/`kEsDefaults`; `kEndonyms` se quedan en código; `en` = identidad. Incluye
-  **script de migración** (una vez) y **guard** de comprobación (clave usada ⇒ existe en `assets/lang/`).
-  Beneficio: el jugador edita una traducción sin recompilar. Plan completo + decisiones robustas:
-  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`**; handoff en **`RETOMAR.md`** (TAREA ACTUAL).
+- [x] **i18n — unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A) — HECHO y VALIDADO en Windows (2026-10-01)**:
+  hecho: `hh::text::translate()` (único punto), `localized` delega, clave = **inglés**, única fuente los
+  ficheros `assets/lang/*.txt`; borrados `kMenuTr`/`kAreaNames`/`kEsDefaults`; `kEndonyms` siguen en código;
+  `en` = identidad; migración `tools/text/migrate_menu_tr.py`; guard `tools/text/check_translations.py`
+  (enganchado a `docs_index.py --check`); ADR **0014**. Validado en Linux (carga de las 6 lenguas + sondeo
+  de `translate()` incluida clave multi-línea); **falta F5 en Windows**. Plan + estado:
+  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`** §8; handoff en **`RETOMAR.md`** (TAREA ACTUAL).
 
 - [x] **TÍTULO DEL ÁREA al cargar partida — HECHO (commit `874b9f6`, 2026-10-01)**: al cargar un slot
   (`CONTINUAR` → partida) el juego muestra **pantalla negra con el título del Área** (nombre del Área
@@ -369,7 +368,7 @@
 ## Backlog (priorizado)
 
 - [ ] **Verificar los textos JA del menú contra la ROM japonesa** (2026-09-27): el menú ya sale en
-  kana (columna `ja` de `kMenuTr`, `include/hh/jp_kana.h`) pero el mantenedor **no lee japonés**; una
+  kana (entradas **JA** de `assets/lang/ja.txt`, `include/hh/jp_kana.h`) pero el mantenedor **no lee japonés**; una
   tarea futura debe **cotejar** los rótulos con los originales de `work/roms/jp.z64` (menús nativos,
   EUC-JP) y corregir la redacción/terminología. La infraestructura (kana + mapping) ya está.
 - [ ] **Fallos visuales detectados por el mantenedor (2026-09-26; capturas en

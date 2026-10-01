@@ -219,6 +219,14 @@ namespace hh {
     // cambio en vivo sin input). Llamar por frame. Ver src/subsystems/text.cpp.
     void text_debug_tick();
 
+    // Traduccion de una CLAVE (texto original en ingles) al idioma activo. Es el unico punto de
+    // traduccion del port: `hh::menu::localized` delega aqui y la sustitucion nativa usa la MISMA
+    // tabla. Busqueda EXACTA en la tabla del idioma; si no hay entrada (o el idioma es `en`,
+    // identidad) devuelve la propia clave. Definido en src/subsystems/text.cpp.
+    namespace text {
+        std::string translate(const std::string& key);
+    }
+
     // Overlay A2 (render hook de RT64): el handler del menú de título publica el frame del overlay
     // (game thread); `tick` (render thread) lo oculta si el menú deja de actualizarlo. Ver
     // src/hooks/menu_overlay.cpp e include/hh/overlay.h.

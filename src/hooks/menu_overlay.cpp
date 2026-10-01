@@ -109,14 +109,14 @@ bool g_offsets_loaded = false;
 constexpr float kTextTopOffset = 5.0f;
 
 // Columna (en caracteres, desde el inicio de la etiqueta) donde empiezan los valores de los
-// selectores laterales. Fija para que queden alineados; la etiqueta más larga ("APUNTADO LIBRE",
+// selectores laterales. Fija para que queden alineados; la etiqueta más larga ("FREE AIM",
 // con su espacio inicial) ocupa 15, así que 16 deja 1 de margen y, además, deja sitio al valor más
 // largo (`3840x2160`, 9) con su chevron derecho.
 constexpr float kSelectorValueCol = 16.0f;
 
 // EXTRAS es un menu del PORT (no existe en el original), asi que puede tener su propio layout: usa
 // el hueco libre a la IZQUIERDA y una columna de valores calculada a partir de su etiqueta mas larga,
-// para que quepan nombres como "MANTENER EXTRAS" / "LOGOS ORIGINALES" sin solaparse con el valor.
+// para que quepan nombres como "MANTENER EXTRAS" / "ORIGINAL LOGOS" sin solaparse con el valor.
 constexpr float kExtrasValueGap = 2.0f;    // caracteres de separacion tras la etiqueta mas larga
 constexpr float kKeyColGap = 11.0f;        // columnas MANDO/TECLADO (CONTROLES): separacion
 
@@ -476,7 +476,7 @@ void title_update(uint8_t* rdram) {
                                screen.id == hh::menu::ScreenId::SaveEditStats ||
                                is_combat_sim);
     // GRÁFICOS es una pantalla NATIVA de selectores, pero se CENTRA como los menus del PORT (misma
-    // columna de valores: su etiqueta mas larga, "LÍMITE DE FPS", mide lo mismo que kSelectorValueCol).
+    // columna de valores: su etiqueta mas larga, "FPS LIMIT", mide lo mismo que kSelectorValueCol).
     const bool is_graphics = (screen.id == hh::menu::ScreenId::Graphics);
     // DEBUG quedó sin entradas (sus opciones se movieron a GRÁFICOS y EXTRAS); se conserva el id por
     // compatibilidad de `HH_MENU_SCREEN`, pero ya no es alcanzable desde el menú.
@@ -546,7 +546,7 @@ void title_update(uint8_t* rdram) {
                                                   static_cast<float>(cp_count(e.suffix)) * step);
                     max_val_px = std::max(max_val_px, w);
                 } else if (e.kind == hh::menu::Kind::Toggle) {
-                    max_val_px = std::max(max_val_px, 4.0f * step);   // "SÍ"/"NO"
+                    max_val_px = std::max(max_val_px, 4.0f * step);   // "YES"/"NO"
                 }
             }
             content_px = value_x + max_val_px;
@@ -582,7 +582,7 @@ void title_update(uint8_t* rdram) {
         // CARGAR usa el rótulo nativo "DATA LOAD"; GUARDAR (copia), "DATA SAVE".
         {
             const std::string title =
-                hh::menu::localized(saving ? "GUARDAR PARTIDA" : "CARGAR PARTIDA");
+                hh::menu::localized(saving ? "DATA SAVE" : "DATA LOAD");
             const hh::font::game::Face title_face =
                 ja ? hh::font::game::Face::Color0 : hh::font::game::Face::Color3;
             const float title_step = (ja ? 8.0f : 12.0f) * g_scale_x;
@@ -593,7 +593,7 @@ void title_update(uint8_t* rdram) {
         // Subtítulo: en PC no hay "Controller Pak"; se rotula "MEMORY SLOTS" (traducido). El nativo
         // ponía "CONTROLLER PAK" en x=38, top y=53 (se conserva la posición 1:1).
         frame.texts.push_back({ 38.0f, 53.0f, g_scale_x, g_scale_y, kWhite,
-                                hh::menu::localized("RANURAS DE MEMORIA"),
+                                hh::menu::localized("MEMORY SLOTS"),
                                 hh::font::game::Face::Color0 });
         const float box_x = 37.0f;
         const float box_w = 112.0f;
@@ -699,29 +699,29 @@ void title_update(uint8_t* rdram) {
                     case hh::menu::LoadPhase::Browse:
                         msg = hh::menu::load_select_message(); break;
                     case hh::menu::LoadPhase::ConfirmDelete:
-                        msg = hh::menu::localized("¿Borrar la partida?"); break;
+                        msg = hh::menu::localized("Remove play data?"); break;
                     case hh::menu::LoadPhase::Loaded:
-                        msg = hh::menu::localized("Partida cargada."); break;
+                        msg = hh::menu::localized("Load completed."); break;
                     case hh::menu::LoadPhase::Removed:
-                        msg = hh::menu::localized("Partida borrada."); break;
+                        msg = hh::menu::localized("Remove completed."); break;
                 }
             } else {
                 switch (phase) {
                     case hh::menu::SavePhase::Ask:
-                        msg = hh::menu::localized("¿Guardar la partida?"); break;
+                        msg = hh::menu::localized("Save play data?"); break;
                     case hh::menu::SavePhase::Select:
                         // Incluye los bindings REALES: "Pulsa A/J para guardar o X/H para borrar.".
                         msg = hh::menu::save_select_message(); break;
                     case hh::menu::SavePhase::ConfirmHere:
-                        msg = hh::menu::localized("Guardando la partida actual aquí."); break;
+                        msg = hh::menu::localized("Saving current play data here."); break;
                     case hh::menu::SavePhase::ConfirmExit:
-                        msg = hh::menu::localized("¿Salir sin guardar?"); break;
+                        msg = hh::menu::localized("Exit without saving?"); break;
                     case hh::menu::SavePhase::ConfirmDelete:
-                        msg = hh::menu::localized("¿Borrar la partida?"); break;
+                        msg = hh::menu::localized("Remove play data?"); break;
                     case hh::menu::SavePhase::Completed:
-                        msg = hh::menu::localized("Partida guardada."); break;
+                        msg = hh::menu::localized("Save completed."); break;
                     case hh::menu::SavePhase::Removed:
-                        msg = hh::menu::localized("Partida borrada."); break;
+                        msg = hh::menu::localized("Remove completed."); break;
                 }
             }
             // DIAGNOSTICO (HH_SAVE_TRACE=1): registra el MENSAJE dibujado cada vez que cambia (fase +
@@ -851,7 +851,7 @@ void title_update(uint8_t* rdram) {
         const std::string text = " " + hh::menu::localized(e.label);
         // Alineación del primer glifo: la fuente no es uniforme (M/O/V/W/X/Z empiezan en la columna 0
         // y el resto en la 1), así que una línea que empiece por 'M' saldría 1 px a la izquierda del
-        // resto (p. ej. "MODO COMBATE"). El menú nativo solo usa inicios de columna 1, por eso se ve
+        // resto (p. ej. "BATTLE MODE"). El menú nativo solo usa inicios de columna 1, por eso se ve
         // uniforme; compensamos el primer carácter a esa columna de referencia (1) para igualarlo.
         float x_text = x;
         // Compensación del primer glifo (fuente no uniforme): todas las etiquetas empiezan a la misma
@@ -961,11 +961,11 @@ void title_update(uint8_t* rdram) {
             const float step = 8.0f * g_scale_x;
             const float value_x = x + selector_col * step;
             frame.texts.push_back({ value_x, y, g_scale_x, g_scale_y, e.marked ? kGreen : kGray,
-                                    hh::menu::localized(e.marked ? "SÍ" : "NO") });
+                                    hh::menu::localized(e.marked ? "YES" : "NO") });
         }
 
         // Fila de mapeado (CONTROLES): el binding actual a la derecha, alineado con los selectores.
-        // Si esa fila esta en captura, se muestra el aviso "PULSA..." en amarillo.
+        // Si esa fila esta en captura, se muestra el aviso "PRESS..." en amarillo.
         // Fila de mapeado (CONTROLES): DOS columnas, MANDO y TECLADO (un binding cada una).
         if (e.kind == hh::menu::Kind::Binding) {
             const float step = 8.0f * g_scale_x;
@@ -973,7 +973,7 @@ void title_update(uint8_t* rdram) {
                 hh::pad_capture_active() && (hh::pad_capture_action() == e.remap_key);
             if (capturing) {
                 frame.texts.push_back({ x + selector_col * step, y, g_scale_x, g_scale_y, kYellow,
-                                        hh::menu::localized("PULSA...") });
+                                        hh::menu::localized("PRESS...") });
             } else {
                 const float gp_x = x + selector_col * step;
                 const float kb_x = x + key_col * step;
@@ -1091,46 +1091,25 @@ void tick() {
 // Nombres originales medidos del juego (US); traducciones del port.
 // ============================================================================================
 namespace {
-struct AreaName {
-    const char* en;
-    const char* es;
-    const char* ca;
-    const char* fr;
-    const char* de;
-};
-const AreaName kAreaNames[9] = {
-    { "bioweapon storage facility", "instalación de armas biológicas",
-      "instal·lació d'armes biològiques", "installation d'armes biologiques", "Biowaffen-Lager" },
-    { "Dr.Bross lab", "laboratorio del Dr.Bross", "laboratori del Dr.Bross",
-      "laboratoire du Dr.Bross", "Dr.Bross-Labor" },
-    { "clone storage facility", "instalación de almacenamiento de clones",
-      "instal·lació d'emmagatzematge de clons", "installation de stockage de clones", "Klonlager" },
-    { "weapon factory", "fábrica de armas", "fàbrica d'armes", "usine d'armes", "Waffenfabrik" },
-    { "underground shelter lowest area", "refugio subterráneo nivel inferior",
-      "refugi subterrani nivell inferior", "abri souterrain niveau inférieur",
-      "Unterirdischer Schutzraum, unterste Ebene" },
-    { "bioweapon factory", "fábrica de armas biológicas", "fàbrica d'armes biològiques",
-      "usine d'armes biologiques", "Biowaffenfabrik" },
-    { "clone storage facility 2", "instalación de almacenamiento de clones 2",
-      "instal·lació d'emmagatzematge de clons 2", "installation de stockage de clones 2", "Klonlager 2" },
-    { "clone cultivation site", "centro de cultivo de clones", "centre de conreu de clons",
-      "site de culture de clones", "Klon-Zuchtstätte" },
-    { "underground shelter top level", "refugio subterráneo nivel superior",
-      "refugi subterrani nivell superior", "abri souterrain niveau supérieur",
-      "Unterirdischer Schutzraum, oberste Ebene" },
+// Claves (texto original en INGLES) de los nombres de Area. La traduccion vive en assets/lang/*.txt
+// (única fuente, como el resto de la UI). `en` = identidad.
+const char* const kAreaKey[9] = {
+    "bioweapon storage facility",
+    "Dr.Bross lab",
+    "clone storage facility",
+    "weapon factory",
+    "underground shelter lowest area",
+    "bioweapon factory",
+    "clone storage facility 2",
+    "clone cultivation site",
+    "underground shelter top level",
 };
 }  // namespace
 
-// Devuelve el nombre del Área `area_num` (1..9) en el idioma activo.
+// Devuelve el nombre del Área `area_num` (1..9) en el idioma activo (clave -> hh::text::translate).
 std::string area_title_name(int area_num) {
     if (area_num < 1 || area_num > 9) return std::string();
-    const AreaName& a = kAreaNames[area_num - 1];
-    const std::string lang = hh::text_current_language();
-    if (lang == "es") return a.es;
-    if (lang == "ca") return a.ca;
-    if (lang == "fr") return a.fr;
-    if (lang == "de") return a.de;
-    return a.en;
+    return hh::text::translate(kAreaKey[area_num - 1]);
 }
 
 // Publica el frame del título del Área (telón negro + "AREA N" + nombre traducido). `alpha` (0..255)

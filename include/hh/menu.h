@@ -200,8 +200,9 @@ void push(ScreenId id);
 
 const Layout& layout();
 
-// Traduce una etiqueta/opción canónica (en español) al idioma activo (hh::text_current_language()).
-// Si no hay traducción para la clave, devuelve la canónica tal cual. La capa de dibujo la usa.
+// Traduce una CLAVE (texto original en INGLES) al idioma activo. Delega en `hh::text::translate`
+// (única fuente: assets/lang/*.txt). Los endónimos del selector IDIOMA son la excepción (se
+// devuelven en su propia lengua). Si no hay traducción, devuelve la clave tal cual.
 std::string localized(const std::string& label);
 
 // Navegación. Devuelven el evento producido (None si la entrada no hace nada).

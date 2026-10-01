@@ -1,38 +1,125 @@
-# Tabla de traduccion al espanol (spike). Formato: ORIGINAL=TRADUCCION
-# - ORIGINAL es el "core" de la cadena: el texto sin el prefijo de formato (%p, %m%p, ...) ni el
-#   relleno de espacios.
-# - Solo ASCII de momento (los acentos/eñe aun no tienen glifo en la fuente).
-# - La traduccion debe caber en el campo original; las que no quepan se omiten (ver HH_TEXT_TRACE).
-# - Prefijo `^` en la traduccion = cadena CENTRADA por el motor: se termina justo tras el texto para
-#   que siga centrada al ser mas corta (si no, el relleno la desplaza a la izquierda).
-# Si este fichero existe junto al .exe (lang/es.txt), se usa en vez de la tabla embebida.
-
-# Titulo / arranque
+# Espanol (de serie). Clave = texto original en INGLES; valor = traduccion.
+#
+# Formato (sin cambios): CLAVE=VALOR, una por linea. `^` al inicio del valor = centrado por
+# el motor. La clave inglesa es la fuente unica para la UI del port y para el texto nativo de
+# la ROM. `en` = identidad (no hay en.txt). Escapes: \n y \t en clave o valor.
 PLEASE SELECT=SELECCIONA
 GAME START=INICIAR
 PRESS START BUTTON=^PULSA START
-
-# Menu principal
 NEW GAME=NUEVA PARTIDA
 CONTINUE=CONTINUAR
-BATTLE MODE=MODO LUCHA
-SOUND=AJUSTES
+BATTLE MODE=MODO COMBATE
+SOUND=SONIDO
 RESOLUTION=RESOLUCIÓN
 DEBUG MODE=MODO DEBUG
 OPTION=AJUSTES
 DIFFICULTY=DIFICULTAD
 EXIT=SALIR
-
-# Batalla de criaturas / demo
 VS MODE=MODO VS
-CREATURE BATTLE=COMBATE BESTIA
+CREATURE BATTLE=COMBATE DE CRIATURAS
 DATA EDIT=EDITAR DATOS
-5 MATCHES=5 LUCHAS
-
-# Opciones de sonido / resolucion / dificultad
-STEREO=ESTEREO
+5 MATCHES=5 COMBATES
+STEREO=ESTÉREO
 MONAURAL=MONO
 HIGH NORMAL=ALTA NORMAL
 ULTIMATE=DEFINITIVO
-HARD=DIFICIL
+HARD=DIFÍCIL
 LOW=MIN
+bioweapon storage facility=instalación de armas biológicas
+Dr.Bross lab=laboratorio del Dr.Bross
+clone storage facility=instalación de almacenamiento de clones
+weapon factory=fábrica de armas
+underground shelter lowest area=refugio subterráneo nivel inferior
+bioweapon factory=fábrica de armas biológicas
+clone storage facility 2=instalación de almacenamiento de clones 2
+clone cultivation site=centro de cultivo de clones
+underground shelter top level=refugio subterráneo nivel superior
+DATA LOAD=CARGAR PARTIDA
+DATA SAVE=GUARDAR PARTIDA
+Save play data?=¿Guardar la partida?
+Select location in which to\nsave play data pressing %s or %s\nto remove.=Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.
+Remove play data?=¿Borrar la partida?
+Remove completed.=Partida borrada.
+Saving current play data here.=Guardando la partida actual aquí.
+Save completed.=Partida guardada.
+Select play data to be loaded\npressing %s or %s\nto remove.=Selecciona la partida a cargar\npulsando %s o %s\npara borrar.
+Load completed.=Partida cargada.
+Exit without saving?=¿Salir sin guardar?
+Select play data to be loaded.=Elige la partida a cargar.
+MEMORY SLOTS=RANURAS DE MEMORIA
+NO DATA=SIN DATOS
+SURVIVAL=SUPERVIVENCIA
+SETTINGS=CONFIGURACIÓN
+START GAME=EMPEZAR PARTIDA
+LANGUAGE=IDIOMA
+GRAPHICS=GRÁFICOS
+DEBUG=DEBUG
+EXTRAS=EXTRAS
+KEEP EXTRAS=MANTENER LOS EXTRAS
+ORIGINAL LOGOS=LOGOS ORIGINALES
+ALWAYS ADVANTAGE=SIEMPRE EN VENTAJA
+POWER ∞=PODER ∞
+STAMINA ∞=RESISTENCIA ∞
+CONTROLS=CONTROLES
+UP/FORWARD=ARRIBA/ADELANTE
+DOWN/BACK=ABAJO/ATRÁS
+LEFT=IZQUIERDA
+RIGHT=DERECHA
+MENU UP=MENÚ ARRIBA
+MENU DOWN=MENÚ ABAJO
+MENU LEFT=MENÚ IZQUIERDA
+MENU RIGHT=MENÚ DERECHA
+ACTION/ACCEPT=ACCIÓN/ACEPTAR
+MAP/BACK=MAPA/ATRÁS
+CROUCH=AGACHARSE
+MENU=MENÚ
+AIM=APUNTAR
+VIBRATION=VIBRACIÓN
+CAMERA HEIGHT=ALTURA CÁMARA
+FIRST PERSON=PRIMERA PERSONA
+PRESS...=PULSA...
+D-PAD UP=D-PAD ARRIBA
+D-PAD DOWN=D-PAD ABAJO
+D-PAD LEFT=D-PAD IZQ
+D-PAD RIGHT=D-PAD DER
+FREE CAMERA=CÁMARA LIBRE
+FREE AIM=APUNTADO LIBRE
+RATIO=RATIO
+FULLSCREEN=P. COMPLETA
+ANTIALIASING=ANTIALIASING
+VSYNC=VSYNC
+FPS LIMIT=LÍMITE DE FPS
+DEBUG PANEL=DEBUG PANEL
+DEBUG LEVELS=DEBUG NIVELES
+GO TO AREA=IR A ÁREA
+AREA=ÁREA
+SHOW FPS=MOSTRAR FPS
+VOLUME=VOLUMEN
+OUTPUT=SALIDA
+MENU SFX=MENÚ SFX
+SAVE EDIT=EDICIÓN DE PARTIDA
+SAVE=GUARDAR
+LOAD SAVE=CARGAR PARTIDA
+SAVE GAME=GUARDAR PARTIDA
+PROGRESS=PROGRESO
+LEVEL=NIVEL
+ABILITIES=HABILIDADES
+BODY=CUERPO
+STATE=ESTADO
+HEAD=CABEZA
+LEFT ARM=BRAZO IZQ
+RIGHT ARM=BRAZO DER
+LEFT LEG=PIERNA IZQ
+RIGHT LEG=PIERNA DER
+OFFENSIVE=OFENSIVO
+DEFENSIVE=DEFENSIVO
+HIT COUNT=HIT COUNT
+DAMAGE COUNT=DAMAGE COUNT
+YES=SÍ
+NO=NO
+AUTO=AUTO
+ORIGINAL=ORIGINAL
+NATIVE=NATIVO
+MONO=MONO
+HEADPHONES=AURICULARES
+NORMAL=NORMAL

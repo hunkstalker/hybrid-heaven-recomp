@@ -1,22 +1,24 @@
-// Spike de traduccion (primera traduccion al espanol; base del selector de idioma, ADR 0008).
+// Traduccion — UNICA fuente: assets/lang/<code>.txt (clave = TEXTO ORIGINAL EN INGLES).
 //
 // El texto del juego (USA) son cadenas ASCII terminadas en NUL, almacenadas en campos de ancho
 // fijo (rellenos con espacios). Los modulos con texto se cargan con el loader `trans`
 // (LZKN64); se interceptan en `hh_trans_load` (src/subsystems/trans_cache.cpp) y, antes de
-// escribirlos a RDRAM, se sustituyen las cadenas conocidas por su traduccion.
+// escribirlos a RDRAM, se sustituyen las cadenas conocidas por su traduccion. La MISMA tabla la usa
+// la UI del port a traves de `hh::text::translate` (unico punto de traduccion; `menu::localized`
+// delega en el). No hay traducciones en codigo: editar `assets/lang/<code>.txt` basta (sin
+// recompilar).
 //
-// Esto permite traducir SIN localizar aun la rutina de text-emit, y es suficiente para el
-// go/no-go del spike. La sustitucion preserva la longitud del segmento (terminado en NUL), asi
-// que no altera el layout de las tablas.
+// `en` = identidad (sin fichero): `translate()` devuelve la clave.
 //
 // Knobs:
-//   HH_LANG=es        activa el idioma (por ahora solo "es"); sin definir -> sin traduccion.
+//   HH_LANG=<code>    activa el idioma; sin definir -> el de config.ini [lang] o el del sistema.
 //   HH_LANG_FILE=ruta usa un fichero distinto de assets/lang/<lang>.txt.
 //   HH_TEXT_TRACE=1   escribe en hh.log cada sustitucion (y las que no caben).
 //
-// La tabla por defecto esta embebida en `kEsDefaults`. Si existe `assets/lang/es.txt` junto al .exe se
-// usa ese fichero (permite editar traducciones sin recompilar). Formato: lineas `ORIGINAL=TRAD`;
-// las lineas vacias o que empiezan por '#' se ignoran.
+// Formato del `.txt` (lineas `CLAVE=VALOR`; vacias o que empiezan por '#' se ignoran):
+//   - CLAVE = texto original en ingles; VALOR = traduccion (UTF-8).
+//   - `^` al inicio del valor = el motor centra esa cadena (ver translate_segment).
+//   - Escapes `\n` y `\t` en clave o valor (via `unescape`), para los mensajes multi-linea.
 
 #include <algorithm>
 #include <cctype>
@@ -44,47 +46,6 @@
 #include "hh/accent_glyphs.h"
 
 namespace {
-
-// Traducciones por defecto (espanol). Solo ASCII para no depender aun de glifos nuevos
-// (acentos/eñe) en la fuente. ORIGINAL coincide con la cadena del campo (sin el prefijo de
-// formato ni los espacios de relleno).
-struct Pair {
-    const char* en;
-    const char* es;
-    // `center`: el motor centra la cadena por su longitud. Si la traduccion es mas corta, hay que
-    // terminarla justo tras el texto (no rellenar con espacios) o el bloque se alarga y el texto
-    // visible se va a la izquierda. Ver translate_segment.
-    bool center = false;
-};
-
-constexpr Pair kEsDefaults[] = {
-    // Titulo / arranque
-    {"PLEASE SELECT", "SELECCIONA"},
-    {"GAME START", "INICIAR"},
-    {"PRESS START BUTTON", "PULSA START", /*center=*/true},
-    // Menu principal
-    {"NEW GAME", "NUEVA PARTIDA"},
-    {"CONTINUE", "CONTINUAR"},
-    {"BATTLE MODE", "MODO LUCHA"},
-    {"SOUND", "AJUSTES"},
-    {"RESOLUTION", "RESOLUCIÓN"},
-    {"DEBUG MODE", "MODO DEBUG"},
-    {"OPTION", "AJUSTES"},
-    {"DIFFICULTY", "DIFICULTAD"},
-    {"EXIT", "SALIR"},
-    // Batalla de criaturas / demo
-    {"VS MODE", "MODO VS"},
-    {"CREATURE BATTLE", "COMBATE BESTIA"},
-    {"DATA EDIT", "EDITAR DATOS"},
-    {"5 MATCHES", "5 LUCHAS"},
-    // Opciones de sonido / resolucion / dificultad
-    {"STEREO", "ESTEREO"},
-    {"MONAURAL", "MONO"},
-    {"HIGH NORMAL", "ALTA NORMAL"},
-    {"ULTIMATE", "DEFINITIVO"},
-    {"HARD", "DIFICIL"},
-    {"LOW", "MIN"},
-};
 
 bool env_flag(const char* name, bool def) {
     const char* v = std::getenv(name);
@@ -131,6 +92,24 @@ void add_key(State& s, const std::string& text, const std::string& repl, bool ce
     s.longest = std::max(s.longest, text.size());
 }
 
+// Decodifica escapes de una linea de traduccion: `\n` -> salto de linea, `\t` -> tabulador y `\\`
+// -> barra invertida. Hace falta para las CLAVES/VALORES multi-linea de la UI (p. ej. los mensajes
+// con saltos), que en el `.txt` no pueden contener un salto real. El texto nativo no usa escapes.
+std::string unescape(const std::string& in) {
+    std::string out;
+    out.reserve(in.size());
+    for (size_t i = 0; i < in.size(); ++i) {
+        if (in[i] == '\\' && i + 1 < in.size()) {
+            const char n = in[i + 1];
+            if (n == 'n') { out.push_back('\n'); ++i; continue; }
+            if (n == 't') { out.push_back('\t'); ++i; continue; }
+            if (n == '\\') { out.push_back('\\'); ++i; continue; }
+        }
+        out.push_back(in[i]);
+    }
+    return out;
+}
+
 bool load_file(State& s, const std::filesystem::path& path) {
     std::ifstream f(path);
     if (!f) return false;
@@ -155,6 +134,8 @@ bool load_file(State& s, const std::filesystem::path& path) {
         };
         trim(key);
         trim(val);
+        key = unescape(key);
+        val = unescape(val);
         if (key.empty() || val.empty()) continue;
         // Marcador `^` al inicio del valor: el motor centra esa cadena (ver translate_segment).
         bool center = false;
@@ -305,14 +286,10 @@ void apply_language(const std::string& code) {
         return;
     }
 
+    // Unica fuente = el fichero del idioma. Sin fichero no hay traduccion (se muestra el original).
     if (!load_language_table(s, code)) {
-        if (code == "es") {
-            for (const Pair& p : kEsDefaults) add_key(s, p.en, p.es, p.center);
-            hh::log("[text] idioma 'es' (tabla embebida, %zu entradas)\n", s.keys.size());
-        } else {
-            hh::log("[text] idioma '%s' sin tabla -> se muestra el original (en)\n", code.c_str());
-            return;  // enabled=false
-        }
+        hh::log("[text] idioma '%s' sin tabla -> se muestra el original (en)\n", code.c_str());
+        return;  // enabled=false
     }
     s.enabled = true;
 
@@ -415,8 +392,10 @@ bool core_of(const uint8_t* seg, size_t len, std::string& prefix, std::string& c
 // 1 byte para el NUL terminador.
 // Convierte UTF-8 a los codigos EUC propios de 2 bytes de los glifos acentuados (B); el ASCII pasa
 // tal cual. Ver include/hh/accent_glyphs.h (generado) y notes/2026-09-23-b-fuente-formato-y-gaiji.md.
-std::string utf8_to_game(const std::string& in) {
-    std::string out;
+// Devuelve false si algun caracter no tiene glifo representable en la fuente NATIVA (p. ej. kana de
+// `ja`, que solo dibuja el overlay): en ese caso NO se sustituye (mejor el original que "????").
+bool utf8_to_game(const std::string& in, std::string& out) {
+    out.clear();
     for (size_t i = 0; i < in.size();) {
         const unsigned char c = static_cast<unsigned char>(in[i]);
         if (c < 0x80) {
@@ -440,10 +419,10 @@ std::string utf8_to_game(const std::string& in) {
             out.push_back(static_cast<char>(code >> 8));
             out.push_back(static_cast<char>(code & 0xFF));
         } else {
-            out.push_back('?');
+            return false;   // glifo no representable en la fuente nativa
         }
     }
-    return out;
+    return true;
 }
 
 bool translate_segment(uint8_t* seg, size_t content_len, size_t slot, const State& s) {
@@ -452,7 +431,9 @@ bool translate_segment(uint8_t* seg, size_t content_len, size_t slot, const Stat
 
     for (const Key& k : s.keys) {
         if (k.text != core) continue;
-        std::string out = prefix + utf8_to_game(k.repl);
+        std::string repl;
+        if (!utf8_to_game(k.repl, repl)) return false;   // no representable: dejar el original
+        std::string out = prefix + repl;
         if (out.size() + 1 > slot) {
             if (s.trace) {
                 hh::log("[text] no cabe: |%s| -> |%s| (registro %zu, resultado %zu + NUL)\n",
@@ -574,6 +555,17 @@ void text_cycle_language() {
         }
     }
     text_set_language(list[(idx + 1) % list.size()]);
+}
+
+std::string text::translate(const std::string& key) {
+    init();
+    const State& s = state();
+    // `en` (y cualquier idioma sin tabla) es identidad: la clave ya es el texto original.
+    if (key.empty() || !s.enabled) return key;
+    for (const Key& k : s.keys) {
+        if (k.text == key) return k.repl;
+    }
+    return key;
 }
 
 void text_debug_tick() {

@@ -61,9 +61,14 @@ Decisiones de fondo pendientes: `docs/adr/0001-modelo-de-modulos.md`.
   **Multi-idioma + acentos (2026-09-25 / 2026-09-27)**: acentos del menú = **letra base `color0` +
   marca** (no se deforma; `tools/text/menu_marks.py`); etiquetas localizadas **en/es/ca/fr/de/ja**
   (JA en **kana**: el `color0` del ROM JP es idéntico al US, mapping en `include/hh/jp_kana.h`;
-  `tools/text/extract_jp_kana.py`) con `IDIOMA` funcional (persiste `[lang]`) e **idioma del sistema**
-  por defecto (fallback inglés); fuente in-game **8×12 `color4`** preparada. **ADR 0012**;
-  `docs/menu.md §Idiomas`.
+   `tools/text/extract_jp_kana.py`) con `IDIOMA` funcional (persiste `[lang]`) e **idioma del sistema**
+   por defecto (fallback inglés); fuente in-game **8×12 `color4`** preparada. **ADR 0012**;
+   `docs/menu.md §Idiomas`.
+   **Fuente única de traducciones (2026-10-01, validado en Windows; ADR 0014)**: TODAS las
+   traducciones (UI del port + texto nativo) viven en `assets/lang/<code>.txt` con **clave = inglés**;
+   `en` = identidad. Único punto: `hh::text::translate()` (`menu::localized` delega); se eliminan
+   `kMenuTr`/`kEsDefaults` (editar un `.txt` no requiere recompilar). Guard
+   `tools/text/check_translations.py`; migración `tools/text/migrate_menu_tr.py`.
 - Herramientas: `tools/rommy.py` (Nisitenma US/EU, manifests en `notes/`), `tools/lzkn64`,
   `tools/text/extract_strings.py` (ROM → cadenas).
 
@@ -137,10 +142,10 @@ sin parpadeo ni superposición al título, y mensajes Controller/Rumble Pak ocul
 **Calibrado 1:1** con el original (ancho/alto/peso/métrica) y **salto de línea automático** en 4:3 para
 los nombres largos (centrado; en 16:9 no cambia). Verificado headless; **pendiente validar en Windows**.
 Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
-**i18n — unificar traducciones (PLANEADO, 2026-10-01)**: hoy conviven dos mecanismos (UI del port en
-código, clave español; texto nativo en `assets/lang/*.txt`, clave inglés). Plan: **una sola fuente**
-(ficheros por idioma, clave inglés) con `hh::text::translate()` y las tablas de UI movidas a datos;
-el jugador podrá editar traducciones. Plan: `notes/2026-10-01-i18n-unificar-traducciones-plan.md`.
+**i18n — unificar traducciones (HECHO, 2026-10-01; validado en Windows)**: **una sola fuente**
+(`assets/lang/*.txt`, clave inglés) con `hh::text::translate()` como único punto y `menu::localized`
+delegando; borrados `kMenuTr`/`kEsDefaults`; el jugador edita un `.txt` sin recompilar. **ADR 0014**;
+estado + validación: `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
@@ -160,7 +165,7 @@ cacheo de flags de `get_function` (stalls); 2026-09-16 guardado en cápsula y fi
 | 3. Render (RT64) | ✅ | RT64 renderiza logo/título/attract, cutscenes 3D, **gameplay con HUD** y combate; resolución auto (`HH_RES`); **high frame rate** (presenta al refresco del monitor). Historia del arranque/VI en `notes/2026-09-1*.md` y `docs/architecture.md` §5. |
 | 4. Audio | ✅ base | `aspMain` del ROM + SDL; 43200 Hz; estable. **Futuro**: desacoplar de los fps (ver TODO). |
 | 5. Guardado | ✅ | PFS emulado (`pak.cpp`); guardado en cápsula **validado en Windows** (UI de slots + `.pak` en `saves\`) tras el fix `osPfsFindFile`→5 (nota 2026-09-16) |
-| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless; validado en Windows 2026-09-26)** + **JA en kana (2026-09-27, validado en Windows)**. Falta: verificar los textos JA contra la ROM japonesa, cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
+| 6. Textos/traducción | 🚧 | charset USA resuelto (ASCII, campos fijos; motor EUC-JP) + substitución en runtime + **A1** (idiomas, cambio en vivo, `[lang]`); **menú localizado EN/ES/CA/FR/DE + acentos + idioma del sistema (2026-09-25, headless; validado en Windows 2026-09-26)** + **JA en kana (2026-09-27, validado en Windows)** + **fuente única de traducciones `assets/lang/*.txt` clave=inglés (2026-10-01, validado en Windows; ADR 0014)**. Falta: verificar los textos JA contra la ROM japonesa, cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de ROM; ES/CA propias) |
 | 7. Robustez/empaquetado | en curso | build reproducible Linux (`tools/build_linux.sh`) + Docker + CI/Releases (ADR 0005); falta validar en GitHub y empaquetado Deck |
 
 Detalle actual: `TODO.md`. Fuente de verdad técnica: `docs/architecture.md`.

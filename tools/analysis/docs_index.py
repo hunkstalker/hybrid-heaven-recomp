@@ -225,6 +225,13 @@ def main() -> int:
     issues: list[str] = []
     warnings: list[str] = []
 
+    # Guard anti-recaída de la unificación de traducciones (assets/lang/*.txt, clave = inglés).
+    guard = ROOT / "tools" / "text" / "check_translations.py"
+    if args.check and guard.is_file():
+        r = subprocess.run([sys.executable, str(guard)], capture_output=True, text=True)
+        if r.returncode != 0:
+            issues.append("check_translations falló:\n" + (r.stdout or r.stderr).strip())
+
     for p in docs:
         n = len(p.read_text(encoding="utf-8", errors="replace").splitlines())
         if n > WARN_LINES and not rel(p).startswith("notes/"):
