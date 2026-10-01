@@ -77,6 +77,7 @@ extern "C" void hh_battle_creature_hook(uint8_t* rdram, recomp_context* ctx);  /
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx);  // traza de combate
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx);   // Fase 3: file-select CARGAR
 extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // cajas nativas (func_8001A804)
+extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // mensaje Controller Pak
 
 namespace {
 
@@ -602,6 +603,8 @@ void register_title_menu_hook() {
     // Cajas nativas (func_8001A804, residente): se saltan cuando la categoría file-select está activa
     // y el nativo oculto (suppress_box_draw()).
     recomp::overlays::add_loaded_function(0x8001A804, hh_box_draw_hook);
+    // Mensaje del Controller Pak (func_800179B0): se salta entero con el file-select oculto (ver hook).
+    recomp::overlays::add_loaded_function(0x800179B0, hh_pak_message_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
@@ -2284,6 +2287,18 @@ extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx) {
         return;
     }
     func_8001A804_1B404(rdram, ctx);
+}
+
+// Mensaje del Controller Pak: `func_800179B0` (residente) inicializa y dibuja el aviso
+// "Please connect Controller Pak… / Do not remove…" (`D_8004CC90`) con `func_8001A804` (cajas) y
+// `func_8001B204` (texto). Con la categoría FILE-SELECT activa y el nativo oculto se SALTA entero:
+// así no compone ni dibuja ese mensaje (se colaba en la transición a CARGAR, medido 2026-10-01).
+// En el GUARDADO se evitaba dejando el input a 0; aquí lo cortamos de raíz.
+extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx) {
+    if (hh::menu_overlay::suppress_box_draw()) {
+        return;
+    }
+    func_800179B0_185B0(rdram, ctx);
 }
 
 // Overlay A2: envuelve el update de COMBATE DE CRIATURAS (func_801C44C4, file_024). Igual que el
