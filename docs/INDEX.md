@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 226 | 2026-10-01 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 582 | 2026-10-01 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 587 | 2026-10-01 |
 
 ## Técnico y guías (vivos)
 
@@ -22,7 +22,7 @@
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
-| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-09-30 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 343 | 2026-10-01 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
@@ -63,6 +63,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [Rótulo `AREA` del título del Área — traducido (2026-10-02)](../notes/2026-10-02-titulo-area-rotulo-traducido.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows**. | 54 | 2026-10-02 |
 | [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
 | [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |
 | [TÍTULO DEL ÁREA — calibración del texto (1:1 con el original)](../notes/2026-10-01-titulo-area-calibracion.md) | Sesión 2026-10-01 (3.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Continúa | 131 | 2026-10-01 |

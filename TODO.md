@@ -5,6 +5,11 @@
 
 ## Ahora (priorizado)
 
+- [x] **Rótulo `AREA` del título del Área traducido — HECHO y VALIDADO en Windows (2026-10-02)**:
+  estaba hardcodeado (`snprintf("AREA %d")`) → en ES salía sin tilde. Ahora usa la clave `AREA` de
+  `assets/lang/*.txt` (`hh::menu::localized("AREA")`): `ÁREA`/`ÀREA`/`ZONE`/`BEREICH`; ancho en
+  codepoints. Detalle: `notes/2026-10-02-titulo-area-rotulo-traducido.md`.
+
 - [x] **Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) — HECHO y VALIDADO en
   Windows (2026-10-02)**: la ROM US de `color4` solo trae 88 glifos → se añade una **franja de acentos**
   al atlas (`font.cpp`, cocina `hh::kGameGlyphs` = color4 EU real + compuestos base+marca) y

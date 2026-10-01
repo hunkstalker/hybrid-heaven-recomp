@@ -1169,17 +1169,18 @@ void publish_area_title(int area_num, const std::string& name, int alpha) {
         const char* e = std::getenv(k);
         return (e != nullptr && *e != '\0') ? std::strtof(e, nullptr) : def;
     };
-    // "AREA N" (fuente del juego color0), centrado; posición medida (centro y≈93 -> top≈89).
-    char buf[32];
-    std::snprintf(buf, sizeof buf, "AREA %d", area_num);
+    // "<AREA> N" (fuente del juego color0), centrado; posición medida (centro y≈93 -> top≈89). El rótulo
+    // va TRADUCIDO (AREA→ÁREA/ÀREA/ZONE/BEREICH): color0 lo acentúa con las marcas del menú. El ancho se
+    // mide en CODEPOINTS (no bytes: Á/À son 2 bytes UTF-8).
+    const std::string label = hh::menu::localized("AREA") + " " + std::to_string(area_num);
     const float cw = static_cast<float>(hh::font::game::char_width());
-    const float num_w = static_cast<float>(std::strlen(buf)) * cw;
+    const float num_w = static_cast<float>(cp_count(label)) * cw;
     hh::overlay::Text area;
     area.x = (hh::overlay::kVirtualWidth - num_w) * 0.5f;
     area.y = env_f("HH_TITLE_NUM_Y", 89.0f);
     area.face = hh::font::game::Face::Color0;
     area.color = hh::overlay::rgba(255, 255, 255, static_cast<uint8_t>(alpha));
-    area.text = buf;
+    area.text = label;
     f.texts.push_back(area);
     // Nombre (Work Sans), centrado; línea base medida (centro y≈107). Tamaño/estirado/tracking por env.
     if (!name.empty()) {

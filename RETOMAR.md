@@ -24,6 +24,13 @@
 > **`notes/2026-10-02-tildes-y-signos-en-mensajes.md`**. Ficheros: `src/subsystems/font.cpp`,
 > `src/platform/overlay.cpp`, `tools/text/build_font.py`, `include/hh/game_font_color4.h`.
 
+### Rótulo `AREA` del título — traducido (2026-10-02) — HECHO y VALIDADO en Windows
+> El rótulo del título del Área estaba **hardcodeado** (`snprintf("AREA %d")`) → en ES salía sin tilde.
+> Ahora usa la clave `AREA` de `assets/lang/*.txt` (`hh::menu::localized("AREA")`): `ÁREA`/`ÀREA`/`ZONE`/
+> `BEREICH` (color0 los acentúa con las marcas del menú). El ancho se mide en **codepoints** (Á/À = 2
+> bytes UTF-8). Fichero: `src/hooks/menu_overlay.cpp`. Detalle:
+> **`notes/2026-10-02-titulo-area-rotulo-traducido.md`**.
+
 ### Tareas pequeñas de menú (bloque anterior) — HECHO y VALIDADO en Windows (2026-10-01)
 > `DATA EDIT` fuera; letra de dificultad en el slot; `AREA/LEVEL/TIME` traducidos; `ULTIMATE` fr y
 > `NO DATA` fr a 2 líneas. Detalle: **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**.
@@ -31,29 +38,10 @@
 ### Tareas de i18n (bloque anterior) — HECHO y VALIDADO en Windows
 > Detalle en `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
 
-Hoy las traducciones están en **dos mecanismos con claves distintas**: la **UI del port** en código
-(`kMenuTr` en `menu.cpp`, ~170; `kAreaNames`; clave = **español**) y el **texto nativo de la ROM** en
-datos (`assets/lang/<code>.txt`, clave = **inglés**). Objetivo: **una sola fuente** (ficheros por
-idioma), clave = **texto original en inglés**; el código solo referencia **claves**. Beneficio extra: un
-jugador puede corregir una traducción editando el `.txt` sin recompilar.
-
-**Plan completo (leer antes de empezar): `notes/2026-10-01-i18n-unificar-traducciones-plan.md`.**
-
-### Resumen del plan
-- **Clave = inglés** (la que ya usan los `lang/*.txt` y la que necesita la sustitución nativa). `en` =
-  identidad (sin fichero). Formato `.txt` sin cambios (`CLAVE=VALOR`, `^` = centrado).
-- **API**: `hh::text::translate(key)` (búsqueda **exacta**; devuelve la clave si no hay o `en`);
-  `hh::menu::localized` **delega** en ella. La sustitución nativa (`hh_text_translate_guest`) queda igual
-  (misma tabla). **`kEndonyms` se quedan en código** (no son traducción); **`kEsDefaults` fuera**;
-  *override* por mods **aplazado**.
-- **Pasos**: (1) `translate()` + declaración en `include/hh.h`; (2) script de migración
-  (`tools/text/`) que genere `assets/lang/{es,ca,fr,de,ja}.txt` desde `kMenuTr` + `kAreaNames` + lo ya
-  existente; (3) claves de la UI a inglés (`menu.cpp`, `menu_overlay.cpp`); (4) nombres de Área por clave
-  (`kAreaKey[9]`); (5) borrar `kMenuTr`/columnas; (6) retirar `kEsDefaults`; (7) docs (`architecture.md`
-  §7, `menu.md`, `INDEX.md`) y nota.
-- **Validación**: build + F5 (todos los idiomas), sustitución in-game, editar un valor y verlo, `ja` kana.
-- **Riesgos**: colisiones de clave (misma cadena inglesa con distinto sentido), `=`/`\t`/`\n` en claves,
-  longitud de registros nativos, glifos (acentos/kana/∞), reload en vivo.
+### i18n — una sola fuente de traducciones (bloque anterior) — HECHO y VALIDADO en Windows
+> Clave = **texto original en inglés**; ficheros `assets/lang/<code>.txt` (`en` = identidad); el código
+> solo referencia claves (`hh::text::translate`, que `hh::menu::localized` delega). Plan/evidencia:
+> **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`**.
 
 ### Hecho reciente — commit `874b9f6`: título del Área al cargar partida
 Al cargar un slot, el nombre del Área (gráfico nativo intraducible) se pinta con **overlay propio**:
@@ -65,9 +53,6 @@ carpetas junto al exe: `assets/{lang,logos,sounds}`, `licences/`, `saves/{,templ
 `notes/2026-10-01-titulo-area-carga.md` y `...-calibracion.md`.
 - **Pendiente menor**: recompilar Windows (limpio) para regenerar estructura + embebido.
 - **Decisión abierta**: ¿inglés usa overlay (actual) o nativo 1:1 (cambiar `!= "ja"` por `!= "en"`)?
-
-> Nota: el bloque de traducción de la UI se **reutilizará** en la TAREA ACTUAL (los nombres de Área y las
-> etiquetas del menú pasarán a ser claves en `assets/lang/*.txt`).
 
 ---
 
