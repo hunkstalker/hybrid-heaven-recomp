@@ -1855,7 +1855,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
                 }
             } else if (phase == hh::menu::SavePhase::ConfirmDelete) {
                 if (yes) {
-                    const int dslot = hh::menu::save_delete_slot();
+                    const int dslot = hh::menu::save_target_slot();
                     if (dslot >= 0) {
                         hh::log("[save] BORRAR slot %d\n", dslot);
                         hh::save::delete_slot(dslot);
@@ -1951,7 +1951,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
             if (cur.index >= 0 && hh::save::slot_present(cur.index)) {   // solo slots con datos
                 if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
-                hh::menu::set_save_delete_slot(cur.index);
+                hh::menu::set_save_target_slot(cur.index);   // slot a borrar (fase ConfirmDelete)
                 hh::menu::set_save_yes_selected(true);
                 hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmDelete);
             }

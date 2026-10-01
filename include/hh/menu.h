@@ -249,7 +249,6 @@ void area_sub_from_value(uint16_t value, int& area, int& sub);
 // A sobre una partida la carga. Se reconstruye con refresh_load_game() cuando el `.pak` cambia.
 // Ver notes/2026-09-29-menu-cargar-guardar-fase2-ui.md.
 const char* load_game_row_text(int index);   // texto de la fila (dibujo 1:1), o nullptr
-bool load_game_row_present(int index);       // true si la partida existe (registro presente)
 void refresh_load_game();                    // reconstruye LoadGame/SaveGame desde el `.pak`
 // Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
 // (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
@@ -284,16 +283,14 @@ bool save_yes_selected();
 void set_save_yes_selected(bool on);
 // GUARDAR: true cuando ya se eligio Yes Y ha pasado el retardo (~0.5 s); entonces se muestran los slots.
 bool save_slots_ready();
-// GUARDAR: slot objetivo (0-based) elegido en la lista para "Saving current play data here." (-1 = NEW
-// GAME / siguiente libre). Lo fija el handler de input al pulsar A sobre una fila.
+// GUARDAR: slot objetivo (0-based) de la FILA resaltada en `Select` (-1 = NEW GAME / siguiente
+// libre). La fase decide su uso: `ConfirmHere` (slot a guardar) o `ConfirmDelete` (slot a borrar).
+// Lo fija el handler de input al pulsar A (guardar) o X (borrar) sobre una fila.
 int save_target_slot();
 void set_save_target_slot(int slot);
 // GUARDAR: mensaje de la fase `Select` (SUSTITUYE al `Select location in which to save play data.`)
 // con los bindings REALES insertados (p. ej. `A/J` guarda, `X/H` borra).
 std::string save_select_message();
-// GUARDAR: slot objetivo del BORRADO (fase ConfirmDelete; -1 = ninguno).
-int save_delete_slot();
-void set_save_delete_slot(int slot);
 // true durante ~120 ms tras entrar en `Select`/`Removed`: ignora el input que provoco la transicion.
 bool save_input_blocked();
 

@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-09-30**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-01**.
 
 ## 1. Objetivo
 
@@ -119,6 +119,10 @@ fases `hh::menu::SavePhase`, confirmación `Saving current play data here.` → 
 ↓, salida nativa, **AREA 1-1** y **TIME** correctos, y reinicio del flujo al reentrar. **Próximo**:
 terminar el ciclo de CARGA desde `CONTINUAR` (handoff en `notes/2026-09-30-save-capsule-logica.md` §9).
 Notas: `notes/2026-09-30-save-capsule-logica.md` y `notes/2026-09-30-save-data-ui-retoques.md`.
+**Higiene/correcciones de `menu.cpp` en guardado + editor (2026-10-01, VALIDADO en Windows)**:
+`g_save_target_slot`/`g_save_delete_slot` unificadas; "slot libre" del editor alineado con la cápsula
+(`first_free_game_slot`); retirado el código muerto `load_game_row_present`. Sin cambio de UI.
+Nota: `notes/2026-10-01-menu-save-edit-higiene.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

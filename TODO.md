@@ -18,6 +18,12 @@
   `Remove play data?` → borra → `Remove completed.` + flecha; **A vuelve a la lista** (no sale).
   `NEW GAME` no se borra. Input en vivo (`hh_input_button_down`) + bloqueo ~120 ms al entrar en
   `Select`. Detalle: `notes/2026-09-30-save-capsule-logica.md` §8ter.
+- [x] **Higiene/correcciones de `menu.cpp` (guardado + editor) — HECHO y VALIDADO en Windows
+  (2026-10-01)**: (1) unificadas `g_save_target_slot`/`g_save_delete_slot` en una sola variable (la
+  fase distingue guardar/borrar) y retirada la API del borrado; (2) "slot libre" del editor ahora usa
+  `first_free_game_slot()` (`slot_present`), igual que la cápsula (antes `slot_used`=progreso≠0 podía
+  pisar un save en 1-0); (3) eliminado `load_game_row_present()` (sin uso) y un comentario huérfano.
+  Sin cambio de UI/comportamiento. Detalle: `notes/2026-10-01-menu-save-edit-higiene.md`.
 - [•] **UI de CARGA en el submenú `CONTINUAR` — PRÓXIMA TAREA**: (a) UI propia del `LoadGame`
   (confirmar con A, B atrás, mensajes/Yes-No estilo guardado; **decidir textos con el mantenedor**);
   (b) que un slot **cargue de verdad** (hoy `Action::LoadGamePick` solo llama a `func_801423C8(0, slot)`,

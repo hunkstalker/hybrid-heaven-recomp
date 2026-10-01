@@ -957,16 +957,9 @@ void rebuild_load_game() {
     }
 }
 
-// `refresh_load_game` está DEFINIDA más abajo (fuera del namespace anónimo): `rebuild_load_game` es
-// anónima y su enlace no siempre es `T` si aquí no se declara `extern`. Se declara antes de usarla.
-
 const char* load_game_row_text(int index) {
     if (index < 0 || index >= static_cast<int>(g_load_game_rows.size())) return nullptr;
     return g_load_game_rows[index].c_str();
-}
-bool load_game_row_present(int index) {
-    if (index < 0 || index >= static_cast<int>(g_load_game_rows.size())) return false;
-    return hh::save::slot_present(index);
 }
 
 // Ajusta las opciones/valor de RESOLUCIÓN al RATIO: AUTO -> AUTO, ORIGINAL -> ORIGINAL, y los ratios
@@ -1117,13 +1110,14 @@ void open_load_game() {
 }
 
 // Fase del flujo de guardado (capsula). `g_save_yes` = opcion resaltada en el Yes/No activo.
-// `g_save_target_slot` = slot elegido (-1 = NEW GAME / siguiente libre).
+// `g_save_target_slot` = slot de la FILA resaltada en `Select`, que la fase interpreta:
+//   - ConfirmHere   -> slot a guardar (-1 = NEW GAME / siguiente libre);
+//   - ConfirmDelete -> slot a borrar.
+// Una sola variable basta: la fase ya distingue guardar de borrar.
 // Ver open_save_game()/save_phase()/save_yes_selected().
 static SavePhase g_save_phase = SavePhase::Ask;
 static bool g_save_yes = true;
 static int g_save_target_slot = -1;
-// Slot a BORRAR (fase ConfirmDelete); lo fija el handler al pulsar X sobre un slot.
-static int g_save_delete_slot = -1;
 // Marca temporal al entrar en `Select`/`Removed` para ignorar el input del frame de la transicion.
 static std::chrono::steady_clock::time_point g_save_ignore_input_tp{};
 // ¿Sesión de guardado activa? Se pone al abrir y se limpia en close_save_game() (al salir de la
@@ -1142,7 +1136,6 @@ void open_save_game() {
         g_save_phase = SavePhase::Ask;
         g_save_yes = true;
         g_save_target_slot = -1;
-        g_save_delete_slot = -1;
         g_save_open = true;
         if (Screen* s = find_screen(ScreenId::SaveGame)) {
             s->cursor = 0;   // el cursor vuelve arriba (NEW GAME) en cada nuevo acceso
@@ -1182,8 +1175,6 @@ void set_save_yes_selected(bool on) { g_save_yes = on; }
 bool save_slots_ready() { return g_save_phase != SavePhase::Ask; }
 int save_target_slot() { return g_save_target_slot; }
 void set_save_target_slot(int slot) { g_save_target_slot = slot; }
-int save_delete_slot() { return g_save_delete_slot; }
-void set_save_delete_slot(int slot) { g_save_delete_slot = slot; }
 
 int depth() {
     ensure();
@@ -1700,16 +1691,14 @@ void set_save_edit_delete_target(int t) {
     g_edit_delete_target = (t < 1 || t > hh::save::kSlots) ? 1 : t;
 }
 int save_edit_delete_slot() { return g_edit_delete_target - 1; }   // slot real 0..N-1
-// Slot real destino del guardado: target 0 (NUEVA PARTIDA) = primer hueco libre (el usado más bajo
-// que esté vacío, o el último slot si todos tienen datos); target 1..N = ese slot.
+// Slot real destino del guardado: target 0 (NUEVA PARTIDA) = primer hueco libre de PARTIDA, con la
+// MISMA definición que la cápsula (`first_free_game_slot` = metadato `presente` a 0); target 1..N =
+// ese slot. NO usar `slot_used` (progreso != 0): un save en 1-0 tiene progreso 0 y se pisaría.
 int save_edit_save_target_slot() {
     if (g_edit_save_target >= 1 && g_edit_save_target <= hh::save::kSlots) {
         return g_edit_save_target - 1;
     }
-    for (int i = 0; i < hh::save::kSlots; ++i) {
-        if (!hh::save::slot_used(i)) return i;
-    }
-    return hh::save::kSlots - 1;
+    return hh::save::first_free_game_slot();
 }
 int save_edit_body_state() { return g_edit_body_state; }
 void set_save_edit_body_state(int state) {
