@@ -12,11 +12,19 @@
   `NEW GAME` = primer slot libre, slot con datos = sobrescribir; **salida** de la cápsula por la
   secuencia nativa; **reentrada** reinicia el flujo. **AREA 1-1** y **TIME** correctos. Detalle:
   **`notes/2026-09-30-save-capsule-logica.md`** (+ `notes/2026-09-30-save-data-ui-retoques.md`).
-- [•] **TERMINAR el ciclo de CARGA (CONTINUAR) — PRÓXIMA TAREA**: que un slot del `LoadGame` **cargue
-  de verdad** (hoy `Action::LoadGamePick` solo llama a `func_801423C8(0, slot)`, que deserializa, pero
-  **no arranca la escena**). Replicar el final del flujo nativo CONTINUE (`func_80142570()` +
-  `func_8012FE50(tipo=0x17, …)` — medir los args con `HH_TRACE`), cerrar la sesión al salir (mismo bug
-  que en guardar) y no republicar el overlay tras la transición. Pendiente también: el prompt
+- [x] **BORRAR slots desde la cápsula — HECHO y VALIDADO en Windows (2026-09-30/10-01)**: en `Select`
+  el mensaje informa de las dos acciones con bindings reales (inglés: `Select location in which to save
+  play data pressing A/J or X/H to remove.`, 3 líneas); **X** sobre un slot con datos →
+  `Remove play data?` → borra → `Remove completed.` + flecha; **A vuelve a la lista** (no sale).
+  `NEW GAME` no se borra. Input en vivo (`hh_input_button_down`) + bloqueo ~120 ms al entrar en
+  `Select`. Detalle: `notes/2026-09-30-save-capsule-logica.md` §8ter.
+- [•] **UI de CARGA en el submenú `CONTINUAR` — PRÓXIMA TAREA**: (a) UI propia del `LoadGame`
+  (confirmar con A, B atrás, mensajes/Yes-No estilo guardado; **decidir textos con el mantenedor**);
+  (b) que un slot **cargue de verdad** (hoy `Action::LoadGamePick` solo llama a `func_801423C8(0, slot)`,
+  que deserializa, pero **no arranca la escena**): replicar el final del flujo nativo CONTINUE
+  (`func_80142570()` + `func_8012FE50(tipo=?, valor=?)` — **medir** los args con `HH_TRACE`) o dejar
+  que la rama CONTINUE nativa haga setup+transición; (c) cerrar la sesión al salir (`close_load_game()`
+  estilo guardado) y no republicar el overlay tras la transición. Pendiente: el prompt
   `Please connect Controller Pak…` se cuela con F8. **Receta completa en
   `notes/2026-09-30-save-capsule-logica.md` §9**.
 - [x] **`DEBUG NIVELES` + `IR A ÁREA` (EXTRAS) — salto a cualquier nivel para TEST (2026-09-29,

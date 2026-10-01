@@ -58,10 +58,21 @@ const MenuTr kMenuTr[] = {
     // data?". JA en kana (se dibuja con Color0, la única fuente con kana; ver menu_overlay.cpp).
     {"¿Guardar la partida?", "Save play data?", "Desar la partida?", "Sauvegarder la partie ?",
      "Spielstand speichern?", "セーブしますか？"},
-    // Mensaje de la fase de SELECCION de slot de guardado (tras elegir Yes).
-    {"Elige dónde guardar la partida.", "Select location in which to\nsave play data.",
-     "Tria on desar la partida.", "Choisissez où sauvegarder la partie.",
-     "Speicherort auswählen.", "Select location in which to\nsave play data."},
+    // Mensaje de la fase de SELECCION de slot de guardado (SUSTITUYE al `Select location in which to
+    // save play data.` nativo). CLAVE en ESPAÑOL (columna 1, como el resto de la tabla); los `%s` son
+    // los bindings REALES de ACEPTAR (guardar) y AGACHARSE (eliminar): p. ej. `A/J` y `X/H`.
+    {"Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.",
+     "Select location in which to\nsave play data pressing %s or %s\nto remove.",
+     "Selecciona on desar la partida\nprement %s o %s per esborrar.",
+     "Sélectionnez où sauvegarder\nla partie avec %s ou %s\npour supprimer.",
+     "Speicherort wählen mit %s\noder %s zum Löschen.",
+     "Select location in which to\nsave play data pressing %s or %s\nto remove."},
+    // Confirmacion de BORRADO (mensaje NUEVO del port; el juego original no borra desde el DATA SAVE).
+    {"¿Borrar la partida?", "Remove play data?", "Esborrar la partida?", "Supprimer la partie ?",
+     "Spielstand löschen?", "Remove play data?"},
+    // Mensaje final del borrado (analogo a "Save completed.").
+    {"Partida borrada.", "Remove completed.", "Partida esborrada.", "Suppression terminée.",
+     "Löschen abgeschlossen.", "Remove completed."},
     // Fase de CONFIRMACION de slot: mensaje nativo del DATA SAVE ("Saving current play data here.")
     // + Yes/No. El JA se deja en inglés (no hay kanji utilizable; ver backlog de textos JA).
     {"Guardando la partida actual aquí.", "Saving current play data here.",
@@ -946,7 +957,8 @@ void rebuild_load_game() {
     }
 }
 
-void refresh_load_game() { rebuild_load_game(); }
+// `refresh_load_game` está DEFINIDA más abajo (fuera del namespace anónimo): `rebuild_load_game` es
+// anónima y su enlace no siempre es `T` si aquí no se declara `extern`. Se declara antes de usarla.
 
 const char* load_game_row_text(int index) {
     if (index < 0 || index >= static_cast<int>(g_load_game_rows.size())) return nullptr;
@@ -1046,6 +1058,9 @@ bool screen_for(Action action, ScreenId& out) {
 
 }  // namespace
 
+// Reconstruye LoadGame/SaveGame desde el `.pak` (fuera del namespace anónimo: la usan los hooks).
+void refresh_load_game() { rebuild_load_game(); }
+
 // Área-Parte (N-P) de un valor de escena (misma enumeración que el selector PROGRESO). Fuera del
 // namespace anónimo para exportarla (la usa `hh::save::save_live` para la cabecera del guardado).
 void area_sub_from_value(uint16_t value, int& area, int& sub) {
@@ -1102,13 +1117,15 @@ void open_load_game() {
 }
 
 // Fase del flujo de guardado (capsula). `g_save_yes` = opcion resaltada en el Yes/No activo.
-// `g_save_select_tp` = instante en que se entro en la lista de slots, para retrasar su aparicion
-// (~0.5 s, como el nativo). `g_save_target_slot` = slot elegido (-1 = NEW GAME / siguiente libre).
+// `g_save_target_slot` = slot elegido (-1 = NEW GAME / siguiente libre).
 // Ver open_save_game()/save_phase()/save_yes_selected().
 static SavePhase g_save_phase = SavePhase::Ask;
 static bool g_save_yes = true;
-static std::chrono::steady_clock::time_point g_save_select_tp{};
 static int g_save_target_slot = -1;
+// Slot a BORRAR (fase ConfirmDelete); lo fija el handler al pulsar X sobre un slot.
+static int g_save_delete_slot = -1;
+// Marca temporal al entrar en `Select`/`Removed` para ignorar el input del frame de la transicion.
+static std::chrono::steady_clock::time_point g_save_ignore_input_tp{};
 // ¿Sesión de guardado activa? Se pone al abrir y se limpia en close_save_game() (al salir de la
 // cápsula). Sirve para REINICIAR el flujo al reentrar aunque la pila siga siendo [Root, SaveGame].
 static bool g_save_open = false;
@@ -1125,6 +1142,7 @@ void open_save_game() {
         g_save_phase = SavePhase::Ask;
         g_save_yes = true;
         g_save_target_slot = -1;
+        g_save_delete_slot = -1;
         g_save_open = true;
         if (Screen* s = find_screen(ScreenId::SaveGame)) {
             s->cursor = 0;   // el cursor vuelve arriba (NEW GAME) en cada nuevo acceso
@@ -1143,29 +1161,29 @@ void close_save_game() { g_save_open = false; }
 
 SavePhase save_phase() { return g_save_phase; }
 void set_save_phase(SavePhase phase) {
-    // Al entrar en la lista de slots desde el prompt inicial, arranca el retardo (~0.5 s).
-    if (phase == SavePhase::Select && g_save_phase == SavePhase::Ask) {
-        g_save_select_tp = std::chrono::steady_clock::now();
+    // Al entrar en `Select` (o `Removed`) se ignora el input de ESTE frame: la A que confirmo el
+    // prompt anterior (o el `Removed`) no debe contar como seleccion de slot/guardado (si no, Select
+    // pasa a ConfirmHere en el acto y el mensaje apenas se ve). Ver traza HH_SAVE_TRACE.
+    if (phase == SavePhase::Select || phase == SavePhase::Removed) {
+        g_save_ignore_input_tp = std::chrono::steady_clock::now();
     }
     g_save_phase = phase;
+}
+// true si la fase cambio hace menos de `ms` (para ignorar el input que la provoco).
+bool save_input_blocked() {
+    return (std::chrono::steady_clock::now() - g_save_ignore_input_tp) < std::chrono::milliseconds(120);
 }
 bool save_confirm() { return g_save_phase == SavePhase::Ask; }
 void set_save_confirm(bool on) { set_save_phase(on ? SavePhase::Ask : SavePhase::Select); }
 bool save_yes_selected() { return g_save_yes; }
 void set_save_yes_selected(bool on) { g_save_yes = on; }
-// Los slots aparecen ~0.5 s despues de elegir Yes (el nativo no los muestra de golpe). En las fases
-// posteriores (prompt de guardar/salir, completado) ya se muestran.
-bool save_slots_ready() {
-    if (g_save_phase == SavePhase::Ask) {
-        return false;
-    }
-    if (g_save_phase == SavePhase::Select) {
-        return std::chrono::steady_clock::now() - g_save_select_tp >= std::chrono::milliseconds(500);
-    }
-    return true;
-}
+// Los slots aparecen en cuanto se entra en la lista (sin retardo): el retardo del nativo producia un
+// frame intermedio con las cajas ocultas y el mensaje ya cambiado (parpadeo). En `Ask` no se muestran.
+bool save_slots_ready() { return g_save_phase != SavePhase::Ask; }
 int save_target_slot() { return g_save_target_slot; }
 void set_save_target_slot(int slot) { g_save_target_slot = slot; }
+int save_delete_slot() { return g_save_delete_slot; }
+void set_save_delete_slot(int slot) { g_save_delete_slot = slot; }
 
 int depth() {
     ensure();
@@ -1174,6 +1192,26 @@ int depth() {
 
 const Layout& layout() {
     return g_layout;
+}
+
+// Mensaje de la fase `Select` del GUARDAR: SUSTITUYE al `Select location in which to save play data.`
+// nativo insertando los bindings REALES de ACEPTAR (guardar) y AGACHARSE (eliminar): boton/tecla,
+// p. ej. `A/J` y `X/H`. La CLAVE es la cadena espanola EXACTA de `kMenuTr` (con sus `\n`); los `%s`
+// se sustituyen DESPUES de localizar, sobre el texto ya traducido.
+std::string save_select_message() {
+    constexpr const char* kKey =
+        "Selecciona dónde guardar\nla partida pulsando %s o %s\npara borrar.";
+    const auto binding = [](const char* key) -> std::string {
+        const std::string gp = hh::pad_binding_gamepad(key);
+        const std::string kb = hh::pad_binding_key(key);
+        if (gp == "-" || gp.empty()) return kb;
+        if (kb == "-" || kb.empty() || kb == gp) return gp;
+        return gp + "/" + kb;
+    };
+    char buf[256];
+    std::snprintf(buf, sizeof(buf), localized(kKey).c_str(), binding("a").c_str(),
+                  binding("z").c_str());
+    return buf;
 }
 
 std::string localized(const std::string& label) {

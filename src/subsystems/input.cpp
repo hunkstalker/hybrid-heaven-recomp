@@ -1734,6 +1734,15 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
     return controller_num == 0;
 }
 
+extern "C" bool hh_input_button_down(const char* action_key) {
+    if (action_key == nullptr) return false;
+    hh_pad_config_load();
+    bool ok = false;
+    const n64_button target = hh_pad_button_by_name(action_key, ok);
+    if (!ok || target == 0) return false;
+    return (read_input_button() & target) != 0;
+}
+
 void hh::set_rumble(int controller_num, bool rumble) {
     if (controller_num != 0) return;
     SDL_GameController* c = hh_pad_controller();

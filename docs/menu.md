@@ -188,6 +188,21 @@ SALIR                                      (extra del port: cierra de forma orde
   dibuja vectorial (13×5, con sombra), como `:` `.` `%` `/`.
 - **Idiomas**: todas las etiquetas traducidas a **en/es/ca/fr/de/ja**.
 
+### `GUARDAR PARTIDA` (cápsula / `DATA SAVE`)
+
+- **Menú propio** encima del `DATA SAVE` nativo (que queda oculto; F8 alterna su visibilidad). Flujo
+  por fases (`hh::menu::SavePhase`):
+  - `Ask` → `Save play data?` Yes/No (slots ocultos). **No** → `Exit without saving?` (sale o vuelve).
+  - `Select` → mensaje con **bindings reales** (inglés, 3 líneas: `Select location in which to\nsave
+    play data pressing A/J or X/H\nto remove.`) y la lista (`NEW GAME` + slots con datos).
+  - `ConfirmHere` → `Saving current play data here.` Yes/No → guarda (`save_live`) → `Completed`.
+  - `Completed` → `Save completed.` + flecha ↓; **A sale de la cápsula**.
+  - **Borrado**: **X** (agacharse) sobre un slot con datos → `Remove play data?` Yes/No → Yes borra →
+    `Remove completed.` + flecha ↓; **A vuelve a la lista** (no sale). `NEW GAME` no se puede borrar.
+- **A** (aceptar) guarda; **X** (agacharse) borra. Los bindings se leen en vivo (remapeables). El
+  guardado **serializa los globals vivos** (`func_80141F28`) y escribe el `.pak` con `hh::save`.
+- Detalle técnico: `notes/2026-09-30-save-capsule-logica.md`.
+
 ### `SALIR`
 
 - **Extra del port** (el original no lo tiene): la **única** entrada fuera del árbol nativo, acordada

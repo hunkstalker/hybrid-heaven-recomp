@@ -79,21 +79,27 @@ Así `hh::save` sigue siendo el **único** escritor y la cabecera/trailer quedan
 
 ## 4. Render (`src/hooks/menu_overlay.cpp`)
 
-- Slots visibles salvo en `Ask` (el retardo de 0.5 s se mantiene al pasar Ask→Select).
-- Mensaje por fase: `Save play data?` / `Select location…` / `Saving current play data here.` /
-  `Exit without saving?` / `Save completed.`.
-- Yes/No en `Ask`/`ConfirmHere`/`ConfirmExit` (cursor `▶` nativo). En `Completed`, **flecha ↓**
-  (`append_scroll_arrow(..., up=false)`), = "pulsa A para continuar".
+- Slots visibles salvo en `Ask` (sin retardo: aparecen de golpe al pasar `Ask`→`Select`).
+- Mensaje por fase: `Save play data?` / `Select location…` (con bindings) / `Saving current play data
+  here.` / `Exit without saving?` / `Remove play data?` / `Save completed.` / `Remove completed.`.
+- Yes/No en `Ask`/`ConfirmHere`/`ConfirmExit`/`ConfirmDelete` (cursor `▶` nativo). En `Completed` y
+  `Removed`, **flecha ↓** (`append_scroll_arrow(..., up=false)`).
+- **OJO (bug corregido 2026-10-01)**: `save_select_message()` debe pasar a `localized()` la clave
+  EXACTA de `kMenuTr` (con sus `\n`); si no coincide, `localized()` devuelve la canónica (español) y
+  sin saltos. Los `%s` se sustituyen DESPUÉS de localizar.
 
-## 5. Estado (validado en Windows, 2026-09-30)
+## 5. Estado (VALIDADO en Windows, 2026-09-30 / 2026-10-01)
 
 - **Guardado completo**: `NEW GAME` crea slot; el slot aparece en `CONTINUAR`/DATA LOAD con **AREA
   1-1, LEVEL y TIME** correctos; **sobrescribir** funciona.
-- **Salida**: A en `Save completed.` cierra el mensaje y **saca al PJ de la cápsula**. Confirmado.
-- **Reentrada**: al volver a entrar sale el prompt inicial (`Save play data?`) y se puede navegar (ver
-  §7bis).
+- **Salida**: A en `Save completed.` cierra el mensaje y **saca al PJ de la cápsula**.
+- **Reentrada**: al volver a entrar sale el prompt inicial (`Save play data?`) y se navega normal.
 - **TIME**: correcto (run de ~3 min → `3:0x`; ver §8).
 - **Área-Parte**: `1-1` (ver §8bis).
+- **Borrado**: X sobre un slot con datos → confirmación → `Remove completed.` + A vuelve a `Select`
+  (ver §8ter). **Validado**.
+- **Mensaje `Select` con bindings** (ver §8ter): en inglés, 3 líneas
+  `Select location in which to\nsave play data pressing A/J or X/H\nto remove.`; **validado**.
 
 ## 6. Cómo reproducir
 
@@ -157,38 +163,76 @@ comprobar y volver a revertir.
 **Lección**: para metadatos del save, preferir la **fuente VIVA** (globals del juego) y mapearla con
 las tablas del port, antes que campos del slot cuya semántica depende del `word-swap`.
 
-## 9. Handoff: terminar el ciclo de CARGA (CONTINUAR)
+## 8ter. Mensaje `Select` con bindings + borrado de slots
 
-El ciclo de GUARDAR ya funciona; el de CARGAR comparte casi todo el patrón. Estado actual y pasos:
+**Mensaje**: en `Select` se SUSTITUYE el nativo `Select location in which to save play data.` por una
+frase que informa de **ambas** acciones con sus bindings REALES (en vivo, remapeables). Clave en
+español en `kMenuTr` + traducciones; en **inglés**:
+```
+Select location in which to
+save play data pressing A/J or X/H
+to remove.
+```
+(3 líneas; el `\n` va tras `to`, como el nativo. `A/J` y `X/H` = botón/tecla de ACEPTAR y AGACHARSE.)
+Lo construye `hh::menu::save_select_message()` (sustituye `%s` tras localizar; ver §4).
 
-**Lo que ya hay** (`src/hooks/sections.cpp`):
-- `hh_file_select_hook` (hookea el update del file-select `0x801C3D84`): al dar CONTINUAR llama a
-  `hh::menu::open_load_game()` (pila `[Root, LoadGame]`), mutea el input nativo (`0x80089478`), oculta
-  el DATA LOAD nativo (categoría FILE-SELECT) y publica nuestro overlay. `open_load_game()` es el
-  análogo de `open_save_game()`.
-- `hh_menu_overlay.cpp` dibuja `LoadGame` 1:1 (título color3, mensaje color4, cajas, `NO DATA`), leyendo
-  metadatos del **trailer** (`hh::save::slot_present/meta_*`). El fix de `header_magic_ok()` (§8bis)
-  hace que ese trailer esté sincronizado con la cabecera.
+**Borrado**:
+- **A** (aceptar) → `ConfirmHere` (guardar).
+- **X** (agacharse, `z`) sobre un slot **con datos** → `ConfirmDelete` (`Remove play data?` Yes/No);
+  Yes → `hh::save::delete_slot()` + `flush()` → `Removed` (`Remove completed.` + flecha ↓).
+- **Removed** + A → **vuelve a `Select`** (NO sale de la cápsula). `Completed` + A sí sale.
+- El input se lee con `hh_input_button_down("a"/"z")` (nuevo `extern "C"` en `input.cpp`: binding de
+  mando+teclado en el frame actual). Así A/J guarda y X/H borra aunque el jugador haya remapeado.
+  `NEW GAME` no se puede borrar (no es un slot con datos). Para que la A del prompt `Ask` no
+  seleccione el slot en el acto, al entrar en `Select`/`Removed` se ignora el input ~120 ms
+  (`save_input_blocked()`). **Validado**.
 
-**Lo que FALTA para que un slot cargue de verdad**:
-1. El handler `Action::LoadGamePick` (dentro de `feed_menu_navigation`, `sections.cpp`) hoy solo hace
-   `func_801423C8(0, slot)` (lee el slot `0xD00` y **deserializa a los globals** con `func_80141D08`),
-   pero **NO arranca la escena**: falta la transición. Es el "inverso" de `save_live` (§2).
-2. Replicar el final del flujo nativo de CONTINUE (medir con `HH_TRACE`/`HH_MENU_TRACE`): la cadena es
-   `func_801C3CDC` → `func_8013E7C0` (setup DATA LOAD) → `func_8013D84`/`func_8013E850` (update) y,
-   cuando devuelve `!= 0`, ejecuta **`func_80142570()` + `func_8012FE50(tipo=0x17, …)`** (transición).
-   El `tipo/valor` exacto hay que **medirlo** (el plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md`
-   §1 cita `tipo=0x17, valor=0x73…`; no fiarse sin trazar). Alternativa más simple: tras
-   `func_801423C8(0, slot)`, dejar que la **rama CONTINUE nativa** haga setup+transición (misma vía que
-   usó el port para el CONTINUAR antes de tener UI propia; ver `notes/2026-09-26-d-continuar-y-bugs-visuales.md`).
-3. **Cerrar la sesión al salir** (mismo bug que en guardar, §7bis): `open_load_game()` también hace
-   *early-return* si la pila ya es `[Root, LoadGame]`; si el flujo no se reinicia, al reentrar saldría
-   el último estado. Añadir `close_load_game()`/flag de sesión análogos (o reutilizar el de guardar).
-4. Tras disparar la transición, **no republicar el overlay** ese frame (patrón `exited`/`goto_before/after`
-   de `hh_save_menu_hook` y `hh_battle_creature_hook`), y llamar a `hh::menu_overlay::hide_now()`.
-5. **Ocultado pendiente**: con F8 (nativo visible) se cuela el prompt `Please connect Controller Pak…`
-   (TODO `Fase 3`). El flujo propio no debería depender del Controller Pak (el PFS es virtual).
-6. **Pendiente de validar en Windows** (TODO Fase 3): `CONTINUAR → F8 → A`.
+## 9. Handoff: UI de carga en `CONTINUAR` (siguiente tarea)
+
+Objetivo: que un slot del menú `LoadGame` (CONTINUAR) **cargue de verdad** el estado y arranque la
+escena. El ciclo de GUARDAR (§2–§8ter) es la plantilla; CARGAR reutiliza casi todo.
+
+**Lo que YA hay** (`src/hooks/sections.cpp`, `src/hooks/menu_overlay.cpp`):
+- **Enganche a CONTINUAR**: al confirmar `CONTINUAR` en la raíz se llama a la rama nativa
+  `func_801C3CDC` (ver `feed_menu_navigation`); el update del file-select `func_801C3D84` está
+  envuelto por `hh_file_select_hook`, que hace `open_load_game()`, mutea el input nativo
+  (`0x80089478`), oculta el DATA LOAD nativo (categoría FILE-SELECT) y publica el overlay.
+- **UI 1:1**: `LoadGame` dibuja título color3, subtítulo, cajas por slot y `NO DATA`, leyendo
+  metadatos del **trailer** (`hh::save::slot_present/meta_*`). Ya está validada como maqueta.
+- **Cargar/deserializar**: `Action::LoadGamePick` (en `feed_menu_navigation`) ya llama a
+  `func_801423C8(0, slot)` (lee el slot `0xD00` y deserializa a globals con `func_80141D08`).
+
+**Lo que FALTA** (con recetas):
+
+1. **UI de carga propia (esta tarea)**: definir el flujo del `LoadGame` igual que el `SaveGame`:
+   - preguntar/confirmar con **A** sobre un slot (y **B** para volver al título), con el mensaje y
+     Yes/No reutilizando el estilo del guardado;
+   - mensaje de confirmación y, si aplica, mensaje de fin (`Load completed.`?) — **decidir con el
+     mantenedor** antes de dibujar (regla AGENTS: no inventar UI).
+   - Reutilizar: `kMenuTr` (clave española + traducciones), el constructor de mensaje con bindings
+     (`save_select_message()` es el patrón), `append_box`/`append_native_cursor`/`append_scroll_arrow`.
+   - Opcional: **X** (agacharse) para borrar un slot desde CARGAR (mismo patrón que §8ter).
+2. **Arrancar la escena tras `func_801423C8(0, slot)`** (es el "inverso" de `save_live`):
+   - El flujo nativo de CONTINUE hace, al devolver `!=0` el update del file-select:
+     **`func_80142570()` + `func_8012FE50(tipo=?, valor=?)`** (transición). **Medir los args** con
+     `HH_TRACE`/`HH_MENU_TRACE` (el plan `notes/2026-09-29-menu-cargar-guardar-partida-plan.md` §1 cita
+     `tipo=0x17, valor=0x73…`; **no fiarse sin trazar**).
+   - Alternativa más simple y ya probada: dejar que la **rama CONTINUE nativa** haga setup+transición
+     (la vía que usó el port antes de tener UI; ver `notes/2026-09-26-d-continuar-y-bugs-visuales.md`).
+3. **Cerrar la sesión al salir** (mismo bug que en guardar, §7bis): `open_load_game()` hace
+   *early-return* si la pila ya es `[Root, LoadGame]`; añadir `close_load_game()`/flag `g_load_open`
+   análogos (o generalizar el de guardar) y llamarlo en `hh_goto_hook`/salida.
+4. **No republicar el overlay** tras la transición (patrón `exited`/`goto_before/after` de
+   `hh_save_menu_hook`) y `hh::menu_overlay::hide_now()`.
+5. **Ocultado pendiente (Fase 3)**: con F8 (nativo visible) se cuela el prompt
+   `Please connect Controller Pak…`. El flujo propio no debe depender del Controller Pak (PFS virtual).
+6. **Validar en Windows**: `CONTINUAR → elegir slot → carga` (texto **y** mapa correctos) → `F8` → `A`.
+
+**Reutilizable del ciclo de guardado**: máquina de fases (`SavePhase` como plantilla de fases de
+carga), reset de sesión (`g_save_open`/`close_save_game`), salida/transición nativa explícita
+(`func_80002A94`+`func_800023A8`+`func_80142570`+`func_800058DC`), `memcpy` crudo del slot,
+`first_free_game_slot`, `area_sub_from_value` y `save_select_message()` (patrón de mensaje con
+bindings).
 
 **Reutilizable del ciclo de guardado**: la máquina de fases (`SavePhase`), el reset de sesión
 (`g_save_open`/`close_save_game`), el patrón de salida nativa explícita (`func_80002A94`+`func_800023A8`

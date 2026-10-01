@@ -62,6 +62,7 @@ extern "C" void func_80377140_1300750(uint8_t* rdram, recomp_context* ctx);  // 
 extern "C" void func_80142778_103AF48(uint8_t* rdram, recomp_context* ctx);  // compositor del titulo DATA SAVE
 extern "C" void func_80142570_103AD40(uint8_t* rdram, recomp_context* ctx);  // VACIA las 0x1C ranuras de texto
 extern "C" void func_80002A94_3694(uint8_t* rdram, recomp_context* ctx);       // rama de salida del DATA SAVE
+extern "C" bool hh_input_button_down(const char* action_key);   // binding real (mando+teclado) pulsado
 extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx);       // UI de cargar encima del save
 extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx);      // setup del save (activa categoria)
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
@@ -1797,7 +1798,9 @@ static void hh_leave_capsule(uint8_t* rdram, recomp_context* ctx, uint32_t obj) 
 //   ConfirmHere -> "Saving current play data here." Yes/No; Yes guarda (serializa globals); No ->
 //                  ConfirmExit.
 //   ConfirmExit -> "Exit without saving?" Yes/No; Yes sale de la capsula; No vuelve a Select.
+//   ConfirmDelete -> "Remove play data?" Yes/No (X/H en un slot); Yes borra -> Removed; No -> Select.
 //   Completed   -> "Save completed." + flecha; A cierra y sale de la capsula.
+//   Removed     -> "Remove completed." + flecha; A vuelve a Select (NO sale de la capsula).
 static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     auto rh16 = [&](uint32_t a) -> uint16_t {
         return *reinterpret_cast<uint16_t*>(&rdram[(a ^ 2u) & 0x7FFFFFu]);
@@ -1810,10 +1813,15 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
     const uint32_t dir = btn & (kUp | kDown);
     const hh::menu::SavePhase phase = hh::menu::save_phase();
+    // Bindings REALES de ACEPTAR (guardar) y AGACHARSE (borrar): se consultan en vivo para leer sus
+    // botones/teclas actuales (remapeables). En headless el mando no existe, pero la tecla si.
+    const bool del_btn = hh_input_button_down("z");   // agacharse = boton X del mando / tecla H
+    const bool acc_btn = hh_input_button_down("a");   // aceptar  = boton A del mando / tecla J
 
-    // Prompts Yes/No (Ask / ConfirmHere / ConfirmExit): arriba/abajo alterna, A confirma la resaltada.
+    // Prompts Yes/No (Ask / ConfirmHere / ConfirmExit / ConfirmDelete): arriba/abajo alterna,
+    // A confirma la resaltada.
     if (phase == hh::menu::SavePhase::Ask || phase == hh::menu::SavePhase::ConfirmHere ||
-        phase == hh::menu::SavePhase::ConfirmExit) {
+        phase == hh::menu::SavePhase::ConfirmExit || phase == hh::menu::SavePhase::ConfirmDelete) {
         if (pressed & (kUp | kDown)) {
             hh::menu::set_save_yes_selected(!hh::menu::save_yes_selected());
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
@@ -1821,6 +1829,10 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         if (pressed & 0x8000u) {
             const bool yes = hh::menu::save_yes_selected();
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+            // DIAGNOSTICO (HH_SAVE_TRACE=1): por que prompt se pulso A y a que fase se pasa.
+            if (env_set("HH_SAVE_TRACE")) {
+                hh::log("[save-flow] A phase=%d yes=%d -> ...\n", static_cast<int>(phase), yes ? 1 : 0);
+            }
             if (phase == hh::menu::SavePhase::Ask) {
                 if (yes) {
                     hh::menu::set_save_phase(hh::menu::SavePhase::Select);
@@ -1841,6 +1853,20 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
                     hh::menu::set_save_yes_selected(true);
                     hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmExit);
                 }
+            } else if (phase == hh::menu::SavePhase::ConfirmDelete) {
+                if (yes) {
+                    const int dslot = hh::menu::save_delete_slot();
+                    if (dslot >= 0) {
+                        hh::log("[save] BORRAR slot %d\n", dslot);
+                        hh::save::delete_slot(dslot);
+                        hh::save::flush();
+                    }
+                    hh::menu::set_save_yes_selected(true);
+                    hh::menu::refresh_load_game();
+                    hh::menu::set_save_phase(hh::menu::SavePhase::Removed);
+                } else {
+                    hh::menu::set_save_phase(hh::menu::SavePhase::Select);
+                }
             } else {   // ConfirmExit
                 if (yes) {
                     hh_leave_capsule(rdram, ctx, obj);
@@ -1852,16 +1878,24 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         }
         return false;
     }
-    // Completed: cualquier A cierra el mensaje y sale de la capsula.
-    if (phase == hh::menu::SavePhase::Completed) {
+    // Completed: cualquier A cierra el mensaje y sale de la capsula. Removed: vuelve a Select (NO sale).
+    if (phase == hh::menu::SavePhase::Completed || phase == hh::menu::SavePhase::Removed) {
         if (pressed & 0x8000u) {
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
-            hh_leave_capsule(rdram, ctx, obj);
-            return true;
+            if (phase == hh::menu::SavePhase::Removed) {
+                hh::menu::set_save_phase(hh::menu::SavePhase::Select);
+            } else {
+                hh_leave_capsule(rdram, ctx, obj);
+                return true;
+            }
         }
         return false;
     }
 
+    // Select: si acabamos de entrar (bloqueo de ~120 ms), se ignora el input de la transicion.
+    if (hh::menu::save_input_blocked()) {
+        return false;
+    }
     // Select: arriba/abajo mueven el cursor de slots (con el mismo repeat que feed_menu_navigation).
     bool fire_up = false, fire_down = false;
     {
@@ -1896,7 +1930,13 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         const hh::menu::Event ev = fire_up ? hh::menu::move_up() : hh::menu::move_down();
         if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
     }
-    if (pressed & 0x8000u) {
+    // A (aceptar) SIEMPRE guarda; X (agacharse) BORRA solo si la fila es un slot con datos (no
+    // `NEW GAME`). Los bindings se leen en vivo (remapeables). En headless solo hay teclado.
+    if (acc_btn || (pressed & 0x8000u)) {
+        if (env_set("HH_SAVE_TRACE")) {
+            hh::log("[save-flow] A en Select -> ConfirmHere (acc_btn=%d pressed=%d)\n", acc_btn ? 1 : 0,
+                    (pressed & 0x8000u) ? 1 : 0);
+        }
         if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
@@ -1904,6 +1944,17 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_save_target_slot(cur.index);   // -1 = NEW GAME
             hh::menu::set_save_yes_selected(true);
             hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmHere);
+        }
+    } else if (del_btn) {
+        const hh::menu::Screen& s = hh::menu::current_screen();
+        if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
+            const hh::menu::Entry& cur = s.entries[s.cursor];
+            if (cur.index >= 0 && hh::save::slot_present(cur.index)) {   // solo slots con datos
+                if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
+                hh::menu::set_save_delete_slot(cur.index);
+                hh::menu::set_save_yes_selected(true);
+                hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmDelete);
+            }
         }
     }
     return false;

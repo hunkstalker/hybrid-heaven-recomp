@@ -4,23 +4,32 @@
 > (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
 > `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
-> ## 🎯 TAREA ACTUAL: TERMINAR el ciclo de CARGA (CONTINUAR)
+> ## 🎯 TAREA ACTUAL: UI de CARGA de partida en el submenú `CONTINUAR`
 >
-> El **ciclo de GUARDADO de la cápsula (`DATA SAVE`) está HECHO y VALIDADO en Windows** (5.ª sesión):
-> guardar/sobrescribir, **AREA 1-1**, **TIME**, **salida** de la cápsula y **reentrada** (reinicio del
-> flujo). Documento maestro: **`notes/2026-09-30-save-capsule-logica.md`** (su **§9** es el handoff
-> concreto de CARGA).
+> El **ciclo de GUARDADO de la cápsula (`DATA SAVE`) está HECHO y VALIDADO en Windows** (guardar,
+> AREA 1-1, TIME, salida, reentrada y **borrado de slots**). Documento maestro:
+> **`notes/2026-09-30-save-capsule-logica.md`**; su **§9 es el handoff concreto** de la tarea actual.
 >
-> ### Siguiente: que un slot CARGUE de verdad desde CONTINUAR
-> - La UI `LoadGame` (Fase 2) y el enganche a CONTINUAR (Fase 3) ya existen (`hh_file_select_hook` en
->   `sections.cpp`). Hoy `Action::LoadGamePick` solo hace `func_801423C8(0, slot)` (deserializa los
->   globals) y **no arranca la escena**: falta la **transición**.
-> - Pasos y recetas en **`notes/2026-09-30-save-capsule-logica.md` §9**: replicar el final del flujo
->   nativo de CONTINUE (`func_80142570()` + `func_8012FE50(tipo=0x17, …)` — **medir los args** con
->   `HH_TRACE`), cerrar la sesión al salir (mismo bug que en guardar), y no republicar el overlay tras
->   la transición. **Pendiente también**: el prompt `Please connect Controller Pak…` se cuela con F8.
-> - Reutilizar del guardado: `SavePhase`, reset de sesión (`g_save_open`/`close_save_game`), salida
->   nativa explícita, `memcpy` crudo del slot y `area_sub_from_value`.
+> ### Siguiente: definir/cablear la UI de carga (`LoadGame`) y que un slot CARGUE de verdad
+> 1. **UI propia del `LoadGame`** (equivalente a la del `SaveGame`): confirmar con **A** sobre un slot,
+>    **B** para volver, mensajes/Yes-No con el estilo del guardado. **Decidir con el mantenedor** los
+>    textos exactos antes de dibujar (no inventar UI; regla AGENTS). Opcional: **X** para borrar desde
+>    CARGAR (mismo patrón que el guardado, §8ter).
+> 2. **Arrancar la escena**: hoy `Action::LoadGamePick` solo hace `func_801423C8(0, slot)`
+>    (deserializa los globals); falta la **transición**. Medir el final del flujo nativo de CONTINUE
+>    (`func_80142570()` + `func_8012FE50(tipo=?, valor=?)` — **trazar** los args con
+>    `HH_TRACE`/`HH_MENU_TRACE`) o dejar que la rama CONTINUE nativa haga setup+transición.
+> 3. **Cerrar la sesión al salir** (mismo bug que en guardar): `open_load_game()` hace *early-return*
+>    → añadir `close_load_game()`/`g_load_open` y llamarlo en `hh_goto_hook`.
+> 4. **No republicar el overlay** tras la transición (`hide_now()` + patrón `exited`).
+> 5. **Pendiente**: el prompt `Please connect Controller Pak…` se cuela con F8.
+> - Recetas y rutas de código: **`notes/2026-09-30-save-capsule-logica.md` §9**.
+>
+> ### VALIDADO en Windows (guardado, 2026-09-30 / 10-01)
+> Guardar (`NEW GAME`/sobrescribir) · **AREA 1-1** · **TIME** · **salida** de la cápsula · **reentrada**
+> (reinicio del flujo) · **borrado** de slots (`Remove completed.` → vuelve a la lista) · mensaje de
+> `Select` con binding reales (`Select location in which to save play data pressing A/J or X/H to
+> remove.`, 3 líneas en inglés). Detalle: `notes/2026-09-30-save-capsule-logica.md`.
 >
 > ### Aviso de método (AGENTS)
 > - Distinguir **medido** de **inferido**; **no validar el caso "todo vacío" con un `.pak` con datos**.

@@ -696,13 +696,28 @@ void title_update(uint8_t* rdram) {
                     case hh::menu::SavePhase::Ask:
                         msg = hh::menu::localized("¿Guardar la partida?"); break;
                     case hh::menu::SavePhase::Select:
-                        msg = hh::menu::localized("Elige dónde guardar la partida."); break;
+                        // Incluye los bindings REALES: "Pulsa A/J para guardar o X/H para borrar.".
+                        msg = hh::menu::save_select_message(); break;
                     case hh::menu::SavePhase::ConfirmHere:
                         msg = hh::menu::localized("Guardando la partida actual aquí."); break;
                     case hh::menu::SavePhase::ConfirmExit:
                         msg = hh::menu::localized("¿Salir sin guardar?"); break;
+                    case hh::menu::SavePhase::ConfirmDelete:
+                        msg = hh::menu::localized("¿Borrar la partida?"); break;
                     case hh::menu::SavePhase::Completed:
                         msg = hh::menu::localized("Partida guardada."); break;
+                    case hh::menu::SavePhase::Removed:
+                        msg = hh::menu::localized("Partida borrada."); break;
+                }
+            }
+            // DIAGNOSTICO (HH_SAVE_TRACE=1): registra el MENSAJE dibujado cada vez que cambia (fase +
+            // texto), para localizar parpadeos de texto (p. ej. un frame con el nativo antes del nuestro).
+            if (saving && std::getenv("HH_SAVE_TRACE") != nullptr) {
+                static std::string last_msg;
+                if (msg != last_msg) {
+                    last_msg = msg;
+                    hh::log("[save-msg] phase=%d text=[%s]\n", static_cast<int>(phase),
+                            msg.c_str());
                 }
             }
             // Fuente NATIVA color4 (8x12) = la del texto in-game (mensaje del DATA LOAD); en JA,
@@ -729,7 +744,8 @@ void title_update(uint8_t* rdram) {
             // ConfirmHere, ConfirmExit). En `Completed` va una flecha ABAJO (pulsa A para continuar).
             const bool save_prompt = saving && (phase == hh::menu::SavePhase::Ask ||
                                                 phase == hh::menu::SavePhase::ConfirmHere ||
-                                                phase == hh::menu::SavePhase::ConfirmExit);
+                                                phase == hh::menu::SavePhase::ConfirmExit ||
+                                                phase == hh::menu::SavePhase::ConfirmDelete);
             if (save_prompt) {
                 // Posiciones MEDIDAS del nativo (captura emulador del prompt DATA SAVE): opciones en
                 // x = caja+32, cursor `▶` en x = caja+22; `Yes` y = caja+17, `No` y = caja+27.
@@ -742,8 +758,10 @@ void title_update(uint8_t* rdram) {
                 // Cursor junto a la opcion resaltada (Yes/No).
                 const float cur_y = hh::menu::save_yes_selected() ? yes_y : no_y;
                 append_native_cursor(frame, msg_x + 22.0f, cur_y + 3.0f, kWhite);
-            } else if (saving && phase == hh::menu::SavePhase::Completed) {
-                // Flecha abajo = "pulsa A para continuar" (cierra el mensaje y sale de la capsula).
+            } else if (saving && (phase == hh::menu::SavePhase::Completed ||
+                                  phase == hh::menu::SavePhase::Removed)) {
+                // Flecha abajo = "pulsa A para continuar". En `Completed` cierra y sale de la
+                // capsula; en `Removed` vuelve a la lista de slots (no sale).
                 append_scroll_arrow(frame, msg_x + msg_w * 0.5f - 4.5f, msg_y + 34.0f,
                                     /*up=*/false, kWhite);
             }

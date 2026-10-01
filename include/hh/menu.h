@@ -248,9 +248,9 @@ void area_sub_from_value(uint16_t value, int& area, int& sub);
 // los metadatos del trailer (Área-Level / nivel / tiempo). La fila i corresponde al slot i (0-based).
 // A sobre una partida la carga. Se reconstruye con refresh_load_game() cuando el `.pak` cambia.
 // Ver notes/2026-09-29-menu-cargar-guardar-fase2-ui.md.
-void refresh_load_game();
 const char* load_game_row_text(int index);   // texto de la fila (dibujo 1:1), o nullptr
 bool load_game_row_present(int index);       // true si la partida existe (registro presente)
+void refresh_load_game();                    // reconstruye LoadGame/SaveGame desde el `.pak`
 // Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
 // (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
 void open_load_game();
@@ -266,11 +266,13 @@ void close_save_game();
 
 // GUARDAR: fase del flujo de guardado en la capsula (DATA SAVE):
 //   Ask         -> "Save play data?" Yes/No (slots OCULTOS).
-//   Select      -> "Select location in which to save play data." + slots (sin Yes/No).
+//   Select      -> mensaje con bindings (A/J guarda, X/H borra) + slots (sin Yes/No).
 //   ConfirmHere -> "Saving current play data here." Yes/No (slots VISIBLES; slot objetivo marcado).
 //   ConfirmExit -> "Exit without saving?" Yes/No (mensaje NUEVO del port, no nativo).
+//   ConfirmDelete -> confirmacion de BORRADO de un slot (Yes/No).
 //   Completed   -> "Save completed." + flecha abajo; A cierra y el PJ sale de la capsula.
-enum class SavePhase { Ask, Select, ConfirmHere, ConfirmExit, Completed };
+//   Removed     -> "Remove completed." + flecha abajo; A vuelve a `Select` (NO sale de la capsula).
+enum class SavePhase { Ask, Select, ConfirmHere, ConfirmExit, ConfirmDelete, Completed, Removed };
 SavePhase save_phase();
 void set_save_phase(SavePhase phase);
 // GUARDAR: compatibilidad: `true` mientras el prompt INICIAL ("Save play data?") está activo. Es
@@ -286,6 +288,14 @@ bool save_slots_ready();
 // GAME / siguiente libre). Lo fija el handler de input al pulsar A sobre una fila.
 int save_target_slot();
 void set_save_target_slot(int slot);
+// GUARDAR: mensaje de la fase `Select` (SUSTITUYE al `Select location in which to save play data.`)
+// con los bindings REALES insertados (p. ej. `A/J` guarda, `X/H` borra).
+std::string save_select_message();
+// GUARDAR: slot objetivo del BORRADO (fase ConfirmDelete; -1 = ninguno).
+int save_delete_slot();
+void set_save_delete_slot(int slot);
+// true durante ~120 ms tras entrar en `Select`/`Removed`: ignora el input que provoco la transicion.
+bool save_input_blocked();
 
 // --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
 // `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).
