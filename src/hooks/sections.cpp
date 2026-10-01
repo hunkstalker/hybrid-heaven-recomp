@@ -1716,6 +1716,11 @@ static void hh_leave_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj
     func_800058DC_64DC(rdram, &t);
     hh::menu_overlay::hide_now();
     hh::menu::close_load_game();
+    // DESACTIVAR la categoría FILE-SELECT: sin esto `file_select_text_skip()`/`suppress_box_draw()`
+    // siguen a true y BLANQUEAN el texto del MENÚ DE TÍTULO (que comparte el hook de composición)
+    // -> título vacío/texto fantasma y, al agotar el idle, attract. El reseteo natural lo hace
+    // `hh_title_menu_hook`, pero tarda varios frames en correr tras la transición.
+    hh::menu_overlay::set_file_select_active(false);
     hh::log("[load] salir de CARGAR -> menu de titulo (rama nativa)\n");
 }
 
@@ -1746,6 +1751,9 @@ static void hh_do_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj, i
     func_800058DC_64DC(rdram, &t);
     hh::menu_overlay::hide_now();
     hh::menu::close_load_game();
+    // Carga OK: la escena arranca; desactivar la categoría FILE-SELECT (si no, blanquearía texto de
+    // la siguiente pantalla). El gameplay no usa el compositor del título, pero es más seguro.
+    hh::menu_overlay::set_file_select_active(false);
 }
 
 // Control del flujo de CARGAR (`hh::menu::LoadPhase`), análogo a `feed_save_flow`:
