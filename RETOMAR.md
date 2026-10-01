@@ -7,8 +7,9 @@
 > ## 🎯 TAREA ACTUAL (siguiente sesión): el TÍTULO DEL ÁREA no aparece al cargar una partida
 >
 > **Comportamiento normal del juego** al cargar un slot (`CONTINUAR` → elegir partida): la pantalla
-> queda **en negro unos segundos** con un **título en blanco = el nombre/número del Área** por donde va
-> el progreso del jugador. Ese texto se quita pulsando un botón/tecla (o esperando); **entonces** ya se
+> queda **en negro unos segundos** con un **título en blanco = el nombre del Área** por donde va el
+> progreso del jugador (**solo el nombre, sin números**). Ese texto se quita pulsando un botón/tecla
+> (o esperando); **entonces** ya se
 > ve el render del gameplay, el PJ saliendo de la cápsula de guardado.
 >
 > **FALLO actual (port):** ese **título de Área NO aparece**; solo se ve la pantalla en negro unos
@@ -30,9 +31,11 @@
 >   file-select mientras la categoría FILE-SELECT está activa y el nativo oculto. Verificar que, al
 >   salir de la carga, esa categoría queda **desactivada** (ya se hizo en `hh_do_load_game`) y que el
 >   texto del Área (post-file-select) **sí** se compone.
-> - El TEXTO del área sale de la **cabecera** del slot (registro `0x10 + slot*8`: `+1` AREA N, `+2`
->   AREA P) — ver `notes/2026-09-29-editor-area-parte-plan.md` §5. Comprobar que `func_801423C8`
->   deja ese dato disponible para el compositor del título.
+> - El dato del Área sale de la **cabecera** del slot (registro `0x10 + slot*8`: `+1` AREA N, `+2`
+>   AREA P) — ver `notes/2026-09-29-editor-area-parte-plan.md` §5. OJO: esos campos son los **datos
+>   fuente** (números); el **texto que se muestra es SOLO el NOMBRE del Área**, sin números.
+>   Comprobar que `func_801423C8` deja el dato disponible para el compositor del título y localizar la
+>   **tabla nombre↔área** (o la función) que convierte el índice en el nombre mostrado.
 >
 > ### Plan sugerido (crear item en `TODO.md` + plan antes de tocar código)
 > 1. **Trazar** el flujo de ÉXITO de cargar (`func_801C3E24` y cadena) con `HH_SCENE_TRACE`/`HH_TRACE`
