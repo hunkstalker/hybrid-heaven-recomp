@@ -387,7 +387,7 @@ bool core_of(const uint8_t* seg, size_t len, std::string& prefix, std::string& c
 // el core (texto sin prefijo de formato) coincide EXACTAMENTE con una clave.
 //
 // `content_len` = bytes de texto sin NUL; `slot` = bytes reservados para el registro (texto + NUL de
-// relleno). Los datos USA usan registros de tamano fijo con relleno de NUL (evidencia: tablas de
+// relleno). Los datos USA usan registros de tamaño fijo con relleno de NUL (evidencia: tablas de
 // 12/16 bytes; la version PAL guardaba 3 idiomas) -> el relleno es holgura deliberada. Se reserva
 // 1 byte para el NUL terminador.
 // Convierte UTF-8 a los codigos EUC propios de 2 bytes de los glifos acentuados (B); el ASCII pasa

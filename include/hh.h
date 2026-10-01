@@ -122,6 +122,9 @@ namespace hh {
     void video_apply_config();           // fija GraphicsConfig desde [video] (antes de crear el contexto)
     void video_toggle_fullscreen();      // F3
     void video_set_fullscreen(bool enabled);  // menu GRÁFICOS -> P. COMPLETA
+    // Tamaño de VENTANA por defecto (geometria guardada > `res` concreta > 1280x720). Lo usan
+    // `create_window` y el puente de RT64 para el rect al que volver desde pantalla completa.
+    void video_default_window_size(int& w, int& h);
     void video_set_vsync(bool enabled);       // menu GRÁFICOS -> VSYNC
     void video_set_fps_limit(int hz);         // menu GRÁFICOS -> LÍMITE DE FPS (<=0 = nativo)
     void video_set_show_fps(bool enabled);    // menu DEBUG -> MOSTRAR FPS (indicador del overlay)

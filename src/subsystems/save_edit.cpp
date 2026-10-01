@@ -531,7 +531,7 @@ bool load_template(int slot) {
     }
     std::vector<uint8_t> tpl((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     if (tpl.size() != kSlotSize) {
-        hh::log("[save-edit] plantilla con tamano invalido (%zu B)\n", tpl.size());
+        hh::log("[save-edit] plantilla con tamaño invalido (%zu B)\n", tpl.size());
         return false;
     }
     if (!g_loaded) load(slot, nullptr, nullptr);

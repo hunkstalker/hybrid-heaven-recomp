@@ -21,12 +21,12 @@ const uint8_t* atlas_rgba8();
 unsigned atlas_width();
 unsigned atlas_height();
 
-// Metricas (en px del tamano de rasterizado). `ascent` por encima de la linea base (positivo).
+// Metricas (en px del tamaño de rasterizado). `ascent` por encima de la linea base (positivo).
 float ascent();
 float descent();
 float line_height();
 
-// Glifo de `cp` (codepoint Unicode): posicion en el atlas, tamano y offsets respecto a la linea base
+// Glifo de `cp` (codepoint Unicode): posicion en el atlas, tamaño y offsets respecto a la linea base
 // (xoff a la izquierda, yoff hacia arriba) y avance. false si no hay glifo.
 struct Glyph {
     int x = 0, y = 0, w = 0, h = 0;   // rect en el atlas

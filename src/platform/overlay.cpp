@@ -690,7 +690,7 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
 
     // Indicador de FPS: se ancla a la esquina REAL del framebuffer del swapchain (no al area 4:3
     // centrada donde va el texto del juego), por lo que se dibuja con su propia proyeccion en
-    // pixeles (origen arriba-izquierda). Mismo tamano aparente que el texto del menu.
+    // pixeles (origen arriba-izquierda). Mismo tamaño aparente que el texto del menu.
     uint32_t fps_index_count = 0;
     if (fps_on && g_atlas_set != nullptr && g_atlas_w > 0.0f) {
         const float cw = static_cast<float>(hh::font::game::char_width());
@@ -795,7 +795,7 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
 
     // Proyeccion ortografica UNIFORME (pixel cuadrado): el espacio virtual 320x240 se dibuja a
     // escala uniforme k = alto/240 px por unidad y se CENTRA horizontalmente, como el texto 2D del
-    // juego (que no va estirado a 16:9). Asi los glifos se dibujan a tamano nativo (scale 1.0).
+    // juego (que no va estirado a 16:9). Asi los glifos se dibujan a tamaño nativo (scale 1.0).
     // Convencion D3D (y=+1 arriba); DXC anade -fvk-invert-y para Vulkan.
     const float k = static_cast<float>(height) / kVirtualHeight;
     const PushConstants pc{

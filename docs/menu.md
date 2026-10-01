@@ -31,7 +31,8 @@ Orden de arriba a abajo; `->` = con A se entra a esa pantalla. En todas rige **A
 B atrás):
 
 ```
-CONTINUAR                                  (arriba del todo: retomar partida directo)
+CONTINUAR                                  (arriba del todo: retomar partida directo; GRIS y no
+                                            seleccionable si el `.pak` no tiene ninguna partida)
 NUEVA PARTIDA ->
       EMPEZAR PARTIDA              (inicia el juego con la config elegida)
       DIFICULTAD -> lista DEFINITIVO / DIFÍCIL / NORMAL (aplicada en verde, resto gris; A fija)
@@ -49,14 +50,15 @@ CONFIGURACIÓN ->
       GRÁFICOS ->
             RATIO        < AUTO / ORIGINAL / 4:3 / 16:9 / 16:10 / 21:9 >
             RESOLUCIÓN   < AUTO … >    (filtrada por RATIO; AUTO/ORIGINAL + las del ratio)
-            P. COMPLETA  NO/SÍ         (pantalla completa)
+            P. COMPLETA  NO/SÍ         (pantalla completa; ver §Ventana / P. COMPLETA)
             ANTIALIASING < x2 >        (stepper; valores x0/x2/x4/x8)
             VSYNC        NO/SÍ         (por defecto SÍ)
             LÍMITE DE FPS < NATIVO / 30 / 40 / 60 / 75 / 90 / 120 / 144 / 165 / 240 >
                           (NATIVO = refresco del monitor)
       SONIDO ->
             VOLUMEN      < 0% … 100% > (pasos de 10; 100% = sin atenuar)
-            SALIDA       < MONO / ESTÉREO / AURICULARES > (AURICULARES = crossfeed)
+            SALIDA       < ESTÉREO >  (stepper: solo el valor activo, izq MONO / der AURICULARES;
+                                       AURICULARES = crossfeed)
             MENÚ SFX     NO/SÍ (activa/desactiva los sonidos del menú)
       DEBUG ->
             VENTANA DEBUG  NO/SÍ    (habilita el Inspector de RT64 con F1)
@@ -94,13 +96,20 @@ SALIR                                      (extra del port: cierra de forma orde
   aspectos **más anchos que 4:3** (`auto`/`expand` y `16:9`/`16:10`/`21:9`); sin él, `AspectRatio::
   Manual` escalaba el contenido 4:3 al target y salía una **caja pequeña centrada** (bug 2026-09-25).
   `original`/`4:3` dejan el 4:3 nativo (288x224).
-- **Ventana `windowed`**: el tamaño inicial sale de la geometría recordada (`win_w/h/x/y`), si no de
-  una `res` concreta `ANCHOxALTO`, y si no de la resolución nativa del monitor. Al cerrar se guarda el
+- **Ventana `windowed`**: tamaño/posición **por defecto 1280×720 centrada** (recortada al escritorio),
+  o la geometría recordada (`win_w/h/x/y`), o una `res` concreta `ANCHOxALTO`. Al cerrar se guarda el
   tamaño/posición actual (`hh::video_remember_window`). `P. COMPLETA` sigue siendo independiente.
 - **`P. COMPLETA`** (pantalla completa, `NO/SÍ`): **por defecto `SÍ`** (la realidad del port es
-  `wm = borderless`). `NO` = ventana (`wm = windowed`), `SÍ` = completa (`wm = borderless`). Al cambiar
-  el valor se aplica en vivo (`hh::video_set_fullscreen` → `set_graphics_config`), como el atajo F3.
+  `wm = borderless`). `NO` = ventana (`wm = windowed`), `SÍ` = completa (`wm = borderless`). Se aplica
+  en vivo (`hh::video_set_fullscreen` → `set_graphics_config`), como el atajo F3.
   El `.` también se dibuja (la fuente no lo tiene).
+- **Arranque e ida/vuelta de pantalla completa (2026-10-01)**: en `borderless` la ventana se crea
+  **visible ya a tamaño de pantalla** (sin transición ni pérdida de foco; RT64 solo confirma el
+  estado). Como RT64 usa el rect previo al fullscreen para **volver a ventana**, el port fija tras
+  inicializar RT64 el `lastWindowRect` al tamaño de ventana por defecto y **sincroniza `fullScreen`**
+  con `[video].wm` (`hh::create_render_context`, solo Windows): así `NO` vuelve a una ventana
+  1280×720 centrada con marco y el primer toggle no queda en no-op. **No** se redimensiona la ventana
+  por detrás de RT64 (dejaría el swapchain viejo → render en una esquina).
 - **`VSYNC`** por defecto **SÍ** (`hh::video_set_vsync` → `swapChain->setVsyncEnabled`, aplicado en el
   hilo de render). **`LÍMITE DE FPS`** por defecto **`NATIVO`** = refresco del monitor (`RefreshRate::
   Display`); un número = tasa fija (`RefreshRate::Manual`, `hh::video_set_fps_limit`). Es el
@@ -309,7 +318,9 @@ El overlay es la UI, pero las **acciones que arrancan la partida** reutilizan el
 
 - **`CONTINUAR`** (raíz, hoja nativa): se fija `sel` (`0x801CC8C4`) a `1` (CONTINUE) y se inyecta
   **A** una vez (`g_inject_native_a`); el handler de la raíz corre su rama real
-  (`func_801C3CDC`, carga la partida).
+  (`func_801C3CDC`, carga la partida). Si el `.pak` **no tiene ninguna partida** del jugador
+  (slots 0..44; las plantillas 45..73 no cuentan), la entrada sale **gris** y el cursor no se posa en
+  ella (`refresh_continue_entry` en `menu.cpp`), así no se puede arrancar a un DATA LOAD vacío.
 - **`EMPEZAR PARTIDA`** (hoja del submenú nativo `NUEVA PARTIDA`): se fija la **dificultad** en el
   byte global **`0x801BBC0D`** (`0=NORMAL`, `1=DIFÍCIL`, `2=DEFINITIVO`) y se dispara la rama
   **GAME START** del submenú (`func_801C3A40`, idx 0): `func_80005670(obj, 0x80044090)` crea el

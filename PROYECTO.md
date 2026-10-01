@@ -140,12 +140,17 @@ sin parpadeo ni superposición al título, y mensajes Controller/Rumble Pak ocul
 `AREA N` con la fuente del juego + nombre en **Work Sans SemiBold**), traducido en **EN/ES/CA/FR/DE**
 (`ja` nativo), colgado de la cadena nativa (fade/espera/transición) y con **candado anti-parpadeo**.
 **Calibrado 1:1** con el original (ancho/alto/peso/métrica) y **salto de línea automático** en 4:3 para
-los nombres largos (centrado; en 16:9 no cambia). Verificado headless; **pendiente validar en Windows**.
+los nombres largos (centrado; en 16:9 no cambia). **Validado en Windows (2026-10-01)**.
 Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
 **i18n — unificar traducciones (HECHO, 2026-10-01; validado en Windows)**: **una sola fuente**
 (`assets/lang/*.txt`, clave inglés) con `hh::text::translate()` como único punto y `menu::localized`
 delegando; borrados `kMenuTr`/`kEsDefaults`; el jugador edita un `.txt` sin recompilar. **ADR 0014**;
 estado + validación: `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
+**Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
+seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo
+del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y
+sincronizando su estado (`rt64_render_context.cpp`). Nota:
+`notes/2026-10-01-menu-continuar-salida-fullscreen.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

@@ -2,8 +2,12 @@
 
 > Handoff para la próxima sesión. **Rama de trabajo: `menu-carga-guardado-partida`** (creada desde
 > `menu-edicion-partida`; nada pusheado; `main` = v0.5.1). Reglas: `AGENTS.md` y `docs/documentation.md`.
-> Último commit de la rama: **`874b9f6`** (título del Área al cargar partida). (El editor/niveles vive en
-> `menu-edicion-partida`.)
+> (El editor/niveles vive en `menu-edicion-partida`.)
+>
+> **Sesión 2026-10-01 (commits ya en la rama)**: título del Área al cargar (`874b9f6`); **i18n — fuente
+> única de traducciones** (`assets/lang/*.txt`, clave = inglés; ADR 0014); **pulido de menú/vídeo**
+> (`CONTINUAR` gris sin partidas, `SALIDA` stepper, arreglo pantalla completa ↔ ventana). Detalle:
+> `notes/2026-10-01-i18n-*.md` y `notes/2026-10-01-menu-continuar-salida-fullscreen.md`.
 
 ## 🎯 TAREA ACTUAL: unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A)
 

@@ -9,7 +9,7 @@ namespace hh {
 struct CodeFile {
     uint32_t id;     // id Nisitenma (1..0x270)
     uint32_t vram;   // direccion de enlace (base de la seccion)
-    uint32_t size;   // tamano de la seccion (text+data+bss)
+    uint32_t size;   // tamaño de la seccion (text+data+bss)
 };
 
 // Orden = orden de code_files.overlays.txt = orden de overlay_sections_by_index.

@@ -779,5 +779,36 @@ std::unique_ptr<ultramodern::renderer::RendererContext> hh::create_render_contex
     ultramodern::renderer::WindowHandle window_handle,
     bool developer_mode
 ) {
-    return std::make_unique<hh::RT64Context>(rdram, window_handle, developer_mode);
+    auto context = std::make_unique<hh::RT64Context>(rdram, window_handle, developer_mode);
+
+#if defined(_WIN32)
+    // RT64 guarda el rect de la ventana ANTES de entrar a pantalla completa (`lastWindowRect`) y lo
+    // restaura al volver a `windowed`. Como el port arranca `borderless` a tamaño de ESCRITORIO (para
+    // no ver transicion ni perder foco), al volver con P. COMPLETA=NO restauraria una ventana del
+    // tamaño de la pantalla (parecia que el toggle no hacia nada). Fijamos aqui el rect de ventana
+    // deseado (geometria guardada / 1280x720, centrado) y sincronizamos `fullScreen` con la config,
+    // para que el primer toggle funcione. Nota: si el rect guardado ya es el del monitor entero, se
+    // sustituye por el tamaño de ventana por defecto.
+    if (context->valid() && g_app != nullptr && g_app->appWindow != nullptr) {
+        const hh::VideoConfig& vc = hh::video_config();
+        int w = 1280, h = 720;
+        hh::video_default_window_size(w, h);
+        RECT r{ 0, 0, w, h };
+        AdjustWindowRectEx(&r, WS_OVERLAPPEDWINDOW, FALSE, 0);
+        const int ww = r.right - r.left;
+        const int wh = r.bottom - r.top;
+        const int mon_w = GetSystemMetrics(SM_CXSCREEN);
+        const int mon_h = GetSystemMetrics(SM_CYSCREEN);
+        r.left = (mon_w - ww) / 2;
+        r.top = (mon_h - wh) / 2;
+        r.right = r.left + ww;
+        r.bottom = r.top + wh;
+        g_app->appWindow->lastWindowRect = r;
+        g_app->appWindow->fullScreen = (vc.wm != "windowed");
+        hh::log("[VIDEO] RT64 rect de ventana: %dx%d centrado (fullScreen=%d)\n", ww, wh,
+                g_app->appWindow->fullScreen ? 1 : 0);
+    }
+#endif
+
+    return context;
 }

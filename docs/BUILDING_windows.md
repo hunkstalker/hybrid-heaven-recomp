@@ -303,9 +303,12 @@ win_x   = -1
 win_y   = -1
 ```
 
-- **Ventana**: por defecto **borderless a la resolución nativa del monitor**; `wm=windowed` abre una
-  ventana con el tamaño recordado (`win_*`), si no una `res` concreta `ANCHOxALTO`, y si no la
-  resolución nativa del monitor; el tamaño/posición se guarda al cerrar.
+- **Ventana**: por defecto **borderless a la resolución nativa del monitor** (se crea ya visible a
+  tamaño de pantalla: sin transición ni pérdida de foco), `wm=windowed` abre una ventana con el
+  tamaño recordado (`win_*`), si no una `res` concreta `ANCHOxALTO`, y si no **1280×720 centrada**;
+  el tamaño/posición se guarda al cerrar. `P. COMPLETA` (menú GRÁFICOS) o **F3** alternan en vivo:
+  al volver a ventana se **restaura ese mismo tamaño** (el port fija el `lastWindowRect` de RT64 y
+  sincroniza su estado `fullScreen` con `wm` al inicializar; ver `docs/menu.md §Ventana`).
 - **VSYNC / LÍMITE DE FPS / MOSTRAR FPS**: `vsync` (por defecto `si`) y `fps` (`nativo` = refresco del
   monitor); `showfps` dibuja el indicador de FPS. El menú **GRÁFICOS/DEBUG** los aplica en vivo y
   **los persiste aquí** (junto con `wm`).

@@ -13,7 +13,7 @@
 namespace hh::font::game {
 namespace {
 
-// Fichero color0 de la fuente (Nisitenma idx 107) en la ROM US: offset y tamano del manifiesto.
+// Fichero color0 de la fuente (Nisitenma idx 107) en la ROM US: offset y tamaño del manifiesto.
 constexpr uint32_t kFontRomOffset = 0x6E3CD6;
 constexpr uint32_t kFontRomSize = 4096;
 

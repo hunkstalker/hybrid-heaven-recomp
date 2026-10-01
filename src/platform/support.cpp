@@ -318,6 +318,31 @@ hh::VideoConfig& hh::video_config_mutable() {
 }
 const hh::VideoConfig& hh::video_config() { return hh::video_config_mutable(); }
 
+// Tamaño de VENTANA por defecto: geometria recordada (`win_w/h`) > `res` concreta `ANCHOxALTO` > por
+// defecto 1280x720 (recortado al escritorio). Lo usa `create_window` para `wm=windowed` y el puente
+// de RT64 (rt64_render_context.cpp) para fijar el rect al que volver desde pantalla completa.
+void hh::video_default_window_size(int& w, int& h) {
+    const hh::VideoConfig& vc = hh::video_config();
+    if (vc.win_w > 0 && vc.win_h > 0) {
+        w = vc.win_w;
+        h = vc.win_h;
+        return;
+    }
+    int rw = 0, rh = 0;
+    if (hh_video_parse_size(vc.res, rw, rh)) {
+        w = rw;
+        h = rh;
+        return;
+    }
+    w = 1280;
+    h = 720;
+    SDL_DisplayMode dm{};
+    if (SDL_GetDesktopDisplayMode(0, &dm) == 0 && dm.w > 0 && dm.h > 0) {
+        w = std::min(w, dm.w);
+        h = std::min(h, dm.h);
+    }
+}
+
 // ===== Config de audio (config.ini [audio]) =====
 // Volumen general (0-100 %) y salida (estereo | mono | auriculares). Los atomics los lee el hilo de
 // audio (queue_samples) sin volver a parsear el fichero.
@@ -800,20 +825,17 @@ ultramodern::gfx_callbacks_t::gfx_data_t hh::create_gfx() {
 }
 
 ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks_t::gfx_data_t) {
-    // HH: `wm=borderless` abre la ventana YA borderless y a tamano de escritorio, VISIBLE, de modo
-    // que aparece fullscreen desde el primer frame (SDL le da foco e icono de taskbar al crearla).
-    // RT64 la confirma en el constructor (`app->setFullScreen`: guarda el rect y re-aplica WS_POPUP
-    // al mismo rect -> sin transicion visible). `wm=windowed` deja una ventana normal: tamano
-    // recordado (`win_w/h`), si no una `res` concreta `ANCHOxALTO`, y si no la resolucion del monitor.
+    // `wm=borderless`: la ventana se crea YA a tamaño de pantalla completa y borderless, VISIBLE,
+    // de modo que aparece fullscreen desde el primer frame (SDL le da foco e icono de taskbar al
+    // crearla) y RT64 solo confirma el estado (`app->setFullScreen`): sin transicion visible ni
+    // perdida de foco. NO redimensionar despues por detras de RT64 (deja el swapchain viejo ->
+    // render en una esquina). Limitacion conocida: al volver a `windowed`, RT64 restaura ESTE rect
+    // (el de pantalla completa) -> la ventana queda a tamaño de pantalla (con marco, movible).
+    //
+    // `wm=windowed`: ventana normal a tamaño recordado (`win_w/h/x/y`), si no una `res` concreta
+    // `ANCHOxALTO`, y si no 1280x720 (recortado al escritorio).
     const hh::VideoConfig& vc = hh::video_config();
     const bool fullscreen = (vc.wm != "windowed");
-    uint32_t flags = fullscreen ? SDL_WINDOW_BORDERLESS : SDL_WINDOW_RESIZABLE;
-
-#if defined(__APPLE__)
-    flags |= SDL_WINDOW_METAL;
-#elif defined(RT64_SDL_WINDOW_VULKAN)
-    flags |= SDL_WINDOW_VULKAN;
-#endif
 
     hh::log("create_window: creating SDL window\n");
     int win_w = 1280, win_h = 720;
@@ -824,30 +846,34 @@ ultramodern::renderer::WindowHandle hh::create_window(ultramodern::gfx_callbacks
         // Diagnostico de present rate: refresco del escritorio segun SDL (comparar con swapChainRate).
         hh::log("Video: desktop %dx%d @ %d Hz\n", dm.w, dm.h, dm.refresh_rate);
     }
-    if (vc.wm == "windowed") {
-        int rw = 0, rh = 0;
-        if (vc.win_w > 0 && vc.win_h > 0) {
-            win_w = vc.win_w;
-            win_h = vc.win_h;
-            if (vc.win_x >= 0 && vc.win_y >= 0) {
-                win_x = vc.win_x;
-                win_y = vc.win_y;
-            }
-        }
-        else if (hh_video_parse_size(vc.res, rw, rh)) {
-            win_w = rw;
-            win_h = rh;
-        }
-        else if (have_dm) {
+
+    if (fullscreen) {
+        if (have_dm) {
             win_w = dm.w;
             win_h = dm.h;
         }
-        hh::log("Video: ventana windowed %dx%d @ (%d,%d)\n", win_w, win_h, win_x, win_y);
     }
-    else if (have_dm) {
-        win_w = dm.w;
-        win_h = dm.h;
+    else if (vc.win_w > 0 && vc.win_h > 0) {
+        win_w = vc.win_w;
+        win_h = vc.win_h;
+        if (vc.win_x >= 0 && vc.win_y >= 0) {
+            win_x = vc.win_x;
+            win_y = vc.win_y;
+        }
     }
+    else {
+        hh::video_default_window_size(win_w, win_h);
+    }
+    hh::log("Video: ventana %dx%d @ (%d,%d) wm=%s\n", win_w, win_h, win_x, win_y,
+            vc.wm.c_str());
+
+    uint32_t flags = fullscreen ? SDL_WINDOW_BORDERLESS : SDL_WINDOW_RESIZABLE;
+#if defined(__APPLE__)
+    flags |= SDL_WINDOW_METAL;
+#elif defined(RT64_SDL_WINDOW_VULKAN)
+    flags |= SDL_WINDOW_VULKAN;
+#endif
+
     window = SDL_CreateWindow("Hybrid Heaven", win_x, win_y, win_w, win_h, flags);
 
     if (window == nullptr) {
@@ -945,7 +971,7 @@ static bool hh_open_audio_device(uint32_t freq) {
     return true;
 }
 
-// HH: diagnostico de audio siempre activo (ficheros en el CWD, tamano acotado). Permite ver
+// HH: diagnostico de audio siempre activo (ficheros en el CWD, tamaño acotado). Permite ver
 // desde fuera la tasa efectiva de produccion, la cola y el estado del dispositivo.
 static void hh_audio_diag_log(size_t sample_count, size_t queued_frames, size_t reported_frames) {
     // Opt-in (HH_DIAG=1): por defecto NO se escribe hh_audio.log (el .exe release no deja volcados).
@@ -1027,7 +1053,7 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
     if (audio_device == 0) {
         virtual_ai_drain();
         virtual_frames += static_cast<double>(sample_count) / input_channels;
-        // HH: cota de la cola virtual. El driver de audio del juego calcula el siguiente tamano
+        // HH: cota de la cola virtual. El driver de audio del juego calcula el siguiente tamaño
         // como (0x2E0 - osAiGetLength()/4 + 0x100) & 0xFFF0: si la cola reportada supera la
         // ventana 0x3E0 palabras, el calculo hace wrap (s16 negativo) y envenena osAiGetLength
         // (command lists runaway que pisan los contextos de voz). Con la reproduccion virtual

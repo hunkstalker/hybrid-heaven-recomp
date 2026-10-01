@@ -2,7 +2,7 @@
 """Analiza volcanes de RDRAM de la ROM EU (BizHawk) para fijar el buffer de glifos del motor.
 
 Hallazgo (2026-09-25, sesion de captura con BizHawk): el motor de texto EU compone los glifos en la
-textura de trabajo cerca de **`0x80109B60`** (8x8, 2bpp despaquetado; coincide en tamano/posicion con
+textura de trabajo cerca de **`0x80109B60`** (8x8, 2bpp despaquetado; coincide en tamaño/posicion con
 la zona que cambia al cambiar el texto del menu). El texto de menu cambia entre frames/idiomas.
 
 Entrada: carpeta con `eu_rdram_*.bin` (8 MB c/u) de `tools/analysis/bizhawk_eu_glyph_capture.lua`.
@@ -24,7 +24,7 @@ DEF_BUF = 0x80109B60     # textura de trabajo de glifos del menu EU (medida)
 def load(path):
     d = open(path, "rb").read()
     if len(d) != RDRAM_SIZE:
-        raise SystemExit(f"{path}: tamano {len(d)} != 8 MB")
+        raise SystemExit(f"{path}: tamaño {len(d)} != 8 MB")
     return d
 
 

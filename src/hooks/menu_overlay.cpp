@@ -532,7 +532,10 @@ void title_update(uint8_t* rdram) {
                         sum += ow;
                         if (oi + 1 < e.options.size()) sum += 2.0f * kSlashSep2 + kSlashW2;
                     }
-                    const bool fits = value_x + sum <= hh::overlay::kVirtualWidth - 4.0f;
+                    // `stepper` (p. ej. SALIDA < ESTÉREO >): solo se dibuja el valor activo con
+                    // chevrons, así que para CENTRAR hay que medir como el largo, NO sumar todas las
+                    // opciones (si no, el menú se descentra reservando un ancho que no se dibuja).
+                    const bool fits = !e.stepper && value_x + sum <= hh::overlay::kVirtualWidth - 4.0f;
                     max_val_px = std::max(max_val_px, fits ? sum : (single + 12.0f));
                 } else if (e.kind == hh::menu::Kind::Number) {
                     // Grupo `< [prefijo]NNN >`: prefijo + 3 dígitos + chevrons. Si hay valor (suffix),

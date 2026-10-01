@@ -229,7 +229,7 @@ void remember_loaded(uint32_t src, uint32_t size, uint32_t dst, uint32_t len,
 }
 
 // Decodificador LZKN64 identico a tools/lzkn64/lzkn64.py. `in_len` = bytes disponibles (a2 del
-// loader). El header de 4 bytes es el tamano comprimido (limite del bucle de entrada).
+// loader). El header de 4 bytes es el tamaño comprimido (limite del bucle de entrada).
 bool lzkn64_decode(const uint8_t* in, size_t in_len, std::vector<uint8_t>& out) {
     out.clear();
     if (in_len < 5) return false;
@@ -546,7 +546,7 @@ extern "C" void hh_trans_reapply_language(void) {
     hh::log("[text] idioma re-aplicado a %d modulos cargados\n", count);
 }
 
-// Base RAM cargada de un modulo (por su offset/tamano de ROM). 0 si no esta cargado. Util para
+// Base RAM cargada de un modulo (por su offset/tamaño de ROM). 0 si no esta cargado. Util para
 // calcular direcciones guest de datos inyectados (p. ej. etiquetas del menu PC).
 extern "C" uint32_t hh_trans_dst_for(uint32_t src, uint32_t size) {
     std::lock_guard<std::recursive_mutex> lock(g_mutex);

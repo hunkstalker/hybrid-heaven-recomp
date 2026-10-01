@@ -10,8 +10,18 @@
   ficheros `assets/lang/*.txt`; borrados `kMenuTr`/`kAreaNames`/`kEsDefaults`; `kEndonyms` siguen en código;
   `en` = identidad; migración `tools/text/migrate_menu_tr.py`; guard `tools/text/check_translations.py`
   (enganchado a `docs_index.py --check`); ADR **0014**. Validado en Linux (carga de las 6 lenguas + sondeo
-  de `translate()` incluida clave multi-línea); **falta F5 en Windows**. Plan + estado:
-  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`** §8; handoff en **`RETOMAR.md`** (TAREA ACTUAL).
+  de `translate()`, clave multi-línea incluida) y **en Windows (build + F5 por idiomas)**. Plan + estado:
+  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`** §8.
+
+- [x] **Pulido de menú/vídeo — HECHO y VALIDADO en Windows (2026-10-01)**: (a) `CONTINUAR` en **gris y
+  no seleccionable** si el `.pak` no tiene partidas (`refresh_continue_entry`, `menu.cpp`); (b) `SONIDO
+  -> SALIDA` como **stepper `< ESTÉREO >`** (izq MONO / der AURICULARES), con el cálculo de centrado de
+  `custom_layout` corregido para no reservar el ancho de todas las opciones (`menu_overlay.cpp`); (c)
+  **arreglo del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3): RT64 usa el rect previo al
+  fullscreen para volver a ventana; el port fija `lastWindowRect` a un tamaño de ventana real
+  (1280×720 centrada / geometría guardada) y sincroniza `fullScreen` con `[video].wm`
+  (`rt64_render_context.cpp`), sin redimensionar por detrás de RT64. Nota:
+  **`notes/2026-10-01-menu-continuar-salida-fullscreen.md`**.
 
 - [x] **TÍTULO DEL ÁREA al cargar partida — HECHO (commit `874b9f6`, 2026-10-01)**: al cargar un slot
   (`CONTINUAR` → partida) el juego muestra **pantalla negra con el título del Área** (nombre del Área

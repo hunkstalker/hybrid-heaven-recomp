@@ -42,7 +42,7 @@ unsigned char_height();    // 8
 //   Color1 (10x10, idx 109) = kana "grande" (titulo JA); mismo mapeo ASCII/kana que color0.
 enum class Face { Color0, Color4, Color3, Color1 };
 
-// Tamano de celda del glifo (px) de cada tipografia.
+// Tamaño de celda del glifo (px) de cada tipografia.
 unsigned face_cell_w(Face f);   // 8, 8, 12
 unsigned face_cell_h(Face f);   // 8, 12, 13
 
@@ -81,7 +81,7 @@ bool value_uv(unsigned value, unsigned& x, unsigned& y);
 // generada en include/hh/jp_kana.h. false si el codepoint no es kana de la fuente (p. ej. kanji).
 bool jp_kana_value(unsigned cp, unsigned& value);
 
-// Marca horneada en el atlas: UV, tamano y `dy` = offset vertical en px de glifo relativo al TOPE
+// Marca horneada en el atlas: UV, tamaño y `dy` = offset vertical en px de glifo relativo al TOPE
 // de la letra (negativo = por encima). false si el indice no es valido.
 bool mark_info(int mark, unsigned& x, unsigned& y, unsigned& w, unsigned& h, int& dy);
 

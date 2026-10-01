@@ -22,7 +22,7 @@ extern const unsigned long kWorkSansTtfSize;
 namespace hh::ttf {
 namespace {
 
-constexpr float kPixelHeight = 22.0f;   // tamano de rasterizado (px del atlas)
+constexpr float kPixelHeight = 22.0f;   // tamaño de rasterizado (px del atlas)
 constexpr unsigned kAtlasW = 512;       // ancho del atlas (fijo)
 constexpr unsigned kPad = 1;
 

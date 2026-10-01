@@ -6,7 +6,7 @@ Uso:
 
 Lee `ultimas llamadas:` y `callring:` (hex) de los logs y mapea cada direccion a
 `nombre+0xoffset` usando legacy/config/us_combined.syms.toml. Si varias funciones
-contienen la direccion (modulos solapados), se lista la de menor tamano; con
+contienen la direccion (modulos solapados), se lista la de menor tamaño; con
 --all se listan todas.
 
 Salida pensada para pegar en notas: una linea por anillo.

@@ -952,7 +952,7 @@ void hh::poll_input() {
         Uint32 limite = (Uint32)std::atoi(autquit) * 1000u;
         if (SDL_GetTicks() - t0 >= limite) {
             std::fprintf(stderr, "[HH] HH_AUTOQUIT=%s -> ultramodern::quit()\n", autquit);
-            hh::video_remember_window();  // recordar tamano/posicion en [video]
+            hh::video_remember_window();  // recordar tamaño/posicion en [video]
             ultramodern::quit();
         }
     }
@@ -963,7 +963,7 @@ void hh::poll_input() {
                 // Cierre ordenado: NO usar std::exit (destruiría std::threads joinable al
                 // ejecutar destructores estáticos -> std::terminate). quit() activa la salida
                 // limpia de recomp::start, que hace join de todos los hilos.
-                hh::video_remember_window();  // recordar tamano/posicion en [video]
+                hh::video_remember_window();  // recordar tamaño/posicion en [video]
                 ultramodern::quit();
                 break;
             case SDL_WINDOWEVENT:
@@ -1065,7 +1065,7 @@ void hh::poll_input() {
                 else if (k.sym == SDLK_F11) {
                     // Cierre rapido (comodo a pantalla completa, sin Alt+F4).
                     std::fprintf(stderr, "[HH] F11 -> ultramodern::quit()\n");
-                    hh::video_remember_window();  // recordar tamano/posicion en [video]
+                    hh::video_remember_window();  // recordar tamaño/posicion en [video]
                     ultramodern::quit();
                 }
                 else if (k.sym == SDLK_HOME && hh::menu::debug_levels_enabled()) {

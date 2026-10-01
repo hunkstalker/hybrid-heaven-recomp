@@ -316,12 +316,19 @@ void sync_resolution();
 // Rellena la pantalla CARGAR PARTIDA (definida tras rebuild_save_edit; build_tree la llama antes).
 void rebuild_load_game();
 
+// CONTINUAR: `true` si el `.pak` tiene alguna PARTIDA del jugador (slots 0..kGameSlots-1); las
+// plantillas (45..73) NO cuentan. Sin partidas la entrada sale gris y no es seleccionable.
+bool any_game_save();
+// Re-evalúa el estado dinámico de la raíz (CONTINUAR) y recoloca el cursor si quedó en una entrada
+// deshabilitada. Definida tras `step_enabled`; la llama `ensure()` en cada acceso.
+void refresh_continue_entry();
+
 // Rellena g_screens con el árbol acordado (orden de arriba a abajo).
 void build_tree() {
     g_screens.clear();
 
     std::vector<Entry> root = {
-        make_item("CONTINUE", Action::Continue),
+        make_item("CONTINUE", Action::Continue, any_game_save()),
         make_submenu("NEW GAME", Action::OpenNewGame),
         make_submenu("BATTLE MODE", Action::BattleMode),
         make_submenu("SETTINGS", Action::OpenSettings),
@@ -502,8 +509,10 @@ void build_tree() {
                                   {"0%", "10%", "20%", "30%", "40%", "50%", "60%", "70%", "80%",
                                    "90%", "100%"},
                                   Action::VolumeSelect, volume_default()),
+        // stepper=true: mostrar como < ESTÉREO > (solo el activo, con chevrons); izq MONO, der
+        // AURICULARES (como los demás selectores de este estilo).
         make_selector_with_action("OUTPUT", {"MONO", "STEREO", "HEADPHONES"}, Action::OutputSelect,
-                                  output_default()),
+                                  output_default(), true),
         make_selector_with_action("MENU SFX", {"NO", "YES"}, Action::MenuSfxToggle,
                                   menu_sfx_default()),
     }));
@@ -844,10 +853,48 @@ int step_enabled(const Screen& s, int from, int dir) {
     return -1;
 }
 
+// true si el `.pak` tiene al menos una PARTIDA del jugador (slots 0..kGameSlots-1 con metadato
+// `presente`). Las plantillas (45..73) NO cuentan: de eso se encarga `game_slot_count()`.
+// No fuerza el `load()` (lo hace `rebuild_load_game`, que `build_tree` llama al final): así una
+// llamada por frame sin `.pak` no reintenta/loguea en bucle; si no está cargado, no hay partidas.
+bool any_game_save() {
+    if (!hh::save::loaded()) return false;
+    const int n = hh::save::game_slot_count();
+    for (int i = 0; i < n; ++i) {
+        if (hh::save::slot_present(i)) return true;
+    }
+    return false;
+}
+
+// Sincroniza CONTINUAR con el `.pak` (puede cambiar tras guardar/borrar) y, si el cursor quedó sobre
+// una entrada deshabilitada (p. ej. CONTINUAR gris), lo mueve a la primera habilitada. La raíz siempre
+// tiene entradas habilitadas (NUEVA PARTIDA / SALIR), así que el bucle siempre encuentra una.
+void refresh_continue_entry() {
+    Screen* root = find_screen(ScreenId::Root);
+    if (root == nullptr) return;
+    for (Entry& e : root->entries) {
+        if (e.action == Action::Continue) {
+            e.enabled = any_game_save();
+            break;
+        }
+    }
+    const int n = static_cast<int>(root->entries.size());
+    const int cur = root->cursor;
+    if (cur < 0 || cur >= n || !root->entries[cur].enabled || root->entries[cur].label.empty()) {
+        for (int i = 0; i < n; ++i) {
+            if (root->entries[i].enabled && !root->entries[i].label.empty()) {
+                root->cursor = i;
+                break;
+            }
+        }
+    }
+}
+
 void ensure() {
     if (g_screens.empty()) {
         reset();
     }
+    refresh_continue_entry();
 }
 
 bool screen_for(Action action, ScreenId& out) {
@@ -877,7 +924,11 @@ bool screen_for(Action action, ScreenId& out) {
 }  // namespace
 
 // Reconstruye LoadGame/SaveGame desde el `.pak` (fuera del namespace anónimo: la usan los hooks).
-void refresh_load_game() { rebuild_load_game(); }
+// Refresca también el estado de CONTINUAR (una entrada recién guardada/borrada lo cambia).
+void refresh_load_game() {
+    rebuild_load_game();
+    refresh_continue_entry();
+}
 
 // Área-Parte (N-P) de un valor de escena (misma enumeración que el selector PROGRESO). Fuera del
 // namespace anónimo para exportarla (la usa `hh::save::save_live` para la cabecera del guardado).
@@ -897,6 +948,7 @@ void reset() {
     build_tree();
     g_stack.clear();
     g_stack.push_back(ScreenId::Root);
+    refresh_continue_entry();
 }
 
 const Screen& current_screen() {

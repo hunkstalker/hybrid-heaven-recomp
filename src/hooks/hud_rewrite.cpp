@@ -246,7 +246,7 @@ struct Writer {
 
     // Scissor para un elemento clasificado. Para `left`/`right` se ancla AMBOS bordes al origen del
     // elemento, con los numeros del juego relativos a ese borde: el scissor se MUEVE con el elemento
-    // conservando su tamano. Esto es clave para un panel pequeno (el mapa: 197,143..277,223) cuya
+    // conservando su tamaño. Esto es clave para un panel pequeno (el mapa: 197,143..277,223) cuya
     // "mascara" recorta el contenido: si se ensancha (lo que hacia la referencia), el contenido deja
     // de estar recortado y se sale del fondo (issues #2/#4 de la referencia). Para un scissor de
     // overscan (0,0..320,240 tras el snap) sale el frame completo, igual que antes. `spill` si
@@ -863,7 +863,7 @@ int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t 
         }
     }
 
-    // Nada mas: `dfde6ac5` (mascara compartida por radial/minimapa/menus) NO se ancla por tamano;
+    // Nada mas: `dfde6ac5` (mascara compartida por radial/minimapa/menus) NO se ancla por tamaño;
     // un intento previo por "32x32 no-radial" quedo sin validar y se retiro. La barra de combo son
     // los G_FILLRECT de la fila y=28..30, ya cubiertos arriba.
     return kAuto;

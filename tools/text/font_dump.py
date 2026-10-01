@@ -3,7 +3,7 @@
 
 El motor de texto del juego no usa una textura unica: carga **un bitmap por glifo**
 desde 6 ficheros sin comprimir de la tabla Nisitenma (uno por "color"/estilo). Cada
-glifo es un bloque de `stride` bytes; el tamano depende del estilo
+glifo es un bloque de `stride` bytes; el tamaño depende del estilo
 (p. ej. estilo 4 = 8x12 px = 48 bytes).
 
 OJO: el formato REAL del motor es **2bpp con DOS glifos empaquetados por bloque**
@@ -15,7 +15,7 @@ formato (el decode correcto esta en `src/subsystems/font.cpp`). Ver
 
 Ficheros de fuente (indices de la tabla Nisitenma):
     US: 106,107,108,109,110,111   (estilos 3,0,4,1,2,5 respectivamente)
-    EU: 115,116,117,118,119,120   (mismos tamanos que US, salvo 117: 3648 vs 2112)
+    EU: 115,116,117,118,119,120   (mismos tamaños que US, salvo 117: 3648 vs 2112)
 
 `font_dump.py` extrae esos ficheros, los corta en glifos y escribe hojas de contacto
 PNG (sin dependencias externas) para inspeccion visual, ademas de diffs US<->EU.
@@ -26,7 +26,7 @@ Uso:
     python3 tools/text/font_dump.py --diff --out work/fonts   # compara US y EU
 
 Notas:
-- El indice Nisitenma (tabla en ROM 0x39BF0) es solo un listado de offset; el tamano
+- El indice Nisitenma (tabla en ROM 0x39BF0) es solo un listado de offset; el tamaño
   se obtiene del manifiesto (`notes/us_manifest.yaml` / `eu_manifest.yaml`).
 - En el estilo 4 (8x12) el glifo se dibuja en un margen de 8x12 con 4 bits por pixel.
 """
@@ -147,7 +147,7 @@ def main():
             for name, (idx, gw, gh, bpp) in FONTS[region].items():
                 off, _ = man[idx]
                 stride = ((gw * bpp + 7) // 8) * gh
-                # tamano real del modulo (hasta el siguiente offset)
+                # tamaño real del modulo (hasta el siguiente offset)
                 nxt = min(o for i, (o, _) in man.items() if o > off)
                 size = nxt - off
                 data = rom[off:off + size]
@@ -156,7 +156,7 @@ def main():
                     os.path.join(args.out, f"font_{region}_{name}_idx{idx}.png"),
                 )
                 print(f"{region} {name} idx {idx} {gw}x{gh} stride {stride} glifos {n}")
-        # diff de tamanos estilo a estilo
+        # diff de tamaños estilo a estilo
         mus, meu = load_manifest("us"), load_manifest("eu")
         print("\nEstilo   US(idx,size)   EU(idx,size)   dif")
         for name in FONTS["us"]:
