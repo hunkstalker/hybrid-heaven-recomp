@@ -1876,12 +1876,29 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     return false;
 }
 
+// TRAZA DE CARGA (HH_LOAD_TRACE=1): registra por frame quién mueve el cursor. Sirve para diagnosticar
+// (a) el cursor que "vuelve arriba" (el nativo o `rebuild_load_game` reescriben el cursor del modelo)
+// y (b) el parpadeo de UI nativa que se cuela. Vuelca: fase, cursor del modelo (c), cursor/top/estado
+// NATIVOS del file-select (`D_801BEC05`/`D_801BEC04`/`D_801BEBCC`), flag de ocultado y `native_visible`.
+static void hh_load_trace(uint8_t* rdram, const char* tag) {
+    if (!env_set("HH_LOAD_TRACE")) return;
+    const hh::menu::Screen& s = hh::menu::current_screen();
+    auto rb = [&](uint32_t a) -> unsigned { return rdram[(a - 0x80000000u) ^ 3u]; };
+    hh::trace_log("[load-trace] %s phase=%d cursor=%d | native cur=%u top=%u st=%u page=%u | "
+                  "fs_active=%d native_visible=%d entries=%zu\n",
+                  tag, static_cast<int>(hh::menu::load_phase()), s.cursor,
+                  rb(0x801BEC05u), rb(0x801BEC04u), rb(0x801BEBCCu), rb(0x801BEC02u),
+                  hh::menu_overlay::file_select_text_skip() ? 1 : 0,
+                  hh::menu_overlay::native_visible() ? 1 : 0, s.entries.size());
+}
+
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::overlay::set_screen_blackout(false);
     // Objeto del menu (a0): lo necesita la transición de salida (func_800058DC) y la de carga.
     const uint32_t obj = static_cast<uint32_t>(ctx->r4);
     // La pantalla activa pasa a ser NUESTRA LoadGame (la pila del modelo).
     hh::menu::open_load_game();
+    hh_load_trace(rdram, "pre");
     hh::menu_overlay::suppress_native(rdram);
     hh::menu_overlay::set_file_select_active(true);   // categoría FILE-SELECT activa (ocultado)
     const bool controlling = hh::overlay::enabled();
@@ -1902,6 +1919,7 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     func_801C3D84_11BD854(rdram, ctx);   // update original del file-select, con su input neutralizado
     *in = saved;
     g_inject_native_a = false;           // la inyección (si la hubo) es de un solo frame
+    hh_load_trace(rdram, "post");       // estado tras el update nativo (ver quién movió el cursor)
     // F8 sobre el DATA LOAD: el título/`CONTROLLER PAK`/mensaje se componen SOLO en el setup, así que
     // al alternar la visibilidad hay que re-componerlos (las filas se recomponen cada frame). Se
     // re-ejecuta el compositor del SETUP LOAD (`func_801426B0`, el mismo que corre el flujo nativo del

@@ -1127,6 +1127,13 @@ static bool g_load_open = false;
 // file-select al dar CONTINUAR, para que la pantalla activa sea la nuestra.
 void open_load_game() {
     ensure();
+    // Ya está abierta: NO se reconstruye la lista. `rebuild_load_game()` fuerza el cursor al primer
+    // slot con datos; llamarlo cada frame (el hook corre por frame) devolvía el cursor arriba tras
+    // cada movimiento (bug "se mueve abajo y vuelve arriba"). La lista se refresca al (re)entrar.
+    if (g_load_open && g_stack.size() == 2 && g_stack[0] == ScreenId::Root &&
+        g_stack[1] == ScreenId::LoadGame) {
+        return;
+    }
     rebuild_load_game();
     if (!g_load_open) {
         // (Re)entrada en CONTINUAR: el flujo arranca en `Browse` (lista interactiva). Sin esto se
@@ -1136,9 +1143,6 @@ void open_load_game() {
         g_load_yes = true;
         g_load_target_slot = -1;
         g_load_open = true;
-    }
-    if (g_stack.size() == 2 && g_stack[0] == ScreenId::Root && g_stack[1] == ScreenId::LoadGame) {
-        return;   // ya está abierta
     }
     g_stack.clear();
     g_stack.push_back(ScreenId::Root);
