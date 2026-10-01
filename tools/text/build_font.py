@@ -106,6 +106,14 @@ def rotate180(g):
     return [[g[h - 1 - y][w - 1 - x] for x in range(w)] for y in range(h)]
 
 
+def shift_up(g, n):
+    h, w = len(g), len(g[0])
+    out = [[0] * w for _ in range(h)]
+    for y in range(n, h):
+        out[y - n] = g[y][:]
+    return out
+
+
 def hshrink(g, neww):
     h, w = len(g), len(g[0])
     out = [[0] * neww for _ in range(h)]
@@ -122,7 +130,8 @@ def compose_extra(font_fc, w, h):
     for cp, v in EXTRA_ROT.items():
         if h == 8:
             continue                                    # el menu no usa ¿¡
-        g = auto_shadow(rotate180(ink(font_fc.glyph(v))), w, h)
+        # Sube 2 filas: el rotado del `?`/`!` (12 filas) caia en 2..11 y su sombra inferior se cortaba.
+        g = auto_shadow(shift_up(rotate180(ink(font_fc.glyph(v))), 2), w, h)
         out[cp] = (g, "comp")
     half = w // 2
     for cp, pair in EXTRA_LIG.items():
@@ -242,17 +251,22 @@ def bbox(g, y0=0, y1=None):
 
 
 def extract_mark(font_eu, mark_name, base_glyph, w, h):
+    # Solo la TINTA (nivel 1) de la marca: los píxeles de sombra del glifo EU de origen (nivel >=2) se
+    # descartan porque ensucian la tilde (p. ej. un pixel arriba-izquierda) y `auto_shadow` ya genera
+    # la sombra limpia (+1,+1). Ver 2026-10-02.
     src_cp, mode = MARKS[mark_name]
     g = font_eu.glyph(REAL[src_cp])
     if mode == "row0":
-        return [(x, 0, g[0][x]) for x in range(w) if g[0][x]]
+        return [(x, 0, 1) for x in range(w) if g[0][x] == 1]
     if mode == "cedilla":
         bb = bbox(base_glyph)
         y0 = (bb[3] - 2) if bb else h - 4
-        return [(x, y, g[y][x]) for y in range(y0 + 1, h) for x in range(w) if g[y][x]]
-    bb = bbox(base_glyph)
-    top = bb[1] if bb else h // 2
-    return [(x, y, g[y][x]) for y in range(0, top) for x in range(w) if g[y][x]]
+        return [(x, y, 1) for y in range(y0 + 1, h) for x in range(w) if g[y][x] == 1]
+    # La marca son las filas por ENCIMA del cuerpo de la letra del glifo EU. En color4 el cuerpo de las
+    # minusculas empieza en la fila 3 (medido: e/o/a/n/u en fila 3; el tallo de la `i` en fila 4), asi
+    # que el acento son las filas 0..2. NO usar el `bb[1]` de la letra destino: tras quitar el punto de
+    # la `i` vale 4 y capturaba la barra superior del cuerpo (bug de la `T` con tilde). Ver 2026-10-02.
+    return [(x, y, 1) for y in range(0, 3) for x in range(w) if g[y][x] == 1]
 
 
 def strip_dot(g, rows):
@@ -272,14 +286,14 @@ def paste(base, mark, dx, dy, w, h):
     return out
 
 
-def place_top(base, mark, w, h):
+def place_top(base, mark, w, h, gap=0):
     bb = bbox(base)
     if bb is None or not mark:
         return base
     mcx = (min(m[0] for m in mark) + max(m[0] for m in mark)) // 2
     my1 = max(m[1] for m in mark)
     dx = (bb[0] + bb[2]) // 2 - mcx
-    dy = bb[1] - 1 - my1
+    dy = bb[1] - 1 - my1 - gap
     return paste(base, mark, dx, dy, w, h)
 
 
@@ -346,11 +360,16 @@ def compose_all(font_fc, font_eu, w, h):
             if base is None:
                 base = compress(font_fc.glyph(base_value(ord(letter))), 2, calv(w, h), w, h)
         else:
+            # color4: la `i`/`j` lleva PUNTO en la fila 2 (con sombra en la 3) y el tallo empieza en la 4.
+            # Para `í` hay que QUITAR el punto (el acento lo sustituye), como en el menu. Ver 2026-10-02.
             base = font_fc.glyph(base_value(ord(letter)))
             if ord(letter) in DOTTED:
                 base = strip_dot(base, 4)
         mark = extract_mark(font_eu, mark_name, base, w, h)
-        g = place_cedilla(base, mark, w, h) if mark_name.endswith("ced") else place_top(base, mark, w, h)
+        # `i`/`j`: 1 px de separacion entre el acento y la letra (el acento va donde estaba el punto).
+        gap = 1 if ord(letter) in DOTTED else 0
+        g = (place_cedilla(base, mark, w, h) if mark_name.endswith("ced")
+             else place_top(base, mark, w, h, gap))
         acc[cp] = (auto_shadow(g, w, h), "comp")
     # especiales
     for cp, kind in SPECIAL.items():

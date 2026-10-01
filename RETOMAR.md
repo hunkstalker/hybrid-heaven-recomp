@@ -1,4 +1,4 @@
-# RETOMAR — handoff (2026-10-01)
+# RETOMAR — handoff (2026-10-02)
 
 > Handoff para la próxima sesión. **Rama de trabajo: `menu-carga-guardado-partida`** (creada desde
 > `menu-edicion-partida`; nada pusheado; `main` = v0.5.1). Reglas: `AGENTS.md` y `docs/documentation.md`.
@@ -11,16 +11,22 @@
 > LEVEL/TIME` traducidos, `ULTIMATE` fr y `NO DATA` fr a 2 líneas). Detalle: `notes/2026-10-01-i18n-*.md`,
 > `notes/2026-10-01-menu-continuar-salida-fullscreen.md` y `notes/2026-10-01-slot-dificultad-y-traduccion.md`.
 
-## 🎯 TAREA ACTUAL: tareas pequeñas de menú (HECHAS y VALIDADAS en Windows, 2026-10-01)
+## ✅ HECHO y VALIDADO en Windows (2026-10-02): acentos/`¿`/`¡` en los mensajes del overlay
 
-> **ESTADO 2026-10-01: HECHO y VALIDADO en Windows.** (a) `DATA EDIT` fuera de `MODO COMBATE` (no
-> deshabilitado); (b) **letra de dificultad** a la izquierda del nivel en la caja del slot (1.ª letra
-> de la traducción NORMAL/HARD/ULTIMATE; dato = byte `+7` del registro = `0x801BBC0D`, leído con
-> `save::meta_difficulty`, persistido en `save_live`), en **columna fija** (5 celdas del borde derecho)
-> → no se mueve con 2/3 dígitos y el `100` no se sale; (c) rótulos `AREA/LEVEL/TIME` **traducidos**
-> (clave nueva `TIME`); (d) `ULTIMATE` fr corregido (`SUPRÊME` → `ULTIME`) y `NO DATA` fr a 2 líneas
-> (`PAS DE\nDONNÉES`; el centrado del slot ya soporta `\n`). Detalle y margen por idioma:
-> **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**. Un tema = un commit.
+> **Tarea de la sesión (commiteada).** Los mensajes de la cápsula (DATA SAVE/LOAD) salían sin la `í`
+> (`... aqu .`) ni el `¿`. **Causa `[MEDIDO]`**: la ROM US de `color4` solo trae **88 glifos** (sin
+> acentos). Solución: **franja propia de acentos** en el atlas (`font.cpp`, `kAccentTop`, celdas 8x12
+> por codepoint latin-1) consultada por `face_glyph_uv(Color4, c>=0x80)`, cocinando **`hh::kGameGlyphs`**
+> (`include/hh/game_font_color4.h`) = la **misma tipografía `color4`**: glifos reales de color4 EU +
+> compuestos letra-base color4 + marca (**no** `hh::kAccentGlyphs`, que son color0 8x8). `overlay.cpp`
+> reutiliza el camino; fuera el hack del `?` girado para el `¿` y el CP437. Detalles finos: `í/ì/î/ï`
+> sin punto y con 1 px de separación, sombra negra, `¿`/`¡` subidos 2 filas (no se cortan). Detalle/handoff:
+> **`notes/2026-10-02-tildes-y-signos-en-mensajes.md`**. Ficheros: `src/subsystems/font.cpp`,
+> `src/platform/overlay.cpp`, `tools/text/build_font.py`, `include/hh/game_font_color4.h`.
+
+### Tareas pequeñas de menú (bloque anterior) — HECHO y VALIDADO en Windows (2026-10-01)
+> `DATA EDIT` fuera; letra de dificultad en el slot; `AREA/LEVEL/TIME` traducidos; `ULTIMATE` fr y
+> `NO DATA` fr a 2 líneas. Detalle: **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**.
 
 ### Tareas de i18n (bloque anterior) — HECHO y VALIDADO en Windows
 > Detalle en `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.

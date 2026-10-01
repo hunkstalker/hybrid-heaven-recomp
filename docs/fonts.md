@@ -123,10 +123,12 @@ no cambian. Evidencia y medidas: `../notes/2026-09-30-data-load-maqueta-1a1.md`.
 
 ## 7. Acentos, kana y añadir una fuente
 
-- **Acentos (ES/CA/FR/DE)**: solo el menú/`Color0` los compone a mano (letra base + marca) porque la
-  ROM US no trae acentos en `color0`; ver `tools/text/menu_marks.py` e `include/hh/menu_marks.h`. La
-  fuente **in-game** con acentos es **color4 EU**: `tools/text/build_font.py --style color4` →
-  `include/hh/game_font_color4.h` (pendiente cablear en el texto in-game, no en este atlas).
+- **Acentos (ES/CA/FR/DE)**: la ROM US no trae acentos en `color0` ni en `color4`. Para el menú/`Color0`
+  se componen a mano (letra base + marca): `tools/text/menu_marks.py` → `include/hh/menu_marks.h`. Para
+  el **texto/mensaje `Color4`** (p. ej. la cápsula DATA SAVE/LOAD) se usa `hh::kGameGlyphs`
+  (`include/hh/game_font_color4.h`): glifos **reales de color4 EU** + **compuestos letra-base color4 +
+  marca** (`tools/text/build_font.py --style color4`), cocidos en la franja de acentos del atlas
+  (`font.cpp`, `kAccentTop`). Pendiente: cablearlo también en el **texto in-game**.
 - **Kana (JA)**: vive en los valores ≥64 de `color0`; mapeo en `include/hh/jp_kana.h`
   (`jp_kana_value`). Solo la rama `Color0` la resuelve.
 - **Añadir una fuente nueva a la UI propia**: (1) entrada en `Face`; (2) offset/size/celda/stride en

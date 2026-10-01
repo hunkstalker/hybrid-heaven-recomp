@@ -9,20 +9,20 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 220 | 2026-10-01 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 226 | 2026-10-01 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 566 | 2026-10-01 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 582 | 2026-10-01 |
 
 ## Técnico y guías (vivos)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
-| [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-09-27 |
+| [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
-| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 143 | 2026-09-30 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-09-30 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 343 | 2026-10-01 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
@@ -63,8 +63,10 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
 | [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |
 | [TÍTULO DEL ÁREA — calibración del texto (1:1 con el original)](../notes/2026-10-01-titulo-area-calibracion.md) | Sesión 2026-10-01 (3.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Continúa | 131 | 2026-10-01 |
+| [Tareas pequeñas de menú: DATA EDIT, dificultad en el slot y traducción de las filas (2026-10-01)](../notes/2026-10-01-slot-dificultad-y-traduccion.md) | Sesión 2026-10-01 (6.ª). Rama **`menu-carga-guardado-partida`**. Cuatro tareas pequeñas pedidas por | 108 | 2026-10-01 |
 | [menu.cpp — higiene y correcciones en el flujo de guardado/editor (pre-tarea de CARGAR)](../notes/2026-10-01-menu-save-edit-higiene.md) | Sesión 2026-10-01. Rama **`menu-carga-guardado-partida`**. Revisión de | 57 | 2026-10-01 |
 | [Menú/vídeo: CONTINUAR sin partidas, SALIDA stepper y pantalla completa ↔ ventana (2026-10-01)](../notes/2026-10-01-menu-continuar-salida-fullscreen.md) | Sesión 2026-10-01 (5.ª). Rama **`menu-carga-guardado-partida`**. Tres tareas pequeñas pedidas por el | 86 | 2026-10-01 |
 | [i18n — unificar todas las traducciones en `assets/lang/*.txt` (plan, Opción A)](../notes/2026-10-01-i18n-unificar-traducciones-plan.md) | Sesión 2026-10-01 (4.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Handoff de la tarea de | 142 | 2026-10-01 |

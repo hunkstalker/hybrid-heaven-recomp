@@ -580,7 +580,9 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 while (i < t.text.size()) {
                     const unsigned cp = utf8_next_cp(t.text, i);
                     unsigned gx = 0, gy = 0;
-                    bool have = false, flip = false;
+                    bool have = false;
+                    // Puntuacion/simbolos ASCII (<128) via `face_glyph_uv`. Los >=128 los resuelve la
+                    // fuente segun el tipo de letra: kana en color0, acentos/`¿`/`¡` en color4.
                     if (cp < 0x80) {
                         have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp),
                                                              gx, gy);
@@ -589,21 +591,16 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                         if (hh::font::game::jp_kana_value(cp, v)) {
                             have = hh::font::game::face_value_uv(t.face, v, gx, gy);
                         }
-                    } else if (cp == 0xBF && t.face == hh::font::game::Face::Color4) {
-                        // '¿' (interrogante de apertura ES): mismo glifo '?' de la fuente (valor 75)
-                        // girado 180 grados -> se dibujan las UVs invertidas.
-                        have = hh::font::game::face_value_uv(t.face, 75, gx, gy);
-                        flip = true;
+                    } else if (cp < 0x100 && t.face == hh::font::game::Face::Color4) {
+                        // color4 (mensaje): acentos/¿/¡ latin-1 (celdas cocinadas en el atlas).
+                        have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp),
+                                                             gx, gy);
                     }
                     if (have) {
-                        float u0 = static_cast<float>(gx) / g_atlas_w;
-                        float v0 = static_cast<float>(gy) / g_atlas_h;
-                        float u1 = u0 + cw / g_atlas_w;
-                        float v1 = v0 + ch / g_atlas_h;
-                        if (flip) {
-                            std::swap(u0, u1);
-                            std::swap(v0, v1);
-                        }
+                        const float u0 = static_cast<float>(gx) / g_atlas_w;
+                        const float v0 = static_cast<float>(gy) / g_atlas_h;
+                        const float u1 = u0 + cw / g_atlas_w;
+                        const float v1 = v0 + ch / g_atlas_h;
                         append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
                                     t.color, u0, v0, u1, v1);
                     }

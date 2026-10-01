@@ -3,6 +3,7 @@
 
 #include "hh.h"
 #include "hh/font.h"
+#include "hh/game_font_color4.h"
 #include "hh/jp_kana.h"
 #include "hh/menu_marks.h"
 
@@ -44,7 +45,15 @@ constexpr unsigned kColor4Stride = 48;
 // 0..87: 0..63 ASCII (espacio/digitos/letras) + 64..87 puntuacion (., :, ?, !, ...) que la fuente SI
 // tiene; el mapeo ASCII->valor medido del motor se aplica en `face_glyph_uv`/`color4_punct_value`.
 constexpr unsigned kColor4Values = 88;
-constexpr unsigned kColor4Rows = (kColor4Values + kAtlasCols - 1) / kAtlasCols;
+// Filas de la banda color4: 6 x 16 = 96 celdas (88 ASCII/puntuacion).
+constexpr unsigned kColor4Rows = (kColor4Values + kAtlasCols - 1) / kAtlasCols;   // 6
+// Los acentos latin-1 (0x80..0xFF = 128) NO caben en la banda color4. Se cocinan en una franja
+// APARTE (8x12) tras ella, con las mismas dimensiones de celda; se buscan por codepoint, no por la
+// formula `value = ...` de la parte mapeada.
+constexpr unsigned kAccentTop = kColor4Top + kColor4Rows * kColor4H;
+constexpr unsigned kAccentCols = kAtlasWidth / kColor4W;   // 16
+constexpr unsigned kAccentCells = 128;                     // 0x80..0xFF
+constexpr unsigned kAccentRows = (kAccentCells + kAccentCols - 1) / kAccentCols;
 
 // --- Fuente color3 (Nisitenma US idx 106, 12x13, stride 78): titulo grande ("DATA LOAD") ---
 constexpr uint32_t kColor3RomOffset = 0x6E1C86;
@@ -57,7 +66,7 @@ constexpr unsigned kColor3Stride = 78;
 constexpr unsigned kColor3Cells = 27;
 constexpr unsigned kColor3Cols = kAtlasWidth / kColor3W;   // 10
 constexpr unsigned kColor3Rows = (kColor3Cells + kColor3Cols - 1) / kColor3Cols;
-constexpr unsigned kColor3Top = kColor4Top + kColor4Rows * kColor4H;
+constexpr unsigned kColor3Top = kAccentTop + kAccentRows * kColor4H;
 
 // --- Fuente color1 (Nisitenma US idx 109, 10x10, stride 50): kana "grande" para el titulo JA ---
 // Igual que color0, su fichero es byte-identico US<->JP y el port lo LEE DE LA ROM en runtime (no se
@@ -176,6 +185,33 @@ void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3,
         for (unsigned v = 0; v < kColor4Values; ++v) vals[v] = v;
         bake_face(font4, kColor4Stride, kColor4W, kColor4H, vals, kColor4Values, kAtlasCols,
                   kColor4Top, /*keep_shadow=*/true);
+    }
+    // Acentos/`¿`/`¡` (franja `kAccentTop`): la ROM US de color4 solo trae 88 glifos (sin acentos).
+    // La MISMA tipografia color4 (8x12) con acentos ya existe en `hh::kGameGlyphs`: glifos REALES de
+    // color4 EU + compuestos letra-base-8x12 + marca (`tools/text/build_font.py --style color4`). Aqui
+    // se COCINAN por codepoint latin-1 en esta franja, con la celda 8x12 y los mismos niveles
+    // (1=tinta, 2=gris, 3=negro) que el resto de color4, para que `face_glyph_uv` los sirva.
+    for (unsigned a = 0; a < hh::kGameGlyphCount; ++a) {
+        const hh::GameGlyph& ag = hh::kGameGlyphs[a];
+        if (ag.cp < 0x80u || ag.cp > 0xFFu) continue;   // solo latin-1 (1 byte)
+        const unsigned cell = ag.cp - 0x80u;
+        const unsigned gx = (cell % kAccentCols) * kColor4W;
+        const unsigned gy = kAccentTop + (cell / kAccentCols) * kColor4H;
+        for (unsigned y = 0; y < kColor4H; ++y) {
+            for (unsigned x = 0; x < kColor4W; ++x) {
+                const unsigned i = y * kColor4W + x;
+                const uint8_t byte = ag.block[i >> 1];
+                const uint8_t nibble = (i & 1u) ? (byte & 0x0Fu) : ((byte >> 4) & 0x0Fu);
+                const unsigned lvl = (nibble >> 2) & 3u;   // valor PAR -> plano 0xCC (ver pack_even)
+                const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
+                // Sombra NEGRA (como el nivel 3 de las letras color4 de la ROM): los acentos generados
+                // traen la sombra normalizada a nivel 2, que aqui NO debe salir gris (ver 2026-10-02).
+                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
+                g_atlas[p + 1] = 255;
+                g_atlas[p + 2] = 255;
+                g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
+            }
+        }
     }
     // color3 (titulo): celda 0 = espacio (valor 0), celdas 1..26 = 'A'..'Z' (valor 0x76 + idx).
     {
@@ -368,10 +404,20 @@ bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y) {
     }
     if (f == Face::Color4) {
         unsigned v = 0;
-        if (!glyph_value(c, v) || v >= kColor4Values) return false;
-        x = (v % kAtlasCols) * kColor4W;
-        y = kColor4Top + (v / kAtlasCols) * kColor4H;
-        return true;
+        if (glyph_value(c, v) && v < kColor4Values) {
+            x = (v % kAtlasCols) * kColor4W;
+            y = kColor4Top + (v / kAtlasCols) * kColor4H;
+            return true;
+        }
+        // Latin-1 (acentos/¿/¡): franja `kAccentTop` (ver `bake_atlas`).
+        if (c >= 0x80u) {
+            const unsigned cell = static_cast<unsigned>(c) - 0x80u;
+            if (cell >= kAccentCells) return false;
+            x = (cell % kAccentCols) * kColor4W;
+            y = kAccentTop + (cell / kAccentCols) * kColor4H;
+            return true;
+        }
+        return false;
     }
     // Color3: solo espacio + mayusculas A-Z (el titulo "DATA LOAD").
     unsigned cell = 0;

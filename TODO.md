@@ -5,6 +5,12 @@
 
 ## Ahora (priorizado)
 
+- [x] **Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) — HECHO y VALIDADO en
+  Windows (2026-10-02)**: la ROM US de `color4` solo trae 88 glifos → se añade una **franja de acentos**
+  al atlas (`font.cpp`, cocina `hh::kGameGlyphs` = color4 EU real + compuestos base+marca) y
+  `face_glyph_uv(Color4, c>=0x80)` la consulta; fuera el hack del `?` girado y el CP437. Detalle:
+  `notes/2026-10-02-tildes-y-signos-en-mensajes.md`.
+
 - [x] **Tareas pequeñas de menú (DATA EDIT, dificultad en el slot, traducción de las filas) — HECHO y
   VALIDADO en Windows (2026-10-01)**: (a) **quitado `DATA EDIT`** del menú `MODO COMBATE` (no
   deshabilitado; `menu.cpp`); (b) **letra de dificultad** a la izquierda del nivel en la caja del slot
