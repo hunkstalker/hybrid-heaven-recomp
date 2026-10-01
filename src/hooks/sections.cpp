@@ -1772,6 +1772,10 @@ static void hh_leave_load_game(uint8_t* rdram, recomp_context* ctx, uint32_t obj
     // -> título vacío/texto fantasma y, al agotar el idle, attract. El reseteo natural lo hace
     // `hh_title_menu_hook`, pero tarda varios frames en correr tras la transición.
     hh::menu_overlay::set_file_select_active(false);
+    // Resetear el `sel` del menú de título (`0x801CC8C4`) a 0 (NEW GAME): al volver del file-select
+    // debe quedar en el menú de título, no re-disparar CONTINUE (que era `sel=1`). La rama CONTINUE
+    // del port llama directo al callback, pero la propia maquina nativa tambien lee `sel`.
+    rdram[(0x801CC8C4u - 0x80000000u) ^ 3u] = 0;
     hh::log("[load] salir de CARGAR -> menu de titulo (rama nativa)\n");
 }
 
@@ -1962,6 +1966,15 @@ static void hh_load_trace(uint8_t* rdram, const char* tag) {
 
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::overlay::set_screen_blackout(false);
+    // TRAZA (HH_LOAD_TRACE): cuenta CADA entrada al file-select. Si tras volver con B (cinemática) el
+    // file-select se vuelve a invocar, aquí se ve la re-entrada (origen del "vuelve a la pantalla de
+    // carga"). Se registra también el `sel` del menú de título (`0x801CC8C4`) para ver si quedó en 1.
+    if (env_set("HH_LOAD_TRACE")) {
+        static unsigned n_in = 0;
+        hh::log("[load-trace] file-select ENTRADA #%u frame=%ld g_load_enter=%d sel=%u\n",
+                ++n_in, g_hook_frame, g_load_enter ? 1 : 0,
+                rdram[(0x801CC8C4u - 0x80000000u) ^ 3u]);
+    }
     // Ya tomamos el control del file-select: la transición desde el título terminó.
     ++g_hook_frame;
     if (g_load_enter && env_set("HH_LOAD_TRACE")) {

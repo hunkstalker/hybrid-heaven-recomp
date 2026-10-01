@@ -24,17 +24,20 @@
   `first_free_game_slot()` (`slot_present`), igual que la cápsula (antes `slot_used`=progreso≠0 podía
   pisar un save en 1-0); (3) eliminado `load_game_row_present()` (sin uso) y un comentario huérfano.
   Sin cambio de UI/comportamiento. Detalle: `notes/2026-10-01-menu-save-edit-higiene.md`.
-- [•] **UI de CARGA en el submenú `CONTINUAR` — IMPLEMENTADA (2026-10-01)**: flujo propio por fases
-  (`hh::menu::LoadPhase`: `Browse` → `ConfirmDelete` → `Removed`, + `Loaded` reservado), análogo al
-  guardado pero con **A = cargar directo** (sin Yes/No) y **X = borrar**. **Carga REAL**: al confirmar
-  se deserializa el slot (`func_801423C8`) y se arranca la escena replicando la rama de ÉXITO nativa
+- [x] **UI de CARGA en el submenú `CONTINUAR` — IMPLEMENTADA y VALIDADA en Windows (2026-10-01)**:
+  flujo propio por fases (`hh::menu::LoadPhase`: `Browse` → `ConfirmDelete` → `Removed`, + `Loaded`
+  reservado), análogo al guardado pero con **A = cargar directo** (sin Yes/No) y **X = borrar**.
+  **Carga REAL**: al confirmar se deserializa el slot (`func_801423C8`) y se arranca la escena
+  replicando la rama de ÉXITO nativa
   (`func_80142570`+`func_800179B0`+`func_801C11BC`+`func_800058DC(obj, 0x801C3E24)`, con `D_801CC8CC=2`
   → transición `func_8012FE50(0x18, D_801BBBF4, 6, 1, 0)` usando el índice de escena del slot). **B**
   vuelve al **menú de título** (rama de CANCELAR nativa, NO a la cápsula). Controles propios
-  (`feed_load_flow`, input nativo muteado) y **mensajes Controller/Rumble Pak ocultos** (vaciado
-  `func_80142570` cada frame). Textos: mensaje de `Browse` = `Select play data to be loaded pressing
-  A/J or X/H to remove.` (original + bindings), borrado reutiliza los del guardado. **Pendiente:
-  validar en Windows**. Detalle: `notes/2026-10-01-cargar-partida-continuar.md`.
+  (`feed_load_flow`, input nativo muteado). **Transición de entrada limpia**: `g_load_enter` evita
+  parpadeo/retardo y la superposición de la UI al título; el aviso de Controller Pak no se dibuja
+  (hook `func_800179B0`). **Vuelta con `B`** ya no reaparece la pantalla de carga (`close_load_game`
+  retira `LoadGame` de la pila). Textos: mensaje de `Browse` = `Select play data to be loaded pressing
+  A/J or X/H to remove.` (original + bindings), borrado reutiliza los del guardado. Detalle:
+  `notes/2026-10-01-cargar-partida-continuar.md`.
 - [x] **`DEBUG NIVELES` + `IR A ÁREA` (EXTRAS) — salto a cualquier nivel para TEST (2026-09-29,
   VALIDADO en Windows)**: **mecánica central descubierta y medida** (documento maestro:
   `notes/2026-09-29-editor-area-parte-plan.md`). Puntos clave:

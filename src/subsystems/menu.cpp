@@ -1150,10 +1150,15 @@ void open_load_game() {
 }
 
 // Al salir de CONTINUAR (transición de escena / B al título): marca la sesión como cerrada para que
-// la próxima entrada reinicie el flujo en `Browse`.
+// la próxima entrada reinicie el flujo en `Browse` y RETIRA la pantalla de carga de la pila. Sin el
+// pop, la pila seguía siendo [Root, LoadGame]: al volver al TÍTULO, `title_update` publicaba
+// `current_screen()` = LoadGame y se veía la pantalla de carga en vez del menú (bug 2026-10-01).
 void close_load_game() {
     g_load_open = false;
     g_load_target_slot = -1;
+    while (g_stack.size() > 1 && g_stack.back() == ScreenId::LoadGame) {
+        g_stack.pop_back();
+    }
 }
 
 // Fase del flujo de guardado (capsula). `g_save_yes` = opcion resaltada en el Yes/No activo.

@@ -59,7 +59,17 @@ func_801C3E24)`. Además:
 
 Es el **inverso** del guardado (`save_live`) y **no** pasa por la cápsula. Al salir (B), se replica la
 rama de **CANCELAR** nativa (ret==2): `func_8012FE50(0x17, 0x73, 1, 1, 0)` + callback `func_801C40EC`
-→ **menú de título** (coherente: CARGAR no es la cápsula).
+→ **menú de título** (coherente: CARGAR no es la cápsula). Esa transición recarga el módulo de título y
+reproduce la **cinemática de arranque** (logos KONAMI/KCEO) antes del menú: es la ruta NATIVA de
+vuelta, no un bug del port.
+
+**FIX vuelta (2026-10-01)**: `close_load_game()` ahora **RETIRA `LoadGame` de la pila del modelo**
+(`pop`). Sin el pop, la pila seguía siendo `[Root, LoadGame]`: al volver al TÍTULO, `title_update`
+publicaba `current_screen()` = LoadGame y se veía **la pantalla de carga en vez del menú** (bug
+reportado por el mantenedor). Además se resetea `sel` (`0x801CC8C4`) a 0 al salir. `close_load_game`
+lo llama `hh_goto_hook` en cada cambio de pantalla (no-op si el tope no es LoadGame). Evidencia:
+`hh.log` 2026-10-01 — tras `salir de CARGAR`, las publicaciones pasan a `screen=0` (Root) y `screen=19`
+**no vuelve a aparecer**; queda en el menú de título.
 
 ## 4. Modelo (`include/hh/menu.h`, `src/subsystems/menu.cpp`)
 
@@ -82,10 +92,12 @@ rama de **CANCELAR** nativa (ret==2): `func_8012FE50(0x17, 0x73, 1, 1, 0)` + cal
 - **Controller/Rumble Pak**: con el nativo oculto se vacían cada frame las `0x1C` ranuras de texto
   (`func_80142570`), como en el guardado; así el prompt `Please connect Controller Pak…` no se cuela.
 
-## 6. Pendiente de validar en Windows
+## 6. Estado (VALIDADO en Windows, 2026-10-01)
 
-- `CONTINUAR → elegir slot → carga` (texto **y** mapa correctos) → gameplay.
-- `B` en la lista → vuelve al **menú de título** (no a la cápsula).
+- **Entrada** `CONTINUAR`: se ve el título y, al arrancar el file-select, la UI de carga limpia (sin
+  superposición del título/logo, sin parpadeo, sin retardo). **VALIDADO**.
+- **Vuelta** con `B`: cinemática nativa → **menú de título** (ya no reaparece la pantalla de carga).
+  **VALIDADO**.
 - `X` sobre una partida → `Remove play data?` → `Remove completed.` → A vuelve a la lista.
 - Sin cartel de Controller/Rumble Pak. F8 (nativo visible) sigue mostrando el DATA LOAD nativo.
 
@@ -107,6 +119,11 @@ con: fase, cursor del modelo, cursor/top/estado/página NATIVOS del file-select
    al agotar el idle, attract. Prueba en la traza: `native cur/st=0` siempre y `fs_active=1`
    persistente tras salir; `[native] filter text=801CECFC` (etiqueta del TÍTULO) blanqueada 914 veces.
    Fix: `set_file_select_active(false)` en `hh_leave_load_game`/`hh_do_load_game`.
+3. **Vuelta con `B` acababa en la pantalla de carga** (corregido): `close_load_game()` no quitaba
+   `LoadGame` de la pila del modelo, así que al volver al título `title_update` publicaba LoadGame.
+   La traza nueva `HH_LOAD_TRACE` cuenta cada publicación (`publica CARGAR/GUARDAR #n … depth=N`) y
+   cada entrada al file-select (`file-select ENTRADA #n … sel=…`): tras `salir de CARGAR` no hay más
+   entradas y las publicaciones pasan a `screen=0` (Root) → **VALIDADO** por el mantenedor.
 
 **Nota de comportamiento (a confirmar en Windows):** el flujo nativo de CONTINUE/CANCELAR usa
 `func_80005670(obj, 0x80044090)` (mismo descriptor de transición que GAME START), y la rama de

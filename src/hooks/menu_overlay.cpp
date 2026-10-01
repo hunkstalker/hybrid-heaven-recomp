@@ -791,15 +791,14 @@ void title_update(uint8_t* rdram) {
                         screen.entries.size());
             }
         }
-        // DIAGNÓSTICO (HH_LOAD_TRACE): primera publicación de la UI de carga tras cada transición.
-        // Mide, en frames de overlay, cuándo aparece de verdad nuestra pantalla.
+        // DIAGNÓSTICO (HH_LOAD_TRACE): cada vez que se publica la pantalla de carga (LoadGame/SaveGame)
+        // se registra un contador. Sirve para ver si REAPARECE tras volver al título (bug "vuelve a
+        // carga"): si el contador sube de nuevo sin haber pulsado CONTINUAR, es una re-publicación.
         if (std::getenv("HH_LOAD_TRACE") != nullptr) {
-            static bool pub_reported = false;
-            if (!pub_reported) {
-                pub_reported = true;
-                hh::log("[overlay] primera UI de carga publicada (screen=%d entries=%zu)\n",
-                        static_cast<int>(screen.id), screen.entries.size());
-            }
+            static unsigned n_pub = 0;
+            hh::log("[overlay] publica CARGAR/GUARDAR #%u screen=%d entries=%zu depth=%d\n",
+                    ++n_pub, static_cast<int>(screen.id), screen.entries.size(),
+                    hh::menu::depth());
         }
         g_publish_counter.fetch_add(1, std::memory_order_relaxed);
         hh::overlay::publish(std::move(frame));
