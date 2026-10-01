@@ -791,6 +791,16 @@ void title_update(uint8_t* rdram) {
                         screen.entries.size());
             }
         }
+        // DIAGNÓSTICO (HH_LOAD_TRACE): primera publicación de la UI de carga tras cada transición.
+        // Mide, en frames de overlay, cuándo aparece de verdad nuestra pantalla.
+        if (std::getenv("HH_LOAD_TRACE") != nullptr) {
+            static bool pub_reported = false;
+            if (!pub_reported) {
+                pub_reported = true;
+                hh::log("[overlay] primera UI de carga publicada (screen=%d entries=%zu)\n",
+                        static_cast<int>(screen.id), screen.entries.size());
+            }
+        }
         g_publish_counter.fetch_add(1, std::memory_order_relaxed);
         hh::overlay::publish(std::move(frame));
         return;

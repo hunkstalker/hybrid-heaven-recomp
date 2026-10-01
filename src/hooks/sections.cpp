@@ -101,6 +101,11 @@ bool g_inject_native_a = false;
 // TÍTULO no debe apagar la categoría FILE-SELECT (el callback nativo puede seguir siendo el del título
 // 1-2 frames) ni republicar el frame de la raíz (evita el parpadeo/retardo al aparecer la UI de carga).
 bool g_load_enter = false;
+// Contador de frames de la transición a CARGAR (solo para la traza: mide el hueco CONTINUAR->UI).
+long g_load_enter_frame = 0;
+// Contador global de frames (lo incrementan los hooks de título/file-select): permite medir cuántos
+// frames reales pasan entre CONTINUAR y la primera UI de carga. Solo diagnóstico.
+long g_hook_frame = 0;
 
 // MODO COMBATE: cursor del submenú de batalla (byte global que usa func_801C4200; 0..3 =
 // VS MODE / CREATURE BATTLE / DATA EDIT / EXIT). El overlay lo fija y reenvía A cuando confirma una
@@ -1395,9 +1400,12 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             // nativo puede seguir siendo el del TÍTULO 1-2 frames; ver hh_title_menu_hook).
             hh::menu_overlay::set_file_select_active(true);
             g_load_enter = true;
-            hh::menu_overlay::hide_now();   // oculta YA el frame del título (evita verlo de fondo)
+            g_load_enter_frame = g_hook_frame;
+            // Publica YA nuestra pantalla de carga (la pila del modelo pasa a [Root, LoadGame]) para
+            // NO esperar a que el file-select tome el control (evita el hueco con el nativo visible).
+            hh::menu::open_load_game();
             if (env_set("HH_LOAD_TRACE")) {
-                hh::log("[load-trace] CONTINUAR -> g_load_enter=1 (transicion a file-select)\n");
+                hh::log("[load-trace] CONTINUAR -> g_load_enter=1 frame=%ld\n", g_hook_frame);
             }
             recomp_context t0 = *ctx;
             t0.r4 = 0;
@@ -1556,6 +1564,15 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
     // VACIAS via 0x8001B204 con `a3=0x8018F0F0`. Esas llamadas hay que DEJARLAS PASAR aunque el nativo
     // este oculto; si no, al ocultar (p. ej. F8-off) el texto ya compuesto no se borra y queda pegado.
     constexpr uint32_t kFileSelectClearStr = 0x8018F0F0u;
+    // DIAGNÓSTICO de la transición a CARGAR (HH_LOAD_TRACE): registra cada composición de texto con
+    // su `a3` mientras `g_load_enter` está activo, para ver QUÉ texto se compone (y si se cuela) antes
+    // de que nuestra UI de carga publique. `skip` = se habría saltado el compositor.
+    if (env_set("HH_LOAD_TRACE") && g_load_enter) {
+        // `skip=0` aquí significa que este texto NO se saltó: si es del file-select, se cuela.
+        hh::log("[load-trace] entry compose a3=%08X skip=%d\n",
+                static_cast<uint32_t>(ctx->r7),
+                hh::menu_overlay::file_select_text_skip() ? 1 : 0);
+    }
     if (hh::menu_overlay::file_select_text_skip() &&
         static_cast<uint32_t>(ctx->r7) != kFileSelectClearStr) {
         if (env_set("HH_MENU_TRACE")) {
@@ -1588,6 +1605,7 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
 // ORIGINAL (la lógica del juego sigue funcionando, pero su menú nativo queda oculto por defecto) y
 // publica el frame del overlay del port. Con HH_MENU_TRACE=1 registra además la selección (0x801CC8C4).
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
+    ++g_hook_frame;
     hh::overlay::set_screen_blackout(false);   // seguridad: el telon nunca tapa el menu
     // Al correr el handler del TÍTULO ya no estamos en el file-select: desactiva su categoría de
     // ocultado (si no, quedaría activa tras volver del DATA LOAD). EXCEPCIÓN: si venimos de pulsar
@@ -1598,7 +1616,8 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     } else if (env_set("HH_LOAD_TRACE")) {
         // Frames intermedios de la transición (callback nativo del TÍTULO aún activo). Aquí es donde
         // podría colarse/republicarse algo antes de que arranque el file-select.
-        hh::log("[load-trace] title hook con g_load_enter=1 (transicion)\n");
+        hh::log("[load-trace] title hook g_load_enter=1 frame=%ld (+%ld)\n", g_hook_frame,
+                g_hook_frame - g_load_enter_frame);
     }
     static const bool trace = env_set("HH_MENU_TRACE");
     static uint64_t calls = 0;
@@ -1634,7 +1653,11 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
 
         // A2 (paso 5, terreno): mueve nuestro cursor con el input del juego. Los SFX del menú suenan
         // dentro, desde los EVENTOS del modelo (paso 7); ver feed_menu_navigation.
-        feed_menu_navigation(rdram, ctx);
+        // EXCEPCIÓN: durante la transición a CARGAR (`g_load_enter`) NO se procesa input del título: la
+        // pila ya es [Root, LoadGame] y el input lo tomará `feed_load_flow` en el file-select.
+        if (!g_load_enter) {
+            feed_menu_navigation(rdram, ctx);
+        }
 
         // A2: la COMPOSICIÓN del texto nativo se filtra en hh_entry_register_hook, así que el menú
         // sale en blanco desde el primer frame sin depender del handler. F6 solo necesita forzar un
@@ -1677,9 +1700,10 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     }
     // Si la pantalla cambió (salimos de la raíz), no publicamos: `hide_now` ya la ocultó y el
     // siguiente frame lo decidirá el nuevo handler. Si seguimos en la raíz, publicamos normal.
-    // EXCEPCIÓN: durante la transición a CARGAR (`g_load_enter`) no se publica la raíz; el file-select
-    // toma el control en el frame siguiente y publica la UI de carga (evita el parpadeo/retardo).
-    if (!screen_changed && !g_load_enter) {
+    // EXCEPCIÓN: durante la transición a CARGAR (`g_load_enter`) SÍ publicamos: la pila del modelo ya
+    // es [Root, LoadGame], así que `title_update` dibuja nuestra UI de carga desde el primer frame (no
+    // se espera a que arranque el file-select). Evita el hueco con el nativo visible.
+    if (!screen_changed || g_load_enter) {
         hh::menu_overlay::title_update(rdram);
     }
 }
@@ -1935,8 +1959,11 @@ static void hh_load_trace(uint8_t* rdram, const char* tag) {
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     hh::overlay::set_screen_blackout(false);
     // Ya tomamos el control del file-select: la transición desde el título terminó.
+    ++g_hook_frame;
     if (g_load_enter && env_set("HH_LOAD_TRACE")) {
-        hh::log("[load-trace] file-select: primer frame (g_load_enter=1 -> 0)\n");
+        hh::log("[load-trace] file-select: primer frame g_load_enter=1 -> 0 frame=%ld (+%ld desde "
+                "CONTINUAR)\n",
+                g_hook_frame, g_hook_frame - g_load_enter_frame);
     }
     g_load_enter = false;
     // Objeto del menu (a0): lo necesita la transición de salida (func_800058DC) y la de carga.
