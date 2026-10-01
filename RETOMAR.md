@@ -1,178 +1,117 @@
-# RETOMAR — handoff (2026-09-30)
+# RETOMAR — handoff (2026-10-01)
 
-> Handoff para la próxima sesión. **Rama de trabajo actual: `menu-carga-guardado-partida`**
-> (creada desde `menu-edicion-partida` @ `9fbe2e8`; nada pusheado; `main` = v0.5.0). Reglas:
-> `AGENTS.md`. (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
+> Handoff para la próxima sesión. **Rama de trabajo: `menu-carga-guardado-partida`** (creada desde
+> `menu-edicion-partida`; nada pusheado; `main` = v0.5.1). Reglas: `AGENTS.md` y `docs/documentation.md`.
+> (El trabajo del editor/niveles vive en `menu-edicion-partida`.)
 >
-> ## 🎯 TAREA ACTUAL: UI de CARGA de partida en el submenú `CONTINUAR`
+> ## 🎯 TAREA ACTUAL (siguiente sesión): el TÍTULO DEL ÁREA no aparece al cargar una partida
 >
-> El **ciclo de GUARDADO de la cápsula (`DATA SAVE`) está HECHO y VALIDADO en Windows** (guardar,
-> AREA 1-1, TIME, salida, reentrada y **borrado de slots**). Documento maestro:
-> **`notes/2026-09-30-save-capsule-logica.md`**; su **§9 es el handoff concreto** de la tarea actual.
+> **Comportamiento normal del juego** al cargar un slot (`CONTINUAR` → elegir partida): la pantalla
+> queda **en negro unos segundos** con un **título en blanco = el nombre/número del Área** por donde va
+> el progreso del jugador. Ese texto se quita pulsando un botón/tecla (o esperando); **entonces** ya se
+> ve el render del gameplay, el PJ saliendo de la cápsula de guardado.
 >
-> ### Siguiente: definir/cablear la UI de carga (`LoadGame`) y que un slot CARGUE de verdad
-> 1. **UI propia del `LoadGame`** (equivalente a la del `SaveGame`): confirmar con **A** sobre un slot,
->    **B** para volver, mensajes/Yes-No con el estilo del guardado. **Decidir con el mantenedor** los
->    textos exactos antes de dibujar (no inventar UI; regla AGENTS). Opcional: **X** para borrar desde
->    CARGAR (mismo patrón que el guardado, §8ter).
-> 2. **Arrancar la escena**: hoy `Action::LoadGamePick` solo hace `func_801423C8(0, slot)`
->    (deserializa los globals); falta la **transición**. Medir el final del flujo nativo de CONTINUE
->    (`func_80142570()` + `func_8012FE50(tipo=?, valor=?)` — **trazar** los args con
->    `HH_TRACE`/`HH_MENU_TRACE`) o dejar que la rama CONTINUE nativa haga setup+transición.
-> 3. **Cerrar la sesión al salir** (mismo bug que en guardar): `open_load_game()` hace *early-return*
->    → añadir `close_load_game()`/`g_load_open` y llamarlo en `hh_goto_hook`.
-> 4. **No republicar el overlay** tras la transición (`hide_now()` + patrón `exited`).
-> 5. **Pendiente**: el prompt `Please connect Controller Pak…` se cuela con F8.
-> - Recetas y rutas de código: **`notes/2026-09-30-save-capsule-logica.md` §9**.
+> **FALLO actual (port):** ese **título de Área NO aparece**; solo se ve la pantalla en negro unos
+> segundos y luego el PJ saliendo de la cápsula. **Falta visualizar el título del Área.** `[VALIDADO
+> en Windows por el mantenedor, 2026-10-01]`.
 >
-> ### VALIDADO en Windows (guardado, 2026-09-30 / 10-01)
-> Guardar (`NEW GAME`/sobrescribir) · **AREA 1-1** · **TIME** · **salida** de la cápsula · **reentrada**
-> (reinicio del flujo) · **borrado** de slots (`Remove completed.` → vuelve a la lista) · mensaje de
-> `Select` con binding reales (`Select location in which to save play data pressing A/J or X/H to
-> remove.`, 3 líneas en inglés). Detalle: `notes/2026-09-30-save-capsule-logica.md`.
+> ### Pistas de partida (a confirmar; NO fiarse sin trazar)
+> - El estado de "pantalla negra + título" lo lleva el flujo de ÉXITO nativo que el port replica en
+>   `hh_do_load_game` (`src/hooks/sections.cpp`): `func_801423C8(0, slot)` →
+>   `func_80142570()` + `func_800179B0(0)` + `func_801C11BC(0xA)` + `func_800058DC(obj, 0x801C3E24)`,
+>   con `D_801CC8CC=2` (ver `notes/2026-10-01-cargar-partida-continuar.md` §3).
+> - La pantalla negra/título probablemente la monta/compone `func_801C3E24` y su cadena
+>   (`func_8013EA54`, `func_801C3F48`, `func_801C4074`: transición `func_8012FE50(0x18, D_801BBBF4, 6,
+>   1, 0)` usando el índice de escena del slot). **Hipótesis a trazar**: qué función compone el TEXTO
+>   del Área y por qué no sale (¿se compone con `func_8001B204` y lo estamos saltando? ¿el `hide_now()`
+>   o el `set_file_select_active(false)` lo tapan? ¿el título lo dibuja el propio Sistema de Texto del
+>   juego y no llega a componerse?).
+> - OJO: nuestro `hh_entry_register_hook` (compositor `func_8001B204`) **salta** el texto del
+>   file-select mientras la categoría FILE-SELECT está activa y el nativo oculto. Verificar que, al
+>   salir de la carga, esa categoría queda **desactivada** (ya se hizo en `hh_do_load_game`) y que el
+>   texto del Área (post-file-select) **sí** se compone.
+> - El TEXTO del área sale de la **cabecera** del slot (registro `0x10 + slot*8`: `+1` AREA N, `+2`
+>   AREA P) — ver `notes/2026-09-29-editor-area-parte-plan.md` §5. Comprobar que `func_801423C8`
+>   deja ese dato disponible para el compositor del título.
 >
-> ### Aviso de método (AGENTS)
-> - Distinguir **medido** de **inferido**; **no validar el caso "todo vacío" con un `.pak` con datos**.
-> - **Un tema = un commit**; no commitear/pushear sin que lo pida el mantenedor.
+> ### Plan sugerido (crear item en `TODO.md` + plan antes de tocar código)
+> 1. **Trazar** el flujo de ÉXITO de cargar (`func_801C3E24` y cadena) con `HH_SCENE_TRACE`/`HH_TRACE`
+>    (hooks ya existentes: `hh_scene_transition_hook`, `hh_scene_load_hook`) y localizar **quién
+>    compone/dibuja el título del Área** y en qué frame.
+> 2. Comparar con el **flujo nativo** (CONTINUAR sin overlay, o `HH_OVERLAY=0`) y con un save real:
+>    ¿el título sale en el nativo? ¿qué función/handler lo pinta?
+> 3. Verificar que nuestro overlay/hooks no lo suprimen (categoría FILE-SELECT aún activa, `hide_now`,
+>    compositor de texto saltado, blackout…).
+> 4. Cablear/QS la composición (o dejar pasar la función correcta) y **validar en Windows**: cargar →
+>    pantalla negra con **título de Área** → botón/espera → gameplay.
 >
-> ### Pendiente menor (aparcado)
-> Restos de **japonés** sin consolidar (`Face::Color1`, `？/！` en `jp_kana.h`). La kana utilizable es
-> solo de `color0`/`color1`; el kanji vive en `color3` **JP** (no lo tenemos).
+> ---
 >
-> ### Contexto
-> - **DEPENDENCIA DE FORK:** la rama necesita 2 commits del fork `N64ModernRuntime`: `9b14604`
+> ## VALIDADO en Windows (2026-10-01): UI de CARGA en `CONTINUAR` (`LoadGame`)
+>
+> Tarea anterior, **HECHA y VALIDADA**. Documento maestro: **`notes/2026-10-01-cargar-partida-continuar.md`**.
+> - **Entrada** `CONTINUAR`: título → UI de carga **limpia** (sin superposición del título/logo, sin
+>   parpadeo, sin retardo). `g_load_enter` + hook `func_800179B0` (no dibuja el aviso de Controller Pak).
+> - **Carga real** (A): deserializa el slot (`func_801423C8`) y arranca la escena replicando la rama de
+>   ÉXITO nativa (ver la TAREA ACTUAL arriba).
+> - **Borrado** (X): `Remove play data?` → `Remove completed.` → A vuelve a la lista.
+> - **Vuelta** (B): cinemática nativa → **menú de título** (ya no reaparece la carga; fix
+>   `close_load_game` retira `LoadGame` de la pila).
+> - Flujo por fases `hh::menu::LoadPhase` (`Browse`/`ConfirmDelete`/`Removed`, +`Loaded` reservado).
+> - Traza de diagnóstico: `run_load_trace.bat` (`HH_LOAD_TRACE`).
+>
+> ### Guardado (`DATA SAVE`) — VALIDADO (2026-09-30 / 10-01)
+> Guardar (`NEW GAME`/sobrescribir) · **AREA 1-1** · **TIME** · salida de la cápsula · reentrada ·
+> borrado de slots · mensaje de `Select` con bindings. Detalle:
+> **`notes/2026-09-30-save-capsule-logica.md`** (su §8ter: borrado; §9: recetas reutilizables).
+>
+> ---
+>
+> ## Aviso de método (AGENTS)
+> - Distinguir **medido** de **inferido**; no concluir comportamiento de ejecución sin evidencia
+>   (oráculo/Windows); no inventar UI ni fórmulas.
+> - **Un tema = un commit**; **no commitear/pushear** sin que lo pida el mantenedor.
+> - No validar el caso "todo vacío" con un `.pak` con datos.
+>
+> ### Pendientes menores (aparcados)
+> - **JA**: restos sin consolidar (`Face::Color1`, `？/！` en `jp_kana.h`); kana útil solo de
+>   `color0`/`color1`; el kanji vive en `color3` **JP** (no lo tenemos).
+> - **UI de GUARDAR**: sigue publicándose como COPIA de la de cargar sobre el DATA SAVE nativo; afinar
+>   a 1:1 si se pide.
+>
+> ---
+>
+> ## Contexto vivo
+> - **DEPENDENCIA DE FORK:** la rama necesita 2 commits de `N64ModernRuntime`: `9b14604`
 >   `hh_pak_reload_from_disk()` y `3523bf3` `PAK_SIZE=0x40000` (publicado). Gitlink bumpeado en
->   `dbb209a`; port **sin pushear**. ADR: `docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`.
+>   `dbb209a`. ADR: `docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`.
 > - **Plan de fondo**: "Menú propio de CARGAR/GUARDAR partida (un `.pak` con N=74 slots: 45 partidas +
 >   29 plantillas, trailer de metadatos)": **`notes/2026-09-29-menu-cargar-guardar-partida-plan.md`**.
->   Estado UI Fase 2/3: **`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`**. Tipografías:
->   **`notes/2026-09-30-tipografias-data-load-hallazgos.md`**.
+>   UI Fase 2/3: `notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`. Tipografías:
+>   `notes/2026-09-30-tipografias-data-load-hallazgos.md`.
 > - **ESTRATEGIA DE MERGE**: `menu-carga-guardado-partida` es **DERIVADA** → **no** va a `main`. Al
 >   terminar: merge a **`menu-edicion-partida`**; luego → **`main`**.
+> - **Puntos de guardado del mantenedor**: `notes/reference/saveedit/PUNTOS_DE_GUARDADO.md` (registro
+>   vivo; se anotan los nuevos que aporte el mantenedor).
+> - **Áreas-Partes**: `notes/2026-09-29-editor-area-parte-plan.md`. Pendientes vivos: (a) validar en
+>   Windows `EXTRAS > IR A ÁREA` + `DEBUG NIVELES`; (b) diseñar "mover mi partida a una Área-Parte"
+>   (§6bis); (c) "volver al menú desde el gameplay" (el idx 7 daba la intro pero hoy crashea).
+> - Antes del formato del save, leer
+>   `notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md` y
+>   `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
 >
-> **Puntos de guardado del mantenedor**: `notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`.
+> ---
 >
-> **Puntos de guardado aportados por el mantenedor**: registro vivo en
-> **`notes/reference/saveedit/PUNTOS_DE_GUARDADO.md`** (cobertura por área + cómo registrar los
-> nuevos). El mantenedor puede decir en cualquier momento que ha guardado slots nuevos; ahí se anotan.
+> ## Cómo trabajar (rápido)
+> - Build Linux: `cmake --build build/linux --parallel $(nproc)`.
+> - Build Windows: `rmdir /s /q hybrid-heaven-recomp\build\windows` + `hybrid-heaven-recomp\build_windows_release.bat`.
+> - Traza de carga: `hybrid-heaven-recomp\run_load_trace.bat`. Guardado: `run_save_trace.bat`.
+>   Combate/campo: `run_battle_trace.bat` (F12), `run_field_watch.bat` (`HH_WATCH_ADDR`).
+> - Regenerar C recompilado: `python3 tools/regenerate.py` (no se versiona; ADR 0009/0011). Tras
+>   regenerar: `python3 tools/analysis/fix_fallthroughs.py`.
+> - Docs: `python3 tools/analysis/docs_index.py` (regenera `docs/INDEX.md`; `--check` valida).
 >
-> **Contexto del mapeo de Áreas-Partes**: `notes/2026-09-29-editor-area-parte-plan.md` (§1 sigue siendo
-> el material de partida original; el estado real está al principio de esa nota). Pendientes vivos:
-> (a) **validar en Windows** `EXTRAS > IR A ÁREA` + `DEBUG NIVELES`; (b) **diseñar/implementar
-> "mover mi partida a una Área-Parte"** (§6bis de la nota: plantilla de zona + datos del jugador);
-> (c) **"volver al menú desde el gameplay"** (el idx 7 daba la intro pero hoy crashea: buscar vía).
-> Antes del formato del save, leer
-> `notes/2026-09-28-editor-partida-formato-slot-y-logica-juego.md` y
-> `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
-
----
-
-## 1. TAREA PRINCIPAL — nivel (Área-Parte) del save y carga con `CONTINUAR`
-
-> **La sesión nueva debe EMPEZAR creando un item en `TODO.md` y una planificación/plan de la tarea**
-> (pasos numerados + criterio de validación en Windows), y trabajar sobre ese plan. Lo de abajo es el
-> material de partida, no el plan hecho.
-
-### Objetivo
-
-Que `EDICIÓN DE PARTIDA` → `PROGRESO` (Área-Parte) **determine de verdad** el nivel que el juego carga
-al darle a **`CONTINUAR`**, y que la lista de niveles mostrada sea la **real** (ahora mismo sale
-`1-0`…`1-9`, imposible: el área 1 no tiene 9 partes).
-
-### Lo que YA funciona `[VALIDADO en Windows]`
-
-- Editar el slot del `.pak` y **cargar** ya **no cuelga** (`hh::save::save()` llama a
-  `hh_pak_reload_from_disk()` del fork NMR `9b14604`; ver nota §9).
-- `PROGRESO` = **slot `+0x366`** (u16 **BE**) = global **`[0x801BBBF0+4]`** (ver nota §5).
-- Al editar `PROGRESO` (p. ej. `3-1`) y cargar, **sí cambia el TEXTO del área** en la pantalla negra de
-  entrada: ese texto sale de la **cabecera** (registro `0x10 + slot*8`: `+1` AREA N, `+2` AREA P).
-- **PERO** el mapa/Área-Parte que se carga **sigue siendo el del save**, no el editado.
-
-### El problema / por qué
-
-El **texto** del área usa la cabecera, pero el **mapa** cargado usa otro campo. Hipótesis a confirmar:
-- Candidato A: slot **`+0x364`** = `[0x801BBBF0+2]` (el serializer lo escribe junto a `0x366`).
-- Candidato B: bloque de **100 B** `0x300..0x363` (copiado del global **`0x8008DC20`** en el save).
-- Candidato C: el **struct de personaje** (`0x000..0x09D`).
-Determinar cuál lee el flujo de **CARGAR**: `func_801411D0` → `func_801423C8` → `func_80141D08`
-(copia el buffer a los globals) → **¿qué global/escena decide el mapa?**
-
-### Niveles Área-Parte (primera cosa a resolver)
-
-El modelo actual es **incorrecto**: `hh::save::valid_points_by_level` (`src/subsystems/save_edit.cpp:595`)
-lee la tabla de escenas runtime **`D_80175490`** como **30 niveles × 10 puntos** (`valor = idx*10+punto`)
-y de ahí salen `1-0..1-9` en el área 1. **Hay que determinar la enumeración real de Área-Parte**:
-- Volcar `D_80175490` en runtime e interpretarla (¿es "sala por área", no "punto por nivel"?).
-- Buscar la **tabla de nombres/áreas** que usa el texto del área al cargar (de ahí sale el "área 3").
-- Contrastar con el juego real: qué Áreas-Partes **existen** y cómo se numeran (¿N-P? ¿índice 1D?).
-
-### Plan sugerido
-
-1. **Niveles**: identificar la tabla/estructura real de Área-Parte y reescribir `progress_options()` /
-   `progress_value_at()` / `progress_index_of()` (`src/subsystems/menu.cpp:332`) para listar solo las
-   válidas.
-2. **Campo de carga**: trazar quién lee el Área-Parte en el flujo de `CONTINUAR` (arriba) y **contrastar
-   con un save real**. Método rápido y fiable: **oráculo/diff** — en el juego, guarda en dos Áreas-Partes
-   distintas y compara los `.pak` (qué offsets cambian con la zona). Ese(s) campo(s) es el que el editor
-   debe escribir para que cargue donde toca.
-3. **Cablear** en `hh::save`: escribir el campo correcto (además de la cabecera) al fijar `PROGRESO`, y
-   validar en Windows: editar → `CONTINUAR` → carga en la Área-Parte elegida (texto **y** mapa).
-4. `hh::save::save()`: al guardar, mantener cabecera y campo de carga **coherentes**.
-
-### Datos y direcciones `[MEDIDO]` (detalle en la nota)
-
-- Slot: `0x000..0x09D` struct personaje (**u16 LE** en fichero), `0x09E+id*3` técnicas (86),
-  `0x1A0+id` items (45), `0x1CD..0x1E6` party, `0x300..0x363` copia 100 B (`0x8008DC20`),
-  **`0x364+` bloque u16 de progreso/escena (BE)**; `0x364=[0x801BBBF0+2]`, **`0x366`=PROGRESO**.
-- Cabecera `0x100`: magic `"HYBRID HEAVEN"` @`0x00`, checksum @`0xFF` = `sum(0..0xFE)`, registros
-  `0x10+i*8`: `+0` presente, `+1` AREA N, `+2` AREA P, `+3` LEVEL, `+4..5` TIME.
-- Funciones del juego (`file_024`): `0x801423C8` cargar slot, `0x80142450` guardar slot,
-  `0x801422E4`/`0x80142350` leer/escribir cabecera, `0x80141268` flujo GUARDAR, `0x801411D0` flujo
-  CARGAR, `0x80141F28`/`0x80141D08` serializar/deserializar `0xD00`.
-- Guard de prueba: `work/debug/cac/saves_windows/hh.us.bin.pak` (capítulo **1-1** real).
-- Verificación: `HH_SAVEEDIT_TEST=1` (escribe/relee y loguea `[save-edit][test]`).
-
----
-
-## 2. Estado consolidado de la tanda anterior (2026-09-28, todo VALIDADO en Windows)
-
-Commits en `menu-edicion-partida` (sin push): `cdcbd7a` centrar GRÁFICOS/CONTROLES · `a54f697` MODO
-HEAVEN global + ventaja · `07b051a`/`b5136dc` docs/tools · `ad56dfc`/`feb1650` daño de campo ·
-`f1ce2fb` stepper ANTIALIASING · `64c50db` VENTAJA + PODER/RESISTENCIA ∞ · `8ba43d2`/`289093e` docs ·
-`ac9b6e7` arreglos de UI. **Árbol limpio.**
-
-- **MODO HEAVEN** (EXTRAS, `[extras].heaven`, persistente): al cargar partida aplica ATRIBUTOS/ESTADO 99
-  + 86 habilidades; en runtime invulnerabilidad (combate `func_80232D08` y campo `func_80379F04`→scratch
-  `0x80388A68`), items no consumibles (`func_8013D520`) y **PODER/RESISTENCIA infinitos**. **No** incluye
-  VENTAJA.
-- **VENTAJA** (`[extras].advantage`): fuerza `0x801BCC24=2` (back attack). Independiente de HEAVEN.
-- **PODER ∞ / RESISTENCIA ∞** (`[extras].infinite_power`/`.infinite_stamina`): `hh_battle_frame_hook`
-  pinnea `actual=max` cada frame (PODER `0x801BC042←0x801BC040`, RESIS. `0x801BC046←0x801BC044`); O(1),
-  no-op fuera de combate. El `∞` (U+221E) se dibuja vectorial (13×5, con sombra).
-- **UI**: ANTIALIASING como stepper `< x2 >` (`Entry::stepper`); sombra de kana (copia negra +1,+1 en el
-  overlay porque la fuente no la trae y el dakuten va en la col. 7); cedilla `Ç` dibujada delante de la
-  `C`; `DEBUG` centrado.
-- **Pendiente conocido (documentado, a afinar)**: la barra de **combo** arranca a 0 en el **1.er
-  combate** (se rellena desde el 2.º; va ligada al PODER). Ver `TODO.md` y la nota.
-
-Detalle: `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
-
----
-
-## 3. Cómo trabajar (rápido)
-
-- Build Linux: `cmake --build build/linux --parallel $(nproc)`.
-- Build Windows: `rmdir /s /q hybrid-heaven-recomp\build\windows` + `hybrid-heaven-recomp\build_windows_release.bat`.
-- Traza de combate / campo: `run_battle_trace.bat` (F12), `run_field_watch.bat` (`HH_WATCH_ADDR`).
-- Regenerar C recompilado: `python3 tools/regenerate.py` (no se versiona; ADR 0009/0011). Tras regenerar:
-  `python3 tools/analysis/fix_fallthroughs.py`.
-- Docs: `python3 tools/analysis/docs_index.py` (regenera `docs/INDEX.md`; `--check` valida).
-
-## 4. Git / forks
-
-- Rama **`menu-edicion-partida`**; **nada pusheado**. Commitear **solo lo validado o docs, y con
-  permiso**. El mantenedor pidió **no pushear** de momento. Push (si se pide): forks primero
-  (`N64Recomp`, `N64ModernRuntime`), luego el repo principal (ver `AGENTS.md`).
-
-> **Calibración (AGENTS)**: distinguir "medido" de "inferido"; no concluir comportamiento de ejecución
-> sin evidencia (oráculo/Windows); no inventar fórmulas. Un tema = un commit.
+> ## Git / forks
+> - Rama **`menu-carga-guardado-partida`**; **nada pusheado**. Commitear solo lo validado/docs y con
+>   permiso. Push (si se pide): **forks primero** (`N64Recomp`, `N64ModernRuntime`), luego el repo
+>   principal (ver `AGENTS.md`).

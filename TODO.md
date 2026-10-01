@@ -5,6 +5,14 @@
 
 ## Ahora (priorizado)
 
+- [ ] **TÍTULO DEL ÁREA al cargar partida — FALLO (próxima tarea, 2026-10-01)**: al cargar un slot
+  (`CONTINUAR` → partida) el juego debe mostrar **pantalla negra unos segundos con el título del Área
+  en blanco** (nombre/número del Área del progreso), que se quita con un botón/tecla (o esperando);
+  después ya sale el gameplay (PJ saliendo de la cápsula). **En el port ese título NO aparece**: solo
+  negro y luego el gameplay. Trazar el flujo de ÉXITO de `hh_do_load_game` (`func_801C3E24` y cadena)
+  para localizar quién compone/dibuja el título y por qué no sale (¿compositor `func_8001B204`
+  saltado?, ¿categoría FILE-SELECT aún activa?). Plan/handoff: **`RETOMAR.md`** (TAREA ACTUAL);
+  detalle del flujo: `notes/2026-10-01-cargar-partida-continuar.md` §3.
 - [x] **LÓGICA DE GUARDADO en la cápsula (`DATA SAVE`) — HECHA y VALIDADA en Windows (2026-09-30)**:
   flujo con fases propias (`hh::menu::SavePhase`: `Ask`→`Select`→`ConfirmHere`→`Completed`, +
   `ConfirmExit`); **guardado REAL** `hh::save::save_live()` (serializa los globals vivos con
