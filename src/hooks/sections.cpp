@@ -1404,9 +1404,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             hh::menu_overlay::set_file_select_active(true);
             g_load_enter = true;
             g_load_enter_frame = g_hook_frame;
-            // Publica YA nuestra pantalla de carga (la pila del modelo pasa a [Root, LoadGame]) para
-            // NO esperar a que el file-select tome el control (evita el hueco con el nativo visible).
-            hh::menu::open_load_game();
+            // NO publicamos todavía: en el original el TÍTULO se ve hasta que entra el DATA LOAD, y
+            // publicar aquí dibujaría nuestra UI ENCIMA del título (logo/copyright) durante 1-2 frames.
+            // `hh_title_menu_hook` conserva el frame del título durante `g_load_enter`; la UI de carga
+            // aparece en cuanto el file-select toma el control (primer frame de `hh_file_select_hook`).
             if (env_set("HH_LOAD_TRACE")) {
                 hh::log("[load-trace] CONTINUAR -> g_load_enter=1 frame=%ld\n", g_hook_frame);
             }
@@ -1703,10 +1704,10 @@ extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     }
     // Si la pantalla cambió (salimos de la raíz), no publicamos: `hide_now` ya la ocultó y el
     // siguiente frame lo decidirá el nuevo handler. Si seguimos en la raíz, publicamos normal.
-    // EXCEPCIÓN: durante la transición a CARGAR (`g_load_enter`) SÍ publicamos: la pila del modelo ya
-    // es [Root, LoadGame], así que `title_update` dibuja nuestra UI de carga desde el primer frame (no
-    // se espera a que arranque el file-select). Evita el hueco con el nativo visible.
-    if (!screen_changed || g_load_enter) {
+    // EXCEPCIÓN: durante la transición a CARGAR (`g_load_enter`) NO publicamos: se conserva el frame
+    // del TÍTULO (como el original) hasta que el file-select publica la UI de carga (frame siguiente).
+    // Publicar aquí dibujaría la UI ENCIMA del logo/copyright del título.
+    if (!screen_changed && !g_load_enter) {
         hh::menu_overlay::title_update(rdram);
     }
 }

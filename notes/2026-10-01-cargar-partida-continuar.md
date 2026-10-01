@@ -113,6 +113,37 @@ con: fase, cursor del modelo, cursor/top/estado/página NATIVOS del file-select
 cancelar `func_801C3E24`/`func_801C40EC`. La secuencia replica la del juego; si al volver se reproduce
 parte de la intro, es la ruta nativa de esta pantalla, no un bug del port.
 
+## 6ter. Secuencia de entrada a CARGAR, frame a frame (capturas 2026-10-01)
+
+Capturas del mantenedor (`work/gameplay screenshots/CONTINUAR/Captura … 03:01:58 … 03:07:28`), al
+pulsar CONTINUAR:
+
+1. **Instante 1**: nuestra UI de carga se dibuja **encima del menú de título** (logo `HYBRID HEAVEN`,
+   KONAMI, copyright aún pintados por la escena de título).
+2. **Instante 2**: perfecto (título ya limpio).
+3. **Instante 3**: **desaparecía TODO** (nuestro overlay incluido).
+4. **Instante 4**: se colaba el mensaje del **Controller Pak** suelto (sin caja):
+   `…to Controller 1 now.Do not remove Controller Pak.▼`.
+5. **Instante 5**: perfecto.
+
+**Causas y fixes:**
+- **Instante 3** = `hh_goto_hook` hacía `hide_now()` en los `goto` internos del setup/update
+  (`0x801C3D50`/`0x801C3D84`) durante la transición → ocultaba nuestra UI un frame. Fix `00083cd`:
+  con `g_load_enter` activo, `hh_goto_hook` NO hace `hide_now()` ni `close_load_game()`.
+- **Instante 4** = `func_800179B0` (residente) compone/dibuja el aviso del Controller Pak
+  (`D_8004CC90`) con `func_8001A804` (cajas, ya saltadas) y `func_8001B204` (texto). Fix `36be126`:
+  hook nuevo `hh_pak_message_hook` (registrado en `0x800179B0`) que **salta la función entera** cuando
+  `suppress_box_draw()` (file-select activo + nativo oculto), como las cajas.
+- **Instante 1** (título/copyright debajo 1 frame) = la **escena de título** aún renderiza su logo/
+  copyright mientras arranca el file-select; son draws de escena (no etiquetas `func_8001B204`), así
+  que no los cubre el blanking. **NO se usa telón negro** (el original no lo tiene; además el telón
+  del overlay se dibuja el último y taparía también nuestra UI). Fix: **no publicar** nuestra UI
+  durante `g_load_enter` — se conserva el frame del TÍTULO (como el original) hasta que el file-select
+  publica la UI de carga en su primer frame. Así no se ve la UI de carga superpuesta al logo/copyright.
+
+Relación de `func_800179B0` con el flujo: lo llama `func_8013E7C0` (setup LOAD) y la rama de salida
+`func_801C3D84`; compone 7 cajas + 0x1C cadenas del mensaje (`resident.s:27022`).
+
 ## 7. Referencias
 
 - Ciclo de guardado (plantilla): `notes/2026-09-30-save-capsule-logica.md`.
