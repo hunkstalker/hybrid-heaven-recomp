@@ -1,8 +1,9 @@
 # RETOMAR — handoff (2026-10-02)
 
-> Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13, commit
-> `fix(hud)`)**. Reglas: `AGENTS.md` y `docs/documentation.md`. Próxima tarea: **#14 (veneno/CaC)**,
-> empezando de cero (sin fix aplicado) con trazas para localizar la primera divergencia del loader.
+> Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
+> recompilador (jump tables, #14)**. Reglas: `AGENTS.md` y `docs/documentation.md`. Próxima tarea:
+> **BUG nuevo — los textos desaparecen TRAS GUARDAR partida** (sistema de guardado; no relacionado con
+> los fixes). Ver `Pendiente`.
 
 ## Integrado en `main` (2026-10-02)
 
@@ -26,14 +27,22 @@
   `class_of` los 2 hashes `dl:` del mapa y el fill posicional; ahora se ancla por **panel** (scissor/fondo
   negro que no cubre el ancho y cae en la mitad derecha). **ADR 0015**; nota
   `notes/2026-10-02-fix-minimapa-estructural-issue13.md`. Commiteado (`fix(hud)`).
-- **#14 (veneno/CaC) — ABIERTO, sin fix aplicado (empezamos de cero).** No se tocó código. Próximo paso:
-  reproducir a voluntad (`IR A ÁREA` a 3-3 + `DEBUG NIVELES`) y **recoger trazas** (ver Pendiente).
+- **#14 (ataque a distancia/veneno) — HECHO y VALIDADO en Windows.** El crash era un **abort** de
+  `switch_error` en `func_8035A3D8`: N64Recomp **truncaba su jump table** (8→2 casos) al topar con un
+  destino que es **inicio de otra función**. Fix general en `toolchain/src/N64Recomp` (`analysis.cpp` +
+  `recompilation.cpp`, tail-call); **11 funciones / 73 entradas** corregidas. Parche versionado:
+  `recomp/n64recomp_changes/2026-10-02-jump-table-cross-function.patch`. Detalle:
+  `notes/2026-10-02-fix-jumptable-recompilador-issue14.md`.
 
 ## Pendiente
 
-- **#14**: recoger trazas del build actual mientras el mantenedor juega (3-3, veneno de `Mira`/`Alkalurops`)
-  y localizar la **primera divergencia** del loader respecto al emulador. Estado del arte:
-  `notes/2026-10-02-handoff-bugs-13-14-hud-y-veneno.md`, `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md` §10.
+- **[BUG nuevo, prioridad] — los textos (habilidades/puntuación) desaparecen TRAS GUARDAR partida.**
+  No relacionado con los fixes; aparece con el sistema de guardado nuevo. Pasos: confirmar si ocurre
+  **siempre** o solo con **MODO HEAVEN**; instrumentar el guardado (estado/globales del motor de texto
+  antes/después de `save_live`; `HH_CANARY`/`HH_DRWATCH`) y localizar qué se corrompe. Trazas:
+  `run_windows_trace.bat` + `tools/analysis/triage_venom_trace.py` (reutilizables).
+- **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
+  desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
 - **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),
   mapeo `controller_num → gamepad`; local primero, online después.
 - **EDICIÓN DE PARTIDA**: "mover mi partida a una Área-Parte" (§6bis de

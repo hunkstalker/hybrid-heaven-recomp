@@ -171,8 +171,13 @@ anclaje del minimapa por **hash de contenido** (fallaba por área/capítulo, #7/
 **panel** (scissor/fondo negro que no cubre el ancho y cae en la mitad derecha); validado headless sin
 over-match y en Windows en todos los niveles. **ADR 0015**; nota
 `notes/2026-10-02-fix-minimapa-estructural-issue13.md`.
-**#14 veneno/CaC (abierto, sin fix)**: arranca de cero; recoger trazas en el build actual mientras se
-reproduce (3-3, veneno de `Mira`/`Alkalurops`) para hallar la primera divergencia del loader.
+**#14 ataque a distancia (RESUELTO y validado en Windows, 2026-10-02)**: el crash era un **abort** del
+runtime (`switch_error`) porque N64Recomp **truncaba la jump table** de `func_8035A3D8` (8→2 casos) al
+topar con un destino que es **inicio de otra función**. Fix **general** del recompilador
+(`toolchain/src/N64Recomp`: `analysis.cpp` + `recompilation.cpp`, tail-call), **11 funciones / 73
+entradas** corregidas. Parche versionado: `recomp/n64recomp_changes/2026-10-02-jump-table-cross-function.patch`.
+Nota: `notes/2026-10-02-fix-jumptable-recompilador-issue14.md`. **Aparte (abierto)**: los textos
+desaparecen **tras guardar partida** (bug distinto, no de este fix).
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

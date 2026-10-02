@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 242 | 2026-10-02 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 247 | 2026-10-02 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-10-02 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 594 | 2026-10-02 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 595 | 2026-10-02 |
 
 ## Técnico y guías (vivos)
 
@@ -70,6 +70,7 @@
 | [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
 | [Handoff — bugs #13 (minimapa por área) y #14 (crash del combate/veneno = CaC)](../notes/2026-10-02-handoff-bugs-13-14-hud-y-veneno.md) | 2026-10-02. Handoff para retomar dos bugs abiertos reportados por El-Rana: | 125 | 2026-10-02 |
 | [2026-10-02 — #13 minimapa: anclaje ESTRUCTURAL (hash fuera) — ARREGLADO y VALIDADO](../notes/2026-10-02-fix-minimapa-estructural-issue13.md) | Fix definitivo del **issue #13** (HUD/minimapa desanclado al cambiar de Área). **Validado en Windows | 79 | 2026-10-02 |
+| [2026-10-02 — #14 veneno/ataque a distancia: causa raíz = jump table mal recompilada (fix en N64Recomp)](../notes/2026-10-02-fix-jumptable-recompilador-issue14.md) | El crash del veneno **no** era (esta vez) el callback `0xFFFF84CD`: es un **abort del runtime** al | 107 | 2026-10-02 |
 | [Desacoplar VIBRACIÓN del Controller Pak (memoria + vibración a la vez)](../notes/2026-10-02-desacoplo-vibracion-controller-pak.md) | Tarea 2026-10-02, rama `menu-carga-guardado-partida`. Item 11 de `TODO.md` (antes BLOQUEANTE). | 78 | 2026-10-02 |
 | [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |
 | [TÍTULO DEL ÁREA — calibración del texto (1:1 con el original)](../notes/2026-10-01-titulo-area-calibracion.md) | Sesión 2026-10-01 (3.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Continúa | 131 | 2026-10-01 |

@@ -1,0 +1,69 @@
+--- a/src/analysis.cpp
++++ b/src/analysis.cpp
+@@ -318,7 +318,8 @@
+         cur_jtbl.rom = cur_jtbl.vram + func.rom - func.vram;
+         cur_jtbl.section_index = func.section_index;
+ 
+-        while (vram < end_address) {
++        // HH: cap defensivo para no leer sin fin si no hay tabla siguiente (end_address = -1).
++        while (vram < end_address && cur_jtbl.entries.size() < 1024) {
+             // Retrieve the current entry of the jump table
+             // TODO same as above
+             uint32_t rom_addr = vram + func.rom - func.vram;
+@@ -330,8 +331,25 @@
+                 jtbl_word += got_ram_addr.value();
+             }
+ 
+-            // Check if the entry is a valid address in the current function
+-            if (jtbl_word < func.vram || jtbl_word >= func.vram + func.words.size() * sizeof(func.words[0])) {
++            // HH: la entrada es valida si cae DENTRO de esta funcion o si es el punto de entrada
++            // EXACTO de otra funcion de la MISMA seccion. Las jump tables pueden saltar a una
++            // funcion compartida (p. ej. un "return 0" hoja); cortar en esa entrada descartaba los
++            // casos siguientes y el switch generado llamaba a switch_error (abort). Ver #14.
++            bool entry_valid = (jtbl_word >= func.vram) &&
++                (jtbl_word < func.vram + func.words.size() * sizeof(func.words[0]));
++            if (!entry_valid) {
++                auto fv = context.functions_by_vram.find(jtbl_word);
++                if (fv != context.functions_by_vram.end()) {
++                    for (size_t fi : fv->second) {
++                        if (context.functions[fi].section_index == func.section_index) {
++                            entry_valid = true;
++                            break;
++                        }
++                    }
++                }
++            }
++
++            if (!entry_valid) {
+                 // If it's not then this is the end of the jump table
+                 break;
+             }
+--- a/src/recompilation.cpp
++++ b/src/recompilation.cpp
+@@ -602,9 +602,25 @@
+                 print_indent();
+                 generator.emit_switch(context, cur_jtbl, rs);
+                 for (size_t entry_index = 0; entry_index < cur_jtbl.entries.size(); entry_index++) {
++                    const uint32_t entry = cur_jtbl.entries[entry_index];
+                     print_indent();
+                     print_indent();
+-                    generator.emit_case(entry_index, fmt::format("L_{:08X}", cur_jtbl.entries[entry_index]));
++                    if (entry >= func.vram && entry < func_vram_end) {
++                        generator.emit_case(entry_index, fmt::format("L_{:08X}", entry));
++                    } else {
++                        // HH: la entrada cae en OTRA funcion (inicio exacto). No hay etiqueta local
++                        // a la que saltar; se emite un tail call: el `jr` original transfiere el
++                        // control ahi y esa funcion retorna a NUESTRO llamante. Ver #14.
++                        fmt::print(output_file, "case {}:\n", entry_index);
++                        print_indent();
++                        print_indent();
++                        generator.emit_function_call_lookup(entry);
++                        print_indent();
++                        generator.emit_return(context, func_index);
++                        print_indent();
++                        print_indent();
++                        fmt::print(output_file, "break;\n");
++                    }
+                 }
+                 print_indent();
+                 print_indent();
