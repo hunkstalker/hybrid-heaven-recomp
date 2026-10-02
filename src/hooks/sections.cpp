@@ -2315,6 +2315,12 @@ static void hh_leave_capsule(uint8_t* rdram, recomp_context* ctx, uint32_t obj) 
     func_800058DC_64DC(rdram, &t);
     hh::menu_overlay::hide_now();
     hh::menu::close_save_game();   // la próxima entrada en la cápsula reinicia el flujo
+    // DESACTIVAR la categoría FILE-SELECT al salir de la cápsula. Sin esto se quedaba a true con el
+    // nativo oculto -> `file_select_text_skip()`=true -> `hh_entry_register_hook` SALTABA la
+    // composición de TODO texto (salvo el "clear") y los NOMBRES DE HABILIDADES desaparecían en todas
+    // partes tras GUARDAR (volvían al recargar partida, que sí resetea esta categoría). Igual que en
+    // `hh_do_load_game`/`hh_close_load_game`.
+    hh::menu_overlay::set_file_select_active(false);
     hh::log("[save] salir de la capsula (secuencia nativa)\n");
 }
 

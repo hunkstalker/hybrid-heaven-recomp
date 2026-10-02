@@ -1,9 +1,9 @@
 # RETOMAR — handoff (2026-10-02)
 
 > Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
-> recompilador (jump tables, #14)**. Reglas: `AGENTS.md` y `docs/documentation.md`. Próxima tarea:
-> **BUG nuevo — los textos desaparecen TRAS GUARDAR partida** (sistema de guardado; no relacionado con
-> los fixes). Ver `Pendiente`.
+> recompilador (jump tables, #14) + fix de textos al guardar**. Reglas: `AGENTS.md` y
+> `docs/documentation.md`. Pendiente principal del mantenedor: **versionar el parche del recompilador**
+> (`recomp/n64recomp_changes/` y/o fork). Ver `Pendiente`.
 
 ## Integrado en `main` (2026-10-02)
 
@@ -33,14 +33,13 @@
   `recompilation.cpp`, tail-call); **11 funciones / 73 entradas** corregidas. Parche versionado:
   `recomp/n64recomp_changes/2026-10-02-jump-table-cross-function.patch`. Detalle:
   `notes/2026-10-02-fix-jumptable-recompilador-issue14.md`.
+- **Textos desaparecían al GUARDAR — HECHO y VALIDADO en Windows.** Al salir de la cápsula no se
+  desactivaba la categoría FILE-SELECT (`g_file_select_active`) → el hook de composición saltaba todo el
+  texto. Fix: `set_file_select_active(false)` en `hh_leave_capsule`. Nota:
+  `notes/2026-10-02-fix-textos-desaparecen-al-guardar.md`.
 
 ## Pendiente
 
-- **[BUG nuevo, prioridad] — los textos (habilidades/puntuación) desaparecen TRAS GUARDAR partida.**
-  No relacionado con los fixes; aparece con el sistema de guardado nuevo. Pasos: confirmar si ocurre
-  **siempre** o solo con **MODO HEAVEN**; instrumentar el guardado (estado/globales del motor de texto
-  antes/después de `save_live`; `HH_CANARY`/`HH_DRWATCH`) y localizar qué se corrompe. Trazas:
-  `run_windows_trace.bat` + `tools/analysis/triage_venom_trace.py` (reutilizables).
 - **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
   desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
 - **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),
