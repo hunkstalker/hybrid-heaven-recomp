@@ -31,6 +31,11 @@
 > bytes UTF-8). Fichero: `src/hooks/menu_overlay.cpp`. Detalle:
 > **`notes/2026-10-02-titulo-area-rotulo-traducido.md`**.
 
+### Transición del título del Área: fundido y hold (2026-10-02) — IMPLEMENTADO (2.ª validación pdte.)
+> Fade por TIEMPO (`HH_TITLE_FADE_MS` 2000), **fade-out real** por el hilo de render (`fade_out_menu`,
+> `HH_TITLE_FADEOUT_MS` 1000), hold `HH_TITLE_TRANS_MS` 400. Telón **opaco** (si se funde se cuela el
+> título nativo) → funde solo el texto. Detalle: **`notes/2026-10-02-transicion-titulo-fade.md`**.
+
 ### Tareas pequeñas de menú (bloque anterior) — HECHO y VALIDADO en Windows (2026-10-01)
 > `DATA EDIT` fuera; letra de dificultad en el slot; `AREA/LEVEL/TIME` traducidos; `ULTIMATE` fr y
 > `NO DATA` fr a 2 líneas. Detalle: **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**.

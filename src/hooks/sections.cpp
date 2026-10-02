@@ -91,6 +91,7 @@ namespace hh::menu_overlay {
 void publish_area_title(int area_num, const std::string& name, int alpha);
 std::string area_title_name(int area_num);
 void set_area_title_lock(bool on);
+void begin_area_title_fadeout(int ms);
 }  // namespace hh::menu_overlay
 
 namespace {
@@ -132,10 +133,23 @@ bool g_area_title_active = false;
 bool g_area_title_in_transition = false;   // ya se alcanzó func_801C4074 (transición)
 long long g_area_title_trans_ms = 0;       // instante (steady ms) de la transición
 int g_area_title_num = 0;
-long g_area_title_frames = 0;   // frames desde el inicio del título (para el fade-in del overlay)
-// Alfa del fade-in del título (réplica del original: rampa ~4/frame). Se satura a 255.
+long g_area_title_frames = 0;          // frames desde el inicio del título (diagnóstico)
+long long g_area_title_start_ms = 0;   // instante (steady ms) del inicio del título (fade por TIEMPO)
+// Alfa del fade-in del título. El original (`func_801C3F48`) funde con `alpha += 8/frame`, pero eso
+// depende del ritmo de frames del port, así que aquí se hace por TIEMPO para poder cuadrarlo 1:1 con el
+// original a ojo: `HH_TITLE_FADE_MS` (por defecto 2000 ms). Solo se funde el TEXTO: el telón negro va
+// opaco (si se transparentara se colaría el título nativo de detrás). Ver `publish_area_title`.
 int area_title_alpha() {
-    long a = g_area_title_frames * 4;
+    static const long long fade_ms = [] {
+        const char* e = std::getenv("HH_TITLE_FADE_MS");
+        const long long v = (e != nullptr && *e != '\0') ? std::atoll(e) : 2000LL;
+        return v > 0 ? v : 1LL;
+    }();
+    if (g_area_title_start_ms == 0) return 0;
+    const long long now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              std::chrono::steady_clock::now().time_since_epoch())
+                              .count();
+    const long long a = (now - g_area_title_start_ms) * 255 / fade_ms;
     return a > 255 ? 255 : static_cast<int>(a);
 }
 
@@ -1680,6 +1694,9 @@ extern "C" void hh_area_title_hook(uint8_t* rdram, recomp_context* ctx) {
             if (!g_area_title_active) {
                 g_area_title_frames = 0;          // nuevo título: reinicia el fade
                 g_area_title_in_transition = false;
+                g_area_title_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            std::chrono::steady_clock::now().time_since_epoch())
+                                            .count();
             }
             g_area_title_num = t0;
             g_area_title_active = true;
@@ -2650,14 +2667,27 @@ extern "C" void hh_goto_hook(uint8_t* rdram, recomp_context* ctx) {
     const long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                  std::chrono::steady_clock::now().time_since_epoch())
                                  .count();
+    // Cuánto se mantiene el overlay del título tras arrancar la transición de escena (`func_801C4074`).
+    // El original ya no recompone el título: lo tapa/arrastra su transición. Tunable `HH_TITLE_TRANS_MS`
+    // (antes 900 ms fijos; el mantenedor lo notó largo). 0 = retirarlo al arrancar la transición.
+    static const long long kTitleTransHoldMs = [] {
+        const char* e = std::getenv("HH_TITLE_TRANS_MS");
+        return (e != nullptr && *e != '\0') ? std::atoll(e) : 400LL;
+    }();
     if (target == 0x801C4074u) {
         g_area_title_in_transition = true;
         g_area_title_trans_ms = now_ms;
-    } else if (g_area_title_active && g_area_title_in_transition && (now_ms - g_area_title_trans_ms) > 900) {
+    } else if (g_area_title_active && g_area_title_in_transition &&
+               (now_ms - g_area_title_trans_ms) > kTitleTransHoldMs) {
         g_area_title_active = false;
         g_area_title_in_transition = false;
-        hh::menu_overlay::set_area_title_lock(false);
-        hh::menu_overlay::hide_now();
+        // Fade-out final (funde fondo+texto a negro y luego oculta). Mantiene el candado hasta que
+        // termina; `hh::menu_overlay::tick` lo suelta. Antes se ocultaba de golpe (`hide_now`).
+        static const int kTitleFadeoutMs = [] {
+            const char* e = std::getenv("HH_TITLE_FADEOUT_MS");
+            return (e != nullptr && *e != '\0') ? std::atoi(e) : 1000;
+        }();
+        hh::menu_overlay::begin_area_title_fadeout(kTitleFadeoutMs);
     }
     // Intro de ARRANQUE (file 055): `0x80383AD4` es el estado que corre durante los logos nativos.
     // Al registrarlo entramos en la fase; cualquier otra pantalla la cierra -> retira el HD.

@@ -1065,6 +1065,18 @@ void title_update(uint8_t* rdram) {
 static bool g_area_title_lock = false;
 void set_area_title_lock(bool on) { g_area_title_lock = on; }
 
+// Fade-out final del título del Área: funde el frame (paneles+texto) a negro durante `ms` y lo oculta.
+// Mantiene el candado hasta que termina (el hilo de render anima el fundido) para que `tick`/`hide_now`
+// no lo borren a media transición; `tick` suelta el candado al acabar.
+static long long g_area_title_fade_end_ms = 0;
+void begin_area_title_fadeout(int ms) {
+    hh::overlay::fade_out_menu(ms);
+    const long long now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                              std::chrono::steady_clock::now().time_since_epoch())
+                              .count();
+    g_area_title_fade_end_ms = now + ms;
+}
+
 void hide_now() {
     if (g_area_title_lock) {
         return;
@@ -1078,6 +1090,16 @@ void hide_now() {
 // desaparece "al momento" sin parpadear. Ajustable: HH_MENU_STALE_MS=<ms>.
 void tick() {
     if (g_area_title_lock) {
+        // Al terminar el fade-out final del título, soltar el candado (el render ya ocultó el frame).
+        if (g_area_title_fade_end_ms != 0) {
+            const long long now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+                                      .count();
+            if (now >= g_area_title_fade_end_ms) {
+                g_area_title_fade_end_ms = 0;
+                g_area_title_lock = false;
+            }
+        }
         return;   // título del Área activo: no ocultar por inactividad
     }
     using clock = std::chrono::steady_clock;
@@ -1161,7 +1183,10 @@ void publish_area_title(int area_num, const std::string& name, int alpha) {
     hh::overlay::Frame f;
     f.visible = true;
     // Telón negro a PANTALLA COMPLETA (no solo el área 4:3): el panel se dibuja con la proyección
-    // virtual uniforme, así que se extiende de sobra en X/Y para cubrir también el widescreen.
+    // virtual uniforme, así que se extiende de sobra en X/Y para cubrir también el widescreen. Va
+    // SIEMPRE OPACO: si se fundiera con el texto se transparentaría y dejaría ver el TÍTULO NATIVO que
+    // hay detrás (el nombre es un gráfico que el juego sigue dibujando). El fundido se aplica solo al
+    // texto. Ver `area_title_alpha` en sections.cpp y `fade_out_menu` en overlay.cpp.
     f.panels.push_back({ -2000.0f, -2000.0f, 4000.0f, 4000.0f, hh::overlay::rgba(0, 0, 0, 255) });
     // Ajustes ajustables por entorno (iterar sin recompilar): tamaño, estirado de ALTO, tracking y Y.
     set_area_title_lock(true);   // mientras se pinta el título, no dejar que hide_now lo borre

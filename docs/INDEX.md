@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 226 | 2026-10-01 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 96 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 587 | 2026-10-01 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 591 | 2026-10-01 |
 
 ## Técnico y guías (vivos)
 
@@ -63,6 +63,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [Transición del título del Área: fundido (fade-in/fade-out) y hold (2026-10-02)](../notes/2026-10-02-transicion-titulo-fade.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. Ajuste de la **transición al cargar | 60 | 2026-10-02 |
 | [Rótulo `AREA` del título del Área — traducido (2026-10-02)](../notes/2026-10-02-titulo-area-rotulo-traducido.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows**. | 54 | 2026-10-02 |
 | [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
 | [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |

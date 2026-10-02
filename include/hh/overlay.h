@@ -98,6 +98,12 @@ void preload_screen_image(const std::string& png_path, bool black_bg = false);
 void set_screen_image_alpha(int logo_alpha, int fade_alpha);
 void fade_out_screen_image(int ms);
 
+// Funde a negro el TEXTO del frame del menú/título durante `ms` y, al terminar, oculta el frame. Los
+// paneles (telón negro) se quedan opacos para no destapar el título nativo de detrás. Lo anima el hilo
+// de render (tras la transición del título ya no se publican frames), así que sirve para el fade-out
+// del título del Área.
+void fade_out_menu(int ms);
+
 // Flash blanco a pantalla completa (p. ej. al desbloquear EXTRAS con el codigo Konami): pinta un
 // velo blanco que arranca al maximo y se desvanece durante `ms`. Lo anima el hilo de render.
 void flash_white(int ms);

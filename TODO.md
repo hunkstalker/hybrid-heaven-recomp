@@ -5,6 +5,10 @@
 
 ## Ahora (priorizado)
 
+- [•] **Transición del título del Área: fundido y hold (2026-10-02, validar 2.ª vez)**: fade por tiempo
+  (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
+  `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
+
 - [x] **Rótulo `AREA` del título del Área traducido — HECHO y VALIDADO en Windows (2026-10-02)**:
   estaba hardcodeado (`snprintf("AREA %d")`) → en ES salía sin tilde. Ahora usa la clave `AREA` de
   `assets/lang/*.txt` (`hh::menu::localized("AREA")`): `ÁREA`/`ÀREA`/`ZONE`/`BEREICH`; ancho en

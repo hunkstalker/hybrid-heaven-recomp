@@ -173,6 +173,10 @@ std::atomic<int> g_fade_alpha{ 255 };
 std::atomic<int> g_fade_out_ms{ 0 };
 std::atomic<long long> g_fade_out_start_ms{ 0 };
 std::atomic<int> g_fade_from{ 255 };
+// Fade-out del TEXTO del frame del menú/título (los paneles quedan opacos). 0 = inactivo. Lo anima el
+// hilo de render: baja el alfa del texto a 0 durante `g_menu_fade_ms` y luego oculta el frame.
+std::atomic<int> g_menu_fade_ms{ 0 };
+std::atomic<long long> g_menu_fade_start_ms{ 0 };
 // Tarjeta NEGRA (logos modernos con fondo negro) o blanca (clasicos). `g_image_req_black` es lo
 // pedido; `g_card_black` se aplica al CARGAR la textura (evita ver el logo viejo sobre la tarjeta
 // nueva mientras carga el nuevo).
@@ -436,6 +440,31 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     {
         const std::lock_guard<std::mutex> lock(g_frame_mutex);
         frame = g_frame;
+    }
+    // Fade-out del TEXTO del frame del menú/título: baja su alfa a 0 y, al terminar, oculta el frame
+    // (los paneles quedan opacos). Lo anima este hilo de render (tras la transición del título ya no se
+    // publican frames, así que no se puede animar desde el hilo del juego).
+    {
+        const int ms = g_menu_fade_ms.load(std::memory_order_relaxed);
+        if (ms > 0) {
+            const long long dt = now_ms() - g_menu_fade_start_ms.load(std::memory_order_relaxed);
+            if (dt >= ms) {
+                g_menu_fade_ms.store(0, std::memory_order_relaxed);
+                frame = Frame{};
+                const std::lock_guard<std::mutex> lock(g_frame_mutex);
+                g_frame = Frame{};
+            } else {
+                const uint32_t f = static_cast<uint32_t>(255 - (255 * dt) / ms);
+                const auto fade = [f](uint32_t c) -> uint32_t {
+                    const uint32_t a = ((c >> 24) & 0xFFu) * f / 255u;
+                    return (c & 0x00FFFFFFu) | (a << 24);
+                };
+                // Solo el TEXTO: los paneles (telón negro) se quedan OPACOS para no destapar el título
+                // nativo que hay detrás (ver `publish_area_title`).
+                for (Text& t : frame.texts) t.color = fade(t.color);
+                for (TtfText& t : frame.ttf_texts) t.color = fade(t.color);
+            }
+        }
     }
     // Capa de IMAGEN (logos): independiente del menu; puede estar activa sola (al arrancar, antes
     // del menu). Si no hay ni menu, ni FPS, ni imagen, no se dibuja nada.
@@ -965,6 +994,14 @@ void fade_out_screen_image(int ms) {
     g_fade_from.store(g_fade_alpha.load(std::memory_order_relaxed), std::memory_order_relaxed);
     g_fade_out_start_ms.store(now_ms(), std::memory_order_relaxed);
     g_fade_out_ms.store(ms, std::memory_order_relaxed);
+}
+
+// Fade-out del frame del menú/título (paneles+texto): el hilo de render lo baja a 0 durante `ms` y
+// luego lo oculta. Ver `draw_hook`.
+void fade_out_menu(int ms) {
+    if (ms <= 0) return;
+    g_menu_fade_start_ms.store(now_ms(), std::memory_order_relaxed);
+    g_menu_fade_ms.store(ms, std::memory_order_relaxed);
 }
 
 void flash_white(int ms) {
