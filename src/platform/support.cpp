@@ -629,7 +629,9 @@ void hh::extras_set_debug_levels(bool enabled) {
 
 // ===== Config de INPUT (config.ini [input]) =====
 // Vibracion (CONTROLES -> VIBRACION): reporta Rumble Pak al juego y usa la vibracion de SDL.
-// OJO: reportar Rumble Pak puede alterar el flujo de guardado (PFS) del juego -> validar en Windows.
+// El acoplamiento Rumble Pak <-> guardado se rompe en `hh_pak_detect_hook` (hook de `func_80002BE0`,
+// src/hooks/sections.cpp): fuerza "Controller Pak OK" sin dejar de inicializar el motor, asi que
+// memoria y vibracion coexisten. Ver notes/2026-10-02-*.md.
 namespace {
 std::string g_input_vibration = "no";
 bool g_input_vibration_loaded = false;

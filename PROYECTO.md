@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-01**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
 
 ## 1. Objetivo
 
@@ -157,6 +157,9 @@ traducción; dato en el byte `+7` del registro = `0x801BBC0D`, `save::meta_diffi
 `save_live`), en **columna fija** (no se mueve con 2/3 dígitos, el 100 no se sale); **`AREA/LEVEL/TIME`
 traducidos** (clave `TIME`); `ULTIMATE` fr corregido a `ULTIME` y `NO DATA` fr a 2 líneas
 (`PAS DE\nDONNÉES`). Nota: `notes/2026-10-01-slot-dificultad-y-traduccion.md`.
+**VIBRACIÓN ↔ Controller Pak (HECHO y VALIDADO en Windows, 2026-10-02)**: hook de `func_80002BE0`
+(7→0) + PFS de **un solo sistema de memoria** (`.pak` en canal 0..3) + vibración **global**. Nota:
+`notes/2026-10-02-desacoplo-vibracion-controller-pak.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

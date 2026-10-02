@@ -5,6 +5,10 @@
 
 ## Ahora (priorizado)
 
+- [x] **`VIBRACIÓN` ↔ Controller Pak — HECHO y VALIDADO en Windows (2026-10-02)**: con `VIBRACIÓN = SÍ`
+  antes no se guardaba/cargaba. Hook `func_80002BE0` (7→0) + PFS de un solo `.pak` (canal 0..3) +
+  vibración global. Detalle: **`notes/2026-10-02-desacoplo-vibracion-controller-pak.md`**. Ver item 11.
+
 - [•] **Transición del título del Área: fundido y hold (2026-10-02, validar 2.ª vez)**: fade por tiempo
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
   `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
@@ -344,19 +348,12 @@
      (incl. D-PAD) y/o tecla** (**1 botón + 1 tecla**), con bloqueo A/B 0.25 s al asignar; **movimiento**
      (4 ejes: stick izq/der + tecla), **D-PAD** como botones (`MENÚ ...`) y **`RESET`**. Persiste en
      `[game]/[menu]` + `[keys]`. `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
-     **La `VIBRACIÓN` no es validable hasta resolver el item 11** (con `VIBRACIÓN` en SÍ no se puede
-     cargar/guardar).
-  11. [ ] **VIBRACIÓN ↔ guardado (Rumble Pak vs Controller Pak) — BLOQUEANTE jugable**: en N64 ambos
-     comparten la **misma ranura**; Hybrid Heaven pide conectar el **Controller Pak** al guardar y el
-     **Rumble Pak** después. Con `VIBRACIÓN` en SÍ (CONTROLES) se reporta **Rumble Pak siempre** y nunca
-     hay Controller Pak → **no se puede cargar ni guardar** (in-game no hay forma de "quitar" el Rumble
-     Pak). **Tarea**: modificar el juego para que **vibración y guardado coexistan** (p. ej. que el PFS
-     virtual funcione aunque se reporte Rumble Pak, o permitir ambos a la vez); y, si ya no hace falta
-     conectar/desconectar dispositivos, **eliminar los mensajes** de conectar Controller/Rumble Pak.
-     **Es un problema común a los recompilados (pasa en el 100 % de los casos): investigar cómo lo
-     resolvieron otros proyectos** (p. ej. Zelda64Recomp / N64Recomp) — probablemente reportando o
-     emulando un "pak combinado" (Rumble + Controller a la vez) o adaptando el PFS. Relacionado:
-     `VIBRACIÓN` (item 10) y el PFS virtual (`lib/N64ModernRuntime/librecomp/src/pak.cpp`).
+     **La `VIBRACIÓN` ya es validable** (desacoplada del guardado; ver item 11, validado en Windows).
+    11. [x] **VIBRACIÓN ↔ guardado (Rumble/Controller Pak) — HECHO y VALIDADO en Windows (2026-10-02)**:
+      `func_80002BE0` daba prioridad al Rumble Pak (`osMotorInit==0 → ret 7`) y el juego creía que no
+      había Controller Pak. **Hecho**: hook que ejecuta el original y fuerza 7→0; PFS de un solo `.pak`
+      (canal 0..3); vibración global. Detalle:
+      **`notes/2026-10-02-desacoplo-vibracion-controller-pak.md`**. Relacionado: item 10 y fork NMR.
    12. [x] **`MODO COMBATE` (BATTLE MODE) — RECREADO CON NUESTRO MENÚ Y VALIDADO EN WINDOWS
       (2026-09-27)**:
       el nativo la tiene como `sel=2` (`func_801C1DB8`, `0x801CC8C4`). **Hecho (2026-09-27)**:

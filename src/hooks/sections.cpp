@@ -78,6 +78,8 @@ extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx);  // t
 extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx);   // Fase 3: file-select CARGAR
 extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // cajas nativas (func_8001A804)
 extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // mensaje Controller Pak
+extern "C" void func_80002BE0_37E0(uint8_t* rdram, recomp_context* ctx);     // clasificador de accesorio (pak)
+extern "C" void hh_pak_detect_hook(uint8_t* rdram, recomp_context* ctx);     // desacoplo vibracion <-> controller pak
 extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
 extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
 extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
@@ -654,6 +656,10 @@ void register_title_menu_hook() {
     recomp::overlays::add_loaded_function(0x8001A804, hh_box_draw_hook);
     // Mensaje del Controller Pak (func_800179B0): se salta entero con el file-select oculto (ver hook).
     recomp::overlays::add_loaded_function(0x800179B0, hh_pak_message_hook);
+    // DESACOPLO VIBRACIÓN <-> CONTROLLER PAK: `func_80002BE0` (residente) clasifica el accesorio y
+    // prioriza el Rumble Pak; con VIBRACIÓN=SÍ el juego concluye "no hay Controller Pak" y no guarda.
+    // El hook fuerza la rama "Controller Pak OK" sin dejar de inicializar el motor (ver definición).
+    recomp::overlays::add_loaded_function(0x80002BE0, hh_pak_detect_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
@@ -2523,6 +2529,33 @@ extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx) {
         return;
     }
     func_800179B0_185B0(rdram, ctx);
+}
+
+// DESACOPLO VIBRACIÓN <-> CONTROLLER PAK (2026-10-02).
+// `func_80002BE0` (residente) es el clasificador de accesorio: llama a `osPfsInitPak` (Controller
+// Pak), `osMotorInit` (Rumble Pak) y `osGbpakInit`, y DA PRIORIDAD al Rumble Pak: si `osMotorInit`
+// tiene éxito devuelve 7. Como el port reporta `RumblePak` para que la vibración funcione
+// (`get_connected_device_info`), con `CONTROLES -> VIBRACIÓN = SÍ` el juego devuelve 7 y cree que NO
+// hay Controller Pak -> no guarda ni carga (aunque el PFS sea virtual).
+//
+// El Rumble no depende de este retorno: se arma por su propia vía (`func_80002A94` llama a
+// `osMotorInit` y marca la tabla `0x80037780`, que `func_80002B44` consulta para el motor). Por eso:
+//   1) ejecutamos el ORIGINAL -> deja el motor inicializado (`OSPfs::status |= PFS_MOTOR_INITIALIZED`)
+//      y corre las ramas PFS/GB normales;
+//   2) si la vibración está activa y el resultado fue 7 (Rumble Pak), forzamos 0 ("Controller Pak
+//      OK", el valor que da en vanilla con la vibración apagada).
+// Así memoria y vibración coexisten sin tocar el runtime, el enum `Pak` ni el PFS.
+extern "C" void hh_pak_detect_hook(uint8_t* rdram, recomp_context* ctx) {
+    func_80002BE0_37E0(rdram, ctx);
+    const int ret = ctx->r2 & 0xFF;
+    const bool vib = hh::input_vibration_enabled();
+    if (vib && ret == 7) {
+        ctx->r2 = 0;
+    }
+    if (env_set("HH_PAK_TRACE")) {
+        hh::log("[vib] func_80002BE0 ch=%u vib=%d ret=%d -> %d\n", (unsigned)(ctx->r4 & 0xFF),
+                vib ? 1 : 0, ret, (int)(ctx->r2 & 0xFF));
+    }
 }
 
 // Overlay A2: envuelve el update de COMBATE DE CRIATURAS (func_801C44C4, file_024). Igual que el

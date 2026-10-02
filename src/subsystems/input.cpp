@@ -124,6 +124,8 @@ static bool hh_key_map_ready = false;
 
 // Funciones definidas mas abajo (se usan en la captura/reset de CONTROLES).
 static SDL_GameController* hh_pad_controller();
+static void hh_pad_track(SDL_GameController* c);
+static void hh_pad_untrack(SDL_GameController* c);
 static void hh_key_save();
 static float controller_axis_to_float(Sint16 value);
 
@@ -977,15 +979,12 @@ void hh::poll_input() {
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 if (SDL_IsGameController(event.cdevice.which)) {
-                    SDL_GameControllerOpen(event.cdevice.which);
+                    hh_pad_track(SDL_GameControllerOpen(event.cdevice.which));
                 }
                 break;
-            case SDL_CONTROLLERDEVICEREMOVED: {
-                SDL_GameController* controller = SDL_GameControllerFromInstanceID(event.cdevice.which);
-                if (controller != nullptr) {
-                    SDL_GameControllerClose(controller);
-                }
-            } break;
+            case SDL_CONTROLLERDEVICEREMOVED:
+                hh_pad_untrack(SDL_GameControllerFromInstanceID(event.cdevice.which));
+                break;
             case SDL_KEYDOWN: {
                 // Atajos de video en caliente (hasta que exista el menu in-game).
                 const SDL_Keysym& k = event.key.keysym;
@@ -1391,24 +1390,59 @@ extern "C" unsigned long long hh_get_input_polls() {
     return hh_input_polls.load();
 }
 
-// Handle del mando cacheado (apertura perezosa, reintento 1/s para hotplug). Lo comparten el input
-// normal y la captura de reasignacion (CONTROLES).
-static SDL_GameController* hh_pad_controller() {
-    static SDL_GameController* controller = nullptr;
-    static double controller_next_try = 0.0;
-    if (controller != nullptr && !SDL_GameControllerGetAttached(controller)) {
-        SDL_GameControllerClose(controller);
-        controller = nullptr;
+// HH: registro de TODOS los mandos SDL abiertos. Lo comparten el input (usa el primero, puerto 0) y
+// la vibracion (rumba todos: J1 y J2). El hotplug se gestiona aqui (apertura perezosa del primero,
+// con reintento 1/s) y en el bucle de eventos (CONTROLLERDEVICEADDED/REMOVED).
+static std::vector<SDL_GameController*> g_pads;
+
+static SDL_JoystickID hh_pad_instance(SDL_GameController* c) {
+    SDL_Joystick* js = c != nullptr ? SDL_GameControllerGetJoystick(c) : nullptr;
+    return js != nullptr ? SDL_JoystickInstanceID(js) : -1;
+}
+
+static void hh_pad_track(SDL_GameController* c) {
+    if (c == nullptr) return;
+    const SDL_JoystickID id = hh_pad_instance(c);
+    for (SDL_GameController* p : g_pads) {
+        if (p == c || (id >= 0 && hh_pad_instance(p) == id)) {
+            SDL_GameControllerClose(c);   // ya seguido -> descartar el duplicado
+            return;
+        }
     }
-    if (controller == nullptr && SDL_NumJoysticks() > 0) {
+    g_pads.push_back(c);
+}
+
+static void hh_pad_untrack(SDL_GameController* c) {
+    for (auto it = g_pads.begin(); it != g_pads.end(); ++it) {
+        if (*it == c) {
+            SDL_GameControllerClose(*it);
+            g_pads.erase(it);
+            return;
+        }
+    }
+}
+
+// Handle del mando del puerto 0 (apertura perezosa, reintento 1/s para hotplug): el primero del
+// registro. La captura/reasignacion de CONTROLES y el input normal usan este.
+static SDL_GameController* hh_pad_controller() {
+    static double controller_next_try = 0.0;
+    for (auto it = g_pads.begin(); it != g_pads.end();) {
+        if (!SDL_GameControllerGetAttached(*it)) {
+            SDL_GameControllerClose(*it);
+            it = g_pads.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (g_pads.empty() && SDL_NumJoysticks() > 0) {
         const auto now = std::chrono::steady_clock::now();
         const double secs = std::chrono::duration<double>(now.time_since_epoch()).count();
         if (secs >= controller_next_try) {
             controller_next_try = secs + 1.0;
-            controller = SDL_GameControllerOpen(0);
+            hh_pad_track(SDL_GameControllerOpen(0));
         }
     }
-    return controller;
+    return g_pads.empty() ? nullptr : g_pads.front();
 }
 
 bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
@@ -1744,14 +1778,18 @@ extern "C" bool hh_input_button_down(const char* action_key) {
 }
 
 void hh::set_rumble(int controller_num, bool rumble) {
-    if (controller_num != 0) return;
-    SDL_GameController* c = hh_pad_controller();
-    if (c == nullptr) return;
-    if (rumble) {
-        // Duracion larga: el juego lo para con set_rumble(false) (osMotorStop).
-        SDL_GameControllerRumble(c, 0xFFFF, 0xFFFF, 5000);
-    } else {
-        SDL_GameControllerRumble(c, 0, 0, 0);
+    // HH: la vibracion es GLOBAL: vibran todos los mandos conectados (J1 y J2 a la vez), tal como
+    // se quiere en el modo local. `controller_num` se ignora a proposito; el registro de mandos lo
+    // mantiene el bucle de eventos / hh_pad_controller (apertura perezosa del primero).
+    (void)controller_num;
+    hh_pad_controller();
+    for (SDL_GameController* c : g_pads) {
+        if (rumble) {
+            // Duracion larga: el juego lo para con set_rumble(false) (osMotorStop).
+            SDL_GameControllerRumble(c, 0xFFFF, 0xFFFF, 5000);
+        } else {
+            SDL_GameControllerRumble(c, 0, 0, 0);
+        }
     }
 }
 
