@@ -13,8 +13,9 @@
    `SALIR`** en la raíz, debajo de `CONFIGURACIÓN` (decisión del mantenedor, 2026-09-25; ver §SALIR).
 2. **Ocultar el menú nativo** por defecto (el port ya añade menús que no existían). Mecanismo:
    `architecture.md` §7 (supresión por tablas de etiquetas).
-3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A** marca/selecciona (entra
-   en submenús y fija la opción de una lista); **B** atrás. En los **selectores laterales**,
+3. **Navegación**: arriba/abajo mueve el cursor (la **flecha nativa**); **A o START** marcan/seleccionan
+   (entran en submenús y fijan la opción de una lista; el original también entra con Start; en PC el
+   START por defecto es **Enter**); **B** atrás. En los **selectores laterales**,
    izquierda/derecha cambian el valor. **No hay "aplicar" con X**: los cambios son en vivo. Colores:
    las **etiquetas** del menú van en **blanco** (amarillo la del cursor); en las **opciones a
    configurar** (elementos de lista y valores de selector), la activa/aplicada en **verde** y el resto
@@ -164,6 +165,9 @@ SALIR                                      (extra del port: cierra de forma orde
 - **MODO COMBATE**: **habilitado (2026-09-27)** y **recreado con nuestro menú** (mismos rótulos que
   el original, traducidos a en/ca/fr/de): `MODO VS` / `COMBATE DE CRIATURAS` / `EDITAR DATOS`. **No
   hay entrada `SALIR`**: se sale con **B** (atrás), que dispara el `EXIT` nativo (cursor 3).
+  **`MODO VS` DESHABILITADO (2026-10-02)**: visible en **gris**, el cursor no se posa en él
+  (`make_item(..., enabled=false)` + `ensure()` normaliza el cursor con `step_enabled`); requiere un
+  2.º mando que el port aún no reporta. `COMBATE DE CRIATURAS` sigue operativo.
   Navegación propia y **despacho nativo cableado**: al confirmar una entrada, el overlay fija el
   **cursor de batalla** (`0x801CC8C8`, `0..3`) y reenvía **A** al submenú nativo (`func_801C4200`),
   igual que `sel`+A en la raíz. El overlay dibuja la subpantalla con sus rótulos traducidos
@@ -267,10 +271,14 @@ SALIR                                      (extra del port: cierra de forma orde
 ## Input — DECIDIDO: control total
 
 El overlay moderno **desacopla** el menú inicial del juego: nuestro menú lee el input
-(arriba/abajo/izq-der/A/B) y gestiona su **propia pila de pantallas**; el menú nativo se **oculta** y su
-input se **neutraliza** (ver `architecture.md` §7). Los botones se leen con los lectores del propio
-juego (`func_801C1340` direcciones / `func_801C1334` A/B/START), que el handler nativo ve a 0 mientras
-manda el overlay (`feed_menu_navigation`).
+(arriba/abajo/izq-der/A/B/START) y gestiona su **propia pila de pantallas**; el menú nativo se
+**oculta** y su input se **neutraliza** (ver `architecture.md` §7). Los botones se leen con los
+lectores del propio juego (`func_801C1340` direcciones / `func_801C1334` A/B/START), que el handler
+nativo ve a 0 mientras manda el overlay (`feed_menu_navigation`).
+**Aceptar = A o START** en el menú de título/port y en las UIs de cargar/guardar (`DATA LOAD`/`DATA
+SAVE`), como en el original. **Anti-rebote de entrada** (`g_menu_seed_input`): al (re)entrar al menú,
+el primer frame **traga** el estado mantenido (siembra `prev`) para que el START que abrió el menú
+("PRESS START") no dispare una acción; los frames siguientes ya generan flanco.
 
 ## SFX
 

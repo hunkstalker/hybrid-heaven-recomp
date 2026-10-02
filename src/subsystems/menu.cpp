@@ -363,8 +363,11 @@ void build_tree() {
     // MODO COMBATE: subpantalla recreada con nuestro menu (mismos rotulos que el original),
     // traduccida a todos los idiomas. El despacho nativo de cada entrada se cablea en el hook del
     // submenu de batalla (0x801C4200); ver docs/menu.md y notes/2026-09-27-battle-mode-recon.md.
+    // VS MODE: DESHABILITADO (gris, el cursor no se posa en él). Requiere un 2.º mando que el port
+    // aún no reporta (ver TODO: "2.º mando / Modo VS"); el modo carga un slot del MISMO sistema de
+    // memoria. Visible en gris (no oculto). Mismo mecanismo que las antiguas CÁMARA/APUNTADO LIBRE.
     g_screens.push_back(make_screen(ScreenId::BattleMode, ScreenKind::Menu, {
-        make_item("VS MODE", Action::BattleModeVs),
+        make_item("VS MODE", Action::BattleModeVs, /*enabled=*/false),
         make_item("CREATURE BATTLE", Action::BattleModeCreature),
     }));
 
@@ -914,6 +917,19 @@ void ensure() {
         reset();
     }
     refresh_continue_entry();
+    // Normaliza el cursor de la pantalla ACTIVA: si quedó sobre una entrada deshabilitada o una
+    // fila-hueco (label vacío), salta a la primera habilitada (p. ej. VS MODE gris al entrar en
+    // MODO COMBATE). Reutiliza `step_enabled` (el mismo salto que move_up/move_down).
+    if (Screen* s = top()) {
+        const int n = static_cast<int>(s->entries.size());
+        const int cur = s->cursor;
+        if (cur < 0 || cur >= n || !s->entries[cur].enabled || s->entries[cur].label.empty()) {
+            const int c = step_enabled(*s, cur, +1);
+            if (c >= 0) {
+                s->cursor = c;
+            }
+        }
+    }
 }
 
 bool screen_for(Action action, ScreenId& out) {

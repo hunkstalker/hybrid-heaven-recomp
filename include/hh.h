@@ -19,8 +19,8 @@ namespace hh {
     // Version del port. FUENTE UNICA: editar SOLO aqui al publicar un release; de estos valores se
     // derivan el string del log (get_version_string) y el recomp::Version del runtime.
     inline constexpr int kVersionMajor = 0;
-    inline constexpr int kVersionMinor = 5;
-    inline constexpr int kVersionPatch = 1;
+    inline constexpr int kVersionMinor = 6;
+    inline constexpr int kVersionPatch = 0;
 
     const char* get_version_string();
 

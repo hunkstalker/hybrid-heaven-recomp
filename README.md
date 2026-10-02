@@ -18,8 +18,17 @@ Plataformas objetivo: **Windows, Linux y Steam Deck**.
 - **Widescreen** con **anclaje del HUD/minimapa** a los bordes; ajustes `[video]` en `config.ini`
   (aspecto, resolución nativa/4K/8K, MSAA, borderless/windowed) y atajos **F2** (aspecto) y **F3**
   (ventana); **F1** abre el Inspector de RT64 con `HH_DEVELOPER=1`.
-- **Mando + teclado** (mapeo fijo; D-pad↔stick para navegar menús).
-- **Guardado** en cápsula (Controller Pak emulado → `saves/*.pak`).
+- **Mando + teclado** con **remapeo** completo en `CONFIGURACIÓN → CONTROLES` (cualquier botón,
+  incluido el D-pad, y/o tecla; D-pad↔stick para navegar menús). **Vibración** del mando (independiente
+  del guardado).
+- **Guardado/carga propios**: menú con **45 slots** en un único `saves/*.pak` (antes 9), UI 1:1
+  `DATA LOAD`/`DATA SAVE`, **carga real** desde `CONTINUAR` y borrado de slots. Los `.pak` de versiones
+  anteriores se **migran** automáticamente.
+- **Menú PC** propio (overlay) con **multijugador de opciones**: idioma (EN/ES/CA/FR/DE/JA), gráficos,
+  sonido y **EXTRAS** (MODO HEAVEN, VENTAJA, PODER/RESISTENCIA ∞, **editor de partida**, `IR A ÁREA`,
+  `DEBUG LEVELS`).
+- **i18n unificado**: todas las traducciones en `assets/lang/*.txt` (clave = inglés; editar sin
+  recompilar); acentos y JA en kana. **Título de Área** traducido al cargar partida.
 - **Cache de assets** + descompresor **LZKN64** nativo; módulos de código vía `trans`.
 - Build **reproducible**, CI y *Releases* (Windows `.zip`, Linux `.tar.gz`, imagen Docker).
 
@@ -36,8 +45,36 @@ jefe) sin cuelgues ni crashes.
   puerta y el primer jefe del nivel 1); con `Refresh Rate = Original` desaparecen. El arreglo de
   fondo implica desacoplar la lógica del juego del render (ver `TODO.md`).
 
-Limitaciones y pendientes (detalle en `TODO.md`): menú multijugador (SEGV, fuera de alcance),
-audio atado al tick de 30 Hz, extracción/traducción de textos, y validación de Steam Deck.
+Limitaciones y pendientes (detalle en `TODO.md`): **`MODO VS` (2 jugadores) deshabilitado** (gris; ver
+`Controles y atajos`), audio atado al tick de 30 Hz, extracción/traducción de textos (JA por cotejar)
+y validación de Steam Deck.
+
+## Controles y atajos
+
+Mando y teclado se **remapean** en `CONFIGURACIÓN → CONTROLES` (un botón y/o una tecla por acción).
+Por defecto: **A** aceptar, **B** atrás/mapa, **X** agacharse (borrar en los menús de guardado),
+**Start/Enter** menú, **C-Down** primera persona, palancas para mover. En el menú de título se entra
+igual con **A** o **Start/Enter**.
+
+Atajos de teclado (los de diagnóstico están marcados):
+
+| Tecla | Acción |
+|---|---|
+| `F1` | Inspector de RT64 (requiere `GRÁFICOS`/`DEBUG → VENTANA DEBUG = SÍ`) |
+| `F2` | Ciclo de **aspecto** (ratio) |
+| `F3` | Alternar **ventana / pantalla completa** |
+| `F4` | Ciclo de **MSAA** |
+| `F5` / `F6` | **DEBUG LEVELS**: punto de escena **anterior / siguiente** (con la opción activa) |
+| `RePág` / `AvPág` | **DEBUG LEVELS**: **−10 / +10** (bloques de área) |
+| `Inicio` | **DEBUG LEVELS**: ir al índice **0** (Área 1-0) |
+| `F11` | Cerrar el juego |
+| `F7`, `F8`, `F12` | *Diagnóstico*: captura pareada, mostrar/ocultar menú nativo, traza de combate |
+
+> `DEBUG LEVELS` se activa en `EXTRAS → DEBUG LEVELS = SÍ` y muestra un indicador `idx=` en pantalla;
+> los índices que cuelgan se listan en `saves/skip_indices.txt` (editable sin recompilar).
+
+**`MODO VS` no disponible**: aparece en `COMBATE` en **gris** y el cursor no se posa en él (requiere
+un 2.º mando que el port aún no reporta). `COMBATE DE CRIATURAS` sí funciona.
 
 ## Jugar (recomendado)
 

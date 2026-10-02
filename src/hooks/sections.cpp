@@ -114,6 +114,14 @@ bool g_mute_native_input = false;
 // partida). Ver `feed_menu_navigation` y `hh_title_menu_hook`.
 bool g_inject_native_a = false;
 
+// ANTI-REBOTE de entrada al (re)entrar al menú de título. El menú abre con START ("PRESS START") y
+// ese START puede seguir MANTENIDO en el primer frame en que corre `feed_menu_navigation`; con
+// `prev=0` (o sin START) contaría como flanco y, al aceptar también START (entrar en menús), se
+// colaría una acción (p. ej. CONTINUAR) sin querer. `hh_title_menu_hook` lo marca tras un hueco real
+// (reentrada) y `feed_menu_navigation` traga el estado mantenido un frame (siembra `prev`). Ver
+// docs/releases/v0.6.0.md.
+std::atomic<bool> g_menu_seed_input{false};
+
 // NOTA (2026-10-01): se probó a cargar por la MÁQUINA NATIVA del file-select (inyectarle A y dejar
 // que corra state 2→3→4). Está BLOQUEADO: el state machine se congela en state 3 mientras el
 // subsistema de mensajes no limpie `D_8008EE78` (`func_800178E8` → 0), y en el port el mensaje
@@ -1156,6 +1164,12 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     };
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
+    // ANTI-REBOTE (ver `g_menu_seed_input`): primer frame tras (re)entrar al menú -> traga el estado
+    // mantenido (siembra `prev`) y no navega, para que el START que abrió el menú no dispare una acción.
+    if (g_menu_seed_input.exchange(false)) {
+        prev = btn;
+        return;
+    }
     // CONTROLES: mientras se captura un input para reasignar, se consume el frame y NO se navega
     // (el input va a la captura; ESC cancela). El handler nativo sigue corriendo (muteado).
     // Se RE-LEE el estado TRAS `pad_capture_poll` (que puede haber ASIGNADO el input): el nuevo
@@ -1216,7 +1230,9 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             emitted = (ev != hh::menu::Event::None);
         }
     }
-    if (!nav_block && (pressed & 0x8000u)) ev = hh::menu::confirm();   // A: entra / marca
+    // Aceptar = A (0x8000) o START (0x1000). En PC el START por defecto es Enter; en el original
+    // tambien se entra en los menus con Start. Ver docs/releases/v0.6.0.md.
+    if (!nav_block && (pressed & (0x8000u | 0x1000u))) ev = hh::menu::confirm();   // A/Start: entra / marca
     if (!nav_block && (pressed & 0x4000u)) ev = hh::menu::back();      // B: atras (en vivo, sin X)
     const bool same_screen = (hh::menu::current_screen().id == screen_before);
     // MODO COMBATE: al confirmar la entrada de la raiz arrancamos TAMBIEN el submenu NATIVO
@@ -1233,7 +1249,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
     // cursor por encima.
     if (ev != hh::menu::Event::None && same_screen &&
-        (moved_h || (pressed & 0x8000u))) {
+        (moved_h || (pressed & (0x8000u | 0x1000u)))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -1812,6 +1828,15 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
 // publica el frame del overlay del port. Con HH_MENU_TRACE=1 registra además la selección (0x801CC8C4).
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     ++g_hook_frame;
+    // ANTI-REBOTE: primer frame tras (re)entrar al menú (hueco real desde el frame anterior) -> ceba
+    // el input para que el START que abrió el menú no dispare una acción (ver `g_menu_seed_input`).
+    {
+        static long last = -1;
+        if (last < 0 || g_hook_frame - last > 1) {
+            g_menu_seed_input.store(true);
+        }
+        last = g_hook_frame;
+    }
     hh::overlay::set_screen_blackout(false);   // seguridad: el telon nunca tapa el menu
     // Al correr el handler del TÍTULO ya no estamos en el file-select: desactiva su categoría de
     // ocultado (si no, quedaría activa tras volver del DATA LOAD). EXCEPCIÓN: si venimos de pulsar
@@ -2050,7 +2075,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_load_yes_selected(!hh::menu::load_yes_selected());
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
-        if (pressed & 0x8000u) {
+        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
             const bool yes = hh::menu::load_yes_selected();
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (yes) {
@@ -2071,7 +2096,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     }
     // Loaded: A sale (la escena ya está montada). Removed: A vuelve a Browse (NO sale).
     if (phase == hh::menu::LoadPhase::Loaded || phase == hh::menu::LoadPhase::Removed) {
-        if (pressed & 0x8000u) {
+        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (phase == hh::menu::LoadPhase::Removed) {
                 hh::menu::set_load_phase(hh::menu::LoadPhase::Browse);
@@ -2125,8 +2150,8 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
     }
-    // A carga (solo slots con datos); X pide borrar (solo slots con datos). Bindings en vivo.
-    if (acc_btn || (pressed & 0x8000u)) {
+    // A/Start carga (solo slots con datos); X pide borrar (solo slots con datos). Bindings en vivo.
+    if (acc_btn || (pressed & (0x8000u | 0x1000u))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2327,7 +2352,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_save_yes_selected(!hh::menu::save_yes_selected());
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
-        if (pressed & 0x8000u) {
+        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
             const bool yes = hh::menu::save_yes_selected();
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             // DIAGNOSTICO (HH_SAVE_TRACE=1): por que prompt se pulso A y a que fase se pasa.
@@ -2381,7 +2406,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     }
     // Completed: cualquier A cierra el mensaje y sale de la capsula. Removed: vuelve a Select (NO sale).
     if (phase == hh::menu::SavePhase::Completed || phase == hh::menu::SavePhase::Removed) {
-        if (pressed & 0x8000u) {
+        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (phase == hh::menu::SavePhase::Removed) {
                 hh::menu::set_save_phase(hh::menu::SavePhase::Select);
@@ -2433,10 +2458,10 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     }
     // A (aceptar) SIEMPRE guarda; X (agacharse) BORRA solo si la fila es un slot con datos (no
     // `NEW GAME`). Los bindings se leen en vivo (remapeables). En headless solo hay teclado.
-    if (acc_btn || (pressed & 0x8000u)) {
+    if (acc_btn || (pressed & (0x8000u | 0x1000u))) {   // A o Start/Enter
         if (env_set("HH_SAVE_TRACE")) {
-            hh::log("[save-flow] A en Select -> ConfirmHere (acc_btn=%d pressed=%d)\n", acc_btn ? 1 : 0,
-                    (pressed & 0x8000u) ? 1 : 0);
+            hh::log("[save-flow] A/Start en Select -> ConfirmHere (acc_btn=%d pressed=%d)\n", acc_btn ? 1 : 0,
+                    (pressed & (0x8000u | 0x1000u)) ? 1 : 0);
         }
         if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
         const hh::menu::Screen& s = hh::menu::current_screen();
