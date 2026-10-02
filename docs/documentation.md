@@ -18,6 +18,7 @@ histórico que no compite con la verdad actual. El objetivo es que una sesión n
 | Arranque de sesión (reglas, comandos, orden de lectura) | `../AGENTS.md` | vivo, corto |
 | Contexto, estado y roadmap del proyecto | `../PROYECTO.md` | vivo, ≤2 pantallas |
 | Tareas (única lista priorizada) | `../TODO.md` | vivo, corto |
+| Tareas completadas (archivo navegable) | `TAREAS-HECHAS.md` | vivo (acumulativo) |
 | Punto de retomada de la sesión actual | `../RETOMAR.md` | vivo, corto (handoff) |
 | Modelo técnico (memoria, `trans`, runtime) | `architecture.md` | vivo |
 | Visión y roadmap a largo plazo (no vinculante) | `README.md` | vivo (puede quedar genérico) |
@@ -42,7 +43,9 @@ Regla: **`../notes/` nunca es fuente operativa.** No se corrige una nota antigua
 vivos. Las decisiones, a un ADR (ver §4). Los cambios de estado, a `../PROYECTO.md`/`../TODO.md`.
 
 **Al cerrar** (checklist):
-- [ ] `../TODO.md`: marcar lo hecho y añadir lo nuevo (priorizado).
+- [ ] `../TODO.md`: marcar lo hecho y añadir lo nuevo (priorizado). Lo marcado `[x]` se **mueve** a
+      `TAREAS-HECHAS.md` (una línea-resumen + enlace a la nota) para que `TODO.md` quede solo con
+      pendientes.
 - [ ] `../PROYECTO.md`: actualizar estado/fecha si cambió.
 - [ ] Una **nota fechada** con el detalle (evidencia), aunque no haya éxito.
 - [ ] Si hubo una decisión estructural → **nuevo ADR**.
@@ -80,6 +83,10 @@ Cuando un doc vivo se congestione: se **recorta** (queda la verdad actual) y el 
 **congela** en `../notes/archive/FECHA-<nombre>-legacy.md` con una cabecera `> ARCHIVO HISTÓRICO`.
 Precedente: consolidación del 2026-09-11 (`../notes/archive/2026-09-11-sesion-legacy.md`,
 `../notes/archive/2026-09-11-proyecto-legacy.md`).
+
+**Tareas hechas:** van a `TAREAS-HECHAS.md` (resumen navegable, **no se borran**), no al archivo
+histórico. `TODO.md` = solo pendientes; `TAREAS-HECHAS.md` = completadas. Así el set de arranque se
+mantiene dentro del presupuesto.
 
 ## 7. Anti-patrones (evitar)
 

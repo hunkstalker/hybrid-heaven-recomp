@@ -43,7 +43,8 @@ Estructura: port en la raíz (`CMakeLists.txt`, `src/{platform,hooks,subsystems}
 3. **`PROYECTO.md`** — contexto y estado (corto).
 4. **`TODO.md`** — qué toca ahora.
 5. **`docs/architecture.md`** — modelo técnico (memoria, `trans`, runtime).
-6. Bajo demanda: `docs/workflows.md`, `docs/menu.md` (diseño del menú), `docs/adr/`, `notes/` (evidencia).
+6. Bajo demanda: `docs/workflows.md`, `docs/menu.md`, `docs/TAREAS-HECHAS.md` (tareas completadas),
+   `docs/adr/`, `notes/` (evidencia).
 7. Índice completo de la documentación (generado): **`docs/INDEX.md`**. Regenerar/validar:
    `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y el **presupuesto de arranque**).
 
@@ -100,8 +101,9 @@ Ver **`docs/workflows.md`** (recompilar, build, run headless, protocolo de imág
 
 ## Inventario
 
-- `PROYECTO.md`, `TODO.md`, `AGENTS.md` — docs vivos. · `docs/` (architecture, workflows,
-  documentation, menu) y `docs/adr/` — técnico/decisiones.
+- `PROYECTO.md`, `TODO.md` (solo pendientes), `AGENTS.md` — docs vivos; `docs/TAREAS-HECHAS.md`
+  (tareas completadas). · `docs/` (architecture, workflows, documentation, menu) y `docs/adr/` —
+  técnico/decisiones.
 - `recomp/` — config del pipeline (versionada): `hybrid-heaven.us.{yaml,toml}`, `overlays.txt`,
   `symbol_addrs.txt`, `auto_funcs.txt`, `code_files.json`+`code_files.overlays.txt`, `n64recomp_changes/`,
   `rsp_hh_aspMain.toml` y `recomp/tools/` (pipeline splat/ELF/N64Recomp).
