@@ -10,7 +10,7 @@
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
   `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
 
-- [x] **Número de Área del título al CARGAR partida — FIX HECHO (2026-10-02), validar en Windows**: el
+- [x] **Número de Área del título al CARGAR partida — HECHO y VALIDADO en Windows (2026-10-02)**: el
   número salía equivocado según la **parte** (1-2 → Área 2; 6-1 → Área 1). Causa: `hh_area_title_hook`
   usaba `func_8013EA54` (campo `+6` del modelo = `func_80108280>>8`, un valor que avanza por PARTE) como
   índice de `D_801CCAE0`. Fix: derivar el área del **valor de escena vivo `[0x801BBBF4]`** con

@@ -27,7 +27,7 @@
 - **#14 ataque a distancia/veneno** — fix general del recompilador (jump tables). **VALIDADO**.
 - **Textos al GUARDAR** — `set_file_select_active(false)` en `hh_leave_capsule`. **VALIDADO**.
 - **Número de Área del título al cargar** — derivar de `[0x801BBBF4]`, no de `func_8013EA54`.
-  **Validar en Windows.** Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
+  **VALIDADO.** Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
 
 ## Pendiente
 

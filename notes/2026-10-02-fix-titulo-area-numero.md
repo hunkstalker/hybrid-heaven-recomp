@@ -1,8 +1,8 @@
 # 2026-10-02 — Fix: el título del Área al cargar partida mostraba el Área equivocada
 
-> Bug reportado por el mantenedor. **Corregido** (a validar en Windows). Afecta al **nombre del Área**
-> que publica el overlay propio al **cargar partida** (`publish_area_title`), no a la UI de carga.
-> Distinción **medido** / **inferido** explícita.
+> Bug reportado por el mantenedor. **Corregido y VALIDADO en Windows (2026-10-02)**. Afecta al
+> **nombre del Área** que publica el overlay propio al **cargar partida** (`publish_area_title`), no a la
+> UI de carga. Distinción **medido** / **inferido** explícita.
 
 ## Síntoma (medido)
 
@@ -54,8 +54,8 @@ deserializador `func_80141D08` (llamado por `func_801423C8` en `hh_do_load_game`
 
 ## Validación
 
-- Compila (Linux). **Pendiente validar en Windows**: cargar slots de distintas partes del mismo área
-  (p. ej. 1-1 y 1-2 → mismo título Área 1) y de un área alta (6-1 → Área 6).
+- Compila (Linux) y **validado en Windows (2026-10-02)**: slots de distintas partes del mismo área
+  muestran el mismo título de Área, y un área alta muestra su Área correcta.
 
 ## Referencias
 
