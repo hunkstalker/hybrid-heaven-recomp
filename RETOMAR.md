@@ -1,11 +1,12 @@
 # RETOMAR — handoff (2026-10-02)
 
 > Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
-> recompilador (jump tables, #14) + fix de textos al guardar + número de Área del título**.
-> **TAREA ACTUAL**: **artefactos gráficos en el diálogo del ordenador = los acentos pisan la KANA**
-> (colisión de `value` en color0). Causa raíz **medida**; solución robusta **pendiente** (donantes ASCII,
-> preparada para JA). Handoff completo: **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**.
-> Reglas: `AGENTS.md` y `docs/documentation.md`. Otro pendiente: **versionar el parche del recompilador**.
+> recompilador (jump tables, #14) + fix de textos al guardar + número de Área del título + fix de los
+> glifos del ordenador (acentos vs `value` nativo de color3)**.
+> **TAREA ACTUAL**: **acentos in-game POR COLOR** — la inyección sólo sirve el bloque **color0 (8×8)**;
+> en color4 (8×12) / color3 (12×13) `func_8001BFE4` cae al original (sin corromper, sin acento). Detalle:
+> **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`**. Reglas: `AGENTS.md` y
+> `docs/documentation.md`. Otro pendiente (mantenedor): **versionar el parche del recompilador**.
 
 ## Integrado en `main` (2026-10-02)
 
@@ -27,15 +28,16 @@
 
 - #13 minimapa (panel, sin hash; ADR 0015). #14 jump tables del recompilador. Textos al guardar
   (`set_file_select_active(false)`). Número de Área del título (derivar de `[0x801BBBF4]`).
+- **Glifos del ordenador (acentos vs `value` nativo): HECHO y VALIDADO en Windows.** La ventana usa
+  **color3** (12×13, stride 78) y un glifo nativo `value=200`; `hh_accent_bfe4` interceptaba por `value`
+  a secas y escribía 32 B de color0 8×8. Fix: **donante ASCII (`@`) + marca de origen + guarda de
+  stride** (`src/hooks/text_glyphs.cpp`); `gen_accent_glyphs.py` deja de inventar `value`.
 
 ## Pendiente
 
-- **[TAREA ACTUAL] Glifos: los acentos pisan la KANA (artefactos en el diálogo del ordenador).** El hook
-  `hh_accent_bfe4` sustituye el bitmap **por `value`** (200..248) sin mirar color/código; esos valores
-  son **kana real** de color0 (`include/hh/jp_kana.h`). Solución robusta acordada: **donantes ASCII**
-  (no inventar `value`), preparada para JA. Plan + evidencia:
-  **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**. Primer paso: `HH_FONT_TRACE=1` para
-  confirmar color/valores del diálogo.
+- **[TAREA ACTUAL] Acentos in-game por color (color4/color3).** Servir el bloque correspondiente por
+  `cp` (color4 desde `include/hh/game_font_color4.h`; valorar color3). Hoy sólo color0. Evidencia:
+  **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`** §4.
 - **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
   desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
 - **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),

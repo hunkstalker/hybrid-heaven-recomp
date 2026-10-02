@@ -35,6 +35,11 @@
   `notes/2026-10-02-tildes-y-signos-en-mensajes.md`.
 - **Transición del título del Área: fundido y hold** (fade por tiempo, fade-out por hilo de render,
   hold, telón opaco). `notes/2026-10-02-transicion-titulo-fade.md`.
+- **Artefactos en el diálogo del ordenador (acentos vs `value` nativo) — HECHO y VALIDADO en Windows.**
+  La ventana usa **color3** (12×13, `stride=78`) con un glifo nativo `value=200`; `hh_accent_bfe4`
+  interceptaba por `value` a secas y escribía 32 B de color0 8×8 (corrupción). Fix: **donante ASCII
+  (`@`) + marca de origen + guarda de `stride`** en `text_glyphs.cpp` (`gen_accent_glyphs.py` deja de
+  inventar `value`). `notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`.
 
 ## Editor de partida, stats y EXTRAS (2026-09-27 … 2026-09-28)
 

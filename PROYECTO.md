@@ -5,8 +5,9 @@
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
 
 **Estado (2026-10-02)**: `main` = **`v0.6.0`** (publicada). Sesión: fixes de #13 (minimapa), #14
-(jump tables), textos al guardar y número de Área del título (todo validado). **Tarea actual**: los
-acentos pisan la kana (artefactos gráficos); ver `RETOMAR.md`.
+(jump tables), textos al guardar, número de Área del título y glifos del ordenador (acentos vs `value`
+nativo de color3); todo validado. **Tarea actual**: acentos in-game **por color** (hoy sólo color0);
+ver `RETOMAR.md`.
 
 ## 1. Objetivo
 
@@ -182,8 +183,13 @@ texto saltaba todo el texto (nombres de habilidades). Fix: `set_file_select_acti
 **Número de Área del título al cargar (RESUELTO y validado en Windows, 2026-10-02)**: salía equivocado
 según la **parte** (1-2 → Área 2; 6-1 → Área 1) porque se indexaba `D_801CCAE0` con un valor que avanza
 por parte; ahora se deriva de `[0x801BBBF4]`. Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
-Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
-propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
+**Artefactos en el diálogo del ordenador (RESUELTO y validado en Windows, 2026-10-02)**: la ventana usa
+**color3** (12×13, stride 78) con un glifo nativo `value=200`; `hh_accent_bfe4` interceptaba por `value`
+a secas y le escribía 32 B de color0 8×8 (corrupción). Fix: **donante ASCII (`@`) + marca de origen +
+guarda de stride** (`src/hooks/text_glyphs.cpp`); `gen_accent_glyphs.py` deja de inventar `value`.
+Nota: `notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`.
+Pendiente: cablear la fuente in-game 8×12 **por color** (servir el bloque color4/color3) y las
+traducciones in-game (DE/FR/JA de las ROMs; ES/CA propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).
 Antes: **mapa widescreen (fase 07b) validado** (`notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`);
 **migración ELF (ADR 0011) hasta M4** validada en Windows (playtest CaC ~30 min sin cuelgues).

@@ -11,6 +11,11 @@ Formato de la fuente (ver notes/2026-09-23-b-fuente-formato-y-gaiji.md):
 Este util toma la letra base de la fuente US y le añade una marca de acento, generando el bloque de
 32 B (color0, 8x8) que se inyecta en runtime. Emite `include/hh/accent_glyphs.h`.
 
+El header NO asigna `value` a cada glifo: en runtime `func_8001D394` devuelve el `value` de un
+**donante ASCII** (resuelto con el propio motor) y `func_8001BFE4` sustituye el bloque solo si ese
+`value` procede de uno de nuestros codigos (marca de origen). Asi el `value` nativo de otros colores
+(p. ej. color3 usa 200 para un glifo propio) no se pisa. Ver `src/hooks/text_glyphs.cpp`.
+
 Uso:
     python3 tools/text/gen_accent_glyphs.py                 # escribe el header
     python3 tools/text/gen_accent_glyphs.py --preview work/fonts/accent_preview.png
@@ -74,10 +79,6 @@ ACCENTS = [
     (0xB1B8, 0x00BF, "?", "none"),    # ¿ (invertida: se voltea)
     (0xB1B9, 0x00A1, "!", "none"),    # ¡ (invertida: se voltea)
 ]
-
-# Valores propios (pares) en bloques libres (el motor no mapea más allá de ~75).
-OUR_VALUE_BASE = 200
-
 
 def load_font():
     txt = open(MANIFEST).read()
@@ -173,9 +174,8 @@ def main():
             pix = compose(font, base, "flipv")
         else:
             pix = compose(font, base, mark)
-        value = OUR_VALUE_BASE + 2 * i
         block = interleave(pix, "even")
-        entries.append((code, value, block))
+        entries.append((code, cp, block))
         glyphs.append(pix)
         labels.append(f"{i:02d}")
 
@@ -187,12 +187,12 @@ def main():
         f.write("// Generado por tools/text/gen_accent_glyphs.py -- NO editar a mano.\n")
         f.write("#pragma once\n#include <cstdint>\n\n")
         f.write("namespace hh {\n")
-        f.write("struct AccentGlyph { uint16_t code; uint32_t cp; uint16_t value; uint8_t block[%d]; };\n"
+        f.write("struct AccentGlyph { uint16_t code; uint32_t cp; uint8_t block[%d]; };\n"
                 % STRIDE)
         f.write("inline constexpr AccentGlyph kAccentGlyphs[] = {\n")
-        for (code, cp, _b, _m), (_c, value, block) in zip(ACCENTS, entries):
-            f.write("    {0x%04X, 0x%04X, %d, {%s}},\n"
-                    % (code, cp, value, ", ".join("0x%02X" % b for b in block)))
+        for code, cp, block in entries:
+            f.write("    {0x%04X, 0x%04X, {%s}},\n"
+                    % (code, cp, ", ".join("0x%02X" % b for b in block)))
         f.write("};\n")
         f.write("inline constexpr unsigned kAccentGlyphCount = sizeof(kAccentGlyphs)/sizeof(kAccentGlyphs[0]);\n")
         f.write("inline constexpr unsigned kAccentStride = %d;\n" % STRIDE)

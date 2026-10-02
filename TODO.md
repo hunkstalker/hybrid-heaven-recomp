@@ -6,12 +6,11 @@
 
 ## Ahora (priorizado)
 
-- [ ] **[TAREA ACTUAL] Glifos: los acentos pisan la KANA — artefactos en el diálogo del ordenador
-  (2026-10-02).** El port reservó `value` 200..248 para acentos, pero son **kana real** de color0
-  (`include/hh/jp_kana.h`); el hook `hh_accent_bfe4` sustituye **por `value` sin mirar color/código**.
-  Surge tras `ee34c7a`. **Solución robusta acordada**: **donantes ASCII** (no inventar `value`),
-  preparada para JA. Evidencia + plan + prompt:
-  **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**. Primer paso: `HH_FONT_TRACE=1`.
+- [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
+  hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o
+  **color3 (12×13, stride 78)** `func_8001BFE4` cae al original (sin corromper, pero sin acento).
+  Cablear el bloque color4 por `cp` desde `include/hh/game_font_color4.h` (y valorar color3). Evidencia:
+  `notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md` §4.
 
 - [•] **Transición del título del Área: fundido y hold (2026-10-02, validar 2.ª vez)**: fade por tiempo
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
