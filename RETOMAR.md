@@ -1,8 +1,8 @@
 # RETOMAR — handoff (2026-10-02)
 
-> Handoff para la próxima sesión. **Estado: `main` unificado** por fast-forward de
-> `menu-carga-guardado-partida` vía `menu-edicion-partida` (ambos siguen existiendo). Pendiente del
-> mantenedor: **push + CI** y, si procede, tag **`v0.6.0`**. Reglas: `AGENTS.md` y `docs/documentation.md`.
+> Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13, commit
+> `fix(hud)`)**. Reglas: `AGENTS.md` y `docs/documentation.md`. Próxima tarea: **#14 (veneno/CaC)**,
+> empezando de cero (sin fix aplicado) con trazas para localizar la primera divergencia del loader.
 
 ## Integrado en `main` (2026-10-02)
 
@@ -20,10 +20,20 @@
 - **Dependencias**: rt64 **`a8f0a70`** (revertido; `5b11988` apuntaba a un plume no publicado) y
   N64ModernRuntime **`a11fbf2`**.
 
+## Sesión 2026-10-02 (bugs #13/#14)
+
+- **#13 (minimapa) — HECHO y VALIDADO en Windows en TODOS los niveles.** Fix estructural: eliminados del
+  `class_of` los 2 hashes `dl:` del mapa y el fill posicional; ahora se ancla por **panel** (scissor/fondo
+  negro que no cubre el ancho y cae en la mitad derecha). **ADR 0015**; nota
+  `notes/2026-10-02-fix-minimapa-estructural-issue13.md`. Commiteado (`fix(hud)`).
+- **#14 (veneno/CaC) — ABIERTO, sin fix aplicado (empezamos de cero).** No se tocó código. Próximo paso:
+  reproducir a voluntad (`IR A ÁREA` a 3-3 + `DEBUG NIVELES`) y **recoger trazas** (ver Pendiente).
+
 ## Pendiente
 
-- **Push + CI** (mantenedor): `menu-carga-guardado-partida` → `menu-edicion-partida` → `main`; tras CI
-  verde, tag `v0.6.0`. **Validación Windows** del binario de `main` (D3D12; el revert de rt64 es inerte ahí).
+- **#14**: recoger trazas del build actual mientras el mantenedor juega (3-3, veneno de `Mira`/`Alkalurops`)
+  y localizar la **primera divergencia** del loader respecto al emulador. Estado del arte:
+  `notes/2026-10-02-handoff-bugs-13-14-hud-y-veneno.md`, `notes/2026-09-17-cac-veneno-ffff84cd-y-llamante.md` §10.
 - **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),
   mapeo `controller_num → gamepad`; local primero, online después.
 - **EDICIÓN DE PARTIDA**: "mover mi partida a una Área-Parte" (§6bis de

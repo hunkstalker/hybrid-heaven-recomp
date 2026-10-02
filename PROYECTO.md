@@ -166,6 +166,13 @@ traducidos** (clave `TIME`); `ULTIMATE` fr corregido a `ULTIME` y `NO DATA` fr a
 **VIBRACIÓN ↔ Controller Pak (HECHO y VALIDADO en Windows, 2026-10-02)**: hook de `func_80002BE0`
 (7→0) + PFS de **un solo sistema de memoria** (`.pak` en canal 0..3) + vibración **global**. Nota:
 `notes/2026-10-02-desacoplo-vibracion-controller-pak.md`.
+**#13 minimapa desanclado (HECHO y VALIDADO en Windows en todos los niveles, 2026-10-02)**: se elimina el
+anclaje del minimapa por **hash de contenido** (fallaba por área/capítulo, #7/#13) y se ancla por su
+**panel** (scissor/fondo negro que no cubre el ancho y cae en la mitad derecha); validado headless sin
+over-match y en Windows en todos los niveles. **ADR 0015**; nota
+`notes/2026-10-02-fix-minimapa-estructural-issue13.md`.
+**#14 veneno/CaC (abierto, sin fix)**: arranca de cero; recoger trazas en el build actual mientras se
+reproduce (3-3, veneno de `Mira`/`Alkalurops`) para hallar la primera divergencia del loader.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

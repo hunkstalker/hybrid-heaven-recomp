@@ -153,6 +153,29 @@ struct Writer {
     static constexpr uint32_t kVtxBytes = 0x200;
     uint32_t limit() const { return size - kVtxBytes; }
 
+    // Panel del mapa (criterio ESTRUCTURAL): un rectangulo que NO cubre el ancho del framebuffer,
+    // cabe en la pantalla visible y cae en la mitad derecha. Vale tanto para el G_SETSCISSOR bajo
+    // el que se dibuja el contenido como para el G_FILLRECT negro del fondo. Es independiente del
+    // recurso/hash del mapa: clasifica el minimapa en cualquier area/capitulo (issue #13) sin
+    // emparejar hashes ni direcciones exactas. Coordenadas en cuartos de pixel (10.2).
+    bool right_panel_box(int ulx, int uly, int lrx, int lry) const {
+        const int fbq = static_cast<int>(fb_width) * 4;
+        const int fbqh = fbq * 3 / 4;   // 320x240 -> 960 cuartos de pixel (240 px)
+        if ((ulx <= 0) && (lrx - fbq >= 0)) return false;   // ancho completo: no es panel
+        if (lrx <= ulx || lry <= uly) return false;
+        if (lrx > fbq || lry > fbqh) return false;          // dentro de la pantalla visible
+        if (ulx < fbq / 2) return false;                    // mitad derecha
+        if (lrx - ulx < 32 || lry - uly < 32) return false; // descarta gajas minimas (<8 px)
+        return true;
+    }
+    bool right_panel_scissor() const {
+        if (!have_scissor) return false;
+        return right_panel_box(static_cast<int>((scissor_w0 >> 12) & 0xFFF),
+                               static_cast<int>(scissor_w0 & 0xFFF),
+                               static_cast<int>((scissor_w1 >> 12) & 0xFFF),
+                               static_cast<int>(scissor_w1 & 0xFFF));
+    }
+
     GfxCommand* reserve(uint32_t count) {
         if (used + 8 * count > limit()) {
             overflow = true;
@@ -498,7 +521,10 @@ struct Writer {
                         // branch clasificado (el dial del radar) se envuelve desde aqui hasta ese
                         // G_ENDDL.
                         const std::string id = hh::hudid::list(rdram, w1, physical(w1));
-                        const int cls = class_of(id.c_str());
+                        int cls = class_of(id.c_str());
+                        // ESTRUCTURAL: un branch dibujado bajo un panel derecho es del minimapa,
+                        // aunque su recurso (hash) cambie por area/capitulo (issue #13).
+                        if (cls == kAuto && right_panel_scissor()) cls = kRight;
                         trace_seen(id, "branch", cls);
                         if (branch_cls != kAuto) group_end(branch_cls);
                         branch_cls = cls;
@@ -512,7 +538,10 @@ struct Writer {
                         break;
                     }
                     const std::string id = hh::hudid::list(rdram, w1, physical(w1));
-                    const int cls = depth < 10 ? class_of(id.c_str()) : kAuto;
+                    int cls = depth < 10 ? class_of(id.c_str()) : kAuto;
+                    // ESTRUCTURAL: toda lista llamada bajo un panel derecho es contenido del
+                    // minimapa (mesh y capas), independientemente de su hash/direccion (issue #13).
+                    if (cls == kAuto && right_panel_scissor()) cls = kRight;
                     trace_seen(id, "call", cls);
                     // La llamada se copia primero, tras los comandos ya emitidos, asi que se
                     // escribe el placeholder, luego la copia y se parchea.
@@ -564,30 +593,33 @@ struct Writer {
                     have_scissor = true;
                     scissor_w0 = w0;
                     scissor_w1 = w1;
+                    // Captura ESTRUCTURAL del panel del mapa: el primer scissor de panel en la
+                    // mitad derecha fija el panel canonico, sin depender del recurso/hash del
+                    // contenido (issue #13). El fondo del mapa trae un G_SETSCISSOR a PANTALLA
+                    // COMPLETA dentro de su bloque: eso NO es panel (right_panel_scissor lo filtra).
+                    if (!have_map_panel && right_panel_scissor()) {
+                        have_map_panel = true;
+                        panel_done = 1;
+                        map_panel_w0 = w0;
+                        map_panel_w1 = w1;
+                        static bool panel_logged = false;
+                        if (!panel_logged && rewrite_trace_on()) {
+                            panel_logged = true;
+                            hh::log("[hh-panel] panel derecho estructural @ %d,%d..%d,%d\n",
+                                    static_cast<int>((w0 >> 12) & 0xFFF) >> 2,
+                                    static_cast<int>(w0 & 0xFFF) >> 2,
+                                    static_cast<int>((w1 >> 12) & 0xFFF) >> 2,
+                                    static_cast<int>(w1 & 0xFFF) >> 2);
+                        }
+                    }
                     // Dentro de un grupo clasificado, el scissor del juego se sustituye por el
-                    // canonico de la clase: para el mapa, el MISMO panel capturado del fondo, de modo
-                    // que fondo y contenido no puedan acabar en dos bordes distintos.
+                    // canonico de la clase; para el mapa, el MISMO panel capturado, de modo que
+                    // fondo y contenido no puedan acabar en dos bordes distintos.
                     if (elem_cls == kRight) {
-                        // Solo un scissor que NO cubra todo el ancho del framebuffer es un panel:
-                        // el fondo del mapa trae su propio G_SETSCISSOR a PANTALLA COMPLETA dentro
-                        // del bloque y no debe capturarse como panel (daria un recorte fuera de
-                        // pantalla). El panel real lo fija el scissor del contenido
-                        // (197,143..277,223).
-                        const int fbq = static_cast<int>(fb_width) * 4;
-                        const int s_ulx = static_cast<int>((w0 >> 12) & 0xFFF);
-                        const int s_lrx = static_cast<int>((w1 >> 12) & 0xFFF);
-                        const bool full_width = (s_ulx <= 0) && (s_lrx - fbq >= 0);
-                        if (!have_map_panel && !full_width) {
-                            have_map_panel = true;
-                            panel_done = 1;
-                            map_panel_w0 = w0;
-                            map_panel_w1 = w1;
-                            }
                         if (have_map_panel) {
                             anchored_scissor(kRight, map_panel_w0, map_panel_w1, map_crop_q());
                         } else {
-                            // Todavia sin panel (scissor a pantalla completa): dejar el scissor del
-                            // juego tal cual y esperar el del contenido.
+                            // Todavia sin panel (scissor a pantalla completa): se deja tal cual.
                             emit(w0, w1);
                         }
                     } else if (elem_cls == kLeft) {
@@ -635,6 +667,29 @@ struct Writer {
                     const std::string id = hh::hudid::fill(fill_colour, f_ulx, f_uly, f_lrx, f_lry);
                     int cls = id.empty() ? kAuto : class_of(id.c_str(), f_ulx, f_uly, f_lrx, f_lry);
                     if (cls == kAuto) cls = elem_cls;   // heredada del grupo que lo contiene
+                    // ESTRUCTURAL (issue #13): el fondo negro del mapa. Si ya hay panel capturado,
+                    // el fill que coincide con el es el fondo del mapa; si aun no hay panel y este
+                    // es un rectangulo negro de panel a la derecha, lo establece (el fondo puede
+                    // preceder al contenido). No depende de la identidad exacta del fill.
+                    if (cls == kAuto && fill_colour == 0) {
+                        const int q_ulx = static_cast<int>((w1 >> 12) & 0xFFF);
+                        const int q_uly = static_cast<int>(w1 & 0xFFF);
+                        const int q_lrx = static_cast<int>((w0 >> 12) & 0xFFF);
+                        const int q_lry = static_cast<int>(w0 & 0xFFF);
+                        if (have_map_panel &&
+                            q_ulx == static_cast<int>((map_panel_w0 >> 12) & 0xFFF) &&
+                            q_uly == static_cast<int>(map_panel_w0 & 0xFFF) &&
+                            q_lrx == static_cast<int>((map_panel_w1 >> 12) & 0xFFF) &&
+                            q_lry == static_cast<int>(map_panel_w1 & 0xFFF)) {
+                            cls = kRight;   // coincide con el panel canonico: es el fondo del mapa
+                        } else if (!have_map_panel && right_panel_box(q_ulx, q_uly, q_lrx, q_lry)) {
+                            have_map_panel = true;
+                            panel_done = 1;
+                            map_panel_w0 = w1 & 0x00FFFFFF;
+                            map_panel_w1 = w0 & 0x00FFFFFF;
+                            cls = kRight;
+                        }
+                    }
                     if (!id.empty()) trace_seen(id, "fill rect", cls, f_ulx, f_uly, f_lrx, f_lry);
                     if (cls != kAuto) trace_elem(id, cls);
                     if (cls == kRight) {
@@ -796,10 +851,6 @@ int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t 
     struct Entry { const char* id; int cls; };
     static const Entry kTable[] = {
         { "dl:0x80181860#e59a0172", kLeft },   // dial del radar (rama G_DL)
-        // Mapa (abajo-derecha): fondo + capas. Identidades de la referencia, hashes coincidentes.
-        { "fill:0x00000000@197,143,277,223", kRight },
-        { "dl:0x030002e0#bbb8c0ba", kRight },
-        { "dl:0x03000f10#1427da33", kRight },
     };
     for (const Entry& e : kTable) {
         if (std::strcmp(identity, e.id) == 0) return e.cls;
@@ -810,18 +861,11 @@ int class_of(const char* identity, int ulx, int uly, int lrx, int lry, uint32_t 
     // combate (file 57) y otras escenas se cargan/descargan y los graficos viven en memoria
     // dinamica -> la identidad `tex:<addr>#<hash>` no casa (issue #3: 1er combate si, del 2o en
     // adelante no; disco y combo igual). La direccion NO es identidad.
+    //
+    // El MINIMAPA NO se clasifica aqui: se ancla ESTRUCTURALMENTE por su panel (scissor/fondo a la
+    // derecha) en `copy_list` (`right_panel_scissor`/`right_panel_box`), sin depender del hash de
+    // contenido del mapa, que cambiaba por area/capitulo (issues #7 y #13).
     if (std::strncmp(identity, "tex:", 4) != 0) {
-        // MINIMAPA (`right`): el overlay del mapa se carga por escena/capitulo y su direccion
-        // cambia. Issue #7: al inicio del nivel 2-1 el mapa verde (un mesh bajo proyeccion
-        // ortografica) sale desanclado, fuera del marco, porque la identidad `dl:<addr>#<hash>` de
-        // kTable ya no casa. El HASH DE CONTENIDO de la lista (primeros 16 comandos) es estable ->
-        // se empareja por hash, ignorando la direccion. (El dial del radar, kLeft, ya caso antes.)
-        if (std::strncmp(identity, "dl:", 3) == 0) {
-            uint32_t dh = 0;
-            if (hh::hudid::parse_hash(identity, dh) && (dh == 0xbbb8c0bau || dh == 0x1427da33u)) {
-                return kRight;
-            }
-        }
         // Rellenos del HUD de combate (G_FILLRECT): filas de POWER (y24..27), COMBO (y28..30) y
         // STAMINA gastada (y34..38), en el tramo x~64..182. El COLOR no sirve como identidad:
         // cambia (rojo/azul/naranja apagado) y RT64 pinta el relleno con el PRIM color, asi que la

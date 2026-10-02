@@ -29,6 +29,10 @@ enum Class : int { kAuto = 0, kLeft = 1, kRight = 2, kStretch = 3, kSpill = 4 };
 //            el relleno con el prim, la traza lee fill_color=0). Se clasifican por fila.
 //   - `env`  color de entorno RGBA (G_SETENVCOLOR) del draw (pista secundaria).
 // Ver notes/2026-09-25-f-hud-combate-contenido.md.
+//
+// El MINIMAPA no se clasifica por hash de contenido (cambiaba por area/capitulo: issues #7 y #13):
+// se ancla ESTRUCTURALMENTE por su panel en `hud_rewrite.cpp` (scissor/fondo negro que no cubre el
+// ancho del framebuffer y cae en la mitad derecha). Ver notes/2026-10-02-* (issue #13).
 int class_of(const char* identity, int ulx = -1, int uly = -1, int lrx = -1, int lry = -1,
              uint32_t env_colour = 0);
 

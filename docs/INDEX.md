@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 235 | 2026-10-02 |
-| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-09-26 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 592 | 2026-10-02 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 242 | 2026-10-02 |
+| [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-10-02 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 594 | 2026-10-02 |
 
 ## Técnico y guías (vivos)
 
@@ -24,7 +24,7 @@
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 351 | 2026-10-01 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 351 | 2026-10-02 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -58,6 +58,7 @@
 | [0012 — Soporte multi-idioma y acentos (menú + in-game)](adr/0012-soporte-multi-idioma-y-acentos.md) | - **Estado:** Aceptado (2026-09-25). | 33 | 2026-10-01 |
 | [0013 — PFS virtual ampliado y `.pak` de N slots (con trailer de metadatos)](adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md) | - **Estado:** Aceptado (2026-09-29). Rama `menu-carga-guardado-partida`. | 64 | 2026-09-29 |
 | [0014 — Fuente única de traducciones (`assets/lang/*.txt`, clave = inglés)](adr/0014-fuente-unica-de-traducciones.md) | - **Estado:** Aceptado (2026-10-01). Sustituye el punto 2 de la decisión del ADR 0012. | 32 | 2026-10-01 |
+| [0015 — Anclaje estructural del minimapa (panel por scissor/fondo, no por hash de contenido)](adr/0015-anclaje-estructural-minimapa.md) | - **Estado:** Aceptado (2026-10-02). Implementado y **validado en Windows en todos los niveles** (2-1, | 59 | 2026-10-02 |
 
 ## Evidencia (notas, histórico)
 
@@ -67,6 +68,8 @@
 | [Transición del título del Área: fundido (fade-in/fade-out) y hold (2026-10-02)](../notes/2026-10-02-transicion-titulo-fade.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. Ajuste de la **transición al cargar | 60 | 2026-10-02 |
 | [Rótulo `AREA` del título del Área — traducido (2026-10-02)](../notes/2026-10-02-titulo-area-rotulo-traducido.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows**. | 54 | 2026-10-02 |
 | [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
+| [Handoff — bugs #13 (minimapa por área) y #14 (crash del combate/veneno = CaC)](../notes/2026-10-02-handoff-bugs-13-14-hud-y-veneno.md) | 2026-10-02. Handoff para retomar dos bugs abiertos reportados por El-Rana: | 125 | 2026-10-02 |
+| [2026-10-02 — #13 minimapa: anclaje ESTRUCTURAL (hash fuera) — ARREGLADO y VALIDADO](../notes/2026-10-02-fix-minimapa-estructural-issue13.md) | Fix definitivo del **issue #13** (HUD/minimapa desanclado al cambiar de Área). **Validado en Windows | 79 | 2026-10-02 |
 | [Desacoplar VIBRACIÓN del Controller Pak (memoria + vibración a la vez)](../notes/2026-10-02-desacoplo-vibracion-controller-pak.md) | Tarea 2026-10-02, rama `menu-carga-guardado-partida`. Item 11 de `TODO.md` (antes BLOQUEANTE). | 78 | 2026-10-02 |
 | [TÍTULO DEL ÁREA al cargar partida — plan y evidencia](../notes/2026-10-01-titulo-area-carga.md) | Sesión 2026-10-01 (2.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Tarea de `RETOMAR.md` | 103 | 2026-10-01 |
 | [TÍTULO DEL ÁREA — calibración del texto (1:1 con el original)](../notes/2026-10-01-titulo-area-calibracion.md) | Sesión 2026-10-01 (3.ª de la jornada). Rama **`menu-carga-guardado-partida`**. Continúa | 131 | 2026-10-01 |
