@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 114 | 2026-09-26 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 253 | 2026-10-02 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 251 | 2026-10-02 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-10-02 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho. | 595 | 2026-10-02 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 333 | 2026-10-02 |
 
 ## Técnico y guías (vivos)
 
@@ -20,6 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 168 | 2026-10-02 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 91 | 2026-09-24 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
@@ -68,6 +69,7 @@
 | [Transición del título del Área: fundido (fade-in/fade-out) y hold (2026-10-02)](../notes/2026-10-02-transicion-titulo-fade.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. Ajuste de la **transición al cargar | 60 | 2026-10-02 |
 | [Rótulo `AREA` del título del Área — traducido (2026-10-02)](../notes/2026-10-02-titulo-area-rotulo-traducido.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows**. | 54 | 2026-10-02 |
 | [Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) (2026-10-02)](../notes/2026-10-02-tildes-y-signos-en-mensajes.md) | Sesión 2026-10-02. Rama **`menu-carga-guardado-partida`**. **HECHO y VALIDADO en Windows** (ver §5). | 100 | 2026-10-02 |
+| [Handoff — artefactos gráficos en el diálogo del ordenador: los acentos pisan la KANA](../notes/2026-10-02-handoff-glifos-acentos-colision-kana.md) | 2026-10-02. Bug reportado por el mantenedor: al inicio (justo tras el primer punto de guardado), | 113 | 2026-10-02 |
 | [Handoff — bugs #13 (minimapa por área) y #14 (crash del combate/veneno = CaC)](../notes/2026-10-02-handoff-bugs-13-14-hud-y-veneno.md) | 2026-10-02. Handoff para retomar dos bugs abiertos reportados por El-Rana: | 125 | 2026-10-02 |
 | [2026-10-02 — Fix: el título del Área al cargar partida mostraba el Área equivocada](../notes/2026-10-02-fix-titulo-area-numero.md) | Bug reportado por el mantenedor. **Corregido y VALIDADO en Windows (2026-10-02)**. Afecta al | 65 | 2026-10-02 |
 | [2026-10-02 — Fix: los textos (nombres de habilidades) desaparecían al GUARDAR partida](../notes/2026-10-02-fix-textos-desaparecen-al-guardar.md) | Bug reportado por el mantenedor. **Corregido y VALIDADO en Windows (2026-10-02)**. No tiene relación | 73 | 2026-10-02 |

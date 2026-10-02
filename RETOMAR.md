@@ -1,9 +1,11 @@
 # RETOMAR — handoff (2026-10-02)
 
 > Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
-> recompilador (jump tables, #14) + fix de textos al guardar**. Reglas: `AGENTS.md` y
-> `docs/documentation.md`. Pendiente principal del mantenedor: **versionar el parche del recompilador**
-> (`recomp/n64recomp_changes/` y/o fork). Ver `Pendiente`.
+> recompilador (jump tables, #14) + fix de textos al guardar + número de Área del título**.
+> **TAREA ACTUAL**: **artefactos gráficos en el diálogo del ordenador = los acentos pisan la KANA**
+> (colisión de `value` en color0). Causa raíz **medida**; solución robusta **pendiente** (donantes ASCII,
+> preparada para JA). Handoff completo: **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**.
+> Reglas: `AGENTS.md` y `docs/documentation.md`. Otro pendiente: **versionar el parche del recompilador**.
 
 ## Integrado en `main` (2026-10-02)
 
@@ -21,16 +23,19 @@
 - **Dependencias**: rt64 **`a8f0a70`** (revertido; `5b11988` apuntaba a un plume no publicado) y
   N64ModernRuntime **`a11fbf2`**.
 
-## Sesión 2026-10-02 (bugs #13/#14)
+## Hecho en la sesión 2026-10-02 (todo VALIDADO en Windows)
 
-- **#13 minimapa** — anclaje estructural por panel (sin hash). **VALIDADO**. ADR 0015.
-- **#14 ataque a distancia/veneno** — fix general del recompilador (jump tables). **VALIDADO**.
-- **Textos al GUARDAR** — `set_file_select_active(false)` en `hh_leave_capsule`. **VALIDADO**.
-- **Número de Área del título al cargar** — derivar de `[0x801BBBF4]`, no de `func_8013EA54`.
-  **VALIDADO.** Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
+- #13 minimapa (panel, sin hash; ADR 0015). #14 jump tables del recompilador. Textos al guardar
+  (`set_file_select_active(false)`). Número de Área del título (derivar de `[0x801BBBF4]`).
 
 ## Pendiente
 
+- **[TAREA ACTUAL] Glifos: los acentos pisan la KANA (artefactos en el diálogo del ordenador).** El hook
+  `hh_accent_bfe4` sustituye el bitmap **por `value`** (200..248) sin mirar color/código; esos valores
+  son **kana real** de color0 (`include/hh/jp_kana.h`). Solución robusta acordada: **donantes ASCII**
+  (no inventar `value`), preparada para JA. Plan + evidencia:
+  **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**. Primer paso: `HH_FONT_TRACE=1` para
+  confirmar color/valores del diálogo.
 - **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
   desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
 - **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),

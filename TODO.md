@@ -1,135 +1,22 @@
 # TODO — Hybrid Heaven: Recompiled
 
-> **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
-> Detalle en `PROYECTO.md`, `docs/` y `notes/` (no duplicar). Histórico: `notes/`, `notes/archive/`.
-> Handoff: `RETOMAR.md`.
+> **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso.
+> Las tareas **hechas** viven en `docs/TAREAS-HECHAS.md` (no se borran). Detalle en `PROYECTO.md`,
+> `docs/` y `notes/` (no duplicar). Histórico: `notes/`, `notes/archive/`. Handoff: `RETOMAR.md`.
 
 ## Ahora (priorizado)
+
+- [ ] **[TAREA ACTUAL] Glifos: los acentos pisan la KANA — artefactos en el diálogo del ordenador
+  (2026-10-02).** El port reservó `value` 200..248 para acentos, pero son **kana real** de color0
+  (`include/hh/jp_kana.h`); el hook `hh_accent_bfe4` sustituye **por `value` sin mirar color/código**.
+  Surge tras `ee34c7a`. **Solución robusta acordada**: **donantes ASCII** (no inventar `value`),
+  preparada para JA. Evidencia + plan + prompt:
+  **`notes/2026-10-02-handoff-glifos-acentos-colision-kana.md`**. Primer paso: `HH_FONT_TRACE=1`.
 
 - [•] **Transición del título del Área: fundido y hold (2026-10-02, validar 2.ª vez)**: fade por tiempo
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
   `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
 
-- [x] **Número de Área del título al CARGAR partida — HECHO y VALIDADO en Windows (2026-10-02)**: el
-  número salía equivocado según la **parte** (1-2 → Área 2; 6-1 → Área 1). Causa: `hh_area_title_hook`
-  usaba `func_8013EA54` (campo `+6` del modelo = `func_80108280>>8`, un valor que avanza por PARTE) como
-  índice de `D_801CCAE0`. Fix: derivar el área del **valor de escena vivo `[0x801BBBF4]`** con
-  `area_sub_from_value` (misma fuente que `save_live`). Detalle:
-  `notes/2026-10-02-fix-titulo-area-numero.md`.
-
-- [x] **Rótulo `AREA` del título del Área traducido — HECHO y VALIDADO en Windows (2026-10-02)**:
-  estaba hardcodeado (`snprintf("AREA %d")`) → en ES salía sin tilde. Ahora usa la clave `AREA` de
-  `assets/lang/*.txt` (`hh::menu::localized("AREA")`): `ÁREA`/`ÀREA`/`ZONE`/`BEREICH`; ancho en
-  codepoints. Detalle: `notes/2026-10-02-titulo-area-rotulo-traducido.md`.
-
-- [x] **Acentos/`¿`/`¡` en los mensajes del overlay (cápsula DATA SAVE/LOAD) — HECHO y VALIDADO en
-  Windows (2026-10-02)**: la ROM US de `color4` solo trae 88 glifos → se añade una **franja de acentos**
-  al atlas (`font.cpp`, cocina `hh::kGameGlyphs` = color4 EU real + compuestos base+marca) y
-  `face_glyph_uv(Color4, c>=0x80)` la consulta; fuera el hack del `?` girado y el CP437. Detalle:
-  `notes/2026-10-02-tildes-y-signos-en-mensajes.md`.
-
-- [x] **Tareas pequeñas de menú (DATA EDIT, dificultad en el slot, traducción de las filas) — HECHO y
-  VALIDADO en Windows (2026-10-01)**: (a) **quitado `DATA EDIT`** del menú `MODO COMBATE` (no
-  deshabilitado; `menu.cpp`); (b) **letra de dificultad** a la izquierda del nivel en la caja del slot
-  (1.ª letra de la traducción de NORMAL/HARD/ULTIMATE; dato en el byte `+7` del registro del slot =
-  `0x801BBC0D`, leído con `save::meta_difficulty` y persistido al guardar con `save_live`); la letra va
-  en **columna fija** (5 celdas del borde derecho) → no se mueve con 2/3 dígitos ni el 100 se sale;
-  (c) **`AREA/LEVEL/TIME` traducidos** (clave nueva `TIME`); (d) `ULTIMATE` fr corregido (`SUPRÊME` →
-  `ULTIME`) y `NO DATA` fr a 2 líneas (`PAS DE\nDONNÉES`; el centrado del slot ahora soporta `\n`).
-  Detalle: **`notes/2026-10-01-slot-dificultad-y-traduccion.md`**.
-
-- [x] **i18n — unificar TODAS las traducciones en `assets/lang/*.txt` (Opción A) — HECHO y VALIDADO en Windows (2026-10-01)**:
-  hecho: `hh::text::translate()` (único punto), `localized` delega, clave = **inglés**, única fuente los
-  ficheros `assets/lang/*.txt`; borrados `kMenuTr`/`kAreaNames`/`kEsDefaults`; `kEndonyms` siguen en código;
-  `en` = identidad; migración `tools/text/migrate_menu_tr.py`; guard `tools/text/check_translations.py`
-  (enganchado a `docs_index.py --check`); ADR **0014**. Validado en Linux (carga de las 6 lenguas + sondeo
-  de `translate()`, clave multi-línea incluida) y **en Windows (build + F5 por idiomas)**. Plan + estado:
-  **`notes/2026-10-01-i18n-unificar-traducciones-plan.md`** §8.
-
-- [x] **Pulido de menú/vídeo — HECHO y VALIDADO en Windows (2026-10-01)**: (a) `CONTINUAR` en **gris y
-  no seleccionable** si el `.pak` no tiene partidas (`refresh_continue_entry`, `menu.cpp`); (b) `SONIDO
-  -> SALIDA` como **stepper `< ESTÉREO >`** (izq MONO / der AURICULARES), con el cálculo de centrado de
-  `custom_layout` corregido para no reservar el ancho de todas las opciones (`menu_overlay.cpp`); (c)
-  **arreglo del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3): RT64 usa el rect previo al
-  fullscreen para volver a ventana; el port fija `lastWindowRect` a un tamaño de ventana real
-  (1280×720 centrada / geometría guardada) y sincroniza `fullScreen` con `[video].wm`
-  (`rt64_render_context.cpp`), sin redimensionar por detrás de RT64. Nota:
-  **`notes/2026-10-01-menu-continuar-salida-fullscreen.md`**.
-
-- [x] **TÍTULO DEL ÁREA al cargar partida — HECHO (commit `874b9f6`, 2026-10-01)**: al cargar un slot
-  (`CONTINUAR` → partida) el juego muestra **pantalla negra con el título del Área** (nombre del Área
-  del progreso) que se quita con botón/tecla (o espera) y da paso al gameplay.
-  - **[MEDIDO] El `AREA N` es TEXTO** (`func_801C3F48` → `func_8001B204(a3=0x801CED98)`, con el índice
-    de `func_8013EA54`); **el NOMBRE es un GRÁFICO nativo intraducible**. Por eso el port lo pinta con
-    **overlay propio** (telón negro + `AREA N` con la fuente del juego + nombre en **Work Sans**
-    incrustada), traducido en `en/es/ca/fr/de` (`ja` nativo), colgado de la cadena nativa (fade/espera/
-    transición) y con candado anti-parpadeo.
-  - **Defaults CALIBRADOS [MEDIDO] (2026-10-01)**: anclando en el `AREA N` (que no se toca), el nombre
-    del original mide **~200.6 v × 14.1 v** (aspecto 14.2); Work Sans "natural" mide ~180 v a 14.1 v de
-    alto y **espacios** (Work Sans los mete ~40 % más estrechos). Peso **SemiBold (600)** (Medium queda
-    fino, Bold sobra). Defaults en `publish_area_title`: `HH_TITLE_SCALE=0.80`, `HH_TITLE_STRETCH=1.10`,
-    `HH_TITLE_TRACK=-0.27` (negativo: se tocan), `HH_TITLE_WORDSPACE=5.67`, `HH_TITLE_Y=111.0`.
-    `assets/fonts/WorkSans-SemiBold.ttf` (OFL) va **INCRUSTADA** en el exe (`CMakeLists.txt`; fallback
-    Regular) y **no** se copia `.ttf` junto al exe. Evidencia: `work/area_title_match_mock.png`, `work/area_title_weight_mock.png`,
-    `work/area_title_metric_mock.png`, `work/area_title_variants.png`. **Salto de línea auto**: si el
-    nombre no cabe en el ancho visible real (en 4:3 parten A7 es/ca, A5 de, A9 de), se parte por
-    palabras en líneas centradas (en 16:9 no cambia).
-    Detalle: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-calibracion.md`.
-  - **Limpieza HECHA**: fuente **SemiBold incrustada** (sin `.ttf` junto al exe); eliminado el
-    scaffolding de test de la tarea (`HH_SET_AREA`, `HH_MAKE_AREAS`, `HH_AUTOPLAY`, `HH_DUMP_AREA`).
-  - **Pendiente**: **recompilar Windows** (para que el exe embeba SemiBold) y validación visual general
-    (tamaño/posición/fade, `en/es/ca/fr/de`+`ja`); el **salto de línea** lo da el mantenedor por bueno
-    sin validar (se fía). Nombres originales/análisis: `work/area_titles_montage.png`.
-- [x] **LÓGICA DE GUARDADO en la cápsula (`DATA SAVE`) — HECHA y VALIDADA en Windows (2026-09-30)**:
-  flujo con fases propias (`hh::menu::SavePhase`: `Ask`→`Select`→`ConfirmHere`→`Completed`, +
-  `ConfirmExit`); **guardado REAL** `hh::save::save_live()` (serializa los globals vivos con
-  `func_80141F28` y persiste con `hh::save`: checksums + cabecera/trailer + recarga del PFS);
-  `NEW GAME` = primer slot libre, slot con datos = sobrescribir; **salida** de la cápsula por la
-  secuencia nativa; **reentrada** reinicia el flujo. **AREA 1-1** y **TIME** correctos. Detalle:
-  **`notes/2026-09-30-save-capsule-logica.md`** (+ `notes/2026-09-30-save-data-ui-retoques.md`).
-- [x] **BORRAR slots desde la cápsula — HECHO y VALIDADO en Windows (2026-09-30/10-01)**: en `Select`
-  el mensaje informa de las dos acciones con bindings reales (inglés: `Select location in which to save
-  play data pressing A/J or X/H to remove.`, 3 líneas); **X** sobre un slot con datos →
-  `Remove play data?` → borra → `Remove completed.` + flecha; **A vuelve a la lista** (no sale).
-  `NEW GAME` no se borra. Input en vivo (`hh_input_button_down`) + bloqueo ~120 ms al entrar en
-  `Select`. Detalle: `notes/2026-09-30-save-capsule-logica.md` §8ter.
-- [x] **Higiene/correcciones de `menu.cpp` (guardado + editor) — HECHO y VALIDADO en Windows
-  (2026-10-01)**: (1) unificadas `g_save_target_slot`/`g_save_delete_slot` en una sola variable (la
-  fase distingue guardar/borrar) y retirada la API del borrado; (2) "slot libre" del editor ahora usa
-  `first_free_game_slot()` (`slot_present`), igual que la cápsula (antes `slot_used`=progreso≠0 podía
-  pisar un save en 1-0); (3) eliminado `load_game_row_present()` (sin uso) y un comentario huérfano.
-  Sin cambio de UI/comportamiento. Detalle: `notes/2026-10-01-menu-save-edit-higiene.md`.
-- [x] **UI de CARGA en el submenú `CONTINUAR` — IMPLEMENTADA y VALIDADA en Windows (2026-10-01)**:
-  flujo propio por fases (`hh::menu::LoadPhase`: `Browse` → `ConfirmDelete` → `Removed`, + `Loaded`
-  reservado), análogo al guardado pero con **A = cargar directo** (sin Yes/No) y **X = borrar**.
-  **Carga REAL**: al confirmar se deserializa el slot (`func_801423C8`) y se arranca la escena
-  replicando la rama de ÉXITO nativa
-  (`func_80142570`+`func_800179B0`+`func_801C11BC`+`func_800058DC(obj, 0x801C3E24)`, con `D_801CC8CC=2`
-  → transición `func_8012FE50(0x18, D_801BBBF4, 6, 1, 0)` usando el índice de escena del slot). **B**
-  vuelve al **menú de título** (rama de CANCELAR nativa, NO a la cápsula). Controles propios
-  (`feed_load_flow`, input nativo muteado). **Transición de entrada limpia**: `g_load_enter` evita
-  parpadeo/retardo y la superposición de la UI al título; el aviso de Controller Pak no se dibuja
-  (hook `func_800179B0`). **Vuelta con `B`** ya no reaparece la pantalla de carga (`close_load_game`
-  retira `LoadGame` de la pila). Textos: mensaje de `Browse` = `Select play data to be loaded pressing
-  A/J or X/H to remove.` (original + bindings), borrado reutiliza los del guardado. Detalle:
-  `notes/2026-10-01-cargar-partida-continuar.md`.
-- [x] **`DEBUG NIVELES` + `IR A ÁREA` (EXTRAS) — salto a cualquier nivel para TEST (2026-09-29,
-  VALIDADO en Windows)**: **mecánica central descubierta y medida** (documento maestro:
-  `notes/2026-09-29-editor-area-parte-plan.md`). Puntos clave:
-  - **Campo del mapa = `0x564` (u16 LE) del slot**; el deserializador lo vuelca a `glob 0x801BBBF0[+4]`
-    y el cargador de escena (`func_8012FE50(tipo=15, idx)` -> `func_80125968(idx)`) lo consume. **NO**
-    es `0x366` (aquel no mueve el mapa). `idx = (area-1)*10` para los `N-0` (1-0=0, 2-0=10, ...,
-    7-0=**75**, 8-0=80, 9-0=90).
-  - **`EXTRAS > DEBUG NIVELES < NO/SÍ >`** (persiste `[extras].debug_levels`): activa el **CICLO DE
-    PUNTOS** para mapear escenas: **F5/F6** = ±1, **RePág/AvPág** = ±10, **Inicio** = idx 0,
-    indicador **`idx=`** en pantalla. Rango 0..99 con wrap. Índices que cuelgan en
-    **`skip_indices.txt`** (junto al ejecutable, editable sin recompilar).
-  - **`EXTRAS > IR A ÁREA`**: submenú con CARGAR/GUARDAR/ELIMINAR + selector **`ÁREA < N-N >`** (solo
-    `N-0`) que **teletransporta** (`func_8012FE50`). Si no hay partida, carga la **plantilla**
-    (`assets/saves/templates/template_slot.bin`: stats base + Code Key/Map Viewer/Defuser; la Code Key se quita
-    al cargar 1-0). Verificado en Windows.
-  - **Mapa de escenas medido**: `1-0`=0 … `9-0`=90; `100`=Demo Play #1; sub-puntos (`1-1a/b/...`) y
-    estaciones por área. `skip_indices.txt` con la lista de los que cuelgan.
 - [•] **Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots) — FASE 0 y 1
   HECHAS (2026-09-29)**: sustituir los menús nativos (CARGAR al `CONTINUAR`; GUARDAR en cápsula; y, al
   final, `EDICIÓN DE PARTIDA`) por un **menú propio (overlay)** con **N slots** en un **único `.pak`**
@@ -202,33 +89,11 @@
 - [ ] **Editor `PROGRESO` del slot**: ahora escribe **`0x564` (u16 LE)** con
   `(area-1)*10+(sub-1)*2` y lista solo puntos de guardado (sin `N-0`). **Pendiente validar en Windows**
   que `CONTINUAR` carga donde toca.
-- [x] **`MODO HEAVEN` (EXTRAS) — modo GLOBAL persistente, VALIDADO en Windows (2026-09-28)**: NO
-  depende de la partida ni del editor (persiste en `config.ini [extras].heaven`). Al cargar/empezar
-  cualquier partida aplica al personaje vivo `0x8017DC40` **ATRIBUTOS/ESTADO 99 + 86 habilidades**
-  (`apply_heaven_runtime` vía hooks `func_80144E68`/`func_80152240`), y en runtime **daño 0 al PJ**
-  (`func_80232D08`) e **items que no se gastan** (`func_8013D520`; no se fuerzan a 99). El save normal
-  persiste el estado; apagar quita invuln/consumo pero conserva lo guardado. Detalle: `RETOMAR.md`,
-  `notes/2026-09-28-editor-atributos-estado-modo-heaven.md`.
-- [x] **`VENTAJA` (EXTRAS) — VALIDADO en Windows (2026-09-28)**: selector NO/SÍ, traducido a los 6
-  idiomas y persistente en `config.ini [extras].advantage`. Fuerza `0x801BCC24 = 2` (POWER al máximo al
-  empezar). **Independiente de MODO HEAVEN** (se le retiró: con PODER ∞ es redundante). Validado contra
-  un enemigo que NO sale sorprendido: ON = POWER al máximo, OFF = no. Detalle: `RETOMAR.md`.
 - [ ] **Combo: no se rellena en el 1.er combate (a afinar en el futuro, 2026-09-28)**: la barra de
   combo se alimenta del PODER (100 % → +1 segmento) y con `PODER ∞` queda llena, pero **arranca a 0 en
   el 1.er combate** y solo se rellena desde el 2.º (parece un gateo de estado al terminar/vaciar el
   PODER en el 1.er combate). **No** localizado el contador (0..4) en las zonas vigiladas. Plan: traza
   que cruce el fin del 1.er combate con el 2.º para hallar el flag y forzarlo. Detalle: `RETOMAR.md`.
-- [x] **`PODER ∞` / `RESISTENCIA ∞` (EXTRAS) — VALIDADO en Windows (2026-09-28)**: dos selectores NO/SÍ
-  (con símbolo vectorial `∞`) debajo de `VENTAJA`, persistentes en `config.ini [extras].infinite_power`
-  / `[extras].infinite_stamina`. `hh_battle_frame_hook` pinnea `actual = max` cada frame (PODER
-  `0x801BC042←0x801BC040`, RESISTENCIA `0x801BC046←0x801BC044`) → no se gastan. **MODO HEAVEN los
-  incluye.** O(1), no-op fuera de combate. Detalle: `RETOMAR.md`.
-- [x] **Centrar los submenús `GRÁFICOS` y `CONTROLES`** en el overlay (`menu_overlay.cpp`): `Graphics`
-  añadido a `custom_layout`; `scroll_cap5` solo para EXTRAS/CONTROLES/editor (GRÁFICOS conserva 6 filas).
-- [x] **Daño FUERA de combate (robots) — VALIDADO en Windows (2026-09-28)**: la vida de campo es el
-  sheet `0x8017DC40+0x02`; `func_80379F04` hace `HP -= *(s16*)0x80388A68`. Hook
-  `hh_heaven_field_damage_hook`: con HEAVEN pone el scratch de daño a 0 durante la llamada → no baja la
-  vida. Una sola función para todos los robots. Detalle en `RETOMAR.md`.
 - [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
   detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
   (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz
@@ -281,26 +146,6 @@
     `func_80232A80` incrementa el nivel defensivo de una parte (`entidad+0x8E+part*2`). **Pendiente**:
     fórmula exacta del incremento de nivel de parte y si afecta al nº de golpes/combo; y el
     **nivel de maestría** de técnicas (¿desbloquea niveles superiores?).
-- [x] **Release sin volcados (v0.5.1) — HECHO (2026-09-27)**: el `.exe` release **solo** deja
-  `hh.log` (sobrescrito cada run). Pasaron a **opt-in**: `hh_audio.log`, `hh_tick.log`/`hh_slow.log`,
-  watchdog (`hh_state.log`/`hh_slice.log`/`hh_hang*.log`/`hh_flag.log`), crash
-  (`hh_crash*.log`+RDRAM/DMEM) y `hh_pak.log` (fork NMR). Envs: `HH_DIAG=1`, `HH_CRASH_LOG=1`,
-  `HH_PAKLOG=1`. Detalle: `notes/2026-09-27-d-release-sin-volcados.md`; `docs/releases/v0.5.1.md`.
-
-- [x] **BUG resuelto (headless, 2026-09-25): cambiar de idioma aceleraba el juego (30→60)**. Causa:
-  `hh_trans_reapply_language` reescribía el módulo entero y pisaba cambios del juego (relocs de código,
-  buffers de trabajo). Fix: re-aplicar solo los bytes cuyo contenido coincide con el testigo `written`
-  (lo escrito en la carga) + poda de solapes y tope de memoria. Knob A/B `HH_LANG_REAPPLY=0`.
-  Validado headless (`vi=30` estable); **falta confirmar en Windows**.
-  `notes/2026-09-25-e-fix-reapply-idioma.md`.
-- [x] **Bugs del menú overlay A2 (2026-09-24) — VALIDADOS en Windows**: bearing de "MODO COMBATE",
-  **tercer set** de etiquetas al volver atrás, y cierre del overlay (instantáneo al cambiar de
-  pantalla). Ver `notes/2026-09-24-a2-overlay-alineacion-y-cierre.md` y `...-dos-tablas.md`.
-- [x] **Menú IN-GAME de opciones PC (ADR 0008) — HECHO (2026-09-25, headless)**: árbol, navegación
-  (A/B, control total), acciones (video → `[video]`; audio → `[audio]`), SFX por eventos, **acentos**
-  (letra+marca) e **idiomas** (EN/ES/CA/FR/DE + **idioma del sistema**). Detalle:
-  `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, ADR 0008/0012.
-  **Validado en Windows (2026-09-26, tras el merge con `main`)**; falta el **JA del menú** (kana).
 - [ ] **Menú nativo — funcionales y pulido (2026-09-26, orden recomendado)**:
   1. [x] **Bug del submenú `IDIOMA` — RESUELTO y validado en Windows (2026-09-26)**: al entrar con A
      en `IDIOMA` se aplicaba el idioma del cursor (el `Accept` de entrar ejecutaba acciones de la
@@ -417,25 +262,6 @@
      y `HH_FULL_FRAME=0` para acotar.
   2. **Combate (golpes)**: los ataques salen como **cajas verdes/rojas con recuadro negro (solo el
      borde)**; en el original **no** llevan ese borde. El mantenedor irá añadiendo capturas a esa carpeta.
-- [x] **FPS en pantalla (2026-09-26)**: `MOSTRAR FPS` en el menú `DEBUG` (menú moderno de
-  `menu-nativo`) enciende el **indicador de FPS del overlay** (solo números, arriba-izquierda; mide la
-  tasa **real** de presentación) y persiste en `config.ini [video].showfps`. `HH_FPS=1` sigue volcando
-  a `hh.log`. Vías alternativas: `HH_DEVELOPER=1` + F1 (Inspector de RT64) y RTSS (overlay externo,
-  subir *detection level*). Ver `notes/2026-09-22-fps-y-present-early.md`.
-  `src/hooks/sections.cpp` (acción), `src/platform/support.cpp` + `rt64_render_context.cpp`.
-- [x] **Menú A2 — overlay moderno (render hook RT64) + opciones PC (2026-09-23/25)** — HISTÓRICO.
-  Menú propio del port, **solo en el menú inicial** (no el de pausa). Arquitectura `hh_menu → hh_font →
-  backend_game` (atlas de la **fuente del juego**, hoy) / `backend_modern` (TTF, futuro,
-  **seleccionable desde el propio menú**). El intento por GBI (`hud_rewrite`/`send_dl`) **falló** (RT64
-  compone el framebuffer del juego; los draws GBI no llegan al swapchain) y se retiró; la vía es
-  **`RT64::SetRenderHooks(init, draw, deinit)` + plume**. Hitos: shaders+CMake, render hook+atlas RGBA8,
-  `hh_menu` del título (hook `0x801C1DB8`, modelo+dibujo 1:1+navegación, **menú nativo oculto**, F6),
-  navegación/control total (A/B), **GRÁFICOS** (RATIO/RESOLUCIÓN/P. COMPLETA/ANTIALIASING/VSYNC/LÍMITE
-  DE FPS), **DEBUG** (VENTANA DEBUG→F1 + MOSTRAR FPS) y **AUDIO** (VOLUMEN/SALIDA/MENÚ SFX) aplican en
-  vivo y **persisten en `config.ini`** (`[video]`/`[audio]`); SFX por eventos del modelo. Todo
-  **validado en Windows (2026-09-26)**. Detalle: `notes/2026-09-24-a2-*.md`, `notes/2026-09-23-a2-*.md`,
-  `docs/menu.md`, ADR 0008/0012. Contexto descartado: `notes/2026-09-23-b-motor-texto-localizado.md`,
-  `...-a2-plan-menu-ajustes-idioma.md`.
 - [•] **Traducción — MENÚ (overlay del port)**. Alcance: **etiquetas del menú moderno** (no usa el
   motor de texto del juego). **Hecho (2026-09-25/26)**: localización **en/es/ca/fr/de**
   (`hh::menu::localized`, lista en **endónimos**); acentos = **letra base `color0` + marca**
@@ -458,27 +284,6 @@
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
   `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
-- [x] **[Issue #13](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/13) — HUD/minimapa desanclado al cambiar de Área — HECHO y VALIDADO en Windows en TODOS los niveles (2026-10-02)**: al entrar en un **Área nueva** (3-1; 4-1…) el **minimapa salía fuera de su marco** (salud/POWER/STAMINA bien). `class_of` lo anclaba por **hash de contenido** (`0xbbb8c0ba`/`0x1427da33`), que cambia por capítulo → `kAuto`. **Fix estructural**: eliminados del `class_of` los **2 hashes `dl:` y el fill posicional**; el minimapa se ancla por su **panel** (scissor/fondo negro que **no cubre el ancho** y cae en la **mitad derecha**), en `hud_rewrite.cpp` (`right_panel_box`/`right_panel_scissor`); el fill negro que coincide con el panel → `kRight`. Validado headless (sin depender del hash, sin over-match) y **en Windows en todos los niveles** (2-1, 3-1, 4-1 y resto). **ADR 0015**; nota **`notes/2026-10-02-fix-minimapa-estructural-issue13.md`**.
-- [x] **[Issue #14](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/14) — crash del ataque a distancia/VENENO — HECHO y VALIDADO en Windows (2026-10-02)**: el crash era un **abort** del runtime al caer la `switch` de `func_8035A3D8` en caso fuera de rango (`Switch-case out of bounds ... at 0x8035A3F8 for jump table at 0x8038A000`). Causa: **N64Recomp truncaba la jump table** (8 entradas) al primer destino que es **inicio de otra función** (`func_8035A428`), dejando solo los casos 0/1. **Fix general** en `toolchain/src/N64Recomp` (`analysis.cpp`: aceptar entradas que sean inicio de función de la misma sección; `recompilation.cpp`: **tail-call** para entradas fuera de la función). Regenerado y compilado: **11 funciones / 73 entradas** corregidas (9 con entradas nuevas inalcanzables por el bound). Parche versionado: `recomp/n64recomp_changes/2026-10-02-jump-table-cross-function.patch`. Detalle: **`notes/2026-10-02-fix-jumptable-recompilador-issue14.md`**. **Pendiente del mantenedor**: reconciliar/versionar el snapshot del toolchain.
-- [x] **BUG — desaparecen los nombres de habilidades TRAS GUARDAR partida — FIX HECHO (2026-10-02), PENDIENTE VALIDAR EN WINDOWS**: ocurría **siempre** al guardar (no solo con MODO HEAVEN) y **volvían al recargar** → era estado de runtime, no el `.pak`. **Causa**: `hh_leave_capsule` no desactivaba la categoría FILE-SELECT (`g_file_select_active`); al guardar quedaba a `true` con el nativo oculto → `file_select_text_skip()` → `hh_entry_register_hook` **saltaba la composición de todo texto**. **Fix**: `set_file_select_active(false)` al salir de la cápsula (igual que carga/título). Nota: **`notes/2026-10-02-fix-textos-desaparecen-al-guardar.md`**.
-- [x] **Widescreen: anclaje del HUD/mapa (fase 07b) — COMPLETO y validado en Windows (2026-09-26)**:
-  - **Izquierda**: radar y **HUD de combate** (POWER/STAMINA, disco radial, combo, stamina gastada);
-    **derecha**: **minimapa** (contenido + fondo negro a todo el ancho). Persiste entre combates y niveles.
-  - **No existe barra HP**: la salud es el **dial radial** + el **numérico `HP n/n`** (bloque izquierdo
-    ya anclado). **Cuadros de diálogo**: salen centrados con su propio anclaje → **sin cambios**.
-  - **Issue #3 (v0.4.1–v0.4.3, validado)**: desde el **2º combate** el HUD se quedaba en 4:3 (la
-    dirección RDRAM del gráfico cambia por encuentro; no es identidad). POWER/STAMINA por **hash de
-    contenido** (`d820d8e`); **disco radial** por **hash + caja `27,19,59,51`**; **combo** (4
-    `G_FILLRECT`, `y=28..30`) y **stamina gastada** (`y=34..38`) por **posición** (el color cambia
-    rojo→azul→naranja y RT64 pinta el relleno con el PRIM color → la traza lee `fill_color=0`).
-  - **Issue #7 (v0.4.4, validado)**: **minimapa** por **hash de contenido** (la dirección del overlay
-    cambia por escena/capítulo). `notes/2026-09-26-fix-minimapa-contenido.md`.
-  - Reescritor: `src/hooks/hud_rewrite.cpp` (+ `include/hh/hudid.h`); `HH_NO_HUD_REWRITE=1` lo
-    desactiva, `HH_FULL_FRAME=0` el widescreen, `HH_HUD_TRACE=1` la traza; **F7** = captura pareada.
-  - Detalle: `notes/2026-09-21-anclaje-hud-widescreen-radar.md`,
-    `notes/2026-09-22-anclaje-hud-widescreen-fase07b.md`,
-    `notes/2026-09-22-fix-mapa-rect-negro-widescreen.md`,
-    `notes/2026-09-25-f-hud-combate-contenido.md`.
 - [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
   con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
   jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
@@ -522,74 +327,7 @@
   `keep_syms*.txt`, `module_extras.json`, `recomp/n64recomp_changes/*`.
 - [ ] **Sanear menciones a la ROM en docs/notas** (frases cortas del juego en `notes/`).
 
-## Hecho (resumen; detalle en `notes/`)
-
-- [x] **Input ratón vs panel de RT64 (2026-09-23)**: con el Inspector abierto (`HH_DEVELOPER=1`+F1) el
-  clic se colaba al juego (L→A). `hh::dev_panel_open()` (publicado en `update_screen`) desactiva el
-  mapeo ratón→A/B **solo mientras el panel está abierto**. Pendiente validar en Windows.
-  `notes/2026-09-23-input-raton-y-panel-rt64.md`.
-- [x] **[Issue #7](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/7) — minimapa
-  desanclado al inicio del nivel 2-1 (2026-09-26)**: la salud ya se arregló con el issue #3; el
-  **minimapa** se anclaba por identidad `dl:<dirección>#<hash>` y el overlay cambia de dirección por
-  escena/capítulo → no casaba. Fix: emparejar los `dl` del mapa por **hash de contenido** (estable)
-  en `class_of`. `notes/2026-09-26-fix-minimapa-contenido.md`.
-- [x] **High frame rate por defecto (v0.4.0, 2026-09-23)**: `PresentEarly` + `Refresh Rate = Display`
-  → presenta al refresco del monitor (~109 fps validado con RTSS), lógica a 30 Hz. Diagnóstico
-  `HH_FPS=1`; FPS en pantalla con `HH_DEVELOPER=1`+F1; `HH_GRAPHICS_API`; atajos **F2** aspecto /
-  **F3** ventana / **F4** MSAA (**F1** = Inspector). `notes/2026-09-22-fps-y-present-early.md`.
-- [x] **Cursor, release `rom/` y README (2026-09-22)**: cursor oculto sobre la ventana (validado en
-  Windows); los artefactos de release incluyen `rom/PON_AQUI_LA_ROM.txt`; README con características
-  y punto de control de estado. `notes/2026-09-22-cursor-release-rom-readme.md`.
-- [x] **Fork de RT64 publicado (2026-09-22)**: `hunkstalker/rt64` (rama `hybrid-heaven` = `a8f0a70`);
-  `.gitmodules` y el submódulo `lib/rt64` apuntan al fork. `main` y forks pusheados.
-- [x] **Versión `0.3.0` (2026-09-22)**: bump MINOR por las features (widescreen HUD/mapa, cursor,
-  release `rom/`). **Release `v0.3.0` publicado.**
-- [x] **Ajustes gráficos `[video]` + widescreen (2026-09-21)**: `config.ini [video]` (wm
-  borderless/windowed, res auto/nativa/`<n>`/4k/8k, aspect, msaa); ventana a **resolución nativa
-  borderless**; atajos **F3** (ventana), **F2** (aspecto), **F4** (MSAA). **Widescreen** con *snap*
-  del *scissor* de overscan a full-frame (`src/hooks/dl_snap.cpp`, adaptado de la referencia Phase 07;
-  `HH_FULL_FRAME=0` off) → con `aspect=auto`/`expand` (default) el 3D llena la ventana; el HUD/mapa
-  **no se desmonta** (queda en la zona 4:3, sin anclar). Validado en Linux y Windows.
-  **Pendiente**: anclaje del HUD a los bordes (fase 07b, cosmético).
-- [x] **Estéreo L/R corregido (2026-09-21)**: los samples llegaban con L/R invertidos (librecomp
-  byte-swapped + puntero crudo); `queue_samples` ahora los des-swapea (`HH_AUDIO_NO_SWAP=1` off).
-  Pendiente validar de oído en Windows. `notes/2026-09-21-audio-petardeo-ref-y-plan.md` §8.
-- [x] **Limpieza de instrumentación (2026-09-21)**: `[BADMQ]`/`[MQDROP]` gateados tras `HH_DIAG`
-  (consola limpia por defecto; fork NMR); `HH_NO_STREAMED_LOADS` eliminado (el hook streamed se
-  registra siempre). Se **quedan** (funcionales/opt-in): `requeue_pi=true` (evita cuelgue de PI DMA),
-  la sombra `hh_sh_*` (el scheduler lee/escribe ahí los enlaces de hilo) y el watchpoint
-  (`HH_WATCH_ADDR`, opt-in).
-- [x] **Mando/teclado (2026-09-21)**: mapeo **fijo** (sin remapeo por contexto) — B físico = N64 B
-  (atrás/mapa), **X = agacharse**, A=A, Y=C-Down, LB/RB=L/R. **D-pad → stick** por defecto
-  (`HH_DPAD_TO_STICK=0` off) → el D-pad navega menús; stick→D-pad también. **Teclado**: WASD=stick,
-  H/J/K/L = X/A/B/Y, U/I=L/R, O/P=Z/R, Enter=Start. Validado en Windows.
-- [x] **Audio sin petardeo (2026-09-21)**: el juego sobreproducía ~5–6% (modelo FIFO) → cola hasta el
-  watermark → descartes. Fix (modelo de la referencia): reportar la **cola SDL real − headroom**
-  (`HH_AI_HEADROOM_MS`=30); el FIFO sigue con el evento AI. `frames/s≈43.2k`, `drops/s=0`. Validado en
-  Windows y Linux. `notes/2026-09-21-audio-petardeo-ref-y-plan.md`.
-- [x] **Publicación hecha (2026-09-21)**: CI verde (Linux/Windows) + **Release `v0.1.1`** publicado,
-  con el repo público sin datos del juego y el `RecompiledFuncs` traído del repo privado de secretos
-  (ADR 0009). Etapa ELF/splat y M4c validados en Windows.
-- [x] **Vía de recompilación ELF/splat (ADR 0011), M0–M5** + **entrada al CaC validada en Windows
-  (2026-09-21)**: START → menú → GAME START → gameplay, primer NPC, cajas, **primer CaC**, ~30 min
-  hasta el **6º combate** sin cuelgues; **mando** y **guardado/carga** correctos.
-- [x] **Estructura/higiene (M5)**: port en la raíz (`src/{platform,hooks,subsystems}`), `recomp/tools/`,
-  intermedios → `build/recomp/`, vía Ghidra → `legacy/`, `config/`→`recomp/`, `work/` fuera del repo
-  (scratch gitignored), purga `HH_*`, docs vivas + créditos.
-- [x] **Teardown SEGV (M4c) RESUELTO** (Linux + Windows): el runtime liberaba RDRAM y el planificador
-  seguía despachando hilos al salir; fix en el fork NMR (no liberar RDRAM + parar el planificador).
-  `notes/2026-09-21-m4c-teardown-segv.md`.
-- [x] **CI con el C recompilado (ADR 0009)**: repo privado de secretos + PAT
-  (`notes/2026-09-21-ci-recompilado-desde-repo-privado.md`).
-- [x] **Submódulos** `lib/{N64ModernRuntime,rt64}` publicados (forks propios; ADR 0010).
-- [x] Arranque completo, gameplay, menús, combate y cinemáticas en Windows con mando Xbox.
-- [x] Guardado en cápsula (Controller Pak) validado (`osPfsFindFile`→5).
-- [x] Audio `aspMain` del ROM recompilado a 43200 Hz; perfiles de mando por contexto.
-- [x] Fase B (ADR 0007): cache de assets + loader LZKN64 nativo.
-- [x] Rendimiento: `get_function` sin `getenv` por llamada → stalls de 1-4 s a 0 y 30 ticks/s.
-- [x] Replay fiel (`HH_REPLAY_MODE=vi`); build reproducible + CI/Releases (ADR 0005).
-
 ## Documentos de detalle (no duplicar)
 
-`PROYECTO.md` · `docs/README.md` (visión) · `docs/architecture.md` · `docs/adr/` · `docs/workflows.md`
-· `notes/2026-09-1*.md`.
+`PROYECTO.md` · `docs/TAREAS-HECHAS.md` (tareas completadas) · `docs/README.md` (visión) ·
+`docs/architecture.md` · `docs/adr/` · `docs/workflows.md` · `docs/menu.md` · `notes/`.

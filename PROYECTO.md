@@ -4,11 +4,9 @@
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
 
-**Merge a `main` (2026-10-02)**: `menu-carga-guardado-partida` (con `menu-edicion-partida` y
-`menu-nativo` como ancestros) se integró por **fast-forward**. `main` reúne menú de guardar/cargar,
-editor de partida, MODO HEAVEN, i18n unificado, título de Área y vibración desacoplada. Pendiente del
-mantenedor: **push + CI** y tag **`v0.6.0`**. Salvaguardas: tags `backup-premerge-*`. Handoff:
-`RETOMAR.md`.
+**Estado (2026-10-02)**: `main` = **`v0.6.0`** (publicada). Sesión: fixes de #13 (minimapa), #14
+(jump tables), textos al guardar y número de Área del título (todo validado). **Tarea actual**: los
+acentos pisan la kana (artefactos gráficos); ver `RETOMAR.md`.
 
 ## 1. Objetivo
 
