@@ -1701,16 +1701,20 @@ extern "C" void hh_area_title_hook(uint8_t* rdram, recomp_context* ctx) {
         g_font_all_countdown = 400;   // ventana: volcar los glifos del título del Área
     }
     // Overlay traducido (idiomas != inglés): marca el título activo y lo publica cada frame del fade.
-    // El índice del Área se lee DEL MODELO nativo (cursor `D_801BEC05` + entrada `D_801BEB80[cursor]`
-    // campo +6), NO del hook de diagnóstico (que solo existe con HH_LOAD_TRACE).
+    // El NÚMERO DE ÁREA se deriva del VALOR DE ESCENA vivo `[0x801BBBF0+4]` (u16 BE), NO del índice
+    // `func_8013EA54`/`D_801CCAE0`: ese índice es el campo `+6` del modelo de fila (`func_80108280>>8`,
+    // un valor que avanza por PARTE de área: 0,2,10,20…), así que indexar `D_801CCAE0` (tabla de 12
+    // entradas ÁREA 1..9) daba un título equivocado según la parte (1-2 salía Área 2; 6-1 salía Área 1).
+    // `[0x801BBBF4]` es el mismo valor que usa `save_live` para la cabecera -> `area_sub_from_value`.
     if (hh::overlay::enabled() && hh::text_current_language() != "ja") {
-        uint8_t t0 = 0;
-        const uint32_t idx = g_area_last_scene_idx;   // retorno de func_8013EA54 (hook siempre activo)
-        if (idx < 12u) {
-            t0 = rdram[((0x801CCAE0u + idx) - 0x80000000u) ^ 3u];
-        }
+        const uint16_t scene = static_cast<uint16_t>((rdram[(0x801BBBF4u - 0x80000000u) ^ 3u] << 8) |
+                                                     rdram[(0x801BBBF5u - 0x80000000u) ^ 3u]);
+        int area = 1, sub = 1;
+        hh::menu::area_sub_from_value(scene, area, sub);
+        const uint8_t t0 = static_cast<uint8_t>(area);
         if (env_set("HH_LOAD_TRACE")) {
-            hh::log("[load-trace] AREA overlay: idx=%u t0=%u\n", idx, t0);
+            hh::log("[load-trace] AREA overlay: idx=%u scene=%u -> area=%d sub=%d\n",
+                    g_area_last_scene_idx, scene, area, sub);
         }
         if (t0 >= 1 && t0 <= 9) {
             if (!g_area_title_active) {

@@ -23,20 +23,11 @@
 
 ## Sesión 2026-10-02 (bugs #13/#14)
 
-- **#13 (minimapa) — HECHO y VALIDADO en Windows en TODOS los niveles.** Fix estructural: eliminados del
-  `class_of` los 2 hashes `dl:` del mapa y el fill posicional; ahora se ancla por **panel** (scissor/fondo
-  negro que no cubre el ancho y cae en la mitad derecha). **ADR 0015**; nota
-  `notes/2026-10-02-fix-minimapa-estructural-issue13.md`. Commiteado (`fix(hud)`).
-- **#14 (ataque a distancia/veneno) — HECHO y VALIDADO en Windows.** El crash era un **abort** de
-  `switch_error` en `func_8035A3D8`: N64Recomp **truncaba su jump table** (8→2 casos) al topar con un
-  destino que es **inicio de otra función**. Fix general en `toolchain/src/N64Recomp` (`analysis.cpp` +
-  `recompilation.cpp`, tail-call); **11 funciones / 73 entradas** corregidas. Parche versionado:
-  `recomp/n64recomp_changes/2026-10-02-jump-table-cross-function.patch`. Detalle:
-  `notes/2026-10-02-fix-jumptable-recompilador-issue14.md`.
-- **Textos desaparecían al GUARDAR — HECHO y VALIDADO en Windows.** Al salir de la cápsula no se
-  desactivaba la categoría FILE-SELECT (`g_file_select_active`) → el hook de composición saltaba todo el
-  texto. Fix: `set_file_select_active(false)` en `hh_leave_capsule`. Nota:
-  `notes/2026-10-02-fix-textos-desaparecen-al-guardar.md`.
+- **#13 minimapa** — anclaje estructural por panel (sin hash). **VALIDADO**. ADR 0015.
+- **#14 ataque a distancia/veneno** — fix general del recompilador (jump tables). **VALIDADO**.
+- **Textos al GUARDAR** — `set_file_select_active(false)` en `hh_leave_capsule`. **VALIDADO**.
+- **Número de Área del título al cargar** — derivar de `[0x801BBBF4]`, no de `func_8013EA54`.
+  **Validar en Windows.** Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
 
 ## Pendiente
 

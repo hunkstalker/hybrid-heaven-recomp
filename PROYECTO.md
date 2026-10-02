@@ -181,6 +181,9 @@ Nota: `notes/2026-10-02-fix-jumptable-recompilador-issue14.md`.
 cápsula no se desactivaba la categoría FILE-SELECT (`g_file_select_active`) y el hook de composición de
 texto saltaba todo el texto (nombres de habilidades). Fix: `set_file_select_active(false)` en
 `hh_leave_capsule`. Nota: `notes/2026-10-02-fix-textos-desaparecen-al-guardar.md`.
+**Número de Área del título al cargar (FIX 2026-10-02, validar Windows)**: salía equivocado según la
+**parte** (1-2 → Área 2; 6-1 → Área 1) porque se indexaba `D_801CCAE0` con un valor que avanza por parte;
+ahora se deriva de `[0x801BBBF4]`. Nota: `notes/2026-10-02-fix-titulo-area-numero.md`.
 Pendiente: cablear la fuente in-game 8×12 y las traducciones in-game (DE/FR/JA de las ROMs; ES/CA
 propias). **High frame rate por defecto** — el port presenta hasta el refresco del monitor
 (interpolando los frames de 30 Hz del juego; **~109 fps** validados con RTSS, lógica a 30 Hz).

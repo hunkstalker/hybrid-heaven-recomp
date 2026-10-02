@@ -2,20 +2,20 @@
 
 > **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` y `notes/` (no duplicar). Histórico: `notes/`, `notes/archive/`.
->
-> **2026-10-02**: `menu-carga-guardado-partida` (y sus ancestros) **integradas en `main`** por
-> fast-forward. Pendiente del mantenedor: push + CI y tag `v0.6.0`. Handoff: `RETOMAR.md`;
-> salvaguardas: tags `backup-premerge-*`.
+> Handoff: `RETOMAR.md`.
 
 ## Ahora (priorizado)
-
-- [x] **`VIBRACIÓN` ↔ Controller Pak — HECHO y VALIDADO en Windows (2026-10-02)**: con `VIBRACIÓN = SÍ`
-  antes no se guardaba/cargaba. Hook `func_80002BE0` (7→0) + PFS de un solo `.pak` (canal 0..3) +
-  vibración global. Detalle: **`notes/2026-10-02-desacoplo-vibracion-controller-pak.md`**. Ver item 11.
 
 - [•] **Transición del título del Área: fundido y hold (2026-10-02, validar 2.ª vez)**: fade por tiempo
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
   `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
+
+- [x] **Número de Área del título al CARGAR partida — FIX HECHO (2026-10-02), validar en Windows**: el
+  número salía equivocado según la **parte** (1-2 → Área 2; 6-1 → Área 1). Causa: `hh_area_title_hook`
+  usaba `func_8013EA54` (campo `+6` del modelo = `func_80108280>>8`, un valor que avanza por PARTE) como
+  índice de `D_801CCAE0`. Fix: derivar el área del **valor de escena vivo `[0x801BBBF4]`** con
+  `area_sub_from_value` (misma fuente que `save_live`). Detalle:
+  `notes/2026-10-02-fix-titulo-area-numero.md`.
 
 - [x] **Rótulo `AREA` del título del Área traducido — HECHO y VALIDADO en Windows (2026-10-02)**:
   estaba hardcodeado (`snprintf("AREA %d")`) → en ES salía sin tilde. Ahora usa la clave `AREA` de
