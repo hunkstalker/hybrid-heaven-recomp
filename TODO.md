@@ -2,6 +2,10 @@
 
 > **Única fuente de verdad de tareas.** `[ ]` pendiente · `[•]` en curso · `[x]` hecho.
 > Detalle en `PROYECTO.md`, `docs/` y `notes/` (no duplicar). Histórico: `notes/`, `notes/archive/`.
+>
+> **2026-10-02**: `menu-carga-guardado-partida` (y sus ancestros) **integradas en `main`** por
+> fast-forward. Pendiente del mantenedor: push + CI y tag `v0.6.0`. Handoff: `RETOMAR.md`;
+> salvaguardas: tags `backup-premerge-*`.
 
 ## Ahora (priorizado)
 
