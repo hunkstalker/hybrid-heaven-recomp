@@ -145,6 +145,7 @@ add_executable(HybridHeavenRecomp
     src/hooks/hh_menu.cpp
     src/hooks/text_glyphs.cpp
     src/hooks/menu_overlay.cpp
+    src/hooks/model_tagging.cpp
     # subsystems: piezas del juego portadas (input, trans, firmware)
     src/subsystems/input.cpp
     src/subsystems/trans_cache.cpp

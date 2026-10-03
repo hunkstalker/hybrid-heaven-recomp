@@ -1,0 +1,275 @@
+diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
+index 87392d0..06bebf9 100644
+--- a/src/hle/rt64_game_frame.cpp
++++ b/src/hle/rt64_game_frame.cpp
+@@ -9,6 +9,53 @@
+ 
+ #include "xxHash/xxh3.h"
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <unordered_set>
++
++// HH: contadores del emparejamiento de transforms (métrica objetiva de la interpolación de alta
++// tasa; ver notes/2026-10-02-fps-interpolacion-estado-y-handoff.md y el plan de transform tagging).
++// RT64 dibuja los frames intermedios emparejando cada transform con el del frame anterior; el que
++// no encuentra pareja se queda quieto y "da el salto" a 30 Hz. Estos contadores, por frame lógico:
++// total de transforms; los que el juego pidió no interpolar (matrix groups con id ignorado: 2D,
++// efectos); los que quedaron sin pareja; y de esos, los que además se movieron (los que cuestan).
++// Escritos en el hilo de workload y leídos en el del juego sin sincronización: suficiente para una
++// tasa promediada por segundo. Expuestos a través de `RT64_GetTransformPairing`.
++static uint64_t hhPairingFrames = 0;
++static uint64_t hhPairingTotal = 0;
++static uint64_t hhPairingIgnored = 0;
++static uint64_t hhPairingUnpaired = 0;
++static uint64_t hhPairingUnpairedMoved = 0;
++// HH: cuantos transformGroups llevan un matrixId EXPLICITO (ni AUTO ni IGNORE). Prueba directa de
++// que los `gEXMatrixGroup` del port llegan a RT64 (si es 0, el tagging no entra).
++static uint64_t hhPairingExplicitIds = 0;
++// HH: no-emparejados que SI llevan matrixId explicito (su ID no caso entre frames), frente a los
++// que no llevan tag. Distingue "falta tag" de "el tag cambio/cambio de nodo".
++static uint64_t hhPairingUnpairedTagged = 0;
++
++// HH: contador global de transformGroups materializados con matrixId explicito. Lo incrementa
++// RSP::setVertexCommon (rt64_rsp.cpp) cuando un gEXMatrixGroup del port llega a RT64. Prueba
++// directa del tagging, independiente de que haya emparejamiento de frames. C linkage para que
++// rt64_rsp.cpp (namespace RT64) lo toque sin ambiguedad de namespaces.
++extern "C" uint64_t hh_group_seen_count = 0;
++
++extern "C" unsigned long long RT64_GetGroupSeenCount() {
++    return hh_group_seen_count;
++}
++
++extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned long long *total,
++                                         unsigned long long *ignored, unsigned long long *unpaired,
++                                         unsigned long long *unpairedMoved, unsigned long long *explicitIds,
++                                         unsigned long long *unpairedTagged) {
++    *frames = hhPairingFrames;
++    *total = hhPairingTotal;
++    *ignored = hhPairingIgnored;
++    *unpaired = hhPairingUnpaired;
++    *unpairedMoved = hhPairingUnpairedMoved;
++    *explicitIds = hhPairingExplicitIds;
++    *unpairedTagged = hhPairingUnpairedTagged;
++}
++
+ namespace RT64 {
+     // GameFrame
+     
+@@ -375,6 +422,104 @@ namespace RT64 {
+         matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
+         matchScenes(orthographicScenes, prevFrame.orthographicScenes);
+ 
++        // HH: mide cuántos transforms se quedaron sin pareja (HH_PAIRING=1). Se ejecuta tras el
++        // emparejamiento de la escena, con todas las workloads ya marcadas.
++        {
++            thread_local std::unordered_set<uint64_t> hhPrevMatrices;
++            hhPrevMatrices.clear();
++            for (uint32_t w : workloads) {
++                const GameFrameMap::WorkloadMap &map = frameMap.workloads[w];
++                if (!map.mapped) {
++                    continue;
++                }
++
++                const Workload &prevWorkload = workloadQueue.workloads[map.prevWorkloadIndex];
++                for (const interop::float4x4 &m : prevWorkload.drawData.worldTransforms) {
++                    hhPrevMatrices.insert(XXH3_64bits(&m, sizeof(m)));
++                }
++            }
++
++            uint32_t total = 0, ignored = 0, unpaired = 0, unpairedMoved = 0, explicitIds = 0, unpairedTagged = 0;
++
++            // HH: volcado de identidad (fase 2a). Cuando el contador de transforms no emparejados y
++            // movidos es alto, interesa saber CUÁL es (no solo cuántos): por worklaod/índice, la
++            // dirección física/segmentada del model matrix y su posición en mundo. Solo se volca
++            // en picos y con un tope, para no inundar. `HH_PAIRING_DUMP=<min unpaired_moved>` (sin
++            // número -> 20). Los datos orientan la identidad estable del tagging.
++            static const int hh_pairing_dump_min = []() {
++                const char *e = std::getenv("HH_PAIRING_DUMP");
++                if (e == nullptr || *e == '\0') return -1;
++                const int v = atoi(e);
++                return (v > 0) ? v : 20;
++            }();
++            static int hh_pairing_dump_left = 2000;
++
++            for (uint32_t w : workloads) {
++                const GameFrameMap::WorkloadMap &map = frameMap.workloads[w];
++                const Workload &curWorkload = workloadQueue.workloads[w];
++                for (size_t t = 0; t < map.transforms.size(); t++) {
++                    total++;
++                    if (t < curWorkload.drawData.worldTransformGroups.size()) {
++                        const uint32_t gi = curWorkload.drawData.worldTransformGroups[t];
++                        if (gi < curWorkload.drawData.transformGroups.size()) {
++                            const uint32_t mid = curWorkload.drawData.transformGroups[gi].matrixId;
++                            if ((mid != G_EX_ID_AUTO) && (mid != G_EX_ID_IGNORE)) {
++                                explicitIds++;
++                            }
++                        }
++                    }
++                    if (map.transforms[t].mapped) {
++                        continue;
++                    }
++
++                    const uint32_t groupIndex = curWorkload.drawData.worldTransformGroups[t];
++                    if (curWorkload.drawData.transformGroups[groupIndex].matrixId == G_EX_ID_IGNORE) {
++                        ignored++;
++                        continue;
++                    }
++
++                    unpaired++;
++                    // Desglose: ¿el no-emparejado tiene tag explicito (su ID no caso) o no tiene tag?
++                    if (t < curWorkload.drawData.worldTransformGroups.size()) {
++                        const uint32_t gi2 = curWorkload.drawData.worldTransformGroups[t];
++                        if (gi2 < curWorkload.drawData.transformGroups.size()) {
++                            const uint32_t mid2 = curWorkload.drawData.transformGroups[gi2].matrixId;
++                            if ((mid2 != G_EX_ID_AUTO) && (mid2 != G_EX_ID_IGNORE)) {
++                                unpairedTagged++;
++                            }
++                        }
++                    }
++                    const interop::float4x4 &m = curWorkload.drawData.worldTransforms[t];
++                    if (hhPrevMatrices.find(XXH3_64bits(&m, sizeof(m))) != hhPrevMatrices.end()) {
++                        continue;
++                    }
++
++                    unpairedMoved++;
++
++                    if ((hh_pairing_dump_min > 0) && (hh_pairing_dump_left > 0) && (unpairedMoved >= uint32_t(hh_pairing_dump_min))) {
++                        hh_pairing_dump_left--;
++                        const uint32_t segmented = (t < curWorkload.drawData.worldTransformSegmentedAddresses.size())
++                                                       ? curWorkload.drawData.worldTransformSegmentedAddresses[t] : 0;
++                        const uint32_t physical = (t < curWorkload.drawData.worldTransformPhysicalAddresses.size())
++                                                      ? curWorkload.drawData.worldTransformPhysicalAddresses[t] : 0;
++                        const uint32_t group = (t < curWorkload.drawData.worldTransformGroups.size())
++                                                   ? curWorkload.drawData.worldTransformGroups[t] : 0;
++                        const float *m3 = m[3];
++                        std::fprintf(stderr, "[HH_PAIR_DUMP] w=%u t=%zu grp=%u seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
++                                     w, t, group, segmented, physical, m3[0], m3[1], m3[2]);
++                    }
++                }
++            }
++
++            hhPairingFrames++;
++            hhPairingTotal += total;
++            hhPairingIgnored += ignored;
++            hhPairingUnpaired += unpaired;
++            hhPairingUnpairedMoved += unpairedMoved;
++            hhPairingExplicitIds += explicitIds;
++            hhPairingUnpairedTagged += unpairedTagged;
++        }
++
+         if (!workloadsModified.empty()) {
+             thread_local std::vector<BufferUploader::Upload> uploads;
+             uploads.clear();
+diff --git a/src/hle/rt64_rigid_body.cpp b/src/hle/rt64_rigid_body.cpp
+index fd8b3eb..6ffc48b 100644
+--- a/src/hle/rt64_rigid_body.cpp
++++ b/src/hle/rt64_rigid_body.cpp
+@@ -4,6 +4,9 @@
+ 
+ #include "rt64_rigid_body.h"
+ 
++#include <cstdio>
++#include <cstdlib>
++
+ #include "../include/rt64_extended_gbi.h"
+ #include "common/rt64_math.h"
+ 
+@@ -55,6 +58,29 @@ namespace RT64 {
+             // FIXME: Defaults to always interpolate.
+             lerpRotation = true;
+ 
++            // HH: gate para rotaciones discontinuas (Fase A2 / issue #10). `HH_ROT_GATE=<deg>`
++            // (vacío/0 = off, comportamiento original). Si el ángulo entre la orientación previa y la
++            // actual supera el umbral, se trata como discontinuidad (cambio de estado/teleport) y se
++            // hace *snap* en vez de interpolar. Reutiliza el ángulo ya calculado en `angularVelocity`.
++            static const float hh_rot_gate_deg = []() {
++                const char *e = std::getenv("HH_ROT_GATE");
++                if (e == nullptr || *e == '\0') return -1.0f;
++                const float v = static_cast<float>(atof(e));
++                return (v > 0.0f) ? v : 120.0f;
++            }();
++            if (hh_rot_gate_deg > 0.0f) {
++                constexpr float kRadToDeg = 57.29577951308232f;
++                if (curAngularVelocity * kRadToDeg > hh_rot_gate_deg) {
++                    lerpRotation = false;
++                    static int hh_rot_gate_logged = 0;
++                    if ((hh_rot_gate_logged < 50) && (std::getenv("HH_ROT_GATE_LOG") != nullptr)) {
++                        hh_rot_gate_logged++;
++                        std::fprintf(stderr, "[HH_ROT_GATE] snap: %.1f deg > %.1f (log %d/50)\n",
++                                     curAngularVelocity * kRadToDeg, hh_rot_gate_deg, hh_rot_gate_logged);
++                    }
++                }
++            }
++
+             // If scale or skew are also set to auto, use the result of rotation auto calculation for their value as well.
+             if (scaleInterpolation == G_EX_COMPONENT_AUTO) {
+                 lerpScale = lerpRotation;
+@@ -68,6 +94,41 @@ namespace RT64 {
+             lerpRotation = (rotInterpolation == G_EX_COMPONENT_INTERPOLATE);
+             angularVelocity = 0.0f;
+         }
++
++        // HH: gate para SALTOS DE ESCALA (Fase A2 / issue #6). `HH_SCALE_GATE=<ratio>` (vacío/0 = off;
++        // sin número -> 2.0). Si la escala de algún eje cambia más de ese factor entre el frame previo
++        // y el actual, se trata como discontinuidad (p. ej. una animación que se reinicia: se expande
++        // y vuelve a empezar) y se hace *snap* en vez de interpolar a través del salto. Los valores por
++        // frame legítimos a 30 Hz son pequeños, así que un umbral de ~2 no afecta a crecimiento normal.
++        static const float hh_scale_gate = []() {
++            const char *e = std::getenv("HH_SCALE_GATE");
++            if (e == nullptr || *e == '\0') return -1.0f;
++            const float v = static_cast<float>(atof(e));
++            return (v > 1.0f) ? v : 2.0f;
++        }();
++        if ((hh_scale_gate > 1.0f) && lerpScale) {
++            constexpr float kEps = 1e-6f;
++            bool hh_scale_jump = false;
++            for (int axis = 0; axis < 3; axis++) {
++                const float prevLen = hlslpp::length(prevTransform[axis].xyz);
++                const float curLen = hlslpp::length(curTransform[axis].xyz);
++                const float ratio = curLen / std::max(prevLen, kEps);
++                if ((ratio > hh_scale_gate) || (ratio < (1.0f / hh_scale_gate))) {
++                    hh_scale_jump = true;
++                    break;
++                }
++            }
++            if (hh_scale_jump) {
++                lerpScale = false;
++                lerpSkew = false;
++                static int hh_scale_gate_logged = 0;
++                if ((hh_scale_gate_logged < 50) && (std::getenv("HH_SCALE_GATE_LOG") != nullptr)) {
++                    hh_scale_gate_logged++;
++                    std::fprintf(stderr, "[HH_SCALE_GATE] snap scale (factor>%.1f) (log %d/50)\n",
++                                 hh_scale_gate, hh_scale_gate_logged);
++                }
++            }
++        }
+     }
+ 
+     void RigidBody::updatePerspective(const hlslpp::float4x4 &prevTransform, const hlslpp::float4x4 &curTransform, uint8_t perspInterpolation) {
+diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
+index 1da2550..d219c08 100644
+--- a/src/hle/rt64_rsp.cpp
++++ b/src/hle/rt64_rsp.cpp
+@@ -6,6 +6,9 @@
+ 
+ #include <cassert>
+ 
++// HH: contador de gEXMatrixGroup materializados (definido en rt64_game_frame.cpp).
++extern "C" uint64_t hh_group_seen_count;
++
+ #include "../include/rt64_extended_gbi.h"
+ #include "common/rt64_common.h"
+ #include "common/rt64_math.h"
+@@ -511,6 +514,11 @@ namespace RT64 {
+             extended.curModelMatrixIdGroupIndex = int(workload.drawData.transformGroups.size());
+             workload.drawData.transformGroups.emplace_back(extended.modelMatrixIdStack[stackIndex]);
+             extended.modelMatrixIdStackChanged = false;
++            // HH: prueba directa de que un gEXMatrixGroup del port materializa un TransformGroup.
++            const uint32_t hhMid = extended.modelMatrixIdStack[stackIndex].matrixId;
++            if ((hhMid != G_EX_ID_AUTO) && (hhMid != G_EX_ID_IGNORE)) {
++                ::hh_group_seen_count++;
++            }
+         }
+         
+         // ModelViewProj is only updated when a vertex is processed and the flag is enabled.

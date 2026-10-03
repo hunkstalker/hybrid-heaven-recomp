@@ -1049,6 +1049,12 @@ void hh::poll_input() {
                     std::fprintf(stderr, "[HH] F8 -> menu nativo %s\n",
                                  hh::menu_overlay::native_visible() ? "VISIBLE" : "oculto");
                 }
+                else if (k.sym == SDLK_F9) {
+                    // A/B de interpolación (diagnóstico): Display (interpola) <-> Original (sin
+                    // interpolar). Estaba declarado pero sin mapear; útil para capturar el mismo frame
+                    // con y sin interpolación. Ver work-order de FPS.
+                    hh::video_toggle_interpolation();
+                }
                 else if (k.sym == SDLK_KP_PLUS || k.sym == SDLK_EQUALS) {
                     // Ajuste fino del recorte del mapa (fase 07b): +1 px por lado.
                     hh::hudrewrite::map_crop_add(+1);

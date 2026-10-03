@@ -4,10 +4,11 @@
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
 
-**Estado (2026-10-02)**: `main` = **`v0.6.0`** (publicada). Sesión: fixes de #13 (minimapa), #14
+**Estado (2026-10-02)**: `main` = **`v0.6.1`** (publicada). Fixes del día: #13 (minimapa), #14
 (jump tables), textos al guardar, número de Área del título y glifos del ordenador (acentos vs `value`
-nativo de color3); todo validado. **Tarea actual**: acentos in-game **por color** (hoy sólo color0);
-ver `RETOMAR.md`.
+nativo de color3); todo validado. **Tarea actual (épica)**: **desbloquear los FPS / arreglar la
+interpolación** (issues #6, #8, #10, #12); hay gates flag-gated **sin validar** en `lib/rt64`. Ver
+`RETOMAR.md` y `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`.
 
 ## 1. Objetivo
 

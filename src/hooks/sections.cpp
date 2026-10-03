@@ -80,6 +80,7 @@ extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // 
 extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // mensaje Controller Pak
 extern "C" void func_80002BE0_37E0(uint8_t* rdram, recomp_context* ctx);     // clasificador de accesorio (pak)
 extern "C" void hh_pak_detect_hook(uint8_t* rdram, recomp_context* ctx);     // desacoplo vibracion <-> controller pak
+extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx);      // tagging de draw de malla (interpolacion, HH_MTXGROUP)
 extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
 extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
 extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
@@ -668,6 +669,12 @@ void register_title_menu_hook() {
     // prioriza el Rumble Pak; con VIBRACIÓN=SÍ el juego concluye "no hay Controller Pak" y no guarda.
     // El hook fuerza la rama "Controller Pak OK" sin dejar de inicializar el motor (ver definición).
     recomp::overlays::add_loaded_function(0x80002BE0, hh_pak_detect_hook);
+    // TAGGING DE TRANSFORMS (Fase A2, HH_MTXGROUP=1): `func_8000C768` (residente) es el DRAW de una
+    // malla (matriz + G_MTX + G_DL); el `G_VTX` que materializa el grupo va dentro de ese draw. El
+    // hook añade un `gEXMatrixGroup` con ID estable = puntero del nodo DOBJ, para que RT64 empareje
+    // por identidad en vez de por dirección (que HH recicla). Con el flag OFF el hook delega sin más.
+    // Residente: no hace falta re-registrar por carga de módulo.
+    recomp::overlays::add_loaded_function(0x8000C768, hh_bone_draw_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son

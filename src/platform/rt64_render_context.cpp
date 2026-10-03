@@ -52,6 +52,15 @@ unsigned int DPC_TMEM_REG = 0;
 
 static void dummy_check_interrupts() {}
 
+// RT64 (fork): contador de emparejamiento de transforms (lib/rt64/src/hle/rt64_game_frame.cpp).
+// Se imprime una vez por segundo bajo HH_PAIRING=1; el dato queda en hh.log.
+extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned long long *total,
+                                         unsigned long long *ignored, unsigned long long *unpaired,
+                                         unsigned long long *unpairedMoved,
+                                         unsigned long long *explicitIds,
+                                         unsigned long long *unpairedTagged);
+extern "C" unsigned long long RT64_GetGroupSeenCount();
+
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
@@ -684,6 +693,41 @@ void hh::RT64Context::update_screen() {
             pr_last = pr;
             dl_last = dl;
             t0 = now;
+        }
+    }
+
+    // HH_PAIRING=1: cada segundo, cuántos transforms de RT64 se quedan sin emparejar (interpolación
+    // heurística). Métrica objetiva de los artefactos de alta tasa, sin depender de la vista.
+    static const bool pairing_log = [] {
+        const char* e = std::getenv("HH_PAIRING");
+        return e != nullptr && *e != '\0' && *e != '0';
+    }();
+    if (pairing_log) {
+        static uint64_t f_last = 0, t_last = 0, i_last = 0, u_last = 0, um_last = 0, ex_last = 0, ut_last = 0;
+        static auto p0 = std::chrono::steady_clock::now();
+        const auto now = std::chrono::steady_clock::now();
+        const double secs = std::chrono::duration<double>(now - p0).count();
+        if (secs >= 1.0) {
+            unsigned long long f = 0, t = 0, ig = 0, up = 0, upm = 0, ex = 0, ut = 0;
+            RT64_GetTransformPairing(&f, &t, &ig, &up, &upm, &ex, &ut);
+            // Config de video en la misma linea: target/vi/swapChain/refresh/vsync para saber el
+            // techo real (panel/VSync) sin depender de HH_FPS ni de preguntarlo.
+            const uint32_t target = (app->sharedQueueResources != nullptr)
+                                        ? app->sharedQueueResources->targetRate : 0;
+            const uint32_t vi_rate = (app->sharedQueueResources != nullptr)
+                                         ? app->sharedQueueResources->viOriginalRate : 0;
+            const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
+            hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
+                    " ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s unpaired_moved=%.1f/s"
+                    " | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
+                    (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
+                    RT64_GetGroupSeenCount(),
+                    (ig - i_last) / secs, (up - u_last) / secs, (ut - ut_last) / secs,
+                    (upm - um_last) / secs,
+                    target, vi_rate, get_display_framerate(),
+                    static_cast<int>(app->userConfig.refreshRate), vsync_real);
+            f_last = f; t_last = t; i_last = ig; u_last = up; um_last = upm; ex_last = ex; ut_last = ut;
+            p0 = now;
         }
     }
     app->updateScreen();

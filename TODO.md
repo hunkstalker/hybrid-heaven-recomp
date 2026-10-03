@@ -6,6 +6,28 @@
 
 ## Ahora (priorizado)
 
+- [ ] **[ÉPICA] Desbloquear FPS: lógica↔render e interpolación fiel (abierta 2026-10-02)**: presentar a
+  la **tasa máxima del hardware (>200 Hz) sin artefactos** de interpolación, incremental. Cubre los
+  **4 issues abiertos** (todos por interpolación): **#6** jefe Procyon (flash del aura),
+  [#8](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/8) puertas que parpadean,
+  [#10](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/10) animaciones al curar enemigos,
+  [#12](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/12) Life Charger S.
+  **Fase A** (lógica 30 Hz + present a refresco; arreglar el **emparejamiento de RT64** con **transform
+  tagging** tipo Zelda64Recomp: `gEXMatrixGroup` con ID estable + modos/skip, y/o fork `rt64`) y
+  **Fase B** (spike time-boxed de simulación 60 Hz real → ADR). Work order + catálogo + medido/inferido:
+  **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
+  - [x] **A0**: métrica objetiva del emparejamiento, hecha: contador `HH_PAIRING` en `lib/rt64` +
+    dump de identidad; medido #6 `unpaired_moved≈98/s`, #8 ≈30/s, `ignored=0` (sin tagging). **La
+    observación visual no valida** (run con .exe viejo "pareció mejorar"). Nota:
+    `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md`.
+  - [ ] **A1**: estabilizar tick lógico (2 VI/frame, sin slips; `HH_DET_CLOCK` + precarga/stalls).
+  - [ ] **A2 (núcleo)**: **reescribir la DL en submit** (`hud_rewrite.cpp`): deduplicar matrices
+    (misma dirección → mismo slot), orden consistente entre frames + `gEXMatrixGroup` con id
+    estable + modo (interpolate/skip/ignore). Validar con `HH_PAIRING=1` (`unpaired_moved→0`).
+  - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), con la métrica, no con la vista.
+  - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
+  - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (son sonda, no arreglo).
+
 - [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
   hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o
   **color3 (12×13, stride 78)** `func_8001BFE4` cae al original (sin corromper, pero sin acento).

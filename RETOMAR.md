@@ -1,67 +1,83 @@
 # RETOMAR — handoff (2026-10-02)
 
-> Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
-> recompilador (jump tables, #14) + fix de textos al guardar + número de Área del título + fix de los
-> glifos del ordenador (acentos vs `value` nativo de color3)**.
-> **TAREA ACTUAL**: **acentos in-game POR COLOR** — la inyección sólo sirve el bloque **color0 (8×8)**;
-> en color4 (8×12) / color3 (12×13) `func_8001BFE4` cae al original (sin corromper, sin acento). Detalle:
-> **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`**. Reglas: `AGENTS.md` y
-> `docs/documentation.md`. Otro pendiente (mantenedor): **versionar el parche del recompilador**.
+> Handoff para la próxima sesión. **Estado: `main` = `v0.6.1` (publicada)** + fixes del día (#13 minimapa,
+> #14 jump tables, textos al guardar, número de Área, glifos del ordenador).
+> **TAREA ACTUAL (épica): desbloquear los FPS** — presentar al máximo del hardware **sin artefactos** de
+> interpolación. Cubre los **4 issues abiertos**: #6 Procyon, #8 puertas, #10 enemigos al curar,
+> #12 Life Charger S. **Plan + catálogo + análisis:** `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`.
+> **Estado de la sesión (2026-10-02, noche):** el fallo ya se **mide** (contador de emparejamiento
+> `HH_PAIRING`, fork `lib/rt64`); #6 `unpaired_moved` pica a ~98/s (aura), #8 ~30/s; **ignored=0**
+> (no hay tagging). Plan siguiente = reescribir la DL en submit (dedupe de matrices + orden +
+> `gEXMatrixGroup`). Detalle: `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md`.
+> Los gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 quedan **aparcados** (sonda, no arreglo); `lib/rt64`
+> sucio; **nada validado en Windows ni commiteado**.
+> Detalle y aviso de método: `notes/2026-10-02-fps-interpolacion-estado-y-handoff.md`.
+> Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## Integrado en `main` (2026-10-02)
+## Tarea actual — desbloquear FPS / arreglar interpolación
 
-- **Menú propio de CARGAR/GUARDAR**: `.pak` de **74 slots** (45 partidas + 29 plantillas, trailer de
-  metadatos); **migra** el `.pak` de 4 slots de 0.5.x (un solo sentido; sin downgrade). UI 1:1 de
-  DATA LOAD/SAVE, carga real desde `CONTINUAR`, borrado de slots. ADR **0013**; notas `notes/2026-09-30-*`.
-- **Editor de partida** (`EXTRAS`): atributos/estado/items/habilidades/nivel, plantillas, `IR A ÁREA`,
-  `DEBUG NIVELES`. Notas `notes/2026-09-27-f-*`, `notes/2026-09-28-*`.
-- **MODO HEAVEN**, VENTAJA, PODER ∞, RESISTENCIA ∞, daño de campo. `notes/2026-09-28-editor-*-heaven.md`.
-- **i18n unificado** (`assets/lang/*.txt`, clave = inglés; ADR **0014**), acentos/`¿¡` en los mensajes
-  (`font.cpp`), JA en kana; **título del Área** al cargar (Work Sans, fade/hold) y rótulo `AREA` traducido.
-- **Vibración desacoplada del Controller Pak** (hook `func_80002BE0` + PFS de un solo `.pak`):
-  `notes/2026-10-02-desacoplo-vibracion-controller-pak.md`.
-- Pulido de menú/vídeo (CONTINUAR gris, SALIDA stepper, fullscreen) y remapeo CONTROLES.
-- **Dependencias**: rt64 **`a8f0a70`** (revertido; `5b11988` apuntaba a un plume no publicado) y
-  N64ModernRuntime **`a11fbf2`**.
+- **Medido:** la lógica de HH es **30 fps**; RT64 **interpola** 30→refresco del monitor. Sin
+  `gEXMatrixGroup` el emparejamiento es **heurístico** (`matchScenes`/`computeTransformMatch`) y
+  `updateAngular` **siempre** interpola rotación/escala (`// FIXME`), a diferencia de la traslación
+  (que sí tiene *auto-gate* en `updateLinear`).
+- **Los 4 issues son de interpolación** (workaround `HH_REFRESH_RATE=original` / F9).
+- **Fase A** (elegida): lógica 30 Hz + present a refresco, quitando artefactos. **Fase B** (después):
+  spike de simulación 60 Hz real (→ ADR). Fases A0–A3/B/C en el work-order.
 
-## Hecho en la sesión 2026-10-02 (todo VALIDADO en Windows)
+### Ya implementado
 
-- #13 minimapa (panel, sin hash; ADR 0015). #14 jump tables del recompilador. Textos al guardar
-  (`set_file_select_active(false)`). Número de Área del título (derivar de `[0x801BBBF4]`).
-- **Glifos del ordenador (acentos vs `value` nativo): HECHO y VALIDADO en Windows.** La ventana usa
-  **color3** (12×13, stride 78) y un glifo nativo `value=200`; `hh_accent_bfe4` interceptaba por `value`
-  a secas y escribía 32 B de color0 8×8. Fix: **donante ASCII (`@`) + marca de origen + guarda de
-  stride** (`src/hooks/text_glyphs.cpp`); `gen_accent_glyphs.py` deja de inventar `value`.
+- **Métrica de emparejamiento (validada Linux build; usada en Windows esta sesión):**
+  `lib/rt64/src/hle/rt64_game_frame.cpp` cuenta transforms totales/ignorados/no-emparejados/
+  no-emparejados-movidos y los expone por `RT64_GetTransformPairing`; el port los imprime a
+  `hh.log` con **`HH_PAIRING=1`** (`[hh-pair]`). **`HH_PAIRING_DUMP=<n>`** vuelca en picos la
+  identidad de cada uno (a stderr). Logs de referencia en `tests/logs/` (gitignored).
+- **Aparcado (sonda, no arreglo):** `HH_ROT_GATE`/`HH_SCALE_GATE` (snap global; no cubren #8) y
+  **F9** (`src/subsystems/input.cpp`, interpolación ON/OFF). Off por defecto.
+- `lib/rt64` está **sucio** (submódulo por commitear). **No** validado en Windows como arreglo.
 
-## Pendiente
+### Pitfall (NO repetir)
 
-- **[TAREA ACTUAL] Acentos in-game por color (color4/color3).** Servir el bloque correspondiente por
-  `cp` (color4 desde `include/hh/game_font_color4.h`; valorar color3). Hoy sólo color0. Evidencia:
-  **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`** §4.
-- **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
-  desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
-- **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),
-  mapeo `controller_num → gamepad`; local primero, online después.
-- **EDICIÓN DE PARTIDA**: "mover mi partida a una Área-Parte" (§6bis de
-  `notes/2026-09-29-editor-area-parte-plan.md`); validar `IR A ÁREA` + `DEBUG NIVELES`.
-- **JA**: verificar los textos del menú contra la ROM japonesa.
+**F7** (`hh_cap_N.bmp/.log`) es la **captura pareada del HUD (identidades 2D)**, no sirve para
+artefactos 3D. Y **un still no muestra** un flash de 1 frame ni una animación que se repite. Para
+discontinuidades: **A/B visual**, **Inspector F1** (`HH_DEVELOPER=1`) o vídeo + `ffmpeg` (en el
+contenedor). No pedir capturas F7 para esto.
 
-## Salvaguardas del merge
+### Siguiente paso concreto
 
-- Tags: `backup-premerge-main` (`cf2d883`), `backup-premerge-edicion` (`9fbe2e8`),
-  `backup-premerge-carga` (`fc09cd8`).
-- Revert local: `git checkout main && git reset --hard backup-premerge-main` (análogo por rama).
+1. **Vía Goemon** (la reescritura de DL se **descartó** tras fallar 2×; ver nota §6b/§6c). Goemon
+   (en `/app/goemon-sourcecode`, mismo motor Konami) **no reescribe DLs**: **parchea las funciones del
+   juego** (`RECOMP_PATCH`) y emite `gEXMatrixGroup*`/`gEXPopMatrixGroup` envolviendo el draw, con ID
+   **estable = puntero del objeto** (`TAGGING_GENERATE_ID((u64)root_object<<32 | dl_addr)`) y `skip`
+   desde la lógica. **Localizar en HH** las funciones de dibujo de esqueleto/objeto (análogas a
+   `func_80018908`/`func_80018CA0` de Goemon). **[HECHO] Localizada** la cadena de dibujo de HH:
+   traversal `func_800068C0_74C0` → dispatch `func_800069A8_75A8` → malla `func_8000C768_D368` →
+   **`G_MTX` de hueso `func_8000C4A8_D0A8`** (nodo DOBJ: `+0x1C` gmtx, `+0x2C` modelo). **[HECHO] El
+   encaje ya existe**: los hooks del port (`recomp::overlays::add_loaded_function`, ~20 ya en uso)
+   son el `RECOMP_PATCH` de Goemon; no hay que montar `patches.elf`. Siguiente: hook sobre
+   `0x8000C4A8` con `gEXMatrixGroup*` + ID = puntero DOBJ + `gEXPopMatrixGroup`. Detalle:
+   `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md` §6c/§8.
+2. **Validar** con `HH_PAIRING=1` en Windows (una run): `unpaired_moved` de #6/#8 debe bajar a ~0.
+   (Medir cámara/vista es solo comprobación, no cambia el arreglo.)
+3. Descartado: replay determinista y "jugar y mirar" como test (el mantenedor acertó: no es fiable).
+   La observación visual **no** cuenta como validación.
+
+## Sin commitear (esta sesión)
+
+`lib/rt64` (sucio), `src/subsystems/input.cpp`, `RETOMAR.md`, `TODO.md`, `docs/INDEX.md`,
+`PROYECTO.md` y las notas nuevas (work-order + estado). `main` en `bebd76e` (`v0.6.1`).
+**No** pushear ni commitear sin pedirlo.
+
+## Otros pendientes
+
+- **Acentos in-game por color (color4/color3)** — hoy sólo color0
+  (`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md` §4).
+- **Versionado (mantenedor)**: reconciliar/versionar el parche del recompilador.
+- **Modo VS/2P**, **EDICIÓN DE PARTIDA** (mover partida a Área-Parte), **JA** (textos vs ROM JP).
 
 ## Cómo trabajar (rápido)
 
 - Build Linux: `cmake --build build/linux --parallel $(nproc)`.
-- Build Windows: borrar `build/windows` + `build_windows_release.bat`.
-- Regenerar C recompilado: `python3 tools/regenerate.py`; tras regenerar,
-  `python3 tools/analysis/fix_fallthroughs.py` (ADR 0009/0011).
-- Docs: `python3 tools/analysis/docs_index.py` (regenera; `--check` valida enlaces y presupuesto).
-- **Release**: el `.exe` deja **solo `hh.log`**; el resto de trazas son opt-in (`HH_*`).
-
-## Git / forks
-
-- Orden de push: forks primero (`N64Recomp` → `N64ModernRuntime` → `rt64`), luego el repo principal.
-- `runtime.lock`: RT64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9`.
+- Build Windows: borrar `build/windows` + `build_windows_release.bat`; para usar `lib/` tal cual
+  (gates del fork) → **`build_windows.local.bat`**.
+- Docs: `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y presupuesto).
+- Push: forks primero (`N64Recomp` → `N64ModernRuntime` → `rt64`), luego `main`.
