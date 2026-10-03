@@ -1,83 +1,68 @@
-# RETOMAR — handoff (2026-10-02)
+# RETOMAR — handoff (2026-10-03)
 
-> Handoff para la próxima sesión. **Estado: `main` = `v0.6.1` (publicada)** + fixes del día (#13 minimapa,
-> #14 jump tables, textos al guardar, número de Área, glifos del ordenador).
-> **TAREA ACTUAL (épica): desbloquear los FPS** — presentar al máximo del hardware **sin artefactos** de
-> interpolación. Cubre los **4 issues abiertos**: #6 Procyon, #8 puertas, #10 enemigos al curar,
-> #12 Life Charger S. **Plan + catálogo + análisis:** `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`.
-> **Estado de la sesión (2026-10-02, noche):** el fallo ya se **mide** (contador de emparejamiento
-> `HH_PAIRING`, fork `lib/rt64`); #6 `unpaired_moved` pica a ~98/s (aura), #8 ~30/s; **ignored=0**
-> (no hay tagging). Plan siguiente = reescribir la DL en submit (dedupe de matrices + orden +
-> `gEXMatrixGroup`). Detalle: `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md`.
-> Los gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 quedan **aparcados** (sonda, no arreglo); `lib/rt64`
-> sucio; **nada validado en Windows ni commiteado**.
-> Detalle y aviso de método: `notes/2026-10-02-fps-interpolacion-estado-y-handoff.md`.
+> Handoff corto. **`main` = `bebd76e` (`v0.6.1`) LIMPIA** (submódulos restaurados), a propósito para
+> abordar una **v0.6.2**. El trabajo de interpolación vive en la rama **`fps-interpolacion-tagging`**
+> (2 commits `wip`, **sin mergear**).
+> **2 tareas para la próxima sesión** (una en `main`, otra en la rama):
+> 1. **Release GitHub rota → v0.6.2** (`main`): la v0.6.1 publicada no trae `assets/` y probablemente
+>    compila con forks viejos → "como una versión anterior a 0.5.0" (guardado, crashes de veneno…).
+> 2. **Interpolación/desbloquear FPS** (rama `fps-interpolacion-tagging`): el tagging de transforms
+>    ya llega a RT64 y reduce mucho los artefactos; falta cerrar lo que resta y validar.
+> **Detalle completo:** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` (contexto, medido, plan).
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## Tarea actual — desbloquear FPS / arreglar interpolación
+## Tarea 1 (main) — Release GitHub rota → v0.6.2
 
-- **Medido:** la lógica de HH es **30 fps**; RT64 **interpola** 30→refresco del monitor. Sin
-  `gEXMatrixGroup` el emparejamiento es **heurístico** (`matchScenes`/`computeTransformMatch`) y
-  `updateAngular` **siempre** interpola rotación/escala (`// FIXME`), a diferencia de la traslación
-  (que sí tiene *auto-gate* en `updateLinear`).
-- **Los 4 issues son de interpolación** (workaround `HH_REFRESH_RATE=original` / F9).
-- **Fase A** (elegida): lógica 30 Hz + present a refresco, quitando artefactos. **Fase B** (después):
-  spike de simulación 60 Hz real (→ ADR). Fases A0–A3/B/C en el work-order.
+- `[MEDIDO]` El `.zip` de CI (`.github/workflows/ci.yml`, job `windows`, paso *Empaquetar*) **no copia
+  `assets/`** (logos, `lang/*.txt`, `sounds/*.wav`, `saves/templates`). El ejecutable los busca junto
+  a sí → sin traducciones, sin logos HD, sin SFX, sin plantillas.
+- `[INFERIDO, fuerte]` El build de GitHub cae en **forks viejos** (`.gitmodules` → `hunkstalker/*`;
+  `runtime.lock` pinea `RT64=a8f0a70`, `NMR=a11fbf2`): si el commit del fork no está publicado en el
+  remoto, el clon no lo tiene → runtime anterior → faltan PFS 74 slots, vibración↔pak, jump-table #14.
+- `[MEDIDO]` Local (`build_windows.local.bat`) **sí** va (usa `lib/` en disco + `assets/` por CMake);
+  GitHub no. → causa del "local sí, GitHub no".
+- **Hacer:** reproducir con el `.zip` de v0.6.1; arreglar el empaquetado (copiar `assets/` y
+  `saves/templates`, reconciliar con `package_release.ps1/.py`); garantizar/pushear los forks
+  (orden: N64Recomp → NMR → rt64 → main); revalidar guardado/veneno/#14; publicar **v0.6.2**.
 
-### Ya implementado
+## Tarea 2 (rama `fps-interpolacion-tagging`) — interpolación
 
-- **Métrica de emparejamiento (validada Linux build; usada en Windows esta sesión):**
-  `lib/rt64/src/hle/rt64_game_frame.cpp` cuenta transforms totales/ignorados/no-emparejados/
-  no-emparejados-movidos y los expone por `RT64_GetTransformPairing`; el port los imprime a
-  `hh.log` con **`HH_PAIRING=1`** (`[hh-pair]`). **`HH_PAIRING_DUMP=<n>`** vuelca en picos la
-  identidad de cada uno (a stderr). Logs de referencia en `tests/logs/` (gitignored).
-- **Aparcado (sonda, no arreglo):** `HH_ROT_GATE`/`HH_SCALE_GATE` (snap global; no cubren #8) y
-  **F9** (`src/subsystems/input.cpp`, interpolación ON/OFF). Off por defecto.
-- `lib/rt64` está **sucio** (submódulo por commitear). **No** validado en Windows como arreglo.
+- `[MEDIDO]` El tagging **ya llega a RT64**: `explicit_ids≈2300/s`, y `unpaired_moved` bajó de picos
+  60–98/s a **media 3.4/s** (**77% frames limpios**). Causa raíz de por qué antes no llegaba:
+  faltaba `#define F3DEX_GBI_2` (opcode hook). Punto de enganche: **dispatch DOBJ `func_800069A8`**.
+- `[MEDIDO]` Techo del mantenedor = **120 fps** (`target=swapChain=120, vsync=1`). Los 70–110 son
+  caídas bajo el techo, no falta de GPU.
+- `[MEDIDO]` `unpaired_tagged=0`: lo restante sin emparejar era **1 transform/frame de tipos de nodo
+  que no pasaban por la malla** → por eso el hook se movió a `func_800069A8` (cubre todos los tipos).
+  **Esto último aún NO validado en gameplay.**
+- `[MEDIDO]` El "brillo de 1 frame" de #6 es un cambio de visibilidad/alfa en discontinuidad; necesita
+  `skip` bien hecho (no un umbral global). El **skip-spawn** que se probó causó microdesfases y está
+  **revertido**.
+- **Hacer:** validar el hook en `func_800069A8` (run Windows); cerrar el `skip` con frame boundary
+  fiable; medir #8/#10/#12; **después**, repaso de fps.
 
-### Pitfall (NO repetir)
+## Ramas y árbol
 
-**F7** (`hh_cap_N.bmp/.log`) es la **captura pareada del HUD (identidades 2D)**, no sirve para
-artefactos 3D. Y **un still no muestra** un flash de 1 frame ni una animación que se repite. Para
-discontinuidades: **A/B visual**, **Inspector F1** (`HH_DEVELOPER=1`) o vídeo + `ffmpeg` (en el
-contenedor). No pedir capturas F7 para esto.
+- **`main`** = `bebd76e` (`v0.6.1`), limpia.
+- **`fps-interpolacion-tagging`**: `a217319` (métrica + tagging en `func_8000C768`) y `b95f3c2`
+  (hook a `func_800069A8` + revertir skip-spawn). Incluye
+  `patches/rt64/hh-interpolation-tagging.patch` (cambios del submódulo `lib/rt64` como patch).
+- `lib/rt64` **sucio** solo en la rama (por el patch); en `main` restaurado.
 
-### Siguiente paso concreto
+## Instrumentación (reutilizable)
 
-1. **Vía Goemon** (la reescritura de DL se **descartó** tras fallar 2×; ver nota §6b/§6c). Goemon
-   (en `/app/goemon-sourcecode`, mismo motor Konami) **no reescribe DLs**: **parchea las funciones del
-   juego** (`RECOMP_PATCH`) y emite `gEXMatrixGroup*`/`gEXPopMatrixGroup` envolviendo el draw, con ID
-   **estable = puntero del objeto** (`TAGGING_GENERATE_ID((u64)root_object<<32 | dl_addr)`) y `skip`
-   desde la lógica. **Localizar en HH** las funciones de dibujo de esqueleto/objeto (análogas a
-   `func_80018908`/`func_80018CA0` de Goemon). **[HECHO] Localizada** la cadena de dibujo de HH:
-   traversal `func_800068C0_74C0` → dispatch `func_800069A8_75A8` → malla `func_8000C768_D368` →
-   **`G_MTX` de hueso `func_8000C4A8_D0A8`** (nodo DOBJ: `+0x1C` gmtx, `+0x2C` modelo). **[HECHO] El
-   encaje ya existe**: los hooks del port (`recomp::overlays::add_loaded_function`, ~20 ya en uso)
-   son el `RECOMP_PATCH` de Goemon; no hay que montar `patches.elf`. Siguiente: hook sobre
-   `0x8000C4A8` con `gEXMatrixGroup*` + ID = puntero DOBJ + `gEXPopMatrixGroup`. Detalle:
-   `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md` §6c/§8.
-2. **Validar** con `HH_PAIRING=1` en Windows (una run): `unpaired_moved` de #6/#8 debe bajar a ~0.
-   (Medir cámara/vista es solo comprobación, no cambia el arreglo.)
-3. Descartado: replay determinista y "jugar y mirar" como test (el mantenedor acertó: no es fiable).
-   La observación visual **no** cuenta como validación.
+- `HH_PAIRING=1` → `[hh-pair]` en `hh.log`: `transforms`, `explicit_ids`, `groups_seen`, `ignored`,
+  `unpaired`, `unpaired_tagged`, `unpaired_moved`, `target/vi/swapChain/refresh/vsync`.
+- `HH_MTXGROUP=1` activa el tagging; `HH_MTXGROUP_LOG=1` traza nodos/ID; `HH_PAIRING_DUMP=<n>` vuelca
+  identidad de no-emparejados (stderr).
+- **Headless propio**: `Xvfb :99` + `VK_ICD_FILENAMES=.../lvp_icd.x86_64.json` (lavapipe) → iterar sin
+  el mantenedor (pero **solo llega a logos/menús**, no a gameplay 3D).
+- Logs de referencia en `tests/logs/` (gitignored). No commitear logs ni capturas.
 
-## Sin commitear (esta sesión)
+## Pitfalls (NO repetir)
 
-`lib/rt64` (sucio), `src/subsystems/input.cpp`, `RETOMAR.md`, `TODO.md`, `docs/INDEX.md`,
-`PROYECTO.md` y las notas nuevas (work-order + estado). `main` en `bebd76e` (`v0.6.1`).
-**No** pushear ni commitear sin pedirlo.
-
-## Otros pendientes
-
-- **Acentos in-game por color (color4/color3)** — hoy sólo color0
-  (`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md` §4).
-- **Versionado (mantenedor)**: reconciliar/versionar el parche del recompilador.
-- **Modo VS/2P**, **EDICIÓN DE PARTIDA** (mover partida a Área-Parte), **JA** (textos vs ROM JP).
-
-## Cómo trabajar (rápido)
-
-- Build Linux: `cmake --build build/linux --parallel $(nproc)`.
-- Build Windows: borrar `build/windows` + `build_windows_release.bat`; para usar `lib/` tal cual
-  (gates del fork) → **`build_windows.local.bat`**.
-- Docs: `python3 tools/analysis/docs_index.py` (`--check` valida enlaces y presupuesto).
-- Push: forks primero (`N64Recomp` → `N64ModernRuntime` → `rt64`), luego `main`.
+- **F7** = captura del HUD 2D; no sirve para artefactos 3D transitorios. Un still no muestra un flash.
+- **La vista no valida**: el mantenedor vio "mejoras" con un `.exe` viejo. Validar por métrica.
+- **La reescritura de DL en submit** para el tagging **se descartó** (falló 2×); la vía es el **hook
+  del port** (patrón Goemon).
+- No editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.

@@ -6,27 +6,41 @@
 
 ## Ahora (priorizado)
 
-- [ ] **[ÉPICA] Desbloquear FPS: lógica↔render e interpolación fiel (abierta 2026-10-02)**: presentar a
-  la **tasa máxima del hardware (>200 Hz) sin artefactos** de interpolación, incremental. Cubre los
-  **4 issues abiertos** (todos por interpolación): **#6** jefe Procyon (flash del aura),
-  [#8](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/8) puertas que parpadean,
-  [#10](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/10) animaciones al curar enemigos,
+- [ ] **v0.6.2 — Release de GitHub ROTA (abierta 2026-10-03, `main`)**: la **v0.6.1 publicada** no
+  incluye `assets/` (el `.zip` de CI copia solo exe/DLLs/LEEME) y `[INFERIDO, fuerte]` compila con
+  **forks viejos** (`.gitmodules`/`runtime.lock`) → comportamiento "como una versión anterior a
+  0.5.0" (guardado, crashes de veneno, etc. no funcionan), mientras que el build local sí va.
+  **Hacer:** reproducir con el `.zip` de GitHub; arreglar el empaquetado (copiar `assets/` +
+  `saves/templates`; reconciliar CI con `package_release.ps1/.py`); garantizar/pushear los forks
+  (N64Recomp → NMR → rt64 → main); revalidar guardado/veneno/#14; publicar **v0.6.2**.
+  Detalle: `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
+
+- [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
+  `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. Cubre **#6** Procyon,
+  [#8](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/8) puertas,
+  [#10](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/10) curar enemigos,
   [#12](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/12) Life Charger S.
-  **Fase A** (lógica 30 Hz + present a refresco; arreglar el **emparejamiento de RT64** con **transform
-  tagging** tipo Zelda64Recomp: `gEXMatrixGroup` con ID estable + modos/skip, y/o fork `rt64`) y
-  **Fase B** (spike time-boxed de simulación 60 Hz real → ADR). Work order + catálogo + medido/inferido:
-  **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
-  - [x] **A0**: métrica objetiva del emparejamiento, hecha: contador `HH_PAIRING` en `lib/rt64` +
-    dump de identidad; medido #6 `unpaired_moved≈98/s`, #8 ≈30/s, `ignored=0` (sin tagging). **La
-    observación visual no valida** (run con .exe viejo "pareció mejorar"). Nota:
-    `notes/2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md`.
-  - [ ] **A1**: estabilizar tick lógico (2 VI/frame, sin slips; `HH_DET_CLOCK` + precarga/stalls).
-  - [ ] **A2 (núcleo)**: **reescribir la DL en submit** (`hud_rewrite.cpp`): deduplicar matrices
-    (misma dirección → mismo slot), orden consistente entre frames + `gEXMatrixGroup` con id
-    estable + modo (interpolate/skip/ignore). Validar con `HH_PAIRING=1` (`unpaired_moved→0`).
-  - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), con la métrica, no con la vista.
+  Work order: **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Estado y handoff:
+  **`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`**.
+  - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
+  - [x] **A2.1 (hecho, sin validar en gameplay)**: **tagging por hook del port** —
+    `src/hooks/model_tagging.cpp` envuelve el **dispatch DOBJ `func_800069A8`** con
+    `gEXMatrixGroup` (ID = puntero del nodo). `HH_MTXGROUP=1`. Medido: `unpaired_moved` de picos
+    60–98/s a **media 3.4/s** (77% frames limpios); causa raíz del `ignored=0` previo: faltaba
+    `#define F3DEX_GBI_2`.
+  - [ ] **A2.2**: **validar** el hook en `func_800069A8` (run Windows; `unpaired` base ~29/s debe
+    bajar, sin microdesfases).
+  - [ ] **A2.3**: **`skip` en discontinuidades** (el "brillo de 1 frame" de #6) con **frame boundary
+    fiable** (el skip-spawn por VI causó microdesfases; **revertido**).
+  - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
+  - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
-  - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (son sonda, no arreglo).
+  - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
+
+- [ ] **Repaso de FPS (apuntado 2026-10-03)**: el mantenedor tiene 70–110 fps en gameplay y cree que
+  debería dar más (RTX 4080 / i7-14700K). `[MEDIDO]` `target=swapChain=120, vsync=1` → **techo 120**
+  (monitor 120 Hz + Vsync). Medir con `HH_FPS=1` (`present` vs `target`) si hay cuello/margen.
+  **Después** de cerrar la interpolación.
 
 - [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
   hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o

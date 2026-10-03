@@ -2,13 +2,15 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-03**.
 
-**Estado (2026-10-02)**: `main` = **`v0.6.1`** (publicada). Fixes del día: #13 (minimapa), #14
-(jump tables), textos al guardar, número de Área del título y glifos del ordenador (acentos vs `value`
-nativo de color3); todo validado. **Tarea actual (épica)**: **desbloquear los FPS / arreglar la
-interpolación** (issues #6, #8, #10, #12); hay gates flag-gated **sin validar** en `lib/rt64`. Ver
-`RETOMAR.md` y `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`.
+**Estado (2026-10-03)**: `main` = **`bebd76e` (`v0.6.1`), LIMPIA** (submódulos restaurados). **Dos
+tareas abiertas:** (1) **release v0.6.1 de GitHub rota** → **v0.6.2** (no incluye `assets/`; probable
+compilación con forks viejos → "como anterior a 0.5.0"); (2) **interpolación/desbloquear FPS** en la
+rama **`fps-interpolacion-tagging`**: el **tagging por hook** (dispatch DOBJ `func_800069A8`) ya llega
+a RT64 y baja `unpaired_moved` de picos 60–98/s a **media 3.4/s** (77% frames limpios); falta cerrar
+el resto y validar gameplay. Detalle: `RETOMAR.md` y
+`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 
 ## 1. Objetivo
 
