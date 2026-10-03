@@ -34,7 +34,6 @@
 #include "rt64_extended_gbi.h"
 
 extern "C" void func_800069A8_75A8(uint8_t* rdram, recomp_context* ctx);
-extern "C" void func_800068C0_74C0(uint8_t* rdram, recomp_context* ctx);
 
 namespace {
 
@@ -61,19 +60,15 @@ inline uint32_t rd_u32(uint8_t* rdram, uint32_t kseg0) {
     return v;
 }
 
-// Identidad ESTABLE del objeto dibujado. Medido (2026-10-03): NINGUNA direccion de la arena de
-// dibujo sirve (el PUNTERO DEL NODO y el del MODELO `node->0x2C` se RECICLAN entre frames: el mismo
-// id aparecia con posiciones totalmente distintas). Solucion (como Goemon/Zelda): identidad de
-// **ACTOR/RAIZ + indice de orden**. El traversal `func_800068C0(a1=root_node)` recorre el arbol DOBJ
-// del actor en orden determinista; combinamos el root (estable por actor) con el **indice de nodo**
-// dentro del recorrido (estable por hueso). Lo fija `hh_model_root_hook` (ver abajo).
-uint32_t g_current_root = 0;   // root del traversal actual (lo fija el hook de func_800068C0)
-uint32_t g_node_order = 0;     // indice del nodo dentro del traversal (lo incrementa el hook)
-
-inline uint32_t stable_id() {
-    uint32_t h = (g_current_root * 2654435761u) ^ (g_node_order * 2246822519u);
-    h ^= h >> 16; h *= 0x7feb352d; h ^= h >> 15;   // avalancha
-    return h | 0x80000000u;                        // nunca 0 (IGNORE) ni 0xFFFFFFFF (AUTO)
+// Identidad ESTABLE del objeto dibujado. Medido el 2026-10-03: el PUNTERO DEL NODO DOBJ **no**
+// sirve (HH lo recicla entre frames para objetos distintos: el mismo id aparecia con posiciones
+// completamente distintas). Se usa el puntero del MODELO (`node->0x2C`), que persiste mas alla del
+// reciclaje del nodo; fallback al nodo si es 0. Hash para repartir y evitar 0/AUTO.
+inline uint32_t stable_id(uint8_t* rdram, uint32_t node_ptr) {
+    uint32_t model = rd_u32(rdram, node_ptr + 0x2C);
+    const uint32_t seed = (model != 0) ? model : node_ptr;
+    uint32_t h = seed * 2654435761u;   // Knuth multiplicative
+    return h | 0x80000000u;            // nunca 0 (== G_EX_ID_IGNORE) ni 0xFFFFFFFF (== AUTO)
 }
 
 const bool g_enabled = [] {
@@ -139,17 +134,6 @@ void log_hook_seen() {
 extern "C" unsigned long long hh_mtxgroup_skip_count() { return g_skip_count; }
 extern "C" unsigned long long hh_mtxgroup_total_count() { return g_total_count; }
 
-// Hook del TRAVERSAL del arbol DOBJ (`func_800068C0(a0=flags, a1=root)`): fija el root actual y
-// reinicia el indice de orden. Todos los nodos del mismo root se numeran 0,1,2,... en el recorrido
-// (determinista) -> identidad estable por (actor, hueso). Va ANTES del draw de cada nodo.
-extern "C" void hh_model_root_hook(uint8_t* rdram, recomp_context* ctx) {
-    if (g_enabled) {
-        g_current_root = ctx->r5;   // a1 = root node
-        g_node_order = 0;
-    }
-    func_800068C0_74C0(rdram, ctx);
-}
-
 // Hook del DRAW de malla (matriz + geometria). Con el flag activo: grupo RT64 (interpolacion normal,
 // push/pop balanceados) envolviendo todo el draw; con el flag apagado: solo el original.
 extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
@@ -160,8 +144,7 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     }
 
     const uint32_t node = ctx->r4;              // a0 = nodo DOBJ
-    const uint32_t id = stable_id();            // root del traversal + indice de orden
-    ++g_node_order;                             // siguiente nodo del mismo root
+    const uint32_t id = stable_id(rdram, node);
 
     // Diagnostico: valor del cursor de gfx (donde cae nuestra escritura) la primera vez.
     {
