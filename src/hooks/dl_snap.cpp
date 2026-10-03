@@ -28,6 +28,11 @@ constexpr uint8_t kSetScissor = 0xED;
 constexpr uint8_t kMoveWord   = 0xDB;
 constexpr uint8_t kDl         = 0xDE;
 constexpr uint8_t kEndDl      = 0xDF;
+// Opcode del GBI extendido de RT64 (RT64_EXTENDED_OPCODE). Sus comandos son de 2 palabras y el
+// walker NO los conoce; sin saltrarlos, el chequeo `op > 0x07 && op < 0xD3` (0x64 cae dentro) aborta
+// el recorrido ANTES del G_SETSCISSOR de overscan -> no se reescribe -> la escena no expande (4:3).
+// Introducido por el tagging (src/hooks/model_tagging.cpp), que emite gEXMatrixGroup (0x64) en la DL.
+constexpr uint8_t kExtended   = 0x64;
 constexpr uint8_t kRdpHalf1   = 0xE1;
 constexpr uint8_t kRdpHalf2   = 0xF1;
 constexpr uint8_t kTexRect    = 0xE4;
@@ -77,6 +82,13 @@ struct Walker {
             const uint32_t w0 = dl_word(rdram, pc);
             const uint32_t w1 = dl_word(rdram, pc + 4);
             const uint8_t op = static_cast<uint8_t>(w0 >> 24);
+            // Comando extendido de RT64 (2 palabras): saltarlo, NO abortar. Si el tagging emitio
+            // gEXMatrixGroup (0x64) en la DL y el walker abortara aqui, no llegaria al G_SETSCISSOR
+            // de overscan -> widescreen roto (4:3). Ver nota 2026-10-03.
+            if (op == kExtended) {
+                pc += 16;   // el comando extendido ocupa 2 palabras
+                continue;
+            }
             // F3DEX2 no tiene comandos entre G_QUAD (0x07) y G_SPECIAL_3 (0xD3): llegar a uno
             // significa que el walk salio de la lista (segmento no visto).
             if (op > 0x07 && op < 0xD3) return;
