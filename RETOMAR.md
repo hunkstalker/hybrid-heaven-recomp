@@ -1,37 +1,40 @@
 # RETOMAR — handoff (2026-10-03)
 
-> Handoff corto. **`main` = `v0.6.1`** (esta rama). **TAREA ACTUAL: lanzar la v0.6.2** — la release
-> **v0.6.1 publicada en GitHub está rota**: el `.zip` no incluye `assets/` y probablemente compila con
-> **forks viejos** → el juego se comporta "como una versión anterior a 0.5.0" (guardado, crashes de
-> veneno, etc.), mientras que el build **local sí va**.
-> **Detalle completo (medido/inferido, plan):** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
-> **Otra tarea en curso (otra rama):** interpolación/desbloquear FPS en **`fps-interpolacion-tagging`**
-> (no mergeada; ver §"Otras ramas" abajo y la misma nota).
+> Handoff corto. **`main` = `v0.6.1` + v0.6.2 lista (código, sin push)**. **TAREA ACTUAL: publicar la
+> v0.6.2** — la release **v0.6.1 de GitHub estaba rota**; reproducida y arreglada en local.
+> **Detalle (medido/inferido):** `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+> **Otra tarea (otra rama, NO mezclar):** interpolación/desbloquear FPS en
+> **`fps-interpolacion-tagging`** (ver §"Otras ramas").
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea actual — v0.6.2 (release GitHub rota)
 
-- `[MEDIDO]` `.github/workflows/ci.yml` (job `windows`, paso *Empaquetar*) copia al `.zip` **solo**
-  `Hybrid Heaven Recomp.exe`, `*.dll`, LEEME/CRÉDITOS/LICENCIA y `rom/`. **No copia `assets/`**
-  (logos, `lang/*.txt`, `sounds/*.wav`, `saves/templates`). El ejecutable los busca junto a sí.
-- `[INFERIDO, fuerte]` El build de GitHub cae en **forks viejos**: `.gitmodules` → `hunkstalker/*` y
-  `runtime.lock` pinea `RT64=a8f0a70`, `NMR=a11fbf2`. Si el commit del fork no está **publicado** en
-  el remoto, el clon limpio no lo resuelve → runtime anterior → faltan PFS 74 slots, vibración↔pak,
-  jump-table #14, server teardown.
-- `[MEDIDO]` El build **local** (`build_windows.local.bat`) usa `lib/` en disco y CMake copia
-  `assets/` junto al exe (`CMakeLists.txt` ~214–255). Por eso local va y GitHub no.
+**Reproducido `[MEDIDO]`:**
 
-### Pasos
+- El `.zip` de la v0.6.1 **no incluye** `assets/`, `saves/templates` ni `licences/`. El ejecutable los
+  busca junto a sí. `ci.yml` empaquetaba a mano y divergía del `POST_BUILD` de CMake.
+- **Los forks NO eran el problema**: rt64 `a8f0a70`, NMR `a11fbf2` y N64Recomp `cab94d9` están
+  publicados y `git fetch --depth 1 <url> <sha>` los resuelve. Hipótesis descartada.
+- **Causa real de #14/veneno**: el repo privado de **secretos** (de donde CI clona el `RecompiledFuncs`,
+  ADR 0009) seguía en **2026-09-21**, antes del fix de jump tables. El `func_8035A3D8` del secrets tenía
+  2 casos; el `build/recomp` regenerado tiene 9. Solo difieren **6 ficheros**.
 
-1. **Reproducir:** descargar el `.zip` de la v0.6.1 de GitHub; comparar con un build local (¿faltan
-   `assets/`? ¿qué commit de runtime trae? ¿guardado/veneno fallan?).
-2. **Empaquetado:** copiar `assets/` (+ `saves/templates`) al `.zip` de CI; reconciliar el paso de
-   `ci.yml` con `tools/package_release.ps1`/`.py` (hoy empaqueta a mano y divergen).
-3. **Forks:** verificar que `a8f0a70` (rt64) y `a11fbf2` (NMR) existen en los remotos y que el
-   checkout del clon los resuelve; si no, **pushear los forks** (orden AGENTS: N64Recomp → NMR → rt64
-   → main).
-4. **Revalidar en Windows** lo que faltaba (guardado `.pak`, veneno, #14).
-5. **Publicar v0.6.2** (`include/hh.h`, `docs/releases/v0.6.2.md`, `release.yml`).
+**Hecho (local, sin push):**
+
+- `tools/package_release.py` (**fuente única**: mismo subconjunto de datos que CMake) + `ci.yml`
+  (jobs `windows` y `linux`).
+- `hh-recomp-secrets` commit `3993e72` con los 6 `funcs_*.c` regenerados.
+- `include/hh.h` → patch `2`; `docs/releases/v0.6.2.md`; docs vivos.
+
+### Pasos que faltan
+
+1. **Push del secrets** `3993e72` a `hunkstalker/hh-recomp-secrets` (`git -C hh-recomp-secrets push`).
+   Si no, CI sigue compilando el C viejo y el #14 no entra en la release.
+2. **Commit + push `main`** (fast-forward). Eso dispara CI (`windows`+`linux`).
+3. Esperar CI **verde** y **revalidar en Windows** sobre el ZIP de CI: `assets/` presentes, guardado
+   `.pak`, veneno/ataque a distancia (#14).
+4. **Publicar v0.6.2**: tag `v0.6.2` (o `Release` a mano con `version=v0.6.2`); `release.yml` descarga
+   el artefacto de CI del commit y crea el Release.
 
 ## Otras ramas
 
@@ -43,12 +46,15 @@
 
 ## Árbol
 
-- `main` = `v0.6.1`, **submódulos restaurados** (limpios).
-- Instrumentación reutilizable (`HH_PAIRING`, `HH_MTXGROUP`) y banco headless (Xvfb+lavapipe): ver la
-  nota §4.
+- `main` = `v0.6.1` + 2 commits locales (empaquetado `8a7e076`, release pendiente), **submódulos
+  limpios** en sus pins.
+- `hh-recomp-secrets` = commit `3993e72` local (sin push).
+- Instrumentación reutilizable (`HH_PAIRING`, `HH_MTXGROUP`) y banco headless (Xvfb+lavapipe): nota §4.
 
 ## Pitfalls (NO repetir)
 
 - **F7** = captura del HUD 2D; no sirve para artefactos 3D transitorios.
 - **La vista no valida** (el mantenedor vio "mejoras" con un `.exe` viejo): validar por métrica.
 - No editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.
+- **"Local va, GitHub no"** puede ser **dos** fallos distintos: datos no empaquetados **y** C
+  recompilado no re-publicado. No culpar a los forks sin comprobar los pins por SHA.

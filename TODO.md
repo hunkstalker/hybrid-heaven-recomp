@@ -6,13 +6,15 @@
 
 ## Ahora (priorizado)
 
-- [ ] **v0.6.2 — Release de GitHub ROTA (abierta 2026-10-03)**: la **v0.6.1 publicada** no incluye
-  `assets/` (el `.zip` de CI copia solo exe/DLLs/LEEME) y `[INFERIDO, fuerte]` compila con **forks
-  viejos** (`.gitmodules`/`runtime.lock`) → se comporta "como una versión anterior a 0.5.0" (guardado,
-  crashes de veneno, etc. no funcionan); el build local sí va. **Hacer:** reproducir con el `.zip` de
-  GitHub; arreglar el empaquetado (copiar `assets/` + `saves/templates`; reconciliar CI con
-  `package_release.ps1/.py`); garantizar/pushear los forks (N64Recomp → NMR → rt64 → main); revalidar
-  guardado/veneno/#14; publicar **v0.6.2**. Detalle: `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
+- [•] **v0.6.2 — Release de GitHub rota (abierta 2026-10-03; CÓDIGO LISTO, falta push + validar Windows)**:
+  reproducida. **Medido**: (1) el `.zip` de v0.6.1 no incluye `assets/`/`saves/templates`/`licences/`;
+  (2) los **forks no eran el problema** (rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9` publicados y
+  resolubles por SHA); (3) la causa real de #14/veneno es el **repo de secretos** con el `RecompiledFuncs`
+  del 2026-09-21 (pre-fix jump tables): solo 6 ficheros difieren del `build/recomp` regenerado.
+  **Hecho:** `tools/package_release.py` + `ci.yml` (ambos jobs) empaquetan `assets/` y `saves/templates`;
+  commit local en `hh-recomp-secrets` (`3993e72`) con el C regenerado; bump `hh.h` + `docs/releases/v0.6.2.md`.
+  **Pendiente:** push del secrets → push `main` → CI → **revalidar en Windows** (assets, guardado `.pak`,
+  veneno/#14) → tag/release `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 - [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
   tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de
