@@ -114,11 +114,14 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     // GBI extendido (RT64 lo olvida al inicio de cada lista) + grupo del hueso. El grupo se
     // materializa en el `G_VTX` que emite el draw completo (dentro de su G_DL). `proj` = 0
     // (modelview); componentes = preset "Normal" de Goemon.
+    //
+    // OJO: NO emitir `gEXSetRDRAMExtended`. HH NO usa direcciones extendidas: sus direcciones son
+    // KSEG0 (bit 31 puesto), y con `extendRDRAM=1` RT64 cambia `fromSegmented`/`maskPhysicalAddress`
+    // (rt64_rsp.cpp:104/114) -> reinterpreта TODAS las direcciones y rompe el widescreen (la escena
+    // deja de expandir; el HUD sigue porque se ancla por reescritura de DL). Goemon lo tiene
+    // comentado por esto; solo lo necesita Zelda (que si usa direcciones extendidas). Bug 2026-10-03.
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXEnable(cmd);
-    }
-    if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
-        gEXSetRDRAMExtended(cmd, 1);
     }
     if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
         gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,

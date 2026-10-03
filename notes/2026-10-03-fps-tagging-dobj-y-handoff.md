@@ -30,8 +30,8 @@ func_80006790_7390 (lista global de modelos)
 - Nodo **DOBJ**: `+0x00` sibling, `+0x08` child, `+0x1C` gmtx (reciclado cada frame), `+0x1C`… `+0x2A`
   tipo de draw. El **puntero del nodo** es estable entre frames → se usa como **ID**.
 - El hook (`src/hooks/model_tagging.cpp`, `hh_bone_draw_hook`) envuelve `func_800069A8(a0=node)`:
-  emite `gEXEnable` + `gEXSetRDRAMExtended` + `gEXMatrixGroupDecomposed(id, G_EX_PUSH, modelview)`
-  antes del draw, y `gEXPopMatrixGroup` después.
+  emite `gEXEnable` + `gEXMatrixGroupDecomposed(id, G_EX_PUSH, modelview)` antes del draw, y
+  `gEXPopMatrixGroup` después. **NO** se emite `gEXSetRDRAMExtended` (ver §3).
 - **ID** = `hash(puntero del nodo)` con bit alto (nunca 0/AUTO).
 
 ### Errores corregidos (medidos, no supuestos)
@@ -68,6 +68,14 @@ Log: `tests/logs/2026-10-03-mtxgroup-run4-ok.log` (gitignored).
   **visibilidad/alfa** en una discontinuidad → necesita `skip` bien hecho, no un umbral global.
 
 ## 3. Lo que se intentó y se descartó
+
+- **`gEXSetRDRAMExtended(cmd, 1)` en el hook** (copiado de Zelda): **ROMPÍA EL WIDESCREEN**. HH NO usa
+  direcciones extendidas: sus direcciones son KSEG0 (bit 31 puesto = `ExtendedMask`), y con
+  `extendRDRAM=1` RT64 cambia `fromSegmented`/`maskPhysicalAddress` (`rt64_rsp.cpp:104/114`,
+  `rt64_rdp.cpp:242`) → reinterpreta TODAS las direcciones → la escena deja de expandirse. El HUD
+  seguía anclado porque se ancla por reescritura de DL. **Quitado** (la vía del port no lo necesita;
+  Goemon lo tiene comentado; solo lo usa Zelda). Medido: tagging intacto tras quitarlo
+  (`groups_seen` sigue subiendo).
 
 - **Reescritura de display list en submit** (`hud_rewrite.cpp`, flag `HH_MTXGROUP` en esa vía):
   **falló 2 veces** (grupos no materializados + geometría rota). Descartada. La vía correcta es el
