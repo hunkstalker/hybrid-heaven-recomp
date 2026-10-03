@@ -24,15 +24,14 @@
   Work order: **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Estado y handoff:
   **`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
-  - [x] **A2.1 (hecho, sin validar en gameplay)**: **tagging por hook del port** —
-    `src/hooks/model_tagging.cpp` envuelve el **dispatch DOBJ `func_800069A8`** con
-    `gEXMatrixGroup` (ID = puntero del nodo). `HH_MTXGROUP=1`. Medido: `unpaired_moved` de picos
-    60–98/s a **media 3.4/s** (77% frames limpios); causa raíz del `ignored=0` previo: faltaba
-    `#define F3DEX_GBI_2`.
-  - [ ] **A2.2**: **validar** el hook en `func_800069A8` (run Windows; `unpaired` base ~29/s debe
-    bajar, sin microdesfases).
-  - [ ] **A2.3**: **`skip` en discontinuidades** (el "brillo de 1 frame" de #6) con **frame boundary
-    fiable** (el skip-spawn por VI causó microdesfases; **revertido**).
+  - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
+    de paso **widescreen** y **recuadro negro**; **#8** estable.
+  - [ ] **A2.2 (REHACER el tagging; §3c/§3d de la nota)**: las **direcciones no son identidad** (nodo,
+    modelo y root+orden: probadas y fallidas). Copiar el modelo de **Pilotwings64Recomp**: ID =
+    hash(**slot de objeto, modelId, LOD**) + **generación de cámara** (cortes) → arregla #6
+    (rebobinado) y los **parpadeos de cámara**; grupo **por objeto** (no por nodo); **efectos**
+    `G_EX_ORDER_AUTO`; **2D** `G_EX_ID_IGNORE`; **cámara** grupo de proyección aparte.
+  - [ ] **A2.3**: **quitar** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
   - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
   - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.

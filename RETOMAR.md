@@ -1,32 +1,33 @@
 # RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-03)
 
-> **Esta rama = fix de interpolación/desbloquear FPS**, ya mergeada con `main` (v0.6.2). La tarea de
-> la release v0.6.2 vive en `main` (ver más abajo, "Tarea de main"). **TAREA ACTUAL (rama): validar y
-> cerrar el tagging de transforms** (#6 Procyon, #8 puertas, #10 curar, #12 Life Charger S).
-> **Detalle completo (medido/inferido):** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §1–§6.
+> **Esta rama = fix de interpolación/desbloquear FPS**, mergeada con `main` (v0.6.2). La tarea v0.6.2
+> vive en `main` (abajo, "Tarea de main"). **TAREA ACTUAL (rama): REHACER la identidad del tagging
+> según el modelo de Pilotwings64Recomp** (el de las direcciones NO funciona; ver §3c/§3d).
+> **Detalle COMPLETO (medido/inferido):** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §0–§6.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## Estado (esta rama)
+## Estado (esta rama) — qué funciona y qué no
 
-- `[MEDIDO]` El **tagging por hook del port** ya **llega a RT64** (`explicit_ids≈2300/s`) y baja
-  `unpaired_moved` de picos 60–98/s a **media 3.4/s** (**77% frames limpios**). Causa raíz de por qué
-  antes no llegaba: faltaba `#define F3DEX_GBI_2` (opcode del hook extendido, `0xE0`).
-- `[MEDIDO]` Punto de enganche: **dispatch DOBJ `func_800069A8`** (pasa TODO nodo: malla y demás
-  tipos). `src/hooks/model_tagging.cpp`, `HH_MTXGROUP=1`.
-- `[MEDIDO]` `gEXSetRDRAMExtended` **rompía el widescreen** (HH usa direcciones KSEG0 = bit 31 =
-  `ExtendedMask`; con `extendRDRAM=1` RT64 reinterpreta TODAS las direcciones). **Quitado** (`bcc222d`).
-- `[MEDIDO]` Techo del mantenedor = **120 fps** (`target=swapChain=120, vsync=1`).
-- `[MEDIDO]` `unpaired_tagged=0`: el hueco era **1 transform/frame de tipos que no pasaban por la
-  malla** → por eso el hook se movió al dispatch. **Aún NO validado en gameplay.**
-- `[MEDIDO]` El "brillo de 1 frame" de #6 es discontinuidad de visibilidad/alfa; el **skip-spawn** que
-  se probó causó microdesfases y está **revertido**.
+- `[MEDIDO]` **Resuelto**: el tagging llega a RT64 (faltaba `#define F3DEX_GBI_2`); el **widescreen** y
+  el **recuadro negro** (era el walker de `snap_overscan` abortando en el opcode extendido `0x64`);
+  **#8 puertas** estable.
+- `[MEDIDO]` Punto de enganche: **dispatch DOBJ `func_800069A8`** (`src/hooks/model_tagging.cpp`,
+  `HH_MTXGROUP=1`). `gEXSetRDRAMExtended` **rompía el widescreen** (quitado).
+- `[MEDIDO]` **Fallos pendientes**: #6 (rebobinado de la textura al crecer) y **parpadeos de cámara**.
+  ~27% de frames con `unpaired_moved>0` (picos hasta ~70/s).
+- `[MEDIDO]` **Ninguna dirección es identidad estable** (nodo, modelo `+0x2C`, root+orden): todas se
+  reciclan → probadas y **fallidas** (§3b). `dump6.log` lo prueba.
 
-## Siguiente paso (esta rama)
+## Siguiente paso (esta rama) — rehacer según §3c/§3d
 
-1. **Validar** el hook en `func_800069A8` (run Windows; `HH_MTXGROUP=1 HH_PAIRING=1`): `unpaired` base
-   (~29/s) **baja**, `unpaired_moved` baja, widescreen OK y **sin microdesfases**.
-2. **`skip` en discontinuidades** (el "brillo de 1 frame" de #6) con **frame boundary fiable** (no el VI).
-3. Medir **#8 / #10 / #12** por métrica. 4) Repaso de fps (`HH_FPS=1`) **después**.
+1. **ID lógica** = hash(`slot` de objeto/actor, `modelId`, `lod`) **+ generación de cámara** (NO
+   direcciones). Buscar el slot en la lista de modelos/actores de HH.
+2. **Generación de cámara** con detección de **cortes** (salto/giro de la matriz de cámara) → arregla
+   el parpadeo de cámara (la cámara va bakeada en cada matriz).
+3. **Un grupo por objeto** (no por nodo), `G_EX_ORDER_LINEAR`; **efectos** `G_EX_ORDER_AUTO`; **2D**
+   `G_EX_ID_IGNORE`; **cámara** grupo de proyección aparte.
+4. **Quitar** el skip-spawn propio (RT64 lo hace solo). **Validar** con `HH_PAIRING`. Después, fps.
+5. Fuente exacta del modelo: **§3c** y `patches/interpolation.c` de Pilotwings64Recomp (citados en la nota).
 
 ## Instrumentación
 
