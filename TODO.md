@@ -6,14 +6,8 @@
 
 ## Ahora (priorizado)
 
-- [ ] **v0.6.2 — Release de GitHub ROTA (abierta 2026-10-03, `main`)**: la **v0.6.1 publicada** no
-  incluye `assets/` (el `.zip` de CI copia solo exe/DLLs/LEEME) y `[INFERIDO, fuerte]` compila con
-  **forks viejos** (`.gitmodules`/`runtime.lock`) → comportamiento "como una versión anterior a
-  0.5.0" (guardado, crashes de veneno, etc. no funcionan), mientras que el build local sí va.
-  **Hacer:** reproducir con el `.zip` de GitHub; arreglar el empaquetado (copiar `assets/` +
-  `saves/templates`; reconciliar CI con `package_release.ps1/.py`); garantizar/pushear los forks
-  (N64Recomp → NMR → rt64 → main); revalidar guardado/veneno/#14; publicar **v0.6.2**.
-  Detalle: `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
+> **Nota:** la tarea **v0.6.2 (release GitHub rota)** vive en **`main`** (allí está su TODO/RETOMAR).
+> Este TODO y esta rama son **solo** el fix de interpolación.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
   `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. Cubre **#6** Procyon,
