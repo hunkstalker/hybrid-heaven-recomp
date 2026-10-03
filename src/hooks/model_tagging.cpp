@@ -7,20 +7,19 @@
 // propio flujo del juego (hook del port, no reescritura de DL).
 //
 // Cadena de dibujo de HH (localizada en build/recomp):
-//   func_800068C0_74C0 (traversal DOBJ) -> func_800069A8_75A8 (dispatch) ->
-//   func_8000C768_D368 (DRAW de malla: matriz + G_MTX + G_DL) -> func_8000C4A8_D0A8 (matriz + G_MTX)
-// El hook envuelve `func_8000C768(a0=node DOBJ)`, que es lo que emite la matriz Y la geometria (el
-// `G_VTX` que materializa el `gEXMatrixGroup` va dentro del `G_DL` que emite `func_8000C768`). El pop
-// debe ir DESPUES de este draw completo; envolver solo la matriz (`func_8000C4A8`) cerraba el grupo
-// antes de materializarse (por eso RT64 lo ignoraba: `ignored=0`).
+//   func_800068C0_74C0 (traversal DOBJ) -> func_800069A8_75A8 (dispatch por tipo de nodo) ->
+//   func_8000C768 (malla) | func_80007DE4/800082C4/80008754/... (otros tipos, tambien con G_MTX)
+// El hook envuelve `func_800069A8(a0=node DOBJ)`, el DISPATCH unico por el que pasa TODO nodo DOBJ
+// (todos los tipos), no solo la malla. Envolver solo `func_8000C768` dejaba sin tag a los otros
+// tipos (~1 transform/frame sin taggear: `unpaired_tagged=0` en el log). El pop va DESPUES del draw
+// completo; envolver solo la matriz (`func_8000C4A8`) cerraba el grupo antes de materializarse (por
+// eso RT64 lo ignoraba: `ignored=0`).
 //
 // El nodo DOBJ (`a0`) es estable entre frames (a diferencia del gmtx, reciclado): se usa como ID.
 //
 // Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas (comportamiento original).
 #include <cstdint>
 #include <cstdlib>
-#include <unordered_map>
-#include <unordered_set>
 
 #include "librecomp/overlays.hpp"
 #include "recomp.h"
@@ -32,7 +31,7 @@
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
 
-extern "C" void func_8000C768_D368(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800069A8_75A8(uint8_t* rdram, recomp_context* ctx);
 
 namespace {
 
@@ -64,25 +63,6 @@ const bool g_enabled = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
-// Nodos vistos en el frame logico actual y en el anterior. Un nodo que aparece por PRIMERA vez
-// (o tras ausentarse) es un spawn/reaparicion: ese frame NO se interpola (pose "skip"), para no
-// interpolar desde una pose vieja/inexistente -> evita el salto en spawns (#6 aura, #10 curar).
-// Los nodos se reciclan; el set se limpia cada frame logico (contador de VI).
-std::unordered_set<uint32_t> g_seen_prev;
-std::unordered_set<uint32_t> g_seen_cur;
-uint64_t g_frame_mark = 0;
-
-// Avanza el "frame" del tagging si cambio el contador de VI (una vez por frame logico).
-extern "C" uint64_t hh_get_vi_count(void);
-void roll_frame() {
-    const uint64_t vi = hh_get_vi_count();
-    if (vi != g_frame_mark) {
-        g_frame_mark = vi;
-        g_seen_prev.swap(g_seen_cur);
-        g_seen_cur.clear();
-    }
-}
-
 // HH_MTXGROUP_LOG=1: traza (tope 100) la primera vez que se taggea cada nodo, con su ID.
 void trace_once(uint32_t node, uint32_t id) {
     static const bool on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
@@ -101,7 +81,7 @@ void log_hook_seen() {
     static bool seen = false;
     if (seen) return;
     seen = true;
-    hh::log("[hh-mtxgroup] hook ACTIVO (0x8000C768); HH_MTXGROUP=%s\n", g_enabled ? "ON" : "OFF");
+    hh::log("[hh-mtxgroup] hook ACTIVO (0x800069A8); HH_MTXGROUP=%s\n", g_enabled ? "ON" : "OFF");
 }
 
 }  // namespace
@@ -111,7 +91,7 @@ void log_hook_seen() {
 extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     log_hook_seen();
     if (!g_enabled) {
-        func_8000C768_D368(rdram, ctx);
+        func_800069A8_75A8(rdram, ctx);
         return;
     }
 
@@ -140,33 +120,16 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXSetRDRAMExtended(cmd, 1);
     }
-    // Spawn/reaparicion: si el nodo no estaba en el frame anterior, este frame se "salta" (pose
-    // actual, sin interpolar) para no interpolar desde una pose vieja.
-    roll_frame();
-    const bool reappeared = (g_seen_prev.find(node) == g_seen_prev.end());
-    g_seen_cur.insert(node);
-
     if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
-        if (reappeared) {
-            // Todos los componentes SKIP: RT64 usa la pose actual sin interpolar.
-            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_ORDER_LINEAR,
-                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
-        }
-        else {
-            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR,
-                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
-        }
+        gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR,
+                                 G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
     }
 
-    func_8000C768_D368(rdram, ctx);             // matriz + G_MTX + G_DL (el G_VTX materializa el grupo)
+    func_800069A8_75A8(rdram, ctx);             // matriz + G_MTX + G_DL (el G_VTX materializa el grupo)
 
     // Cierra el grupo (pila equilibrada) DESPUES del draw completo.
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {

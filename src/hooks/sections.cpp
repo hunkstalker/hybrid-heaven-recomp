@@ -669,12 +669,13 @@ void register_title_menu_hook() {
     // prioriza el Rumble Pak; con VIBRACIÓN=SÍ el juego concluye "no hay Controller Pak" y no guarda.
     // El hook fuerza la rama "Controller Pak OK" sin dejar de inicializar el motor (ver definición).
     recomp::overlays::add_loaded_function(0x80002BE0, hh_pak_detect_hook);
-    // TAGGING DE TRANSFORMS (Fase A2, HH_MTXGROUP=1): `func_8000C768` (residente) es el DRAW de una
-    // malla (matriz + G_MTX + G_DL); el `G_VTX` que materializa el grupo va dentro de ese draw. El
-    // hook añade un `gEXMatrixGroup` con ID estable = puntero del nodo DOBJ, para que RT64 empareje
-    // por identidad en vez de por dirección (que HH recicla). Con el flag OFF el hook delega sin más.
-    // Residente: no hace falta re-registrar por carga de módulo.
-    recomp::overlays::add_loaded_function(0x8000C768, hh_bone_draw_hook);
+    // TAGGING DE TRANSFORMS (Fase A2, HH_MTXGROUP=1): `func_800069A8` (residente) es el DISPATCH
+    // unico por el que pasa TODO nodo DOBJ (malla y demas tipos, todos con G_MTX); el `G_VTX` que
+    // materializa el grupo va dentro del draw de cada tipo. El hook añade un `gEXMatrixGroup` con ID
+    // estable = puntero del nodo DOBJ, para que RT64 empareje por identidad en vez de por dirección
+    // (que HH recicla). Con el flag OFF el hook delega sin más. Residente: no hace falta
+    // re-registrar por carga de módulo.
+    recomp::overlays::add_loaded_function(0x800069A8, hh_bone_draw_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
