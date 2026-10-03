@@ -86,6 +86,17 @@ Log: `tests/logs/2026-10-03-mtxgroup-run4-ok.log` (gitignored).
 - **Gates globales** `HH_ROT_GATE`/`HH_SCALE_GATE` (en `lib/rt64`, sesión anterior): sonda, no
   arreglo; off por defecto. Siguen en el fork.
 
+## 3b. #6 (el "brillo de 1 frame"): causa medida y fix en curso (2026-10-03)
+
+- `[MEDIDO]` El skip de spawn (por ID, frontera `hh_dl_frame_count`/`send_dl`) **dispara** en #6
+  (`skipped` sube justo ahí) pero **el flash persiste** → no era "reaparición interpolada".
+- `[MEDIDO, dump de #6]` **El puntero del nodo DOBJ NO es identidad estable**: el mismo `id` (=hash del
+  nodo) aparecía con **posiciones totalmente distintas** (`dump6.log`); HH **recicla** los nodos de
+  dibujo entre frames. Misma lección que el HUD ("las direcciones no son identidades").
+- **Fix en curso** (`8b25b52`): la ID pasa a ser **hash de `node->0x2C`** (puntero del **modelo**), que
+  persiste más allá del reciclaje del nodo; fallback al nodo si `0x2C` es 0. `HH_MTXGROUP_LOG` traza
+  `node/model/id`. **Pendiente de validar** en #6 (¿baja `unpaired_tagged`/`unpaired_moved`?).
+
 ## 4. Instrumentación (reutilizable)
 
 En `lib/rt64` (fork) + port:
