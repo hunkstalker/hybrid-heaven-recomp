@@ -202,7 +202,7 @@ index 87392d0..99fbe8d 100644
              thread_local std::vector<BufferUploader::Upload> uploads;
              uploads.clear();
 diff --git a/src/hle/rt64_rigid_body.cpp b/src/hle/rt64_rigid_body.cpp
-index fd8b3eb..6ffc48b 100644
+index fd8b3eb..da9c9f7 100644
 --- a/src/hle/rt64_rigid_body.cpp
 +++ b/src/hle/rt64_rigid_body.cpp
 @@ -4,6 +4,9 @@
@@ -245,42 +245,46 @@ index fd8b3eb..6ffc48b 100644
              // If scale or skew are also set to auto, use the result of rotation auto calculation for their value as well.
              if (scaleInterpolation == G_EX_COMPONENT_AUTO) {
                  lerpScale = lerpRotation;
-@@ -68,6 +94,41 @@ namespace RT64 {
+@@ -68,6 +94,45 @@ namespace RT64 {
              lerpRotation = (rotInterpolation == G_EX_COMPONENT_INTERPOLATE);
              angularVelocity = 0.0f;
          }
 +
-+        // HH: gate para SALTOS DE ESCALA (Fase A2 / issue #6). `HH_SCALE_GATE=<ratio>` (vacío/0 = off;
-+        // sin número -> 2.0). Si la escala de algún eje cambia más de ese factor entre el frame previo
-+        // y el actual, se trata como discontinuidad (p. ej. una animación que se reinicia: se expande
-+        // y vuelve a empezar) y se hace *snap* en vez de interpolar a través del salto. Los valores por
-+        // frame legítimos a 30 Hz son pequeños, así que un umbral de ~2 no afecta a crecimiento normal.
++        // HH: gate para SALTOS DE ESCALA (Fase A2 / issue #6: la textura que escala bajo el jefe y
++        // "rebobina" al reiniciar su animacion). ON por defecto (umbral 2.0): si la escala de algun
++        // eje cambia mas de ese factor entre el frame previo y el actual, se trata como discontinuidad
++        // y se hace *snap* en vez de interpolar a traves del salto. Ajustable con `HH_SCALE_GATE=<ratio>`;
++        // `HH_SCALE_GATE=0` lo apaga. `HH_SCALE_GATE_LOG=1` imprime el factor real medido en stderr.
 +        static const float hh_scale_gate = []() {
 +            const char *e = std::getenv("HH_SCALE_GATE");
-+            if (e == nullptr || *e == '\0') return -1.0f;
++            if (e == nullptr || *e == '\0') return 2.0f;   // por defecto: ON
 +            const float v = static_cast<float>(atof(e));
-+            return (v > 1.0f) ? v : 2.0f;
++            return (v > 1.0f) ? v : -1.0f;                 // 0/negativo: OFF
 +        }();
 +        if ((hh_scale_gate > 1.0f) && lerpScale) {
 +            constexpr float kEps = 1e-6f;
-+            bool hh_scale_jump = false;
++            float worst_up = 1.0f, worst_dn = 1.0f;
 +            for (int axis = 0; axis < 3; axis++) {
 +                const float prevLen = hlslpp::length(prevTransform[axis].xyz);
 +                const float curLen = hlslpp::length(curTransform[axis].xyz);
 +                const float ratio = curLen / std::max(prevLen, kEps);
-+                if ((ratio > hh_scale_gate) || (ratio < (1.0f / hh_scale_gate))) {
-+                    hh_scale_jump = true;
-+                    break;
-+                }
++                worst_up = std::max(worst_up, ratio);
++                worst_dn = std::max(worst_dn, 1.0f / std::max(ratio, kEps));
 +            }
-+            if (hh_scale_jump) {
++            if ((worst_up > hh_scale_gate) || (worst_dn > hh_scale_gate)) {
 +                lerpScale = false;
 +                lerpSkew = false;
 +                static int hh_scale_gate_logged = 0;
-+                if ((hh_scale_gate_logged < 50) && (std::getenv("HH_SCALE_GATE_LOG") != nullptr)) {
++                if ((hh_scale_gate_logged < 200) && (std::getenv("HH_SCALE_GATE_LOG") != nullptr)) {
 +                    hh_scale_gate_logged++;
-+                    std::fprintf(stderr, "[HH_SCALE_GATE] snap scale (factor>%.1f) (log %d/50)\n",
-+                                 hh_scale_gate, hh_scale_gate_logged);
++                    // La app GUI no captura stderr: se vuelca tambien a `hh_scale.log` (cwd del exe).
++                    if (FILE *hf = std::fopen("hh_scale.log", "a")) {
++                        std::fprintf(hf, "[HH_SCALE_GATE] snap up=%.3f dn=%.3f gate=%.2f\n", worst_up,
++                                     worst_dn, hh_scale_gate);
++                        std::fclose(hf);
++                    }
++                    std::fprintf(stderr, "[HH_SCALE_GATE] snap scale up=%.3f dn=%.3f (gate=%.2f) (log %d/200)\n",
++                                 worst_up, worst_dn, hh_scale_gate, hh_scale_gate_logged);
 +                }
 +            }
 +        }

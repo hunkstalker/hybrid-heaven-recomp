@@ -9,6 +9,10 @@
 
 - **Arreglados**: huesos del PJ dispersos, **#6** (textura del boss), **#8** (puerta), minas/láseres.
   El mantenedor no percibe fallos (salvo lo de abajo).
+- **#6 (regresión) CERRADO con gate de escala**: el rebobinado del efecto es un **reset de escala
+  ~100×**; `rt64_rigid_body.cpp` ahora hace `HH_SCALE_GATE` **ON por defecto (2.0)** (`=0` off), con
+  log a `hh_scale.log`. Validado en dos runs del jefe (determinista). El cambio especulativo `is_fx`
+  9/13 se **revirtió**.
 - **Identidad estable**: `stable_slot()` generacional (map<root,{slot,model,last_frame}>, slot nuevo
   si se recicla) → un objeto persistente conserva id (verificado: `root=80252214` slot=31, id
   constante 30 s). Los roots reciclados/efectos reciben slot nuevo (no heredan ids de objetos muertos).
@@ -23,15 +27,12 @@
 
 ## Pendiente (lo de la sesión nueva)
 
-1. **Pasada 2 (efectos/2D ordenados)** — el hilo principal que queda. La escena se dibuja DOS veces:
-   pass 1 (`func_80006790→800068C0→800069A8`, taggeado) y pass 2
-   (`func_80006AF0 → colector `func_80006F8C` de nodos tipo 6 → wrappers `func_80007328/736C/73AC`
-   → draw `func_80007114`), que **estaba SIN taggear** y es donde viven los efectos/partículas
-   2D que aún se ven estirados. Ya hay hooks escritos para esa pasada, **gateados** por
-   `HH_FX_PASS2=1` (off por defecto). **A depurar**: al emitir en esa pasada `groups_seen` caía a 0;
-   puede ser (a) que use OTRO cursor de gfx (comprobar `gfx_emit`/global `0x8008D5BC`), o (b) que el
-   `groups_seen=0` fuera sólo por el logo de menú tipo 2 en `G_EX_ID_IGNORE` y la pasada 2 esté bien.
-   **Primero validar** con run + capturas.
+1. **Pasada 2 (efectos/2D ordenados)** — el hilo principal que queda. **Diagnóstico hecho** con
+   `[hh-emit]`: `7328/736C/73AC` son **compute-only** (no emiten gfx; sus grupos quedan colgados) y
+   el cursor es el global único `D_8008D5BC` (el `groups_seen=0` de headless era el logo tipo 2 →
+   falso positivo). Los emisores reales son `7DE4/8754/8F30/A828/C768/11958/919C`; los **2D/texrect**:
+   **`919C` (tipo 9)** y **`11958` (tipo 13)**. Rellenar: enganchar el tagging en el emisor correcto
+   (no en los wrappers) y validar con capturas.
 2. **Sesgado de cámara ocasional** (2 veces en la run): probablemente *shearing* por la cámara
    horneada + descomposición por objeto a 30 fps (limitación conocida de PW64, agravada a 30). No es
    identidad. Investigar si `G_EX_COMPONENT_*` de la cámara o un grupo de cámara aparte lo mitiga.

@@ -235,6 +235,11 @@ float g_cam_prev_fwd[3] = {0.0f, 0.0f, 0.0f};
 uint64_t g_gen_count = 0;
 uint64_t g_object_group_count = 0;
 
+// Pasada 2 (efectos/2D ordenados): cuantas veces se invocan los wrappers. Sirve para saber si esa
+// pasada corre en gameplay (en menus no se llama) y si sus `gEXMatrixGroup` materializan en RT64
+// (comparar `explicit_ids`/`groups_seen` A/B con HH_FX_PASS2=0/1). Ver `hh_fx_group_count()`.
+uint64_t g_fx_group_count = 0;
+
 // Auto-captura: pide guardar el frame cuando hay un corte de camara (1 frame sin interpolar =
 // hitch). `update_screen` la consume.
 std::atomic<int> g_gen_capture_requested{ 0 };
@@ -324,8 +329,10 @@ void log_hook_seen() {
     static bool seen = false;
     if (seen) return;
     seen = true;
-    hh::log("[hh-mtxgroup] hook OBJETO activo (0x800068C0); HH_MTXGROUP=%s\n",
-            g_enabled ? "ON" : "OFF");
+    hh::log("[hh-mtxgroup] hook OBJETO activo (0x800068C0); HH_MTXGROUP=%s"
+            " HOOK_OPCODE=%02X EXT_OPCODE=%02X MAGIC=%06X\n",
+            g_enabled ? "ON" : "OFF", (unsigned)RT64_HOOK_OPCODE, (unsigned)RT64_EXTENDED_OPCODE,
+            (unsigned)RT64_HOOK_MAGIC_NUMBER);
 }
 
 // Frame de juego actual (lo incrementa el port en `send_dl`). Durante el dibujo del frame N vale
@@ -346,6 +353,8 @@ void maybe_update_camera(uint8_t* rdram) {
 // (generaciones avanzadas). Se imprime como `gen=` en rt64_render_context.cpp.
 extern "C" unsigned long long hh_mtxgroup_skip_count() { return g_gen_count; }
 extern "C" unsigned long long hh_mtxgroup_total_count() { return g_object_group_count; }
+// Pasada 2: invocaciones de los wrappers de efectos (0 si HH_FX_PASS2 esta off o no se usan).
+extern "C" unsigned long long hh_fx_group_count() { return g_fx_group_count; }
 
 // Consume la peticion de auto-captura por corte de camara (la usa update_screen).
 extern "C" int hh_interp_take_capture(unsigned long long* gen) {
@@ -467,7 +476,7 @@ extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx) {
 // (`func_80006AF0` -> colector `func_80006F8C` de nodos tipo 6 -> wrappers `func_80007328/736C/73AC`
 // -> `func_80007114`). El pass 2 estaba SIN taggear: ahi viven los efectos/2D que se estiraban.
 namespace {
-void fx_wrap(uint8_t* rdram, uint32_t node, void (*orig)(uint8_t*, recomp_context*),
+void fx_wrap(uint8_t* rdram, const char* name, uint32_t node, void (*orig)(uint8_t*, recomp_context*),
              recomp_context* ctx) {
     if (!g_enabled || !valid_ram(node) || node == 0) {
         orig(rdram, ctx);
@@ -476,6 +485,10 @@ void fx_wrap(uint8_t* rdram, uint32_t node, void (*orig)(uint8_t*, recomp_contex
     const uint32_t model = rd_u32(rdram, node + 0x2C);
     const uint32_t slot = stable_slot(node, model);
     const uint32_t id = interp_id(/*INTERP_KIND_FX=*/3u, 0u, slot, /*lod=*/0u);
+    // Diagnostico del cursor de gfx: la pasada 2 NO emite gfx por si misma (7328/736C/73AC solo
+    // calculan la cinta en func_80007114); estos `gEXMatrixGroup` se insertan en el cursor global
+    // D_8008D5BC del port. Si `cursor` no avanza (o cae fuera de la DL activa) no materializan.
+    const uint32_t cursor_before = rd_u32(rdram, kGfxCursor);
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXEnable(cmd);
     }
@@ -489,6 +502,16 @@ void fx_wrap(uint8_t* rdram, uint32_t node, void (*orig)(uint8_t*, recomp_contex
                                  G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
                                  G_EX_COMPONENT_AUTO);
     }
+    const uint32_t cursor_after = rd_u32(rdram, kGfxCursor);
+    ++g_fx_group_count;
+    if (g_trace) {
+        static int logged = 0;
+        if (logged < 60) {
+            ++logged;
+            hh::log("[hh-fx] %s node=%08X model=%08X slot=%u id=%08X cur=%08X->%08X gen=%u (%d/60)\n",
+                    name, node, model, slot, id, cursor_before, cursor_after, sGeneration, logged);
+        }
+    }
     orig(rdram, ctx);
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXPopMatrixGroup(cmd, /*proj=*/0);
@@ -499,13 +522,113 @@ void fx_wrap(uint8_t* rdram, uint32_t node, void (*orig)(uint8_t*, recomp_contex
 // Wrappers: el nodo va apuntado por a1 (7328) o a0 (736C/73AC).
 extern "C" void hh_fx_7328_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = valid_ram(ctx->r5) ? rd_u32(rdram, ctx->r5) : 0;
-    fx_wrap(rdram, node, func_80007328_7F28, ctx);
+    fx_wrap(rdram, "7328", node, func_80007328_7F28, ctx);
 }
 extern "C" void hh_fx_736c_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = valid_ram(ctx->r4) ? rd_u32(rdram, ctx->r4) : 0;
-    fx_wrap(rdram, node, func_8000736C_7F6C, ctx);
+    fx_wrap(rdram, "736C", node, func_8000736C_7F6C, ctx);
 }
 extern "C" void hh_fx_73ac_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = valid_ram(ctx->r4) ? rd_u32(rdram, ctx->r4) : 0;
-    fx_wrap(rdram, node, func_800073AC_7FAC, ctx);
+    fx_wrap(rdram, "73AC", node, func_800073AC_7FAC, ctx);
+}
+
+// ---- localizar el EMISOR real de la geometria de pasada 2 --------------------------------------
+//
+// `7328/736C/73AC` solo calculan la cinta: no emiten gfx, asi que un `gEXMatrixGroup` ahi queda sin
+// geometria entre push/pop y no taggea. Estos son los candidatos que SI emiten al cursor
+// `D_8008D5BC`. Con HH_FX_PASS2=1 se envuelven SOLO para trazar (delta de cursor + a0/a1); no
+// modifican nada. El que emita (d>0) en la run es el punto donde hay que enganchar el tagging.
+extern "C" void func_8000C768_D368(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80007750_8350(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800078AC_84AC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800079B0_85B0(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80007DE4_89E4(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800082C4_8EC4(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80008754_9354(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80008B9C_979C(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80008F30_9B30(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000D1CC_DDCC(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80011958_12558(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000A828_B428(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000919C_9D9C(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000A06C_AC6C(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80013828_14428(uint8_t* rdram, recomp_context* ctx);
+
+namespace {
+// Tope por candidato (no global): los helpers de setup de menú (7750/78AC/79B0) se llaman cada
+// frame y si compartieran tope lo consumirían todo antes de llegar al gameplay. `d` = bytes
+// emitidos; `vtx/tri/tex` = G_VTX(0x01)/G_TRI(0x05,0x06)/G_TEXRECT(0xE4,0xE5) en F3DEX2.
+void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t a0, uint32_t a1,
+                   void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
+    const uint32_t before = rd_u32(rdram, kGfxCursor);
+    orig(rdram, ctx);
+    const uint32_t after = rd_u32(rdram, kGfxCursor);
+    if (!g_trace || after <= before) {
+        return;
+    }
+    // Rate-limit por funcion (~1 linea/s), no tope global: asi hay muestras tanto en menus como en
+    // gameplay y ninguna funcion se agota antes de tiempo.
+    static uint64_t last_frame[24] = {};
+    const uint64_t f = hh_dl_frame_count();
+    if (id < 0 || id >= 24 || (f - last_frame[id]) < 30) {
+        return;
+    }
+    uint32_t vtx = 0, tri = 0, tex = 0;
+    for (uint32_t a = before; a + 8u <= after; a += 8u) {
+        const uint32_t op = rd_u32(rdram, a) >> 24;
+        if (op == 0x01u || op == 0x04u) ++vtx;                            // G_VTX (F3DEX2 / F3D)
+        else if (op == 0x05u || op == 0x06u || op == 0xBFu) ++tri;       // G_TRI1/2, G_QUAD
+        else if (op == 0xE4u || op == 0xE5u || op == 0xF6u) ++tex;       // G_TEXRECT(FLIP), G_FILLRECT
+    }
+    last_frame[id] = f;
+    hh::log("[hh-emit] %s f=%llu cur=%08X->%08X d=%u vtx=%u tri=%u tex=%u a0=%08X a1=%08X\n", name,
+            (unsigned long long)f, before, after, after - before, vtx, tri, tex, a0, a1);
+}
+}  // namespace
+
+extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "C768", 0, ctx->r4, ctx->r5, func_8000C768_D368, ctx);
+}
+extern "C" void hh_emit_7750_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "7750", 1, ctx->r4, ctx->r5, func_80007750_8350, ctx);
+}
+extern "C" void hh_emit_78ac_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "78AC", 2, ctx->r4, ctx->r5, func_800078AC_84AC, ctx);
+}
+extern "C" void hh_emit_79b0_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "79B0", 3, ctx->r4, ctx->r5, func_800079B0_85B0, ctx);
+}
+extern "C" void hh_emit_7de4_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "7DE4", 4, ctx->r4, ctx->r5, func_80007DE4_89E4, ctx);
+}
+extern "C" void hh_emit_82c4_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "82C4", 5, ctx->r4, ctx->r5, func_800082C4_8EC4, ctx);
+}
+extern "C" void hh_emit_8754_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "8754", 6, ctx->r4, ctx->r5, func_80008754_9354, ctx);
+}
+extern "C" void hh_emit_8b9c_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "8B9C", 7, ctx->r4, ctx->r5, func_80008B9C_979C, ctx);
+}
+extern "C" void hh_emit_8f30_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "8F30", 8, ctx->r4, ctx->r5, func_80008F30_9B30, ctx);
+}
+extern "C" void hh_emit_d1cc_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "D1CC", 9, ctx->r4, ctx->r5, func_8000D1CC_DDCC, ctx);
+}
+extern "C" void hh_emit_11958_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "11958", 10, ctx->r4, ctx->r5, func_80011958_12558, ctx);
+}
+extern "C" void hh_emit_a828_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "A828", 11, ctx->r4, ctx->r5, func_8000A828_B428, ctx);
+}
+extern "C" void hh_emit_919c_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "919C", 12, ctx->r4, ctx->r5, func_8000919C_9D9C, ctx);
+}
+extern "C" void hh_emit_a06c_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "A06C", 13, ctx->r4, ctx->r5, func_8000A06C_AC6C, ctx);
+}
+extern "C" void hh_emit_13828_hook(uint8_t* rdram, recomp_context* ctx) {
+    emitter_trace(rdram, "13828", 14, ctx->r4, ctx->r5, func_80013828_14428, ctx);
 }

@@ -30,9 +30,14 @@
     direcciones) + grupo por **NODO** (`id=FNV(slot_objeto, slot_nodo, gen)`) + generación de cámara.
     Arreglados huesos del PJ, **#6**, **#8**, minas/láseres. Detalle: nota
     `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
-  - [ ] **A2.2b pasada 2 (efectos/2D ordenados)**: `func_80006AF0 → func_80006F8C` (colector tipo 6) →
-    wrappers `func_80007328/736C/73AC`. Hooks escritos y **gateados** por `HH_FX_PASS2`; quedan los
-    "churros" 2D de pelea. Depurar (¿otro cursor de gfx?) + validar con capturas.
+  - [x] **A2.2a #6 (regresión) — fix por gate de ESCALA (VALIDADO 2026-10-03)**: el rebobinado del
+    efecto es un **reset de escala ~100×**; `HH_SCALE_GATE` **ON por defecto (2.0)** (`=0` off) en
+    `rt64_rigid_body.cpp` (parche RT64), log a `hh_scale.log`. Validado en 2 runs del jefe.
+  - [ ] **A2.2b pasada 2 (efectos/2D ordenados)**: **diagnóstico hecho** con `[hh-emit]`:
+    `7328/736C/73AC` son **compute-only** (no emiten gfx; grupos colgados) y el cursor es el global
+    único `D_8008D5BC` (el `groups_seen=0` headless era el logo tipo 2 → falso positivo). Emisores
+    reales: `7DE4/8754/8F30/A828/C768/11958/919C`; 2D/texrect = **`919C` (tipo 9)** y **`11958`
+    (tipo 13)**. Enganchar el tagging en el emisor correcto + validar con capturas.
   - [ ] **A2.2c sesgado de cámara ocasional** (2×/run): posible *shearing* de cámara horneada a 30 fps.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo (medir si aplica).

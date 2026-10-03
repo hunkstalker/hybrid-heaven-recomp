@@ -85,6 +85,21 @@ extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx);      // 
 extern "C" void hh_fx_7328_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
 extern "C" void hh_fx_736c_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
 extern "C" void hh_fx_73ac_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
+extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx);      // pasada 2: traza del emisor real
+extern "C" void hh_emit_7750_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_78ac_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_79b0_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_7de4_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_82c4_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_8754_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_8b9c_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_8f30_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_d1cc_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_11958_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_a828_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_919c_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_a06c_hook(uint8_t* rdram, recomp_context* ctx);
+extern "C" void hh_emit_13828_hook(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
 extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
 extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
@@ -691,6 +706,23 @@ void register_title_menu_hook() {
         recomp::overlays::add_loaded_function(0x80007328, hh_fx_7328_hook);
         recomp::overlays::add_loaded_function(0x8000736C, hh_fx_736c_hook);
         recomp::overlays::add_loaded_function(0x800073AC, hh_fx_73ac_hook);
+        // Localizar el emisor real de la geometria de efectos (los wrappers de arriba solo calculan
+        // la cinta). Solo trazan `[hh-emit]` (delta de cursor); no tagging aun.
+        recomp::overlays::add_loaded_function(0x8000C768, hh_emit_c768_hook);
+        recomp::overlays::add_loaded_function(0x80007750, hh_emit_7750_hook);
+        recomp::overlays::add_loaded_function(0x800078AC, hh_emit_78ac_hook);
+        recomp::overlays::add_loaded_function(0x800079B0, hh_emit_79b0_hook);
+        recomp::overlays::add_loaded_function(0x80007DE4, hh_emit_7de4_hook);
+        recomp::overlays::add_loaded_function(0x800082C4, hh_emit_82c4_hook);
+        recomp::overlays::add_loaded_function(0x80008754, hh_emit_8754_hook);
+        recomp::overlays::add_loaded_function(0x80008B9C, hh_emit_8b9c_hook);
+        recomp::overlays::add_loaded_function(0x80008F30, hh_emit_8f30_hook);
+        recomp::overlays::add_loaded_function(0x8000D1CC, hh_emit_d1cc_hook);
+        recomp::overlays::add_loaded_function(0x80011958, hh_emit_11958_hook);
+        recomp::overlays::add_loaded_function(0x8000A828, hh_emit_a828_hook);
+        recomp::overlays::add_loaded_function(0x8000919C, hh_emit_919c_hook);
+        recomp::overlays::add_loaded_function(0x8000A06C, hh_emit_a06c_hook);
+        recomp::overlays::add_loaded_function(0x80013828, hh_emit_13828_hook);
     }
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);

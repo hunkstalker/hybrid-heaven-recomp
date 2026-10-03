@@ -62,6 +62,7 @@ extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned lo
 extern "C" unsigned long long RT64_GetGroupSeenCount();
 extern "C" unsigned long long hh_mtxgroup_skip_count();
 extern "C" unsigned long long hh_mtxgroup_total_count();
+extern "C" unsigned long long hh_fx_group_count();   // pasada 2 (model_tagging.cpp)
 extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long long *tagged,
                                     unsigned long long *unpaired);
 extern "C" int hh_interp_take_capture(unsigned long long *gen);   // model_tagging.cpp
@@ -733,11 +734,12 @@ void hh::RT64Context::update_screen() {
                                          ? app->sharedQueueResources->viOriginalRate : 0;
             const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
             hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
-                    " gen=%llu groups=%llu ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s"
-                    " unpaired_moved=%.1f/s | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
+                    " gen=%llu groups=%llu fx=%llu ignored=%.1f/s unpaired=%.1f/s"
+                    " unpaired_tagged=%.1f/s unpaired_moved=%.1f/s"
+                    " | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
                     (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
                     RT64_GetGroupSeenCount(),
-                    hh_mtxgroup_skip_count(), hh_mtxgroup_total_count(),
+                    hh_mtxgroup_skip_count(), hh_mtxgroup_total_count(), hh_fx_group_count(),
                     (ig - i_last) / secs, (up - u_last) / secs, (ut - ut_last) / secs,
                     (upm - um_last) / secs,
                     target, vi_rate, get_display_framerate(),

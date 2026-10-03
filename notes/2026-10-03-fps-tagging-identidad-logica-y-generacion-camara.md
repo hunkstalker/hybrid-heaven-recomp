@@ -87,3 +87,21 @@ artefactos de #6.
   (probable *shearing* de cámara horneada a 30 fps).
 - Añadida **auto-captura por condición** (`HH_PAIRCAP`/`HH_GENCAP`) — imprescindible para artefactos
   de 1 frame que no se ven a ojo.
+
+## Actualización 3 — pasada 2 (traza) y #6 (regresión) — VALIDADO
+
+- **Pasada 2, diagnóstico `[hh-emit]`**: los wrappers `7328/736C/73AC` son **compute-only** (calculan
+  la cinta vía `func_80007114`/`func_800075B4`; **no emiten gfx**). Sus `gEXMatrixGroup` quedan sin
+  geometría entre push/pop → no materializan. El cursor es el global único `D_8008D5BC` (no es "otro
+  cursor"); en menús `groups_seen=0` era el logo (tipo 2 → `ID_IGNORE`), falso positivo.
+  Emisores que sí emiten (con `HH_FX_PASS2=1`): `7DE4/8754/8F30/A828/C768/11958/919C`; los 2D/texrect
+  son **`919C` (tipo 9)** y **`11958` (tipo 13)**. Mapeo del jtbl: 8→`A828`, 9→`919C`, 13→`11958`.
+- **#6 (regresión) = reset de ESCALA del efecto**, no la identidad: en A/B (sin gate) rebobinaba; con
+  `HH_SCALE_GATE` no. **Fix**: gate ON por defecto (`HH_SCALE_GATE` def. 2.0; `=0` off) en
+  `rt64_rigid_body.cpp` (`patches/rt64/hh-interpolation-tagging.patch`). Medido en `hh_scale.log`
+  (`HH_SCALE_GATE_LOG=1`): el reset es **~100×** (`up/dn` alternando), sin falsos de ~2× de causa
+  ajena; validado en dos runs (jefe, determinista).
+- **Port**: `HOOK_OPCODE=E0 EXT_OPCODE=64 MAGIC=525464` → el GBI extendido se emite bien. El
+  `explicit_ids=0` del contador RT64 es **instrumentación** (la interpolación no depende de él); a
+  revisar aparte.
+- Cambio especulativo `is_fx` tipos 9/13 **revertido**.

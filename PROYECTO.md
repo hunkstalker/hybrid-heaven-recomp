@@ -15,7 +15,9 @@ el **repo privado de secretos** del que CI clona el C recompilado seguía con el
 `main` (`8a7e076`, `f3de254`) con CI verde, y **validado en Windows** (guardado `.pak` y veneno/#14 OK).
 **Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
 **`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
-minas/láseres); pendiente la pasada 2 (efectos/2D) y el sesgado ocasional de cámara.
+minas/láseres); **#6 re-fijado con gate de escala ON por defecto** (2.0, validado en 2 runs);
+pendiente la pasada 2 (efectos/2D; emisores reales ya diagnosticados: `919C`/`11958`) y el sesgado
+ocasional de cámara.
 Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
 `notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 
