@@ -20,6 +20,7 @@
 // Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas (comportamiento original).
 #include <cstdint>
 #include <cstdlib>
+#include <unordered_set>
 
 #include "librecomp/overlays.hpp"
 #include "recomp.h"
@@ -63,6 +64,35 @@ const bool g_enabled = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
+// Skip de spawn/reaparicion por ID, con FRONTERA DE FRAME FIABLE (`hh_dl_frame_count`, que el port
+// incrementa en `send_dl`: una vez por frame de juego). Si un ID no se vio en el frame anterior, este
+// frame se "salta" (pose actual, sin interpolar) -> evita el salto/brillo de un objeto que aparece
+// (aura del jefe #6). Sin esto, un nodo recreado se interpola desde una pose vieja.
+extern "C" uint64_t hh_dl_frame_count(void);
+std::unordered_set<uint32_t> g_seen_prev;
+std::unordered_set<uint32_t> g_seen_cur;
+uint64_t g_last_frame = ~uint64_t(0);
+uint64_t g_skip_count = 0;    // diagnosticos (HH_MTXGROUP_LOG)
+uint64_t g_total_count = 0;
+
+void roll_frame() {
+    const uint64_t f = hh_dl_frame_count();
+    if (f != g_last_frame) {
+        g_last_frame = f;
+        g_seen_prev.swap(g_seen_cur);
+        g_seen_cur.clear();
+    }
+}
+
+// HH_MTXGROUP_NOSKIP=1: desactiva el skip de spawn (A/B).
+bool skip_spawn_enabled() {
+    static const bool off = [] {
+        const char* v = std::getenv("HH_MTXGROUP_NOSKIP");
+        return v != nullptr && *v != '\0' && *v != '0';
+    }();
+    return !off;
+}
+
 // HH_MTXGROUP_LOG=1: traza (tope 100) la primera vez que se taggea cada nodo, con su ID.
 void trace_once(uint32_t node, uint32_t id) {
     static const bool on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
@@ -85,6 +115,10 @@ void log_hook_seen() {
 }
 
 }  // namespace
+
+// Diagnosticos del skip de spawn (para [hh-pair]).
+extern "C" unsigned long long hh_mtxgroup_skip_count() { return g_skip_count; }
+extern "C" unsigned long long hh_mtxgroup_total_count() { return g_total_count; }
 
 // Hook del DRAW de malla (matriz + geometria). Con el flag activo: grupo RT64 (interpolacion normal,
 // push/pop balanceados) envolviendo todo el draw; con el flag apagado: solo el original.
@@ -120,16 +154,33 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     // (rt64_rsp.cpp:104/114) -> reinterpreта TODAS las direcciones y rompe el widescreen (la escena
     // deja de expandir; el HUD sigue porque se ancla por reescritura de DL). Goemon lo tiene
     // comentado por esto; solo lo necesita Zelda (que si usa direcciones extendidas). Bug 2026-10-03.
+    // Spawn/reaparicion: ID no visto en el frame anterior -> este frame no interpola (snap).
+    roll_frame();
+    const bool reappeared = skip_spawn_enabled() && (g_seen_prev.find(id) == g_seen_prev.end());
+    g_seen_cur.insert(id);
+    if (reappeared) ++g_skip_count;
+    ++g_total_count;
+
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXEnable(cmd);
     }
     if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
-        gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
-                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
-                                 G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR,
-                                 G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+        if (reappeared) {
+            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_ORDER_LINEAR,
+                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+        }
+        else {
+            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR,
+                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+        }
     }
 
     func_800069A8_75A8(rdram, ctx);             // matriz + G_MTX + G_DL (el G_VTX materializa el grupo)

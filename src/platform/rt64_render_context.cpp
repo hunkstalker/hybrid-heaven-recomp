@@ -60,6 +60,8 @@ extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned lo
                                          unsigned long long *explicitIds,
                                          unsigned long long *unpairedTagged);
 extern "C" unsigned long long RT64_GetGroupSeenCount();
+extern "C" unsigned long long hh_mtxgroup_skip_count();
+extern "C" unsigned long long hh_mtxgroup_total_count();
 
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
@@ -533,7 +535,17 @@ bool hh::RT64Context::valid() {
     return app != nullptr;
 }
 
+// Frontera de frame fiable para el tagging (HH_MTXGROUP): `send_dl` se llama UNA vez por frame de
+// juego (una lista enviada). El skip de spawn lo usa para saber si un ID ya se vio en el frame
+// anterior (a diferencia del contador de VI, que avanzaba a mitad de frame -> falsos "reaparicion").
+static std::atomic<uint64_t> g_hh_dl_frame{ 0 };
+
+extern "C" uint64_t hh_dl_frame_count() {
+    return g_hh_dl_frame.load(std::memory_order_relaxed);
+}
+
 void hh::RT64Context::send_dl(const OSTask* task) {
+    g_hh_dl_frame.fetch_add(1, std::memory_order_relaxed);
     g_hh_dl_count.fetch_add(1, std::memory_order_relaxed);
     hh::log("RT64: send_dl ucode=0x%x data_ptr=0x%x\n", task->t.ucode, task->t.data_ptr);
     // Widescreen: reescribe el scissor de overscan a full-frame antes de que RT64 procese la lista.
@@ -718,10 +730,11 @@ void hh::RT64Context::update_screen() {
                                          ? app->sharedQueueResources->viOriginalRate : 0;
             const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
             hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
-                    " ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s unpaired_moved=%.1f/s"
-                    " | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
+                    " skipped=%llu/%llu ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s"
+                    " unpaired_moved=%.1f/s | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
                     (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
                     RT64_GetGroupSeenCount(),
+                    hh_mtxgroup_skip_count(), hh_mtxgroup_total_count(),
                     (ig - i_last) / secs, (up - u_last) / secs, (ut - ut_last) / secs,
                     (upm - um_last) / secs,
                     target, vi_rate, get_display_framerate(),
