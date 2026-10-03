@@ -1,94 +1,84 @@
-# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-03)
+# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-03, sesión 2)
 
-> **Esta rama = fix de interpolación/desbloquear FPS**, mergeada con `main` (v0.6.2). La tarea v0.6.2
-> vive en `main` (abajo, "Tarea de main"). **TAREA ACTUAL (rama): REHACER la identidad del tagging
-> según el modelo de Pilotwings64Recomp** (el de las direcciones NO funciona; ver §3c/§3d).
-> **Detalle COMPLETO (medido/inferido):** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §0–§6.
-> Reglas: `AGENTS.md` y `docs/documentation.md`.
+> **TAREA (rama): interpolación fiel / desbloquear FPS.** Esta sesión **rehízo la identidad del
+> tagging** y la **validó en gameplay** (run del mantenedor). Detalle y evidencia:
+> `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md` (actualizada).
+> Reglas: `AGENTS.md` y `docs/documentation.md`. **La vista no valida 1 frame** → usar capturas.
 
-## Estado (esta rama) — qué funciona y qué no
+## Estado — lo que funciona (MEDIDO, run del mantenedor)
 
-- `[MEDIDO]` **Resuelto**: el tagging llega a RT64 (faltaba `#define F3DEX_GBI_2`); el **widescreen** y
-  el **recuadro negro** (era el walker de `snap_overscan` abortando en el opcode extendido `0x64`);
-  **#8 puertas** estable.
-- `[MEDIDO]` Punto de enganche: **dispatch DOBJ `func_800069A8`** (`src/hooks/model_tagging.cpp`,
-  `HH_MTXGROUP=1`). `gEXSetRDRAMExtended` **rompía el widescreen** (quitado).
-- `[MEDIDO]` **Fallos pendientes**: #6 (rebobinado de la textura al crecer) y **parpadeos de cámara**.
-  ~27% de frames con `unpaired_moved>0` (picos hasta ~70/s).
-- `[MEDIDO]` **Ninguna dirección es identidad estable** (nodo, modelo `+0x2C`, root+orden): todas se
-  reciclan → probadas y **fallidas** (§3b). `dump6.log` lo prueba.
+- **Arreglados**: huesos del PJ dispersos, **#6** (textura del boss), **#8** (puerta), minas/láseres.
+  El mantenedor no percibe fallos (salvo lo de abajo).
+- **Identidad estable**: `stable_slot()` generacional (map<root,{slot,model,last_frame}>, slot nuevo
+  si se recicla) → un objeto persistente conserva id (verificado: `root=80252214` slot=31, id
+  constante 30 s). Los roots reciclados/efectos reciben slot nuevo (no heredan ids de objetos muertos).
+- **Grupos**: pass 1 (`func_800068C0` fija el slot de objeto; `func_800069A8` emite **un grupo por
+  NODO**, id=`FNV(slot_objeto, slot_nodo, gen)`). Los tipos 1..4 (sprites/2D) van con `G_EX_ID_IGNORE`
+  (no interpolar); el resto `G_EX_ORDER_LINEAR`. Esto arregló el esqueleto del PJ (el grupo por OBJETO
+  con LINEAR lo barajaba al cambiar el orden/nº de transforms; la métrica NO lo veía).
+- **Generación de cámara**: corte si salto >90u o giro >90° (`D_801BBBF0+0xE8 → +0x2C`, pos +0x30,
+  objetivo +0x3C). Se evalúa 1×/frame. Evita el barrido en cortes.
+- Sin `gEXSetRDRAMExtended` (rompe widescreen). Sin skip-spawn propio.
+- Limpieza: no se emiten grupos para nodos tipo 0 (contenedores no-op).
 
-## Siguiente paso (esta rama) — rehacer según §3c/§3d
+## Pendiente (lo de la sesión nueva)
 
-1. **ID lógica** = hash(`slot` de objeto/actor, `modelId`, `lod`) **+ generación de cámara** (NO
-   direcciones). Buscar el slot en la lista de modelos/actores de HH.
-2. **Generación de cámara** con detección de **cortes** (salto/giro de la matriz de cámara) → arregla
-   el parpadeo de cámara (la cámara va bakeada en cada matriz).
-3. **Un grupo por objeto** (no por nodo), `G_EX_ORDER_LINEAR`; **efectos** `G_EX_ORDER_AUTO`; **2D**
-   `G_EX_ID_IGNORE`; **cámara** grupo de proyección aparte.
-4. **Quitar** el skip-spawn propio (RT64 lo hace solo). **Validar** con `HH_PAIRING`. Después, fps.
-5. Fuente exacta del modelo: **§3c** y `patches/interpolation.c` de Pilotwings64Recomp (citados en la nota).
+1. **Pasada 2 (efectos/2D ordenados)** — el hilo principal que queda. La escena se dibuja DOS veces:
+   pass 1 (`func_80006790→800068C0→800069A8`, taggeado) y pass 2
+   (`func_80006AF0 → colector `func_80006F8C` de nodos tipo 6 → wrappers `func_80007328/736C/73AC`
+   → draw `func_80007114`), que **estaba SIN taggear** y es donde viven los efectos/partículas
+   2D que aún se ven estirados. Ya hay hooks escritos para esa pasada, **gateados** por
+   `HH_FX_PASS2=1` (off por defecto). **A depurar**: al emitir en esa pasada `groups_seen` caía a 0;
+   puede ser (a) que use OTRO cursor de gfx (comprobar `gfx_emit`/global `0x8008D5BC`), o (b) que el
+   `groups_seen=0` fuera sólo por el logo de menú tipo 2 en `G_EX_ID_IGNORE` y la pasada 2 esté bien.
+   **Primero validar** con run + capturas.
+2. **Sesgado de cámara ocasional** (2 veces en la run): probablemente *shearing* por la cámara
+   horneada + descomposición por objeto a 30 fps (limitación conocida de PW64, agravada a 30). No es
+   identidad. Investigar si `G_EX_COMPONENT_*` de la cámara o un grupo de cámara aparte lo mitiga.
+3. **LOD** en el hash (id = slot, model, **lod**): no localizado el campo. Solo importa si un objeto
+   cambia de malla por distancia; el slot generacional cubre parte. Medir si pasa.
+4. **2D "de verdad"** (HUD/menús): `hud_rewrite` ya no interpola su proyección; confirmar que cubre
+   todo (el combate 2D puede ir por la pasada 2).
 
-## Instrumentación
+## Instrumentación (reutilizable)
 
-- `HH_PAIRING=1` → `[hh-pair]`; `HH_MTXGROUP=1` activa el tagging; `HH_MTXGROUP_LOG=1` traza;
-  `HH_PAIRING_DUMP=<n>` vuelca identidad de no-emparejados.
-- **Headless propio:** `Xvfb :99` + `VK_ICD_FILENAMES=.../lvp_icd.x86_64.json` (lavapipe) → logos/menús,
-  **no** gameplay 3D. Logs de referencia en `tests/logs/` (gitignored).
+- `HH_MTXGROUP=1` tagging; `HH_MTXGROUP_LOG=1` → `[hh-types]` histograma de tipos de nodo (~2 s) y
+  `[hh-interp]` cortes de cámara.
+- `HH_PAIRING=1` → `[hh-pair]` (frames, transforms, explicit_ids, groups_seen, gen, groups,
+  unpaired, unpaired_tagged, unpaired_moved). **OJO: `unpaired` no mide el fallo visual** (el fallo
+  era *mal* emparejado, no "sin pareja").
+- **Auto-captura** (clave para 1-frame): `HH_PAIRCAP=<min moved>` (frames con no-emparejados movidos)
+  y `HH_GENCAP=1` (cortes de cámara) → `paircap_NNN_*.bmp` / `gencap_NNN_*.bmp` + `[hh-cap] auto` en
+  `hh.log`. Tope 80 y 120 ms de separación. **El mantenedor no debe borrar los BMP hasta copiarlos.**
+- `HH_FX_AUTO=1` → vuelve a interpolar tipos 1..4 (A/B). `HH_FX_PASS2=1` → activa hooks pasada 2.
+- `HH_SCALE_GATE=<ratio>` + `HH_SCALE_GATE_LOG=1` en `lib/rt64` (sonda de escala, off).
 
----
+### Banco headless (logos/menús; NO llega a gameplay)
+```
+Xvfb :99 & ; DISPLAY=:99 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy \
+  VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json HH_MTXGROUP=1 HH_MTXGROUP_LOG=1 \
+  timeout 20 "./Hybrid Heaven Recomp"   # cwd build/linux
+```
+**En headless `[hh-pair]` sale 0** (no presenta frames); `groups_seen=0` en menús es normal (logo
+tipo 2 → `ID_IGNORE`). Para gameplay: run del mantenedor.
 
-# Tarea de main — v0.6.2 (release GitHub rota)
-
-> **`main` = `v0.6.1` + v0.6.2 (pusheada y validada; solo falta el tag)**. **TAREA: taggear/publicar
-> la v0.6.2** — la release **v0.6.1 de GitHub estaba rota**; reproducida, arreglada y **validada en
-> Windows**.
-> **Detalle (medido/inferido):** `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
-> **Otra tarea (otra rama, NO mezclar):** interpolación/desbloquear FPS en
-> **`fps-interpolacion-tagging`** (ver §"Otras ramas").
-> Reglas: `AGENTS.md` y `docs/documentation.md`.
-
-## Tarea actual — v0.6.2 (release GitHub rota)
-
-**Reproducido `[MEDIDO]`:**
-
-- El `.zip` de la v0.6.1 **no incluye** `assets/`, `saves/templates` ni `licences/`. El ejecutable los
-  busca junto a sí. `ci.yml` empaquetaba a mano y divergía del `POST_BUILD` de CMake.
-- **Los forks NO eran el problema**: rt64 `a8f0a70`, NMR `a11fbf2` y N64Recomp `cab94d9` están
-  publicados y `git fetch --depth 1 <url> <sha>` los resuelve. Hipótesis descartada.
-- **Causa real de #14/veneno**: el repo privado de **secretos** (de donde CI clona el `RecompiledFuncs`,
-  ADR 0009) seguía en **2026-09-21**, antes del fix de jump tables. El `func_8035A3D8` del secrets tenía
-  2 casos; el `build/recomp` regenerado tiene 9. Solo difieren **6 ficheros**.
-
-**Hecho:**
-
-- `tools/package_release.py` (**fuente única**: mismo subconjunto de datos que CMake) + `ci.yml`
-  (jobs `windows` y `linux`); pusheado (`8a7e076`).
-- `hh-recomp-secrets` `3993e72` con los 6 `funcs_*.c` regenerados; **pusheado**.
-- `main` `f3de254` (bump `hh.h` + notas + docs); CI **verde** (`run 37119539631`).
-- Artefacto verificado: el zip real trae `assets/`, `saves/templates/` y `licences/` (el doble zip que
-  se ve en la web de Actions es solo el wrapper del artefacto; `release.yml` publica el interno).
-- **Validado en Windows (2026-10-03)**: guardado `.pak` y veneno/ataque a distancia (#14) OK.
-
-### Pasos que faltan
-
-1. **Commit + push** de esta actualización de docs (la nota de release ya no dice "pendiente").
-2. Esperar CI **verde** de ese commit.
-3. **Taggear/publicar** `v0.6.2`:
-   `git -C hybrid-heaven-recomp tag -a v0.6.2 -m "v0.6.2" && git -C hybrid-heaven-recomp push origin v0.6.2`
-   (`release.yml` descarga el artefacto de CI del commit y crea el Release).
+## Run del mantenedor (validación)
+```powershell
+hybrid-heaven-recomp\build_windows.local.bat; $env:HH_MTXGROUP='1'; $env:HH_PAIRING='1'; $env:HH_MTXGROUP_LOG='1'; $env:HH_PAIRCAP='2'; $env:HH_GENCAP='1'; hybrid-heaven-recomp\run_windows.bat release
+```
+Log: `build\windows\bin\Release\hh.log`. Reproducir: combate con partículas 2D (los "churros"),
+minas, y el punto donde fallaba el sesgado de cámara.
 
 ## Árbol
-
-- `main` = `f3de254` (+ esta actualización de docs), **submódulos limpios** en sus pins; `origin/main`
-  al día tras el push.
-- `hh-recomp-secrets` = `3993e72` **pusheado**.
-- Instrumentación reutilizable (`HH_PAIRING`, `HH_MTXGROUP`) y banco headless (Xvfb+lavapipe): nota §4.
+- `src/hooks/model_tagging.cpp` (reescrito), `sections.cpp` (hooks), `rt64_render_context.cpp`
+  (auto-captura + log), `patches/rt64/hh-interpolation-tagging.patch` (regenerado).
+- `lib/rt64` SUCIO (fork): la instrumentación está en el patch; no commitear el submódulo.
+- Nota: `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
 
 ## Pitfalls (NO repetir)
-
-- **F7** = captura del HUD 2D; no sirve para artefactos 3D transitorios.
-- **La vista no valida** (el mantenedor vio "mejoras" con un `.exe` viejo): validar por métrica.
+- La identidad por dirección (nodo/modelo/root/índice de lista) **falla** (se recicla/desplaza).
+- El nodo de render no tiene campo estable de instancia; la identidad se deriva del **comportamiento**
+  (slots generacionales), no de una dirección.
+- Un grupo por OBJETO con LINEAR **baraja huesos**; hace falta grupo por NODO.
+- Parchear la pasada 2 sin validar puede romper la DL (usa otra vía de gfx).
 - No editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.
-- **"Local va, GitHub no"** puede ser **dos** fallos distintos: datos no empaquetados **y** C
-  recompilado no re-publicado. No culpar a los forks sin comprobar los pins por SHA.

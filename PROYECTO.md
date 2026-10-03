@@ -14,7 +14,8 @@ el **repo privado de secretos** del que CI clona el C recompilado seguía con el
 única de empaquetado `tools/package_release.py` + `ci.yml`, secreto regenerado y pusheado (`3993e72`),
 `main` (`8a7e076`, `f3de254`) con CI verde, y **validado en Windows** (guardado `.pak` y veneno/#14 OK).
 **Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
-**`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
+**`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
+minas/láseres); pendiente la pasada 2 (efectos/2D) y el sesgado ocasional de cámara.
 Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
 `notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 

@@ -26,12 +26,16 @@
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
     de paso **widescreen** y **recuadro negro**; **#8** estable.
-  - [ ] **A2.2 (REHACER el tagging; §3c/§3d de la nota)**: las **direcciones no son identidad** (nodo,
-    modelo y root+orden: probadas y fallidas). Copiar el modelo de **Pilotwings64Recomp**: ID =
-    hash(**slot de objeto, modelId, LOD**) + **generación de cámara** (cortes) → arregla #6
-    (rebobinado) y los **parpadeos de cámara**; grupo **por objeto** (no por nodo); **efectos**
-    `G_EX_ORDER_AUTO`; **2D** `G_EX_ID_IGNORE`; **cámara** grupo de proyección aparte.
-  - [ ] **A2.3**: **quitar** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
+  - [x] **A2.2 identidad rehecha y VALIDADA (2026-10-03 s2)**: `stable_slot()` generacional (no
+    direcciones) + grupo por **NODO** (`id=FNV(slot_objeto, slot_nodo, gen)`) + generación de cámara.
+    Arreglados huesos del PJ, **#6**, **#8**, minas/láseres. Detalle: nota
+    `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
+  - [ ] **A2.2b pasada 2 (efectos/2D ordenados)**: `func_80006AF0 → func_80006F8C` (colector tipo 6) →
+    wrappers `func_80007328/736C/73AC`. Hooks escritos y **gateados** por `HH_FX_PASS2`; quedan los
+    "churros" 2D de pelea. Depurar (¿otro cursor de gfx?) + validar con capturas.
+  - [ ] **A2.2c sesgado de cámara ocasional** (2×/run): posible *shearing* de cámara horneada a 30 fps.
+  - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
+  - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo (medir si aplica).
   - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
   - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.

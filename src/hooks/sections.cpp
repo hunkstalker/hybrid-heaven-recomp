@@ -80,7 +80,11 @@ extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx);       // 
 extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // mensaje Controller Pak
 extern "C" void func_80002BE0_37E0(uint8_t* rdram, recomp_context* ctx);     // clasificador de accesorio (pak)
 extern "C" void hh_pak_detect_hook(uint8_t* rdram, recomp_context* ctx);     // desacoplo vibracion <-> controller pak
-extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx);      // tagging de draw de malla (interpolacion, HH_MTXGROUP)
+extern "C" void hh_object_draw_hook(uint8_t* rdram, recomp_context* ctx);    // tagging: fija el slot de objeto (HH_MTXGROUP)
+extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx);      // tagging: grupo por NODO (HH_MTXGROUP)
+extern "C" void hh_fx_7328_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
+extern "C" void hh_fx_736c_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
+extern "C" void hh_fx_73ac_hook(uint8_t* rdram, recomp_context* ctx);        // tagging: pasada ordenada (efectos/2D)
 extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
 extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
 extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
@@ -669,13 +673,25 @@ void register_title_menu_hook() {
     // prioriza el Rumble Pak; con VIBRACIÓN=SÍ el juego concluye "no hay Controller Pak" y no guarda.
     // El hook fuerza la rama "Controller Pak OK" sin dejar de inicializar el motor (ver definición).
     recomp::overlays::add_loaded_function(0x80002BE0, hh_pak_detect_hook);
-    // TAGGING DE TRANSFORMS (Fase A2, HH_MTXGROUP=1): `func_800069A8` (residente) es el DISPATCH
-    // unico por el que pasa TODO nodo DOBJ (malla y demas tipos, todos con G_MTX); el `G_VTX` que
-    // materializa el grupo va dentro del draw de cada tipo. El hook añade un `gEXMatrixGroup` con ID
-    // estable = puntero del nodo DOBJ, para que RT64 empareje por identidad en vez de por dirección
-    // (que HH recicla). Con el flag OFF el hook delega sin más. Residente: no hace falta
-    // re-registrar por carga de módulo.
-    recomp::overlays::add_loaded_function(0x800069A8, hh_bone_draw_hook);
+    // TAGGING DE TRANSFORMS (HH_MTXGROUP=1), identidad logica + grupo por NODO:
+    //   `func_800068C0` (residente) es el TRAVERSAL del arbol DOBJ de UN objeto; su hook fija el
+    //   SLOT del objeto (identidad estable generacional, ver model_tagging.cpp) y evalua la camara.
+    //   `func_800069A8` (residente) es el DISPATCH por nodo, llamado SOLO desde ese traversal; su
+    //   hook emite UN `gEXMatrixGroup` por NODO con id=FNV(slot_objeto, slot_nodo)+generacion, y
+    //   `G_EX_ORDER_AUTO` para tipos 1..4 (sprites/efectos) o `LINEAR` para mallas/huesos.
+    //   El grupo por objeto con LINEAR barajaba el esqueleto del PJ cuando cambiaba el orden/numero
+    //   de transforms; por nodo cada hueso empareja por su propia identidad.
+    // Con el flag OFF ambos hooks delegan sin mas. Residentes: no hace falta re-registrar por carga.
+    recomp::overlays::add_loaded_function(0x800068C0, hh_object_draw_hook);
+    recomp::overlays::add_loaded_function(0x800069A8, hh_node_draw_hook);
+    // Pasada 2 ordenada/transparente (efectos/2D), antes SIN taggear: wrappers que llaman a
+    // func_80007114. GATEADA por HH_FX_PASS2: al emitir dentro de ese pase la DL se rompia
+    // (`groups_seen=0`), probablemente porque usa otro cursor de gfx. Off por defecto; a depurar.
+    if (const char* fx = std::getenv("HH_FX_PASS2"); fx != nullptr && *fx != '\0' && *fx != '0') {
+        recomp::overlays::add_loaded_function(0x80007328, hh_fx_7328_hook);
+        recomp::overlays::add_loaded_function(0x8000736C, hh_fx_736c_hook);
+        recomp::overlays::add_loaded_function(0x800073AC, hh_fx_73ac_hook);
+    }
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son

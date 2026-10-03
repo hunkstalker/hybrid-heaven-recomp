@@ -62,6 +62,9 @@ extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned lo
 extern "C" unsigned long long RT64_GetGroupSeenCount();
 extern "C" unsigned long long hh_mtxgroup_skip_count();
 extern "C" unsigned long long hh_mtxgroup_total_count();
+extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long long *tagged,
+                                    unsigned long long *unpaired);
+extern "C" int hh_interp_take_capture(unsigned long long *gen);   // model_tagging.cpp
 
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
@@ -730,7 +733,7 @@ void hh::RT64Context::update_screen() {
                                          ? app->sharedQueueResources->viOriginalRate : 0;
             const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
             hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
-                    " skipped=%llu/%llu ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s"
+                    " gen=%llu groups=%llu ignored=%.1f/s unpaired=%.1f/s unpaired_tagged=%.1f/s"
                     " unpaired_moved=%.1f/s | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
                     (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
                     RT64_GetGroupSeenCount(),
@@ -756,6 +759,48 @@ void hh::RT64Context::update_screen() {
 #endif
         hh::log("[hh-cap] imagen %s: %s\n", hh::hud_capture_image_path(), ok ? "ok" : "FALLO");
         hh::hud_capture_finish();
+    }
+
+    // Auto-captura de artefactos de 1 frame (no atribuibles a ojo):
+    //   HH_PAIRCAP=<min moved> -> frames con transforms no emparejados y movidos (RT64, arriba);
+    //   HH_GENCAP=1            -> frames de corte de camara (model_tagging).
+    // Guarda `paircap_<n>_*.bmp`/`gencap_<n>_*.bmp` en el cwd + linea en hh.log. Tope 80 + 120 ms
+    // de separacion para no inundar en un pico.
+    {
+        static const bool gencap_on = [] {
+            const char* e = std::getenv("HH_GENCAP");
+            return e != nullptr && *e != '\0' && *e != '0';
+        }();
+        static int cap_seq = 0;
+        static auto cap_last = std::chrono::steady_clock::now() - std::chrono::seconds(10);
+        const auto now = std::chrono::steady_clock::now();
+        const bool cooldown =
+            std::chrono::duration_cast<std::chrono::milliseconds>(now - cap_last).count() >= 120;
+        if (cap_seq < 80 && cooldown) {
+            unsigned long long moved = 0, tagged = 0, unpaired = 0, gen = 0;
+            const bool pair = RT64_TakePairCapture(&moved, &tagged, &unpaired) != 0;
+            const bool genb = gencap_on && (hh_interp_take_capture(&gen) != 0);
+            // si ambos, prioriza el de pairing (lleva mas informacion)
+            if (pair || genb) {
+                char path[128];
+                if (pair) {
+                    std::snprintf(path, sizeof path, "paircap_%03d_unp%llu_tag%llu.bmp", cap_seq,
+                                  unpaired, tagged);
+                } else {
+                    std::snprintf(path, sizeof path, "gencap_%03d_gen%llu.bmp", cap_seq, gen);
+                }
+                bool ok = false;
+#if defined(_WIN32)
+                ok = capture_window_bmp(path);
+#else
+                (void)ok;
+#endif
+                hh::log("[hh-cap] auto %s: %s (pair=%d moved=%llu tagged=%llu unpaired=%llu gen=%llu)\n",
+                        path, ok ? "ok" : "FALLO", pair ? 1 : 0, moved, tagged, unpaired, gen);
+                cap_last = now;
+                ++cap_seq;
+            }
+        }
     }
 }
 

@@ -1,11 +1,12 @@
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 87392d0..696f032 100644
+index 87392d0..99fbe8d 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
-@@ -9,6 +9,53 @@
+@@ -9,6 +9,74 @@
  
  #include "xxHash/xxh3.h"
  
++#include <atomic>
 +#include <cstdio>
 +#include <cstdlib>
 +#include <unordered_set>
@@ -53,10 +54,30 @@ index 87392d0..696f032 100644
 +    *unpairedTagged = hhPairingUnpairedTagged;
 +}
 +
++// HH: auto-captura de frames con transforms no emparejados y MOVidos (artefactos de 1 frame que no
++// se pueden atribuir a ojo). El bloque de metricas marca la peticion; `update_screen` (mismo hilo de
++// render) la consume y guarda la imagen + una linea de log. `HH_PAIRCAP=<min moved>` la activa.
++static std::atomic<int> hhPairCaptureRequested{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureMoved{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureTagged{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureUnpaired{ 0 };
++
++// Devuelve 1 y rellena los contadores si hubo una peticion desde la ultima llamada.
++extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long long *tagged,
++                                    unsigned long long *unpaired) {
++    if (hhPairCaptureRequested.exchange(0) == 0) {
++        return 0;
++    }
++    *moved = hhPairCaptureMoved.load();
++    *tagged = hhPairCaptureTagged.load();
++    *unpaired = hhPairCaptureUnpaired.load();
++    return 1;
++}
++
  namespace RT64 {
      // GameFrame
      
-@@ -375,6 +422,106 @@ namespace RT64 {
+@@ -375,6 +443,123 @@ namespace RT64 {
          matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
          matchScenes(orthographicScenes, prevFrame.orthographicScenes);
  
@@ -149,6 +170,23 @@ index 87392d0..696f032 100644
 +                                     w, t, group, mid, segmented, physical, m3[0], m3[1], m3[2]);
 +                    }
 +                }
++            }
++
++            // HH: pide una captura de pantalla si el frame tiene transforms no emparejados movidos.
++            static const int hh_paircap_min = []() {
++                const char *e = std::getenv("HH_PAIRCAP");
++                if (e == nullptr || *e == '\0') return -1;
++                const int v = atoi(e);
++                return (v > 0) ? v : 3;
++            }();
++            static int hh_paircap_left = 80;
++            if ((hh_paircap_min > 0) && (hh_paircap_left > 0) &&
++                (unpairedMoved >= uint32_t(hh_paircap_min))) {
++                hh_paircap_left--;
++                hhPairCaptureMoved = unpairedMoved;
++                hhPairCaptureTagged = unpairedTagged;
++                hhPairCaptureUnpaired = unpaired;
++                hhPairCaptureRequested = 1;
 +            }
 +
 +            hhPairingFrames++;

@@ -1,27 +1,40 @@
-// Fase A2 (interpolacion fiel): tagging de transforms de modelo para RT64.
+// Interpolacion fiel (#6/#8/#10/#12): tagging de transforms de MODELO para RT64.
 //
-// Problema medido (nota 2026-10-02-fps-instrumentacion-pairing-y-plan-identidad.md): sin tags, RT64
-// empareja los transforms entre frames por heuristica/direccion; HH reutiliza direcciones (arena
-// ~0x00268A00) -> empareja objetos distintos -> parpadeo/replay (#6/#8/#10/#12). La solucion (igual
-// que Goemon64Recomp) es dar a cada hueso una ID de `gEXMatrixGroup` ESTABLE entre frames, desde el
-// propio flujo del juego (hook del port, no reescritura de DL).
+// Modelo copiado de Pilotwings64Recomp (patches/interpolation.c; ver
+// notes/2026-10-03-fps-tagging-dobj-y-handoff.md §3c/§3d). La leccion medida en HH es que NINGUNA
+// direccion es identidad estable: el nodo DOBJ, el modelo (`node->0x2C`) y el root del traversal se
+// reciclan entre frames (dump6.log). La identidad correcta es LOGICA:
 //
-// Cadena de dibujo de HH (localizada en build/recomp):
-//   func_800068C0_74C0 (traversal DOBJ) -> func_800069A8_75A8 (dispatch por tipo de nodo) ->
-//   func_8000C768 (malla) | func_80007DE4/800082C4/80008754/... (otros tipos, tambien con G_MTX)
-// El hook envuelve `func_800069A8(a0=node DOBJ)`, el DISPATCH unico por el que pasa TODO nodo DOBJ
-// (todos los tipos), no solo la malla. Envolver solo `func_8000C768` dejaba sin tag a los otros
-// tipos (~1 transform/frame sin taggear: `unpaired_tagged=0` en el log). El pop va DESPUES del draw
-// completo; envolver solo la matriz (`func_8000C4A8`) cerraba el grupo antes de materializarse (por
-// eso RT64 lo ignoraba: `ignored=0`).
+//   id = FNV( kind, slot logico del objeto, modelId, lod )  --  y todo ello mezclado con la
+//   GENERACION DE CAMARA, que avanza en cada corte de camara.
 //
-// El nodo DOBJ (`a0`) es estable entre frames (a diferencia del gmtx, reciclado): se usa como ID.
+// Ademas, el grupo es por OBJETO (no por nodo): se envuelve el traversal completo de un actor/DOBJ
+// raiz (`func_800068C0(a1=root)`), y RT64 empareja los transforms dentro del grupo por ORDEN de
+// dibujo (G_EX_ORDER_LINEAR). Un grupo por nodo obligaba a inventar una ID por hueso y no cubria los
+// tipos que no pasan por la malla; el grupo por objeto es estable y cubre TODO el arbol.
 //
-// Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas (comportamiento original).
+// La camara de HH va HORNEADA en cada matriz de objeto (igual que PW64): un corte mueve todos los
+// transforms a la vez. Sin generacion, RT64 barre la imagen del view viejo al nuevo (el parpadeo de
+// camara). La generacion se lee de la propia camara del juego: `D_801BBBF0 + 0xE8` apunta a la
+// entidad de camara y `->0x2C` a su transform (pos en +0x30, objetivo en +0x3C; confirmado en
+// `func_8011A724`/`func_8011A7FC` de file_008). Un salto >60u o un giro >~40 deg en un frame de
+// juego es un corte y avanza la generacion: todos los ids cambian y RT64 no interpola a traves.
+//
+// Regla de RT64: un id sin contraparte en el frame anterior NO se interpola. El skip de spawn/LOD lo
+// hace RT64 solo; aqui NO hay logica de spawn propia (se elimino: causaba microdesfases).
+//
+// Cadena de dibujo de HH:
+//   func_80006790_7390 (lista global de roots) -> func_800068C0_74C0 (traversal DOBJ de un objeto)
+//     -> func_800069A8_75A8 (DISPATCH por tipo de nodo) -> malla/efectos/... (todos con G_MTX)
+//
+// Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas.
+#include <atomic>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "librecomp/overlays.hpp"
 #include "recomp.h"
@@ -33,12 +46,31 @@
 #define F3DEX_GBI_2
 #include "rt64_extended_gbi.h"
 
+extern "C" void func_800068C0_74C0(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_800069A8_75A8(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_80007328_7F28(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_8000736C_7F6C(uint8_t* rdram, recomp_context* ctx);
+extern "C" void func_800073AC_7FAC(uint8_t* rdram, recomp_context* ctx);
+extern "C" uint64_t hh_dl_frame_count(void);
 
 namespace {
 
 // Cursor de la display list de gfx del juego (puntero KSEG0). Global D_8008D5BC_8E1BC.
 constexpr uint32_t kGfxCursor = 0x8008D5BCu;
+
+// Camara del juego (file_008 / global plana): D_801BBBF0 + 0xE8 -> entidad; ->0x2C -> transform;
+// pos en +0x30..+0x38, objetivo en +0x3C..+0x44. Confirmado en func_8011A724 y func_8011A7FC.
+constexpr uint32_t kCamBase = 0x801BBBF0u;
+constexpr uint32_t kCamEntityOff = 0xE8u;
+constexpr uint32_t kCamTransformOff = 0x2Cu;
+constexpr uint32_t kCamPosOff = 0x30u;
+constexpr uint32_t kCamTargetOff = 0x3Cu;
+
+// HH corre a ~30 VI/s (PW64 a 60): un giro de 40 deg en UN frame de 30 Hz es un giro rapido normal,
+// no un corte. Umbral mas conservador que PW64 para no trocear la interpolacion en cada pan (que se
+// veia como tirones de camara). Un corte duro suele ser un salto grande de posicion.
+constexpr float kCutDistance = 90.0f;      // u: salto de posicion de camara en un frame -> corte
+constexpr float kCutMinForwardDot = 0.0f;  // giro > 90 deg en un frame -> corte
 
 inline uint32_t* rdram_u32(uint8_t* rdram, uint32_t kseg0) {
     return reinterpret_cast<uint32_t*>(rdram + (kseg0 & 0x1FFFFFFFu));
@@ -53,22 +85,29 @@ GfxCommand* gfx_emit(uint8_t* rdram, uint32_t count) {
     return cmd;
 }
 
-// Lee un u32 de RDRAM por direccion KSEG0.
+// Direccion dentro de la RDRAM asignada al port (8 MB). Evita lecturas fuera de rango si un campo
+// (p.ej. el puntero de camara en un frame de menu) no es un puntero valido.
+inline bool valid_ram(uint32_t kseg0) {
+    return (kseg0 & 0x1FFFFFFFu) < 0x00800000u;
+}
+
 inline uint32_t rd_u32(uint8_t* rdram, uint32_t kseg0) {
     uint32_t v;
     std::memcpy(&v, rdram + (kseg0 & 0x1FFFFFFFu), 4);
     return v;
 }
 
-// Identidad ESTABLE del objeto dibujado. Medido el 2026-10-03: el PUNTERO DEL NODO DOBJ **no**
-// sirve (HH lo recicla entre frames para objetos distintos: el mismo id aparecia con posiciones
-// completamente distintas). Se usa el puntero del MODELO (`node->0x2C`), que persiste mas alla del
-// reciclaje del nodo; fallback al nodo si es 0. Hash para repartir y evitar 0/AUTO.
-inline uint32_t stable_id(uint8_t* rdram, uint32_t node_ptr) {
-    uint32_t model = rd_u32(rdram, node_ptr + 0x2C);
-    const uint32_t seed = (model != 0) ? model : node_ptr;
-    uint32_t h = seed * 2654435761u;   // Knuth multiplicative
-    return h | 0x80000000u;            // nunca 0 (== G_EX_ID_IGNORE) ni 0xFFFFFFFF (== AUTO)
+inline uint16_t rd_u16(uint8_t* rdram, uint32_t kseg0) {
+    uint16_t v;
+    std::memcpy(&v, rdram + (kseg0 & 0x1FFFFFFFu), 2);
+    return v;
+}
+
+inline float rd_f32(uint8_t* rdram, uint32_t kseg0) {
+    uint32_t v = rd_u32(rdram, kseg0);
+    float f;
+    std::memcpy(&f, &v, 4);
+    return f;
 }
 
 const bool g_enabled = [] {
@@ -76,133 +115,397 @@ const bool g_enabled = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
-// Skip de spawn/reaparicion por ID, con FRONTERA DE FRAME FIABLE (`hh_dl_frame_count`, que el port
-// incrementa en `send_dl`: una vez por frame de juego). Si un ID no se vio en el frame anterior, este
-// frame se "salta" (pose actual, sin interpolar) -> evita el salto/brillo de un objeto que aparece
-// (aura del jefe #6). Sin esto, un nodo recreado se interpola desde una pose vieja.
-extern "C" uint64_t hh_dl_frame_count(void);
-std::unordered_set<uint32_t> g_seen_prev;
-std::unordered_set<uint32_t> g_seen_cur;
-uint64_t g_last_frame = ~uint64_t(0);
-uint64_t g_skip_count = 0;    // diagnosticos (HH_MTXGROUP_LOG)
-uint64_t g_total_count = 0;
+const bool g_trace = std::getenv("HH_MTXGROUP_LOG") != nullptr;
 
-void roll_frame() {
+// Sprites/efectos 2D (tipos de nodo 1..4): por defecto NO se interpolan (G_EX_ID_IGNORE), que es lo
+// que pide §3d.5 para 2D. `HH_FX_AUTO=1` los vuelve a interpolar (G_EX_ORDER_AUTO) para A/B.
+const bool g_fx_auto = [] {
+    const char* v = std::getenv("HH_FX_AUTO");
+    return v != nullptr && *v != '\0' && *v != '0';
+}();
+
+// ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
+
+uint32_t sGeneration = 1;
+
+inline uint32_t mix(uint32_t h, uint32_t v) {
+    h ^= v;
+    h *= 0x01000193u;
+    h ^= h >> 15;
+    return h;
+}
+
+inline uint32_t interp_id(uint32_t kind, uint32_t a, uint32_t b, uint32_t c) {
+    uint32_t h = 0x811C9DC5u;
+    h = mix(h, kind);
+    h = mix(h, a);
+    h = mix(h, b);
+    h = mix(h, c);
+    h = mix(h, sGeneration);
+    if (h == G_EX_ID_IGNORE || h == G_EX_ID_AUTO) {
+        h = 0x5057u;
+    }
+    return h;
+}
+
+// Tabla de slots GENERACIONAL. Medido (nota 2026-10-03): el nodo de render no tiene ningun campo
+// estable de instancia, pero los actores persistentes conservan su puntero de root durante >=10 s
+// (17 roots repetidos entre snapshots), mientras una clase de objetos (efectos, p.ej. model
+// 8025A4E0) reasigna root casi cada frame. Estrategia:
+//   - root visto en el frame anterior con el MISMO modelo -> mismo slot (objeto persistente).
+//   - root nuevo, o reusado tras un hueco -> slot NUEVO (monotonico, nunca se reutiliza).
+// Asi el reciclaje de direcciones NO colisiona (un root reusado no hereda el id de un objeto muerto)
+// y los efectos reciben ids nuevos (RT64 no los interpola a traves de un salto). No necesita el
+// actor: la identidad se deriva del comportamiento observado, no de una direccion.
+struct SlotEntry {
+    uint32_t slot;
+    uint32_t model;
+    uint64_t last_frame;
+};
+std::unordered_map<uint32_t, SlotEntry> g_slot_by_root;
+uint32_t g_next_slot = 1;
+uint64_t g_slot_frame = ~uint64_t(0);
+
+uint32_t stable_slot(uint32_t root, uint32_t model) {
     const uint64_t f = hh_dl_frame_count();
-    if (f != g_last_frame) {
-        g_last_frame = f;
-        g_seen_prev.swap(g_seen_cur);
-        g_seen_cur.clear();
+    if (f != g_slot_frame) {
+        g_slot_frame = f;
+        if ((f & 127u) == 0) {   // poda periodica de roots muertos
+            for (auto it = g_slot_by_root.begin(); it != g_slot_by_root.end();) {
+                if ((f - it->second.last_frame) > 8) {
+                    it = g_slot_by_root.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
+    auto it = g_slot_by_root.find(root);
+    if (it != g_slot_by_root.end() && it->second.model == model &&
+        (f - it->second.last_frame) <= 2) {
+        it->second.last_frame = f;
+        return it->second.slot;
+    }
+    const uint32_t s = g_next_slot++;
+    if (g_next_slot == 0) g_next_slot = 2;
+    g_slot_by_root[root] = SlotEntry{ s, model, f };
+    return s;
+}
+
+// Slot del OBJETO en curso (lo fija el hook del traversal `func_800068C0`). Los grupos se emiten
+// por NODO (hook `func_800069A8`, que solo se llama desde ese traversal) y combinan este slot con
+// el del nodo: cada hueso empareja por su propia identidad, inmune al orden/numero de transforms.
+uint32_t g_obj_slot = 0;
+
+// ---- generacion de camara ---------------------------------------------------------------------
+
+bool camera_read(uint8_t* rdram, float pos[3], float fwd[3]) {
+    const uint32_t entity = rd_u32(rdram, kCamBase + kCamEntityOff);
+    if (!valid_ram(entity) || entity == 0) {
+        return false;
+    }
+    const uint32_t xform = rd_u32(rdram, entity + kCamTransformOff);
+    if (!valid_ram(xform) || xform == 0) {
+        return false;
+    }
+    pos[0] = rd_f32(rdram, xform + kCamPosOff + 0u);
+    pos[1] = rd_f32(rdram, xform + kCamPosOff + 4u);
+    pos[2] = rd_f32(rdram, xform + kCamPosOff + 8u);
+    const float tx = rd_f32(rdram, xform + kCamTargetOff + 0u);
+    const float ty = rd_f32(rdram, xform + kCamTargetOff + 4u);
+    const float tz = rd_f32(rdram, xform + kCamTargetOff + 8u);
+
+    float dx = tx - pos[0];
+    float dy = ty - pos[1];
+    float dz = tz - pos[2];
+    const float len2 = dx * dx + dy * dy + dz * dz;
+    if (!std::isfinite(len2) || len2 < 1e-6f) {
+        return false;
+    }
+    const float inv = 1.0f / std::sqrt(len2);
+    fwd[0] = dx * inv;
+    fwd[1] = dy * inv;
+    fwd[2] = dz * inv;
+    return std::isfinite(pos[0]) && std::isfinite(pos[1]) && std::isfinite(pos[2]);
+}
+
+bool g_cam_prev_valid = false;
+float g_cam_prev_pos[3] = {0.0f, 0.0f, 0.0f};
+float g_cam_prev_fwd[3] = {0.0f, 0.0f, 0.0f};
+uint64_t g_gen_count = 0;
+uint64_t g_object_group_count = 0;
+
+// Auto-captura: pide guardar el frame cuando hay un corte de camara (1 frame sin interpolar =
+// hitch). `update_screen` la consume.
+std::atomic<int> g_gen_capture_requested{ 0 };
+std::atomic<unsigned long long> g_gen_capture_value{ 0 };
+
+void request_gen_capture() {
+    g_gen_capture_value = sGeneration;
+    g_gen_capture_requested = 1;
+}
+
+void camera_generation_step(uint8_t* rdram) {
+    float pos[3], fwd[3];
+    const bool ok = camera_read(rdram, pos, fwd);
+
+    if (ok && g_cam_prev_valid) {
+        const float dx = pos[0] - g_cam_prev_pos[0];
+        const float dy = pos[1] - g_cam_prev_pos[1];
+        const float dz = pos[2] - g_cam_prev_pos[2];
+        const float dist2 = dx * dx + dy * dy + dz * dz;
+        const float dot = fwd[0] * g_cam_prev_fwd[0] + fwd[1] * g_cam_prev_fwd[1] +
+                          fwd[2] * g_cam_prev_fwd[2];
+        if (dist2 > (kCutDistance * kCutDistance) || dot < kCutMinForwardDot) {
+            ++sGeneration;
+            ++g_gen_count;
+            if (g_trace) {
+                hh::log("[hh-interp] corte de camara: gen=%u dist=%.1f dot=%.3f\n", sGeneration,
+                        std::sqrt(dist2), dot);
+            }
+            request_gen_capture();
+        }
+    } else if (ok && !g_cam_prev_valid) {
+        // Primer frame con camara tras uno sin camara (menu/carga): cadena nueva.
+        ++sGeneration;
+        ++g_gen_count;
+        request_gen_capture();
+    }
+
+    if (ok) {
+        std::memcpy(g_cam_prev_pos, pos, sizeof(pos));
+        std::memcpy(g_cam_prev_fwd, fwd, sizeof(fwd));
+    }
+    g_cam_prev_valid = ok;
+    if (sGeneration == 0) {
+        sGeneration = 1;
     }
 }
 
-// HH_MTXGROUP_NOSKIP=1: desactiva el skip de spawn (A/B).
-bool skip_spawn_enabled() {
-    static const bool off = [] {
-        const char* v = std::getenv("HH_MTXGROUP_NOSKIP");
-        return v != nullptr && *v != '\0' && *v != '0';
-    }();
-    return !off;
-}
-
-// HH_MTXGROUP_LOG=1: traza (tope 100) los primeros nodos taggeados, con node/modelo/ID. El campo
-// `model` (node->0x2C) es la semilla de la ID; util para comprobar que es >0 y estable.
-void trace_once(uint8_t* rdram, uint32_t node, uint32_t id) {
-    static const bool on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
-    if (!on) return;
+// HH_MTXGROUP_LOG=1: inventario de objetos UNICOS taggeados (root, slot, tipo, modelo y los campos
+// candidatos a LOD del modelo: +0x40/+0x44/+0x58 y root+0x30). Dedup por root, tope 240. Sirve para
+// (a) ver que roots/objetos aparecen durante el gameplay y (b) localizar el campo de LOD.
+void trace_object(uint8_t* rdram, uint32_t root, uint32_t slot, uint32_t id, uint16_t type) {
+    if (!g_trace) return;
+    static uint32_t seen_root[240];
+    static uint32_t seen_model[240];
     static int n = 0;
-    if (n >= 100) return;
+    const uint32_t model0 = rd_u32(rdram, root + 0x2C);
+    for (int i = 0; i < n; ++i) {
+        if (seen_root[i] != root) continue;
+        if (seen_model[i] != model0) {
+            // El MISMO puntero de root reaparece con OTRO modelo -> root reciclado. Prueba directa de
+            // que la identidad por root no basta (habria que añadir el modelo, que ya va en el hash).
+            static int rc = 0;
+            if (rc < 40) {
+                ++rc;
+                hh::log("[hh-mtxgroup] root RECICLADO root=%08X model %08X -> %08X (log %d/40)\n", root,
+                        seen_model[i], model0, rc);
+                seen_model[i] = model0;
+            }
+        }
+        return;
+    }
+    if (n >= 240) return;
+    seen_root[n] = root;
+    seen_model[n] = model0;
     ++n;
-    hh::log("[hh-mtxgroup] node=%08X model=%08X id=%08X (%d/100)\n",
-            node, rd_u32(rdram, node + 0x2C), id, n);
+    const uint32_t model = model0;
+    const uint32_t m40 = valid_ram(model) ? rd_u32(rdram, model + 0x40) : 0;
+    const uint32_t m44 = valid_ram(model) ? rd_u32(rdram, model + 0x44) : 0;
+    const uint32_t m58 = valid_ram(model) ? rd_u32(rdram, model + 0x58) : 0;
+    const uint32_t n30 = rd_u32(rdram, root + 0x30);
+    hh::log("[hh-mtxgroup] root=%08X slot=%u type=%u model=%08X m40=%08X m44=%08X m58=%08X n30=%08X id=%08X gen=%u (%d/240)\n",
+            root, slot, type, model, m40, m44, m58, n30, id, sGeneration, n);
 }
 
-// Autodiagnostico: con HH_MTXGROUP_LOG=1, la PRIMERA llamada al hook (con el flag on u off) deja
-// constancia en hh.log de que el hook SI se engancha y en que estado.
 void log_hook_seen() {
-    static const bool log_on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
-    if (!log_on) return;
+    if (!g_trace) return;
     static bool seen = false;
     if (seen) return;
     seen = true;
-    hh::log("[hh-mtxgroup] hook ACTIVO (0x800069A8); HH_MTXGROUP=%s\n", g_enabled ? "ON" : "OFF");
+    hh::log("[hh-mtxgroup] hook OBJETO activo (0x800068C0); HH_MTXGROUP=%s\n",
+            g_enabled ? "ON" : "OFF");
+}
+
+// Frame de juego actual (lo incrementa el port en `send_dl`). Durante el dibujo del frame N vale
+// N-1; cambia entre frames, no a mitad. La generacion se evalua UNA vez por frame, en el primer
+// objeto: asi todos los grupos del frame comparten la misma generacion.
+uint64_t g_cam_last_frame = ~uint64_t(0);
+
+void maybe_update_camera(uint8_t* rdram) {
+    const uint64_t f = hh_dl_frame_count();
+    if (f == g_cam_last_frame) return;
+    g_cam_last_frame = f;
+    camera_generation_step(rdram);
 }
 
 }  // namespace
 
-// Diagnosticos del skip de spawn (para [hh-pair]).
-extern "C" unsigned long long hh_mtxgroup_skip_count() { return g_skip_count; }
-extern "C" unsigned long long hh_mtxgroup_total_count() { return g_total_count; }
+// Diagnosticos para [hh-pair]. `total` = grupos de objeto taggeados; `skip` = cortes de camara
+// (generaciones avanzadas). Se imprime como `gen=` en rt64_render_context.cpp.
+extern "C" unsigned long long hh_mtxgroup_skip_count() { return g_gen_count; }
+extern "C" unsigned long long hh_mtxgroup_total_count() { return g_object_group_count; }
 
-// Hook del DRAW de malla (matriz + geometria). Con el flag activo: grupo RT64 (interpolacion normal,
-// push/pop balanceados) envolviendo todo el draw; con el flag apagado: solo el original.
-extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
+// Consume la peticion de auto-captura por corte de camara (la usa update_screen).
+extern "C" int hh_interp_take_capture(unsigned long long* gen) {
+    if (g_gen_capture_requested.exchange(0) == 0) {
+        return 0;
+    }
+    if (gen != nullptr) {
+        *gen = g_gen_capture_value.load();
+    }
+    return 1;
+}
+
+// Hook del TRAVERSAL de un objeto (`func_800068C0(a0=flags, a1=root DOBJ)`). NO emite grupo: solo
+// fija el slot del objeto en curso (identidad) y evalua la camara una vez por frame. Los grupos los
+// emite el hook de NODO, que se ejecuta dentro de este traversal.
+extern "C" void hh_object_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     log_hook_seen();
+    if (!g_enabled) {
+        func_800068C0_74C0(rdram, ctx);
+        return;
+    }
+
+    maybe_update_camera(rdram);
+
+    const uint32_t root = ctx->r5;   // a1 = root DOBJ del objeto
+    if (!valid_ram(root) || root == 0) {
+        g_obj_slot = 0;
+        func_800068C0_74C0(rdram, ctx);
+        return;
+    }
+    const uint32_t model = rd_u32(rdram, root + 0x2C);
+    g_obj_slot = stable_slot(root, model);
+    trace_object(rdram, root, g_obj_slot, 0, rd_u16(rdram, root + 0x2A));
+    func_800068C0_74C0(rdram, ctx);
+}
+
+// Hook del DISPATCH de nodo (`func_800069A8(a0=node DOBJ)`, llamado SOLO desde el traversal). UN
+// grupo RT64 por NODO: cada hueso/parte empareja por su propia identidad (`slot_objeto`, `slot_nodo`),
+// asi el orden y el numero de transforms pueden cambiar sin barajar el esqueleto (lo que hacia el
+// grupo por objeto con G_EX_ORDER_LINEAR: huesos del PJ dispersos). Aqui SI se conoce el tipo real
+// del nodo (+0x2A): 1..4 son sprites/efectos -> G_EX_ORDER_AUTO (sus piezas aparecen/desaparecen);
+// el resto (mallas, huesos) -> LINEAAL.
+extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     if (!g_enabled) {
         func_800069A8_75A8(rdram, ctx);
         return;
     }
 
-    const uint32_t node = ctx->r4;              // a0 = nodo DOBJ
-    const uint32_t id = stable_id(rdram, node);
+    const uint32_t node = ctx->r4;
+    if (!valid_ram(node) || node == 0 || g_obj_slot == 0) {
+        func_800069A8_75A8(rdram, ctx);
+        return;
+    }
+    const uint16_t ntype = rd_u16(rdram, node + 0x2A);
+    // El dispatch solo dibuja tipos 1..13; el 0 (y >13) son contenedores NO-OP: no generan geometria,
+    // asi que no tiene sentido envolverlos (solo crean grupos vacios y ruido en la metrica).
+    if (ntype < 1 || ntype > 13) {
+        func_800069A8_75A8(rdram, ctx);
+        return;
+    }
+    const bool is_fx = (ntype >= 1 && ntype <= 4);   // sprites/efectos (2D/flat) del dispatch
 
-    // Diagnostico: valor del cursor de gfx (donde cae nuestra escritura) la primera vez.
-    {
-        static const bool on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
-        if (on) {
-            static bool once = false;
-            if (!once) {
-                once = true;
-                const uint32_t cur = *rdram_u32(rdram, kGfxCursor);
-                hh::log("[hh-mtxgroup] gfx_cursor=%08X (a KSEG0->phys=%08X)\n", cur, cur & 0x1FFFFFFF);
+    // Diagnostico: histograma de tipos de nodo dibujados (cada ~2 s). Para identificar que tipo es
+    // el efecto 2D que se estira (los tipos 1..4 resultaron NO usarse: `ignored=0`).
+    if (g_trace) {
+        static uint32_t hist[16] = {};
+        static uint64_t hist_frame = 0;
+        ++hist[ntype < 16 ? ntype : 0];
+        const uint64_t hf = hh_dl_frame_count();
+        if ((hf - hist_frame) >= 60) {
+            char buf[200];
+            int off = 0;
+            for (int i = 0; i < 16 && off < 190; ++i) {
+                if (hist[i] != 0) {
+                    off += std::snprintf(buf + off, sizeof(buf) - off, "%d:%u ", i, hist[i]);
+                }
             }
+            hh::log("[hh-types] f=%llu %s\n", (unsigned long long)hf, buf);
+            for (int i = 0; i < 16; ++i) hist[i] = 0;
+            hist_frame = hf;
         }
     }
 
-    // GBI extendido (RT64 lo olvida al inicio de cada lista) + grupo del hueso. El grupo se
-    // materializa en el `G_VTX` que emite el draw completo (dentro de su G_DL). `proj` = 0
-    // (modelview); componentes = preset "Normal" de Goemon.
-    //
-    // OJO: NO emitir `gEXSetRDRAMExtended`. HH NO usa direcciones extendidas: sus direcciones son
-    // KSEG0 (bit 31 puesto), y con `extendRDRAM=1` RT64 cambia `fromSegmented`/`maskPhysicalAddress`
-    // (rt64_rsp.cpp:104/114) -> reinterpreта TODAS las direcciones y rompe el widescreen (la escena
-    // deja de expandir; el HUD sigue porque se ancla por reescritura de DL). Goemon lo tiene
-    // comentado por esto; solo lo necesita Zelda (que si usa direcciones extendidas). Bug 2026-10-03.
-    // Spawn/reaparicion: ID no visto en el frame anterior -> este frame no interpola (snap).
-    roll_frame();
-    const bool reappeared = skip_spawn_enabled() && (g_seen_prev.find(id) == g_seen_prev.end());
-    g_seen_cur.insert(id);
-    if (reappeared) ++g_skip_count;
-    ++g_total_count;
+    // NO se emite `gEXSetRDRAMExtended`: HH usa direcciones KSEG0 y `extendRDRAM=1` rompe el
+    // widescreen (rt64_rsp.cpp). El grupo se materializa en el primer G_MTX/G_VTX del draw.
+    if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+        gEXEnable(cmd);
+    }
+    if (is_fx && !g_fx_auto) {
+        // 2D/sprite: nunca interpolar (evita el "estirado" al nacer/renacer). §3d.5.
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXMatrixGroupNoInterpolate(cmd, G_EX_PUSH, /*proj=*/0, G_EX_EDIT_NONE);
+        }
+    } else {
+        const uint32_t nmodel = rd_u32(rdram, node + 0x2C);
+        const uint32_t node_slot = stable_slot(node, nmodel);
+        const uint32_t id = interp_id(/*INTERP_KIND_DOBJ=*/2u, g_obj_slot, node_slot, /*lod=*/0u);
+        const uint32_t order = is_fx ? G_EX_ORDER_AUTO : G_EX_ORDER_LINEAR;
+        if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
+            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     order, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+        }
+    }
 
+    ++g_object_group_count;
+    func_800069A8_75A8(rdram, ctx);
+
+    if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+        gEXPopMatrixGroup(cmd, /*proj=*/0);
+    }
+}
+
+// ---- pasada 2: objetos ordenados/transparentes (func_80007114 via wrappers) -------------------
+//
+// La escena se dibuja DOS veces sobre la misma lista: pass 1 (`func_800068C0`) y pass 2 ordenada
+// (`func_80006AF0` -> colector `func_80006F8C` de nodos tipo 6 -> wrappers `func_80007328/736C/73AC`
+// -> `func_80007114`). El pass 2 estaba SIN taggear: ahi viven los efectos/2D que se estiraban.
+namespace {
+void fx_wrap(uint8_t* rdram, uint32_t node, void (*orig)(uint8_t*, recomp_context*),
+             recomp_context* ctx) {
+    if (!g_enabled || !valid_ram(node) || node == 0) {
+        orig(rdram, ctx);
+        return;
+    }
+    const uint32_t model = rd_u32(rdram, node + 0x2C);
+    const uint32_t slot = stable_slot(node, model);
+    const uint32_t id = interp_id(/*INTERP_KIND_FX=*/3u, 0u, slot, /*lod=*/0u);
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXEnable(cmd);
     }
     if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
-        if (reappeared) {
-            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_SKIP, G_EX_ORDER_LINEAR,
-                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
-        }
-        else {
-            gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
-                                     G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR,
-                                     G_EX_EDIT_ALLOW, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
-        }
+        // Efectos/particulas: orden AUTO (sus piezas aparecen/desaparecen), componentes interpolados
+        // salvo skew/persp/vert/tile.
+        gEXMatrixGroupDecomposed(cmd, id, G_EX_PUSH, /*proj=*/0,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                 G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                 G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                 G_EX_COMPONENT_AUTO);
     }
-
-    func_800069A8_75A8(rdram, ctx);             // matriz + G_MTX + G_DL (el G_VTX materializa el grupo)
-
-    // Cierra el grupo (pila equilibrada) DESPUES del draw completo.
+    orig(rdram, ctx);
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXPopMatrixGroup(cmd, /*proj=*/0);
     }
+}
+}  // namespace
 
-    trace_once(rdram, node, id);
+// Wrappers: el nodo va apuntado por a1 (7328) o a0 (736C/73AC).
+extern "C" void hh_fx_7328_hook(uint8_t* rdram, recomp_context* ctx) {
+    const uint32_t node = valid_ram(ctx->r5) ? rd_u32(rdram, ctx->r5) : 0;
+    fx_wrap(rdram, node, func_80007328_7F28, ctx);
+}
+extern "C" void hh_fx_736c_hook(uint8_t* rdram, recomp_context* ctx) {
+    const uint32_t node = valid_ram(ctx->r4) ? rd_u32(rdram, ctx->r4) : 0;
+    fx_wrap(rdram, node, func_8000736C_7F6C, ctx);
+}
+extern "C" void hh_fx_73ac_hook(uint8_t* rdram, recomp_context* ctx) {
+    const uint32_t node = valid_ram(ctx->r4) ? rd_u32(rdram, ctx->r4) : 0;
+    fx_wrap(rdram, node, func_800073AC_7FAC, ctx);
 }
