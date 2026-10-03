@@ -1,7 +1,8 @@
 # RETOMAR — handoff (2026-10-03)
 
-> Handoff corto. **`main` = `v0.6.1` + v0.6.2 lista (código, sin push)**. **TAREA ACTUAL: publicar la
-> v0.6.2** — la release **v0.6.1 de GitHub estaba rota**; reproducida y arreglada en local.
+> Handoff corto. **`main` = `v0.6.1` + v0.6.2 (pusheada y validada; solo falta el tag)**. **TAREA
+> ACTUAL: taggear/publicar la v0.6.2** — la release **v0.6.1 de GitHub estaba rota**; reproducida,
+> arreglada y **validada en Windows**.
 > **Detalle (medido/inferido):** `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 > **Otra tarea (otra rama, NO mezclar):** interpolación/desbloquear FPS en
 > **`fps-interpolacion-tagging`** (ver §"Otras ramas").
@@ -19,22 +20,23 @@
   ADR 0009) seguía en **2026-09-21**, antes del fix de jump tables. El `func_8035A3D8` del secrets tenía
   2 casos; el `build/recomp` regenerado tiene 9. Solo difieren **6 ficheros**.
 
-**Hecho (local, sin push):**
+**Hecho:**
 
 - `tools/package_release.py` (**fuente única**: mismo subconjunto de datos que CMake) + `ci.yml`
-  (jobs `windows` y `linux`).
-- `hh-recomp-secrets` commit `3993e72` con los 6 `funcs_*.c` regenerados.
-- `include/hh.h` → patch `2`; `docs/releases/v0.6.2.md`; docs vivos.
+  (jobs `windows` y `linux`); pusheado (`8a7e076`).
+- `hh-recomp-secrets` `3993e72` con los 6 `funcs_*.c` regenerados; **pusheado**.
+- `main` `f3de254` (bump `hh.h` + notas + docs); CI **verde** (`run 37119539631`).
+- Artefacto verificado: el zip real trae `assets/`, `saves/templates/` y `licences/` (el doble zip que
+  se ve en la web de Actions es solo el wrapper del artefacto; `release.yml` publica el interno).
+- **Validado en Windows (2026-10-03)**: guardado `.pak` y veneno/ataque a distancia (#14) OK.
 
 ### Pasos que faltan
 
-1. **Push del secrets** `3993e72` a `hunkstalker/hh-recomp-secrets` (`git -C hh-recomp-secrets push`).
-   Si no, CI sigue compilando el C viejo y el #14 no entra en la release.
-2. **Commit + push `main`** (fast-forward). Eso dispara CI (`windows`+`linux`).
-3. Esperar CI **verde** y **revalidar en Windows** sobre el ZIP de CI: `assets/` presentes, guardado
-   `.pak`, veneno/ataque a distancia (#14).
-4. **Publicar v0.6.2**: tag `v0.6.2` (o `Release` a mano con `version=v0.6.2`); `release.yml` descarga
-   el artefacto de CI del commit y crea el Release.
+1. **Commit + push** de esta actualización de docs (la nota de release ya no dice "pendiente").
+2. Esperar CI **verde** de ese commit.
+3. **Taggear/publicar** `v0.6.2`:
+   `git -C hybrid-heaven-recomp tag -a v0.6.2 -m "v0.6.2" && git -C hybrid-heaven-recomp push origin v0.6.2`
+   (`release.yml` descarga el artefacto de CI del commit y crea el Release).
 
 ## Otras ramas
 
@@ -46,9 +48,9 @@
 
 ## Árbol
 
-- `main` = `v0.6.1` + 2 commits locales (empaquetado `8a7e076`, release pendiente), **submódulos
-  limpios** en sus pins.
-- `hh-recomp-secrets` = commit `3993e72` local (sin push).
+- `main` = `f3de254` (+ esta actualización de docs), **submódulos limpios** en sus pins; `origin/main`
+  al día tras el push.
+- `hh-recomp-secrets` = `3993e72` **pusheado**.
 - Instrumentación reutilizable (`HH_PAIRING`, `HH_MTXGROUP`) y banco headless (Xvfb+lavapipe): nota §4.
 
 ## Pitfalls (NO repetir)

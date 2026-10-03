@@ -4,16 +4,17 @@
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-03**.
 
-**Estado (2026-10-03)**: `main` = **v0.6.1** + **v0.6.2 lista para publicar** (código, sin push). La
+**Estado (2026-10-03)**: `main` = **v0.6.1** + **v0.6.2 pusheada y validada** (solo falta el tag). La
 **release v0.6.1 de GitHub estaba rota** y la causa está **medida**: (1) el `.zip` de CI **no incluía los
 datos de runtime** (`assets/`, `saves/templates`, `licences/`; el ejecutable los busca junto a sí) y (2)
 el **repo privado de secretos** del que CI clona el C recompilado seguía con el `RecompiledFuncs` del
 **2026-09-21**, anterior al fix de *jump tables* del **#14** → el binario de GitHub carecía del fix
 (aunque el build local, con `build/recomp` regenerado, sí lo tenía). Los **forks no eran el problema**
 (rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9`, publicados y resolubles por SHA). Hecho: fuente
-única de empaquetado `tools/package_release.py` + `ci.yml`, secreto regenerado (commit local) y release
-notes. **Pendiente:** push (secrets → `main`) y **revalidar en Windows**. **En paralelo:** interpolación /
-desbloquear FPS en la rama **`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
+única de empaquetado `tools/package_release.py` + `ci.yml`, secreto regenerado y pusheado (`3993e72`),
+`main` (`8a7e076`, `f3de254`) con CI verde, y **validado en Windows** (guardado `.pak` y veneno/#14 OK).
+**Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
+**`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
 Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
 `notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 

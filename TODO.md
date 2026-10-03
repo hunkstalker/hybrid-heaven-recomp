@@ -6,15 +6,15 @@
 
 ## Ahora (priorizado)
 
-- [•] **v0.6.2 — Release de GitHub rota (abierta 2026-10-03; CÓDIGO LISTO, falta push + validar Windows)**:
+- [•] **v0.6.2 — Release de GitHub rota (abierta 2026-10-03; VALIDADO, solo falta tag/release)**:
   reproducida. **Medido**: (1) el `.zip` de v0.6.1 no incluye `assets/`/`saves/templates`/`licences/`;
   (2) los **forks no eran el problema** (rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9` publicados y
   resolubles por SHA); (3) la causa real de #14/veneno es el **repo de secretos** con el `RecompiledFuncs`
   del 2026-09-21 (pre-fix jump tables): solo 6 ficheros difieren del `build/recomp` regenerado.
   **Hecho:** `tools/package_release.py` + `ci.yml` (ambos jobs) empaquetan `assets/` y `saves/templates`;
-  commit local en `hh-recomp-secrets` (`3993e72`) con el C regenerado; bump `hh.h` + `docs/releases/v0.6.2.md`.
-  **Pendiente:** push del secrets → push `main` → CI → **revalidar en Windows** (assets, guardado `.pak`,
-  veneno/#14) → tag/release `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+  secrets publicado (`3993e72`); push `main` (`8a7e076`, `f3de254`); CI verde y artefacto verificado.
+  **Validado en Windows (2026-10-03)**: guardado `.pak` y veneno/#14 OK. **Pendiente:** tag/release
+  `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 - [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
   tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de
