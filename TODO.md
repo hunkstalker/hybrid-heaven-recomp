@@ -6,6 +6,19 @@
 
 ## Ahora (priorizado)
 
+- [ ] **v0.6.2 — Release de GitHub ROTA (abierta 2026-10-03)**: la **v0.6.1 publicada** no incluye
+  `assets/` (el `.zip` de CI copia solo exe/DLLs/LEEME) y `[INFERIDO, fuerte]` compila con **forks
+  viejos** (`.gitmodules`/`runtime.lock`) → se comporta "como una versión anterior a 0.5.0" (guardado,
+  crashes de veneno, etc. no funcionan); el build local sí va. **Hacer:** reproducir con el `.zip` de
+  GitHub; arreglar el empaquetado (copiar `assets/` + `saves/templates`; reconciliar CI con
+  `package_release.ps1/.py`); garantizar/pushear los forks (N64Recomp → NMR → rt64 → main); revalidar
+  guardado/veneno/#14; publicar **v0.6.2**. Detalle: `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
+
+- [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
+  tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de
+  picos 60–98/s a media 3.4/s; falta validar en gameplay. Estado y siguiente paso:
+  `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §1–§6. (Pendiente mergear la rama cuando valide.)
+
 - [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
   hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o
   **color3 (12×13, stride 78)** `func_8001BFE4` cae al original (sin corromper, pero sin acento).

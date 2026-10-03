@@ -1,67 +1,54 @@
-# RETOMAR — handoff (2026-10-02)
+# RETOMAR — handoff (2026-10-03)
 
-> Handoff para la próxima sesión. **Estado: `main` = `v0.6.0` (publicada) + fix del mapa (#13) + fix del
-> recompilador (jump tables, #14) + fix de textos al guardar + número de Área del título + fix de los
-> glifos del ordenador (acentos vs `value` nativo de color3)**.
-> **TAREA ACTUAL**: **acentos in-game POR COLOR** — la inyección sólo sirve el bloque **color0 (8×8)**;
-> en color4 (8×12) / color3 (12×13) `func_8001BFE4` cae al original (sin corromper, sin acento). Detalle:
-> **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`**. Reglas: `AGENTS.md` y
-> `docs/documentation.md`. Otro pendiente (mantenedor): **versionar el parche del recompilador**.
+> Handoff corto. **`main` = `v0.6.1`** (esta rama). **TAREA ACTUAL: lanzar la v0.6.2** — la release
+> **v0.6.1 publicada en GitHub está rota**: el `.zip` no incluye `assets/` y probablemente compila con
+> **forks viejos** → el juego se comporta "como una versión anterior a 0.5.0" (guardado, crashes de
+> veneno, etc.), mientras que el build **local sí va**.
+> **Detalle completo (medido/inferido, plan):** `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §7.
+> **Otra tarea en curso (otra rama):** interpolación/desbloquear FPS en **`fps-interpolacion-tagging`**
+> (no mergeada; ver §"Otras ramas" abajo y la misma nota).
+> Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## Integrado en `main` (2026-10-02)
+## Tarea actual — v0.6.2 (release GitHub rota)
 
-- **Menú propio de CARGAR/GUARDAR**: `.pak` de **74 slots** (45 partidas + 29 plantillas, trailer de
-  metadatos); **migra** el `.pak` de 4 slots de 0.5.x (un solo sentido; sin downgrade). UI 1:1 de
-  DATA LOAD/SAVE, carga real desde `CONTINUAR`, borrado de slots. ADR **0013**; notas `notes/2026-09-30-*`.
-- **Editor de partida** (`EXTRAS`): atributos/estado/items/habilidades/nivel, plantillas, `IR A ÁREA`,
-  `DEBUG NIVELES`. Notas `notes/2026-09-27-f-*`, `notes/2026-09-28-*`.
-- **MODO HEAVEN**, VENTAJA, PODER ∞, RESISTENCIA ∞, daño de campo. `notes/2026-09-28-editor-*-heaven.md`.
-- **i18n unificado** (`assets/lang/*.txt`, clave = inglés; ADR **0014**), acentos/`¿¡` en los mensajes
-  (`font.cpp`), JA en kana; **título del Área** al cargar (Work Sans, fade/hold) y rótulo `AREA` traducido.
-- **Vibración desacoplada del Controller Pak** (hook `func_80002BE0` + PFS de un solo `.pak`):
-  `notes/2026-10-02-desacoplo-vibracion-controller-pak.md`.
-- Pulido de menú/vídeo (CONTINUAR gris, SALIDA stepper, fullscreen) y remapeo CONTROLES.
-- **Dependencias**: rt64 **`a8f0a70`** (revertido; `5b11988` apuntaba a un plume no publicado) y
-  N64ModernRuntime **`a11fbf2`**.
+- `[MEDIDO]` `.github/workflows/ci.yml` (job `windows`, paso *Empaquetar*) copia al `.zip` **solo**
+  `Hybrid Heaven Recomp.exe`, `*.dll`, LEEME/CRÉDITOS/LICENCIA y `rom/`. **No copia `assets/`**
+  (logos, `lang/*.txt`, `sounds/*.wav`, `saves/templates`). El ejecutable los busca junto a sí.
+- `[INFERIDO, fuerte]` El build de GitHub cae en **forks viejos**: `.gitmodules` → `hunkstalker/*` y
+  `runtime.lock` pinea `RT64=a8f0a70`, `NMR=a11fbf2`. Si el commit del fork no está **publicado** en
+  el remoto, el clon limpio no lo resuelve → runtime anterior → faltan PFS 74 slots, vibración↔pak,
+  jump-table #14, server teardown.
+- `[MEDIDO]` El build **local** (`build_windows.local.bat`) usa `lib/` en disco y CMake copia
+  `assets/` junto al exe (`CMakeLists.txt` ~214–255). Por eso local va y GitHub no.
 
-## Hecho en la sesión 2026-10-02 (todo VALIDADO en Windows)
+### Pasos
 
-- #13 minimapa (panel, sin hash; ADR 0015). #14 jump tables del recompilador. Textos al guardar
-  (`set_file_select_active(false)`). Número de Área del título (derivar de `[0x801BBBF4]`).
-- **Glifos del ordenador (acentos vs `value` nativo): HECHO y VALIDADO en Windows.** La ventana usa
-  **color3** (12×13, stride 78) y un glifo nativo `value=200`; `hh_accent_bfe4` interceptaba por `value`
-  a secas y escribía 32 B de color0 8×8. Fix: **donante ASCII (`@`) + marca de origen + guarda de
-  stride** (`src/hooks/text_glyphs.cpp`); `gen_accent_glyphs.py` deja de inventar `value`.
+1. **Reproducir:** descargar el `.zip` de la v0.6.1 de GitHub; comparar con un build local (¿faltan
+   `assets/`? ¿qué commit de runtime trae? ¿guardado/veneno fallan?).
+2. **Empaquetado:** copiar `assets/` (+ `saves/templates`) al `.zip` de CI; reconciliar el paso de
+   `ci.yml` con `tools/package_release.ps1`/`.py` (hoy empaqueta a mano y divergen).
+3. **Forks:** verificar que `a8f0a70` (rt64) y `a11fbf2` (NMR) existen en los remotos y que el
+   checkout del clon los resuelve; si no, **pushear los forks** (orden AGENTS: N64Recomp → NMR → rt64
+   → main).
+4. **Revalidar en Windows** lo que faltaba (guardado `.pak`, veneno, #14).
+5. **Publicar v0.6.2** (`include/hh.h`, `docs/releases/v0.6.2.md`, `release.yml`).
 
-## Pendiente
+## Otras ramas
 
-- **[TAREA ACTUAL] Acentos in-game por color (color4/color3).** Servir el bloque correspondiente por
-  `cp` (color4 desde `include/hh/game_font_color4.h`; valorar color3). Hoy sólo color0. Evidencia:
-  **`notes/2026-10-02-fix-glifos-acentos-colision-value-color3.md`** §4.
-- **Versionado (mantenedor)**: reconciliar `recomp/n64recomp_changes/` con el toolchain actual (estaba
-  desincronizado) e incluir el parche del fix; y/o publicarlo en el fork `hunkstalker/N64Recomp`.
-- **Modo VS / 2P** (futuro): input del puerto 1 (`get_input`/`get_connected_device_info` solo sirven el 0),
-  mapeo `controller_num → gamepad`; local primero, online después.
-- **EDICIÓN DE PARTIDA**: "mover mi partida a una Área-Parte" (§6bis de
-  `notes/2026-09-29-editor-area-parte-plan.md`); validar `IR A ÁREA` + `DEBUG NIVELES`.
-- **JA**: verificar los textos del menú contra la ROM japonesa.
+- **`fps-interpolacion-tagging`** (2 commits `wip` + 1 `docs`, **sin mergear**): tagging de
+  interpolación por hook del port. **Funciona** (llega a RT64, `unpaired_moved` de picos 60–98/s a
+  media 3.4/s, 77% frames limpios) pero **sin validar en gameplay**. Detalle y siguiente paso:
+  `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §1–§6. Incluye
+  `patches/rt64/hh-interpolation-tagging.patch` (cambios del submódulo `lib/rt64` como patch).
 
-## Salvaguardas del merge
+## Árbol
 
-- Tags: `backup-premerge-main` (`cf2d883`), `backup-premerge-edicion` (`9fbe2e8`),
-  `backup-premerge-carga` (`fc09cd8`).
-- Revert local: `git checkout main && git reset --hard backup-premerge-main` (análogo por rama).
+- `main` = `v0.6.1`, **submódulos restaurados** (limpios).
+- Instrumentación reutilizable (`HH_PAIRING`, `HH_MTXGROUP`) y banco headless (Xvfb+lavapipe): ver la
+  nota §4.
 
-## Cómo trabajar (rápido)
+## Pitfalls (NO repetir)
 
-- Build Linux: `cmake --build build/linux --parallel $(nproc)`.
-- Build Windows: borrar `build/windows` + `build_windows_release.bat`.
-- Regenerar C recompilado: `python3 tools/regenerate.py`; tras regenerar,
-  `python3 tools/analysis/fix_fallthroughs.py` (ADR 0009/0011).
-- Docs: `python3 tools/analysis/docs_index.py` (regenera; `--check` valida enlaces y presupuesto).
-- **Release**: el `.exe` deja **solo `hh.log`**; el resto de trazas son opt-in (`HH_*`).
-
-## Git / forks
-
-- Orden de push: forks primero (`N64Recomp` → `N64ModernRuntime` → `rt64`), luego el repo principal.
-- `runtime.lock`: RT64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9`.
+- **F7** = captura del HUD 2D; no sirve para artefactos 3D transitorios.
+- **La vista no valida** (el mantenedor vio "mejoras" con un `.exe` viejo): validar por métrica.
+- No editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.

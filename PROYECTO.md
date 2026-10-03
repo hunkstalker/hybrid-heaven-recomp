@@ -2,12 +2,14 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-02**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-03**.
 
-**Estado (2026-10-02)**: `main` = **`v0.6.0`** (publicada). Sesión: fixes de #13 (minimapa), #14
-(jump tables), textos al guardar, número de Área del título y glifos del ordenador (acentos vs `value`
-nativo de color3); todo validado. **Tarea actual**: acentos in-game **por color** (hoy sólo color0);
-ver `RETOMAR.md`.
+**Estado (2026-10-03)**: `main` = **`v0.6.1`**. **Tarea actual: lanzar la v0.6.2** — la **release
+v0.6.1 de GitHub está rota** (el `.zip` no incluye `assets/`; probable compilación con forks viejos →
+se comporta "como anterior a 0.5.0"), mientras el build local sí va. **En paralelo:** interpolación /
+desbloquear FPS en la rama **`fps-interpolacion-tagging`** (tagging por hook del port; funciona,
+pendiente validar gameplay). Detalle: `RETOMAR.md` y
+`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 
 ## 1. Objetivo
 
