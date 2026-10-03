@@ -6,8 +6,15 @@
 
 ## Ahora (priorizado)
 
-> **Nota:** la tarea **v0.6.2 (release GitHub rota)** vive en **`main`** (allí está su TODO/RETOMAR).
-> Este TODO y esta rama son **solo** el fix de interpolación.
+- [•] **v0.6.2 — Release de GitHub rota (abierta 2026-10-03; VALIDADO, solo falta tag/release)**:
+  reproducida. **Medido**: (1) el `.zip` de v0.6.1 no incluye `assets/`/`saves/templates`/`licences/`;
+  (2) los **forks no eran el problema** (rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9` publicados y
+  resolubles por SHA); (3) la causa real de #14/veneno es el **repo de secretos** con el `RecompiledFuncs`
+  del 2026-09-21 (pre-fix jump tables): solo 6 ficheros difieren del `build/recomp` regenerado.
+  **Hecho:** `tools/package_release.py` + `ci.yml` (ambos jobs) empaquetan `assets/` y `saves/templates`;
+  secrets publicado (`3993e72`); push `main` (`8a7e076`, `f3de254`); CI verde y artefacto verificado.
+  **Validado en Windows (2026-10-03)**: guardado `.pak` y veneno/#14 OK. **Pendiente:** tag/release
+  `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
   `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. Cubre **#6** Procyon,
@@ -30,6 +37,7 @@
   - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
   - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
+
 
 - [ ] **Repaso de FPS (apuntado 2026-10-03)**: el mantenedor tiene 70–110 fps en gameplay y cree que
   debería dar más (RTX 4080 / i7-14700K). `[MEDIDO]` `target=swapChain=120, vsync=1` → **techo 120**
