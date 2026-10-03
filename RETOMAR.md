@@ -27,12 +27,12 @@
 
 ## Pendiente (lo de la sesión nueva)
 
-1. **Pasada 2 (efectos/2D ordenados)** — el hilo principal que queda. **Diagnóstico hecho** con
-   `[hh-emit]`: `7328/736C/73AC` son **compute-only** (no emiten gfx; sus grupos quedan colgados) y
-   el cursor es el global único `D_8008D5BC` (el `groups_seen=0` de headless era el logo tipo 2 →
-   falso positivo). Los emisores reales son `7DE4/8754/8F30/A828/C768/11958/919C`; los **2D/texrect**:
-   **`919C` (tipo 9)** y **`11958` (tipo 13)**. Rellenar: enganchar el tagging en el emisor correcto
-   (no en los wrappers) y validar con capturas.
+1. **Pasada 2 — CERRADA (VALIDADO)**. `7328/736C/73AC` son **compute-only** (no emiten gfx). La
+   geometría va en **sub-DLs (`G_DL`)** que enlaza el emisor → hay que rodear **al emisor** con
+   `gEXMatrixGroup`. Envolver **todos** los emisores **congelaba** el render; acotado a **`C768`**
+   (tipo 6, cinta/efecto) es **estable**, materializa (`explicit_ids≈2300/s`) y sin artefactos. La
+   **muerte de enemigos** se comparó con el emulador y coincide (`hh_pairdump.log`: todo taggeado,
+   saltos solo desde `(0,0,0)`). Queda **apagado por defecto** (`HH_FX_PASS2=1`+`HH_FX_EMIT=1`).
 2. **Sesgado de cámara ocasional** (2 veces en la run): probablemente *shearing* por la cámara
    horneada + descomposición por objeto a 30 fps (limitación conocida de PW64, agravada a 30). No es
    identidad. Investigar si `G_EX_COMPONENT_*` de la cámara o un grupo de cámara aparte lo mitiga.
@@ -51,8 +51,15 @@
 - **Auto-captura** (clave para 1-frame): `HH_PAIRCAP=<min moved>` (frames con no-emparejados movidos)
   y `HH_GENCAP=1` (cortes de cámara) → `paircap_NNN_*.bmp` / `gencap_NNN_*.bmp` + `[hh-cap] auto` en
   `hh.log`. Tope 80 y 120 ms de separación. **El mantenedor no debe borrar los BMP hasta copiarlos.**
-- `HH_FX_AUTO=1` → vuelve a interpolar tipos 1..4 (A/B). `HH_FX_PASS2=1` → activa hooks pasada 2.
-- `HH_SCALE_GATE=<ratio>` + `HH_SCALE_GATE_LOG=1` en `lib/rt64` (sonda de escala, off).
+- `HH_FX_AUTO=1` → vuelve a interpolar tipos 1..4 (A/B).
+- **Pasada 2**: `HH_FX_PASS2=1` (registra hooks de emisores/traza) + `HH_FX_EMIT=1` (**tagging de
+  `C768`**; apagado por defecto).
+- `HH_PAIRING_DUMP=<min moved>` → vuelca no-emparejados-movidos a **`hh_pairdump.log`** (la GUI no
+  captura stderr).
+- **#6**: `HH_SCALE_GATE=<ratio>` (**def. ON 2.0**; `=0` off) + `HH_SCALE_GATE_LOG=1` →
+  **`hh_scale.log`** (factor `up/dn`). `HH_ROT_GATE=<deg>` (+`_LOG`) es sonda de rotación (off).
+- **Se conserva a propósito** (decisión del mantenedor) para futuros fallos de interpolación; hay
+  tarea de **limpieza futura** en `TODO.md`.
 
 ### Banco headless (logos/menús; NO llega a gameplay)
 ```
@@ -71,10 +78,11 @@ Log: `build\windows\bin\Release\hh.log`. Reproducir: combate con partículas 2D 
 minas, y el punto donde fallaba el sesgado de cámara.
 
 ## Árbol
-- `src/hooks/model_tagging.cpp` (reescrito), `sections.cpp` (hooks), `rt64_render_context.cpp`
-  (auto-captura + log), `patches/rt64/hh-interpolation-tagging.patch` (regenerado).
+- `src/hooks/model_tagging.cpp` (tagging + instrumentación `[hh-emit]`), `sections.cpp` (hooks),
+  `rt64_render_context.cpp` (auto-captura + log), `patches/rt64/hh-interpolation-tagging.patch`.
 - `lib/rt64` SUCIO (fork): la instrumentación está en el patch; no commitear el submódulo.
-- Nota: `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
+- Nota detallada (incluye el **inventario de variables** y el mapeo jtbl):
+  `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
 
 ## Pitfalls (NO repetir)
 - La identidad por dirección (nodo/modelo/root/índice de lista) **falla** (se recicla/desplaza).

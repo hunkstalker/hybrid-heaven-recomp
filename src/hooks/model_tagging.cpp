@@ -124,6 +124,15 @@ const bool g_fx_auto = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
+// [hh-cleanup] Pasada 2: experimento acotado a UN emisor (func_8000C768, draw de tipo 6). Envolver
+// TODOS los emisores congelaba el render; aqui solo se rodea C768 (pocas llamadas/frame).
+// `HH_FX_EMIT=1`. Se conserva a proposito (apagado por defecto): inventario y contexto en
+// notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md §Actualizacion 4.
+const bool g_fx_emit = [] {
+    const char* v = std::getenv("HH_FX_EMIT");
+    return v != nullptr && *v != '\0' && *v != '0';
+}();
+
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
 uint32_t sGeneration = 1;
@@ -533,7 +542,7 @@ extern "C" void hh_fx_73ac_hook(uint8_t* rdram, recomp_context* ctx) {
     fx_wrap(rdram, "73AC", node, func_800073AC_7FAC, ctx);
 }
 
-// ---- localizar el EMISOR real de la geometria de pasada 2 --------------------------------------
+// ---- [hh-cleanup] EMISORES reales de pasada 2 (traza + tagging de C768) --------------------------
 //
 // `7328/736C/73AC` solo calculan la cinta: no emiten gfx, asi que un `gEXMatrixGroup` ahi queda sin
 // geometria entre push/pop y no taggea. Estos son los candidatos que SI emiten al cursor
@@ -559,8 +568,14 @@ namespace {
 // Tope por candidato (no global): los helpers de setup de menú (7750/78AC/79B0) se llaman cada
 // frame y si compartieran tope lo consumirían todo antes de llegar al gameplay. `d` = bytes
 // emitidos; `vtx/tri/tex` = G_VTX(0x01)/G_TRI(0x05,0x06)/G_TEXRECT(0xE4,0xE5) en F3DEX2.
-void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t a0, uint32_t a1,
+void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t node, bool can_tag, bool is2d,
                    void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
+    // El tagging dentro de los emisores (rodear con gEXMatrixGroup para cubrir la geometria de sus
+    // sub-DL `G_DL`) CONGELABA el render; retirado. Aqui solo se traza.
+    (void)node;
+    (void)can_tag;
+    (void)is2d;
+    const uint32_t a0 = ctx->r4, a1 = ctx->r5;
     const uint32_t before = rd_u32(rdram, kGfxCursor);
     orig(rdram, ctx);
     const uint32_t after = rd_u32(rdram, kGfxCursor);
@@ -574,61 +589,99 @@ void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t a0, uint32
     if (id < 0 || id >= 24 || (f - last_frame[id]) < 30) {
         return;
     }
-    uint32_t vtx = 0, tri = 0, tex = 0;
+    uint32_t hist[256] = {};
     for (uint32_t a = before; a + 8u <= after; a += 8u) {
-        const uint32_t op = rd_u32(rdram, a) >> 24;
-        if (op == 0x01u || op == 0x04u) ++vtx;                            // G_VTX (F3DEX2 / F3D)
-        else if (op == 0x05u || op == 0x06u || op == 0xBFu) ++tri;       // G_TRI1/2, G_QUAD
-        else if (op == 0xE4u || op == 0xE5u || op == 0xF6u) ++tex;       // G_TEXRECT(FLIP), G_FILLRECT
+        ++hist[rd_u32(rdram, a) >> 24];
     }
+    const uint32_t vtx = hist[0x01];
+    const uint32_t tri = hist[0x05] + hist[0x06] + hist[0xBF];
+    const uint32_t tex = hist[0xE4] + hist[0xE5] + hist[0xF6];
+    char ops[160];
+    int oo = 0;
+    for (int i = 0; i < 256; ++i) {
+        if (hist[i] == 0) continue;
+        const int rem = static_cast<int>(sizeof(ops)) - oo;
+        if (rem <= 1) break;
+        const int w = std::snprintf(ops + oo, static_cast<size_t>(rem), "%02X:%u ", i, hist[i]);
+        if (w < 0) break;
+        oo += w;
+        if (oo >= static_cast<int>(sizeof(ops))) { oo = static_cast<int>(sizeof(ops)) - 1; break; }
+    }
+    ops[sizeof(ops) - 1] = '\0';
     last_frame[id] = f;
-    hh::log("[hh-emit] %s f=%llu cur=%08X->%08X d=%u vtx=%u tri=%u tex=%u a0=%08X a1=%08X\n", name,
-            (unsigned long long)f, before, after, after - before, vtx, tri, tex, a0, a1);
+    hh::log("[hh-emit] %s f=%llu cur=%08X->%08X d=%u vtx=%u tri=%u tex=%u ops=%s a0=%08X a1=%08X\n",
+            name, (unsigned long long)f, before, after, after - before, vtx, tri, tex, ops, a0, a1);
 }
 }  // namespace
 
+// Unico emisor envuelto (experimento pasada 2): el draw de tipo 6 `func_8000C768`, que enlaza la
+// geometria de la cinta/efecto en sub-DLs (`G_DL`); rodearlo con un grupo deberia taggear esa
+// geometria. Gate `HH_FX_EMIT=1` (junto con HH_FX_PASS2=1). Con OFF, solo traza.
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "C768", 0, ctx->r4, ctx->r5, func_8000C768_D368, ctx);
+    const uint32_t node = ctx->r4;
+    const bool emit = g_fx_emit && g_enabled && valid_ram(node) && node != 0;
+    if (emit) {
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXEnable(cmd);
+        }
+        const uint32_t model = rd_u32(rdram, node + 0x2C);
+        const uint32_t slot = stable_slot(node, model);
+        const uint32_t iid = interp_id(/*INTERP_KIND_FX=*/3u, 0u, slot, /*lod=*/0u);
+        if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
+            gEXMatrixGroupDecomposed(cmd, iid, G_EX_PUSH, /*proj=*/0,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_AUTO);
+        }
+    }
+    emitter_trace(rdram, "C768", 0, node, /*can_tag=*/true, /*is2d=*/false, func_8000C768_D368, ctx);
+    if (emit) {
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXPopMatrixGroup(cmd, /*proj=*/0);
+        }
+    }
 }
 extern "C" void hh_emit_7750_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "7750", 1, ctx->r4, ctx->r5, func_80007750_8350, ctx);
+    emitter_trace(rdram, "7750", 1, 0, /*can_tag=*/false, false, func_80007750_8350, ctx);
 }
 extern "C" void hh_emit_78ac_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "78AC", 2, ctx->r4, ctx->r5, func_800078AC_84AC, ctx);
+    emitter_trace(rdram, "78AC", 2, 0, /*can_tag=*/false, false, func_800078AC_84AC, ctx);
 }
 extern "C" void hh_emit_79b0_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "79B0", 3, ctx->r4, ctx->r5, func_800079B0_85B0, ctx);
+    emitter_trace(rdram, "79B0", 3, 0, /*can_tag=*/false, false, func_800079B0_85B0, ctx);
 }
 extern "C" void hh_emit_7de4_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "7DE4", 4, ctx->r4, ctx->r5, func_80007DE4_89E4, ctx);
+    emitter_trace(rdram, "7DE4", 4, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80007DE4_89E4, ctx);
 }
 extern "C" void hh_emit_82c4_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "82C4", 5, ctx->r4, ctx->r5, func_800082C4_8EC4, ctx);
+    emitter_trace(rdram, "82C4", 5, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_800082C4_8EC4, ctx);
 }
 extern "C" void hh_emit_8754_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8754", 6, ctx->r4, ctx->r5, func_80008754_9354, ctx);
+    emitter_trace(rdram, "8754", 6, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008754_9354, ctx);
 }
 extern "C" void hh_emit_8b9c_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8B9C", 7, ctx->r4, ctx->r5, func_80008B9C_979C, ctx);
+    emitter_trace(rdram, "8B9C", 7, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008B9C_979C, ctx);
 }
 extern "C" void hh_emit_8f30_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8F30", 8, ctx->r4, ctx->r5, func_80008F30_9B30, ctx);
+    emitter_trace(rdram, "8F30", 8, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008F30_9B30, ctx);
 }
 extern "C" void hh_emit_d1cc_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "D1CC", 9, ctx->r4, ctx->r5, func_8000D1CC_DDCC, ctx);
+    emitter_trace(rdram, "D1CC", 9, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000D1CC_DDCC, ctx);
 }
 extern "C" void hh_emit_11958_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "11958", 10, ctx->r4, ctx->r5, func_80011958_12558, ctx);
+    emitter_trace(rdram, "11958", 10, ctx->r4, /*can_tag=*/true, /*is2d=*/true, func_80011958_12558, ctx);
 }
 extern "C" void hh_emit_a828_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "A828", 11, ctx->r4, ctx->r5, func_8000A828_B428, ctx);
+    emitter_trace(rdram, "A828", 11, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000A828_B428, ctx);
 }
 extern "C" void hh_emit_919c_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "919C", 12, ctx->r4, ctx->r5, func_8000919C_9D9C, ctx);
+    emitter_trace(rdram, "919C", 12, ctx->r4, /*can_tag=*/true, /*is2d=*/true, func_8000919C_9D9C, ctx);
 }
 extern "C" void hh_emit_a06c_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "A06C", 13, ctx->r4, ctx->r5, func_8000A06C_AC6C, ctx);
+    emitter_trace(rdram, "A06C", 13, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000A06C_AC6C, ctx);
 }
 extern "C" void hh_emit_13828_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "13828", 14, ctx->r4, ctx->r5, func_80013828_14428, ctx);
+    emitter_trace(rdram, "13828", 14, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80013828_14428, ctx);
 }

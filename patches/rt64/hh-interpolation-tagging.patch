@@ -1,5 +1,5 @@
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 87392d0..99fbe8d 100644
+index 87392d0..232e8b3 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
 @@ -9,6 +9,74 @@
@@ -77,7 +77,7 @@ index 87392d0..99fbe8d 100644
  namespace RT64 {
      // GameFrame
      
-@@ -375,6 +443,123 @@ namespace RT64 {
+@@ -375,6 +443,130 @@ namespace RT64 {
          matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
          matchScenes(orthographicScenes, prevFrame.orthographicScenes);
  
@@ -168,6 +168,13 @@ index 87392d0..99fbe8d 100644
 +                        const float *m3 = m[3];
 +                        std::fprintf(stderr, "[HH_PAIR_DUMP] w=%u t=%zu grp=%u id=%08X seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
 +                                     w, t, group, mid, segmented, physical, m3[0], m3[1], m3[2]);
++                        // La app GUI no captura stderr: se vuelca tambien a `hh_pairdump.log`.
++                        if (FILE *hf = std::fopen("hh_pairdump.log", "a")) {
++                            std::fprintf(hf, "[HH_PAIR_DUMP] f=%llu w=%u t=%zu grp=%u id=%08X seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
++                                         (unsigned long long)hhPairingFrames, w, t, group, mid,
++                                         segmented, physical, m3[0], m3[1], m3[2]);
++                            std::fclose(hf);
++                        }
 +                    }
 +                }
 +            }

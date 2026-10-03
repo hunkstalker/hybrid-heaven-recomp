@@ -105,3 +105,48 @@ artefactos de #6.
   `explicit_ids=0` del contador RT64 es **instrumentación** (la interpolación no depende de él); a
   revisar aparte.
 - Cambio especulativo `is_fx` tipos 9/13 **revertido**.
+
+## Actualización 4 — pasada 2 cerrada (C768) + instrumentación (2026-10-03) — VALIDADO
+
+**Clave medida**: la geometría de un emisor no está en su tramo lineal, sino en **sub-DLs que enlaza
+con `G_DL` (opcode `0xDE`)**. Por eso hay que rodear **al emisor** con `gEXMatrixGroup` (el contexto
+del grupo persiste en el sub-DL), no las funciones de cálculo.
+
+- **`[hh-emit]` (histograma de opcodes)** descartó definitivamente `7328/736C/73AC` (compute-only) y
+  sirvió para mapear el `jtbl` real de `func_800069A8`: `1→7DE4, 2→82C4, 3→8754, 4→8B9C, 5→8F30,
+  6/12→C768, 7→D1CC, 8→A828, 9→919C, 10→A06C, 11→13828, 13→11958`. En `[hh-types]` dominaba el
+  **8** (`A828`); los 2D/texrect son `919C` (9) y `11958` (13).
+- **Experimento de tagging de emisores**: envolver **TODOS** los emisores **congelaba el render**
+  (`[hh-pair] frames=0/s`, aunque `send_dl` seguía y `groups_seen` subía). Acotado a **solo `C768`**
+  (draw de tipo 6, el de la cinta/efecto de pasada 2) → **estable** (`frames≈29.7/s`),
+  `explicit_ids≈2300/s`, `groups_seen` sube; sin artefactos visibles.
+- **Muerte de enemigos**: con `HH_PAIRING_DUMP=1` (vuelca a `hh_pairdump.log`) los 1446 no-emparejados
+  -movidos salen **todos con id explícita** (taggeados); los saltos grandes son **spawns desde
+  `(0,0,0)`** (snap, correcto), y para un mismo id en frames consecutivos el delta es ~2–27 u. El
+  mantenedor **comparó la misma muerte en emulador** y coincide → **no hay fallo** de interpolación.
+- **Las capturas automáticas NO son fallos**: se disparan con efectos que aparecen (minas/láseres/
+  FIGHT) y son `unp3_tag2 moved=2` (transform nuevo sin pareja) o coinciden con `gencap` de corte de
+  cámara. Recordatorio: `unpaired` **no** mide fallo visual.
+
+### Inventario de instrumentación (todo apagado por defecto; se conserva a propósito)
+
+Se deja en el árbol **por decisión del mantenedor**: sirve para diagnosticar futuros fallos de
+interpolación y está documentado aquí. *Limpieza pendiente en el futuro cuando ya no haga falta*
+(ver `TODO.md`). Los ficheros de salida viven en el cwd del exe (`build\windows\bin\Release`).
+
+| Variable | Qué hace |
+|---|---|
+| `HH_MTXGROUP=1` | Activa el tagging (sin esto, hooks delegados). |
+| `HH_MTXGROUP_LOG=1` | Diagnóstico: `[hh-types]` (histograma), `[hh-mtxgroup]`, `HOOK_OPCODE`. |
+| `HH_FX_AUTO=1` | A/B: vuelve a interpolar los tipos 2D (1–4). |
+| `HH_FX_PASS2=1` | Registra los hooks de **emisores** de pasada 2 (traza; + `C768` con `HH_FX_EMIT`). |
+| `HH_FX_EMIT=1` | **Tagging de `C768`** (el fix de pasada 2, apagado por defecto). |
+| `HH_PAIRING=1` | `[hh-pair]`: frames, transforms, `explicit_ids`, `groups_seen`, `fx`, `gen`, `unpaired*`. |
+| `HH_PAIRING_DUMP=<n>` | Vuelca no-emparejados-movidos (`≥n`) a `hh_pairdump.log` (con `f=`). |
+| `HH_PAIRCAP=<n>` / `HH_GENCAP=1` | Auto-captura BMP (no-emparejados movidos / cortes de cámara). |
+| `HH_SCALE_GATE=<r>` | Gate de escala (#6): **def. ON 2.0**; `=0` off. |
+| `HH_SCALE_GATE_LOG=1` | Vuelca el factor real a `hh_scale.log` (la GUI no captura stderr). |
+| `HH_ROT_GATE=<deg>` / `_LOG` | Gate de rotación (sonda, off por defecto). |
+
+Nota de vocabulario: "gateado" = el código está compilado pero **solo actúa si se define la
+variable**; por defecto no cambia el comportamiento (doble clic = sin variables).

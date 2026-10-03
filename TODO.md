@@ -33,11 +33,16 @@
   - [x] **A2.2a #6 (regresión) — fix por gate de ESCALA (VALIDADO 2026-10-03)**: el rebobinado del
     efecto es un **reset de escala ~100×**; `HH_SCALE_GATE` **ON por defecto (2.0)** (`=0` off) en
     `rt64_rigid_body.cpp` (parche RT64), log a `hh_scale.log`. Validado en 2 runs del jefe.
-  - [ ] **A2.2b pasada 2 (efectos/2D ordenados)**: **diagnóstico hecho** con `[hh-emit]`:
-    `7328/736C/73AC` son **compute-only** (no emiten gfx; grupos colgados) y el cursor es el global
-    único `D_8008D5BC` (el `groups_seen=0` headless era el logo tipo 2 → falso positivo). Emisores
-    reales: `7DE4/8754/8F30/A828/C768/11958/919C`; 2D/texrect = **`919C` (tipo 9)** y **`11958`
-    (tipo 13)**. Enganchar el tagging en el emisor correcto + validar con capturas.
+  - [x] **A2.2b pasada 2 (efectos/2D ordenados) — CERRADA (VALIDADO 2026-10-03)**: los wrappers
+    `7328/736C/73AC` son **compute-only**; la geometría va en **sub-DLs (`G_DL`)** de los emisores →
+    hay que rodear **al emisor** con `gEXMatrixGroup` (no las funciones de cálculo). Envolver todos
+    congelaba el render; acotado a **`C768`** (tipo 6) es estable y sin artefactos. Muerte de
+    enemigos comparada con emulador: coincide. Queda **apagado por defecto** (`HH_FX_PASS2`+
+    `HH_FX_EMIT`). Detalle: nota `2026-10-03-...-generacion-camara.md` §Actualización 4.
+  - [ ] **Limpieza futura de instrumentación de pasada 2/tagging** (decisión: conservar ahora): los
+    `[hh-emit]`/histograma de opcodes, `HH_FX_*`, `HH_PAIRING_DUMP` + los log/trazas asociados se
+    dejan a propósito para diagnosticar futuros fallos de interpolación. Retirar cuando la épica FPS
+    cierre. Inventario de variables en la nota del 2026-10-03.
   - [ ] **A2.2c sesgado de cámara ocasional** (2×/run): posible *shearing* de cámara horneada a 30 fps.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo (medir si aplica).
