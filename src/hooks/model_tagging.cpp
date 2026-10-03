@@ -20,6 +20,7 @@
 // Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas (comportamiento original).
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <unordered_set>
 
 #include "librecomp/overlays.hpp"
@@ -52,11 +53,22 @@ GfxCommand* gfx_emit(uint8_t* rdram, uint32_t count) {
     return cmd;
 }
 
-// ID estable del hueso: puntero del nodo DOBJ (a0). El juego lo mantiene entre frames. Se mezcla con
-// un hash para repartir y evitar 0/auto.
-inline uint32_t stable_id(uint32_t node_ptr) {
-    uint32_t h = node_ptr * 2654435761u;   // Knuth multiplicative
-    return h | 0x80000000u;                // nunca 0 (== G_EX_ID_IGNORE) ni 0xFFFFFFFF (== AUTO)
+// Lee un u32 de RDRAM por direccion KSEG0.
+inline uint32_t rd_u32(uint8_t* rdram, uint32_t kseg0) {
+    uint32_t v;
+    std::memcpy(&v, rdram + (kseg0 & 0x1FFFFFFFu), 4);
+    return v;
+}
+
+// Identidad ESTABLE del objeto dibujado. Medido el 2026-10-03: el PUNTERO DEL NODO DOBJ **no**
+// sirve (HH lo recicla entre frames para objetos distintos: el mismo id aparecia con posiciones
+// completamente distintas). Se usa el puntero del MODELO (`node->0x2C`), que persiste mas alla del
+// reciclaje del nodo; fallback al nodo si es 0. Hash para repartir y evitar 0/AUTO.
+inline uint32_t stable_id(uint8_t* rdram, uint32_t node_ptr) {
+    uint32_t model = rd_u32(rdram, node_ptr + 0x2C);
+    const uint32_t seed = (model != 0) ? model : node_ptr;
+    uint32_t h = seed * 2654435761u;   // Knuth multiplicative
+    return h | 0x80000000u;            // nunca 0 (== G_EX_ID_IGNORE) ni 0xFFFFFFFF (== AUTO)
 }
 
 const bool g_enabled = [] {
@@ -93,14 +105,16 @@ bool skip_spawn_enabled() {
     return !off;
 }
 
-// HH_MTXGROUP_LOG=1: traza (tope 100) la primera vez que se taggea cada nodo, con su ID.
-void trace_once(uint32_t node, uint32_t id) {
+// HH_MTXGROUP_LOG=1: traza (tope 100) los primeros nodos taggeados, con node/modelo/ID. El campo
+// `model` (node->0x2C) es la semilla de la ID; util para comprobar que es >0 y estable.
+void trace_once(uint8_t* rdram, uint32_t node, uint32_t id) {
     static const bool on = std::getenv("HH_MTXGROUP_LOG") != nullptr;
     if (!on) return;
     static int n = 0;
     if (n >= 100) return;
     ++n;
-    hh::log("[hh-mtxgroup] node=%08X id=%08X (%d/100)\n", node, id, n);
+    hh::log("[hh-mtxgroup] node=%08X model=%08X id=%08X (%d/100)\n",
+            node, rd_u32(rdram, node + 0x2C), id, n);
 }
 
 // Autodiagnostico: con HH_MTXGROUP_LOG=1, la PRIMERA llamada al hook (con el flag on u off) deja
@@ -129,8 +143,8 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
         return;
     }
 
-    const uint32_t node = ctx->r4;              // a0 = nodo DOBJ (ID estable)
-    const uint32_t id = stable_id(node);
+    const uint32_t node = ctx->r4;              // a0 = nodo DOBJ
+    const uint32_t id = stable_id(rdram, node);
 
     // Diagnostico: valor del cursor de gfx (donde cae nuestra escritura) la primera vez.
     {
@@ -190,5 +204,5 @@ extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx) {
         gEXPopMatrixGroup(cmd, /*proj=*/0);
     }
 
-    trace_once(node, id);
+    trace_once(rdram, node, id);
 }
