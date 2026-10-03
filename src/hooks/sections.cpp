@@ -81,6 +81,7 @@ extern "C" void hh_pak_message_hook(uint8_t* rdram, recomp_context* ctx);    // 
 extern "C" void func_80002BE0_37E0(uint8_t* rdram, recomp_context* ctx);     // clasificador de accesorio (pak)
 extern "C" void hh_pak_detect_hook(uint8_t* rdram, recomp_context* ctx);     // desacoplo vibracion <-> controller pak
 extern "C" void hh_bone_draw_hook(uint8_t* rdram, recomp_context* ctx);      // tagging de draw de malla (interpolacion, HH_MTXGROUP)
+extern "C" void hh_model_root_hook(uint8_t* rdram, recomp_context* ctx);     // root del traversal DOBJ (identidad del tagging)
 extern "C" void func_801C3F48_11BDA18(uint8_t* rdram, recomp_context* ctx);  // callback titulo del Area
 extern "C" void func_801C4018_11BDAE8(uint8_t* rdram, recomp_context* ctx);  // callback espera (input)
 extern "C" void func_801C4074_11BDB44(uint8_t* rdram, recomp_context* ctx);  // callback transicion escena
@@ -676,6 +677,7 @@ void register_title_menu_hook() {
     // (que HH recicla). Con el flag OFF el hook delega sin más. Residente: no hace falta
     // re-registrar por carga de módulo.
     recomp::overlays::add_loaded_function(0x800069A8, hh_bone_draw_hook);
+    recomp::overlays::add_loaded_function(0x800068C0, hh_model_root_hook);
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);
     // NOTA: los handlers de logos del modulo de TITULO (0x801C1624/1764/17C8) NO se envuelven: son
