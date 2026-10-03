@@ -1,5 +1,5 @@
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 87392d0..06bebf9 100644
+index 87392d0..696f032 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
 @@ -9,6 +9,53 @@
@@ -56,7 +56,7 @@ index 87392d0..06bebf9 100644
  namespace RT64 {
      // GameFrame
      
-@@ -375,6 +422,104 @@ namespace RT64 {
+@@ -375,6 +422,106 @@ namespace RT64 {
          matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
          matchScenes(orthographicScenes, prevFrame.orthographicScenes);
  
@@ -142,9 +142,11 @@ index 87392d0..06bebf9 100644
 +                                                      ? curWorkload.drawData.worldTransformPhysicalAddresses[t] : 0;
 +                        const uint32_t group = (t < curWorkload.drawData.worldTransformGroups.size())
 +                                                   ? curWorkload.drawData.worldTransformGroups[t] : 0;
++                        const uint32_t mid = (group < curWorkload.drawData.transformGroups.size())
++                                                 ? curWorkload.drawData.transformGroups[group].matrixId : 0;
 +                        const float *m3 = m[3];
-+                        std::fprintf(stderr, "[HH_PAIR_DUMP] w=%u t=%zu grp=%u seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
-+                                     w, t, group, segmented, physical, m3[0], m3[1], m3[2]);
++                        std::fprintf(stderr, "[HH_PAIR_DUMP] w=%u t=%zu grp=%u id=%08X seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
++                                     w, t, group, mid, segmented, physical, m3[0], m3[1], m3[2]);
 +                    }
 +                }
 +            }
