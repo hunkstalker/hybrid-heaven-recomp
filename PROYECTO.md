@@ -16,8 +16,11 @@ el **repo privado de secretos** del que CI clona el C recompilado seguía con el
 **Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
 **`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
 minas/láseres); **#6 re-fijado con gate de escala ON por defecto** (2.0, validado en 2 runs);
-**pasada 2 CERRADA** (tagging por emisor acotado a `C768`, validado; muerte de enemigos comparada con
-emulador y coincide; queda apagado por defecto). Pendiente el sesgado ocasional de cámara y el LOD.
+**pasada 2 CERRADA** (tagging por emisor acotado a `C768`). **Sesión 2026-10-04**: causa raíz del
+**sesgado de cámara medida** — el tagging de **pass 1 no materializa** (los `gEXMatrixGroup` van en
+sub-DLs `G_DL`, el `TransformGroup` queda huérfano) → RT64 interpola la cámara en los cortes. Plan 1
+(materializar en el push, **acotado**) pendiente. Detalle:
+`notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md`.
 Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
 `notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
 

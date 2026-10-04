@@ -1,9 +1,19 @@
-# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-03, sesión 2)
+# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-04, sesión 3)
 
-> **TAREA (rama): interpolación fiel / desbloquear FPS.** Esta sesión **rehízo la identidad del
-> tagging** y la **validó en gameplay** (run del mantenedor). Detalle y evidencia:
-> `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md` (actualizada).
+> **TAREA (rama): interpolación fiel / desbloquear FPS.** La sesión anterior cerró pasada 2 y #6;
+> **esta sesión diagnosticó el SESGADO DE CÁMARA (no resuelto)** y descubrió la causa raíz común:
+> el tagging de **pass 1 no materializa** en RT64. Detalle completo y evidencia:
+> `notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`. **La vista no valida 1 frame** → usar capturas.
+
+## ⚠️ ESTADO DEL ÁRBOL (2026-10-04) — leer primero
+
+- **`lib/rt64` sucio**: la instrumentación vive en `patches/rt64/hh-interpolation-tagging.patch`.
+- **NO se ha commiteado el diagnóstico de esta sesión**: commit pendiente (ver abajo). El árbol de
+  trabajo (submódulo + parche + `rt64_render_context.cpp`) **es el estado correcto y estable**;
+  compila y el HUD funciona. Antes de seguir, **commitear** (propuesta en §"Commit pendiente").
+- **Incidente del HUD (resuelto)**: romperlo y arreglarlo NO se perdió trabajo; ver §"Incidente HUD /
+  lección de git".
 
 ## Estado — lo que funciona (MEDIDO, run del mantenedor)
 
@@ -25,19 +35,54 @@
 - Sin `gEXSetRDRAMExtended` (rompe widescreen). Sin skip-spawn propio.
 - Limpieza: no se emiten grupos para nodos tipo 0 (contenedores no-op).
 
-## Pendiente (lo de la sesión nueva)
+## TAREA ABIERTA (lo que hay que resolver) — SESGADO DE CÁMARA
 
-1. **Pasada 2 — CERRADA (VALIDADO)**. `7328/736C/73AC` son **compute-only** (no emiten gfx). La
-   geometría va en **sub-DLs (`G_DL`)** que enlaza el emisor → hay que rodear **al emisor** con
-   `gEXMatrixGroup`. Envolver **todos** los emisores **congelaba** el render; acotado a **`C768`**
-   (tipo 6, cinta/efecto) es **estable**, materializa (`explicit_ids≈2300/s`) y sin artefactos. La
-   **muerte de enemigos** se comparó con el emulador y coincide (`hh_pairdump.log`: todo taggeado,
-   saltos solo desde `(0,0,0)`). Queda **apagado por defecto** (`HH_FX_PASS2=1`+`HH_FX_EMIT=1`).
-2. **Sesgado de cámara ocasional** (2 veces en la run): probablemente *shearing* por la cámara
-   horneada + descomposición por objeto a 30 fps (limitación conocida de PW64, agravada a 30). No es
-   identidad. Investigar si `G_EX_COMPONENT_*` de la cámara o un grupo de cámara aparte lo mitiga.
+**Síntoma (captura real)**: en un **corte de cámara** (p. ej. al entrar en combate / FIGHT) la imagen
+sale **sesgada/esquilmada** (paredes y suelo caídos, verticales inclinadas). Es *shearing* de cámara.
+
+**Causa raíz (MEDIDA)**: en este estado el **tagging de pass 1 NO materializa** en RT64:
+`explicit_ids=0`, `groups_seen=0` durante todo el gameplay. Sin ids, RT64 **interpola la cámara entre
+frames** en el corte → shearing. O sea: **no es un fallo de la lógica de cámara** (esa está bien), es
+que los grupos no llegan. El mismo root-cause explicó la reaparición de **#6** (tapado con el gate de
+escala) y el estirado del PJ.
+
+**Por qué pass 1 no materializa (MEDIDO con la sonda `[hh-pair]` gbi/matrixid/vcommon)**:
+- La sonda en `lib/rt64` cuenta: `gbi_enable` (`gEXEnable` aceptados), `extdisp` (entradas a
+  `extendedOp`), `matrixid` (`gEXMatrixGroup` despachados), `vcommon` (`setVertexCommon`).
+- Resultado: `gbi_enable`/`extdisp`/`matrixid` suben (los grupos **se despachan**) pero en las
+  escenas de menú **`vcommon=0`**; con geometría 3D real (intro, `HH_FORCE_INTRO=1`) `vcommon` sí
+  sube, pero `matrixid` y `vcommon` **no se solapan**.
+- **Mecanismo**: `matrixId` (push) solo marca `modelMatrixIdStackChanged`; el `TransformGroup` se crea
+  en el **siguiente `setVertexCommon`** (primer `G_VTX`/`G_EX_VERTEX_V1`). Pero la geometría de un
+  nodo de pass 1 va en **sub-DLs (`G_DL`)** que se enlazan y procesan **después del `pop` del grupo**
+  → cuando llega el `G_VTX`, el stack de ids ya volvió al grupo base → el grupo del nodo **queda
+  huérfano** → `groups_seen=0`.
+- **Confirmación**: con `HH_FX_EMIT=1` (tagging del emisor `C768`, que carga su geometría en scope)
+  RT64 **sí** materializa (`explicit_ids≈2300/s`). Prueba de que el problema es el **scope del grupo
+  vs. el sub-DL**, no el GBI ni la identidad.
+
+## Plan propuesto (Opción 1 vs Opción 2) — análisis ya hecho
+
+- **Opción 1 (robusta, elegida como objetivo)**: materializar el `TransformGroup` en el **propio
+  `RSP::matrixId`** (en el push), sin depender de un `G_VTX` posterior, y que `setVertexCommon` lo
+  reutilice. Es el fix correcto de RT64 (patrón común que rompe el tagging con sub-DL) y beneficia a
+  cualquier port.
+  - **INTENTO (revertido, ver incidente)**: se implementó y headless dio `groups_seen 0→4631`, pero
+    en la run **rompió el HUD/widescreen**.
+  - **Motivo del fallo del intento**: fuerza un `worldTransform` extra por cada grupo y desalinea
+    `worldIndices` de TODO lo 2D/HUD → hay que **acotarlo** (p. ej. solo `proj=0` **y** solo si el
+    grupo va efectivamente seguido de un `G_MTX` real del modelo), no aplicarlo a ciegas.
+- **Opción 2 (parcial, ya validada)**: tagging **por emisor** (como `C768`). Materializa pero solo
+  cubre donde el emisor carga geometría; generalizarla **congeló** el render. No resuelve la cámara.
+
+**Siguiente paso concreto de la sesión nueva**: retomar la Opción 1 **acotada**. Antes de tocar,
+leer `notes/2026-10-04-...` §Plan y el `RSP::matrixId`/`setVertexCommon` actuales.
+
+## Otros pendientes
+
 3. **LOD** en el hash (id = slot, model, **lod**): no localizado el campo. Solo importa si un objeto
-   cambia de malla por distancia; el slot generacional cubre parte. Medir si pasa.
+   cambia de malla por distancia; el slot generacional cubre parte. Medir si pasa (probablemente
+   "no aplica": sin popping observado; decisión de cerrarlo como no-aplica).
 4. **2D "de verdad"** (HUD/menús): `hud_rewrite` ya no interpola su proyección; confirmar que cubre
    todo (el combate 2D puede ir por la pasada 2).
 
@@ -58,6 +103,12 @@
   captura stderr).
 - **#6**: `HH_SCALE_GATE=<ratio>` (**def. ON 2.0**; `=0` off) + `HH_SCALE_GATE_LOG=1` →
   **`hh_scale.log`** (factor `up/dn`). `HH_ROT_GATE=<deg>` (+`_LOG`) es sonda de rotación (off).
+- **Sonda del GBI extendido (NUEVA, esta sesión)**: en `[hh-pair]` añade
+  `gbi_enable=<gEXEnable> extdisp=<extendedOp> matrixid=<gEXMatrixGroup> extop=<ultimo opcode>
+  vcommon=<setVertexCommon>`. Sirve para ver **dónde se pierde** el tagging (push vs materialización).
+  Contadores en `rt64_game_frame.cpp` (`RT64_GetGbiProbeCounters`), instrumentados en
+  `rt64_gbi_extended.cpp` y `rt64_rsp.cpp`. Gateada por `HH_PAIRING=1`.
+- `HH_CAPMAX=<n>`: tope de capturas auto (def. 80); subirlo para muestrear más (p. ej. runs de LOD).
 - **Se conserva a propósito** (decisión del mantenedor) para futuros fallos de interpolación; hay
   tarea de **limpieza futura** en `TODO.md`.
 
@@ -84,7 +135,35 @@ minas, y el punto donde fallaba el sesgado de cámara.
 - Nota detallada (incluye el **inventario de variables** y el mapeo jtbl):
   `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
 
+## Incidente HUD / lección de git (2026-10-04)
+
+- Intentando el plan 1 se metió un **fix de longitud de comandos extendidos** en el intérprete LLE
+  (`processDisplayLists` hacía `dl += extLen` **además** del avance interno de los handlers → saltaba
+  un comando de más → **desalineaba TODA la DL**, incluido el **HUD/widescreen**). Sin commitear.
+- **Arreglo**: quitar ese cambio puntual (el avance debe quedar como estaba; ver el comentario en
+  `rt64_interpreter.cpp`).
+- **Error de método**: para arreglarlo se hizo `reset --hard` a un commit antiguo, **arrastrando 2
+  commits más que no eran la causa** (`d973307` plan1, `4600895` su revert, más `8c97dc4` con el fix
+  de longitud + sonda + `HH_CAPMAX`). **No se perdió nada** (reflog y `git show <sha>` los conserva) y
+  `aab0667` reincorporó lo bueno (sonda + `HH_CAPMAX`). Pero fue innecesario.
+- **REGLA**: cuando la causa es **un cambio puntual**, revertir **ese cambio** (o `git revert` de ese
+  commit), **NUNCA `git reset --hard`** que se lleva commits/cambios no relacionados.
+
+## Commit pendiente (hacer al empezar la sesión nueva)
+
+El árbol de trabajo es el estado bueno, pero **el diagnóstico de esta sesión no está commiteado**.
+Antes de nada, commitear (un tema = un commit):
+- `patches/rt64/hh-interpolation-tagging.patch` (sonda GBI + `HH_CAPMAX`, **sin** el fix de longitud).
+- `src/platform/rt64_render_context.cpp` (`gbi_*`/`vcommon` en `[hh-pair]`, `HH_CAPMAX`).
+- (Opcional, ya en el árbol) `notes/2026-10-04-...` y estos `RETOMAR.md`/`TODO.md`.
+- **NO** commitear el submódulo `lib/rt64` (va en el patch). Mensaje sugerido:
+  `diag(fps): sonda GBI extendido + HH_CAPMAX (sin tocar el avance de la DL)`.
+
 ## Pitfalls (NO repetir)
+- **NO `git reset --hard` para un cambio puntual** (ver §Incidente HUD): revierte el cambio, no la rama.
+- **NO añadir longitud al avance de comandos extendidos** en `processDisplayLists` (rompe el HUD).
+- **NO materializar TransformGroups en el core sin acotar**: afecta a TODO (2D/HUD) y desalinea
+  `worldIndices`. El plan 1 debe acotarse (solo `proj=0` + `G_MTX` real).
 - La identidad por dirección (nodo/modelo/root/índice de lista) **falla** (se recicla/desplaza).
 - El nodo de render no tiene campo estable de instancia; la identidad se deriva del **comportamiento**
   (slots generacionales), no de una dirección.

@@ -43,9 +43,16 @@
     `[hh-emit]`/histograma de opcodes, `HH_FX_*`, `HH_PAIRING_DUMP` + los log/trazas asociados se
     dejan a propósito para diagnosticar futuros fallos de interpolación. Retirar cuando la épica FPS
     cierre. Inventario de variables en la nota del 2026-10-03.
-  - [ ] **A2.2c sesgado de cámara ocasional** (2×/run): posible *shearing* de cámara horneada a 30 fps.
+  - [ ] **A2.2c sesgado de cámara — CAUSA RAÍZ MEDIDA (2026-10-04), SIN RESOLVER**: *shearing* en
+    cortes. En este estado el **tagging de pass 1 NO materializa** (`explicit_ids=0`, `groups_seen=0`)
+    porque la geometría va en **sub-DLs (`G_DL`)** y el `TransformGroup` se crea en el siguiente
+    `setVertexCommon` (tras el `pop`) → huérfano. **Plan 1**: materializar el grupo en `RSP::matrixId`
+    (push), **acotado** (solo `proj=0` + `G_MTX` real) para no romper 2D/HUD (un intento sin acotar
+    rompió el HUD). Detalle + sonda GBI + lección de git:
+    `notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md`.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
-  - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo (medir si aplica).
+  - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
+    observado** (sin popping; `unpaired_moved` normal) → candidato a cerrar como "no aplica".
   - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
   - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
