@@ -23,6 +23,11 @@
   unificado bajo `HH_EMIT_TAG` + `emitmat=[]`.
   `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
 
+- **"Puerta + jefe del nivel 1" (hipótesis antigua de lógica a 60 Hz) — RESUELTO sin tocar el motor
+  (2026-10-04).** El `TODO.md` lo tenía como *APLAZADO… épica aparte*; obsoleto: **puerta (#8)**
+  resuelta con el tagging (A2.1/A2.2) y **jefe (#6, aura)** con el gate de escala (`46b3f0d`/A2.2a).
+  No hizo falta desacoplar la lógica del render (eso es la **Fase B**, ADR aparte).
+
 ## 2026-10-02 (sesión de bugs)
 
 - **#13 minimapa desanclado al cambiar de Área — HECHO y VALIDADO en Windows (todos los niveles).**

@@ -17,12 +17,11 @@
   `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
-  `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. Cubre **#6** Procyon,
-  [#8](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/8) puertas,
-  [#10](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/10) curar enemigos,
-  [#12](https://github.com/hunkstalker/hybrid-heaven-recomp/issues/12) Life Charger S.
-  Work order: **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Estado y handoff:
-  **`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`**.
+  `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6**
+  (aura del jefe, gate de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life
+  Charger S) sin síntoma reciente → **cubiertos**. Queda: sprites/alpha al curar, LOD, A1/A3/B/C e
+  higiene. Work order: **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
+  Handoff: **`RETOMAR.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
     de paso **widescreen** y **recuadro negro**; **#8** estable.
@@ -350,11 +349,6 @@
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
   `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
-- [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
-  con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
-  jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
-  influye). **Depende de desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
-  Ver `RETOMAR.md` y `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **2.º mando / 2.º Controller Pak — `MODO VS` no validable (2026-09-27)**: `MODO COMBATE →
   MODO VS` no se pudo validar; el port **solo reporta el puerto 0** de mando
   (`src/subsystems/input.cpp`: `return controller_num == 0` por el arranque del juego), así que no se
