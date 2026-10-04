@@ -4,6 +4,17 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## 2026-10-04
+
+- **Fix de input: "mantener pulsado" repetía la acción (CARGAR/GUARDAR) — HECHO y VALIDADO en Windows.**
+  Los flujos propios leían A/START/X en **estado mantenido** (`hh_input_button_down`, nivel), así que
+  mantener pulsado repetía; al confirmar `CONTINUAR` con A/START aún pulsada se cargaba el **primer
+  slot** sin ver el `DATA LOAD`. Fix: **flanco estricto con rearme** para botones de acción
+  (`pressed = btn & ~prev`, cubre teclado **y** mando) y **auto-repeat solo para direcciones**;
+  anti-rebote de entrada por *seed* (`g_load_seed_input`/`g_save_seed_input`); retirados los bloqueos
+  por ms `load/save_input_blocked`. `open_load_game`/`open_save_game` devuelven "apertura nueva".
+  `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
+
 ## 2026-10-02 (sesión de bugs)
 
 - **#13 minimapa desanclado al cambiar de Área — HECHO y VALIDADO en Windows (todos los niveles).**

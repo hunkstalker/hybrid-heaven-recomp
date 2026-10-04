@@ -276,9 +276,13 @@ El overlay moderno **desacopla** el menú inicial del juego: nuestro menú lee e
 lectores del propio juego (`func_801C1340` direcciones / `func_801C1334` A/B/START), que el handler
 nativo ve a 0 mientras manda el overlay (`feed_menu_navigation`).
 **Aceptar = A o START** en el menú de título/port y en las UIs de cargar/guardar (`DATA LOAD`/`DATA
-SAVE`), como en el original. **Anti-rebote de entrada** (`g_menu_seed_input`): al (re)entrar al menú,
-el primer frame **traga** el estado mantenido (siembra `prev`) para que el START que abrió el menú
-("PRESS START") no dispare una acción; los frames siguientes ya generan flanco.
+SAVE`), como en el original. **Comportamiento normal de videojuego**: los botones de **acción**
+(A/B/START/X/Z) se leen por **flanco estricto con rearme** (una pulsación = una acción; mantener no
+repite hasta soltar y volver a pulsar) y el **auto-repeat se aplica solo a las direcciones**
+(scroll de listas, selectores izq/der). Anti-rebote de entrada (`g_menu_seed_input`, y
+`g_load_seed_input`/`g_save_seed_input` en las UIs de cargar/guardar): al (re)entrar, el primer frame
+**traga** el estado mantenido (siembra `prev`) para que el botón que abrió la pantalla no dispare una
+acción; los frames siguientes ya generan flanco. Ver `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
 ## SFX
 

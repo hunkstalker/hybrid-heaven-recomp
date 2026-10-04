@@ -64,7 +64,6 @@ extern "C" void func_80142570_103AD40(uint8_t* rdram, recomp_context* ctx);  // 
 extern "C" void func_80002A94_3694(uint8_t* rdram, recomp_context* ctx);       // rama de salida del DATA SAVE
 extern "C" void func_801C3D84_11BD854(uint8_t* rdram, recomp_context* ctx);    // update file-select (envuelto)
 extern "C" void func_801426B0_103AE80(uint8_t* rdram, recomp_context* ctx);    // setup del DATA LOAD
-extern "C" bool hh_input_button_down(const char* action_key);   // binding real (mando+teclado) pulsado
 extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx);       // UI de cargar encima del save
 extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx);      // setup del save (activa categoria)
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
@@ -135,6 +134,14 @@ std::atomic<bool> g_menu_seed_input{false};
 bool g_load_enter = false;
 // Contador de frames de la transición a CARGAR (solo para la traza: mide el hueco CONTINUAR->UI).
 long g_load_enter_frame = 0;
+
+// ANTI-REBOTE de entrada al DATA LOAD: la A/START que abrió CONTINUAR puede seguir mantenida cuando
+// arranca el file-select; sin esto se colaría un flanco y cargaría un slot sin ver la UI de carga.
+// `hh_file_select_hook` lo marca en la entrada; `feed_load_flow` traga el estado mantenido un frame.
+std::atomic<bool> g_load_seed_input{false};
+// Ídem para la cápsula de GUARDAR: el botón que abrió el DATA SAVE puede seguir mantenido y autoguardar.
+// `hh_save_menu_hook` lo marca al abrir; `feed_save_flow` traga el estado mantenido un frame.
+std::atomic<bool> g_save_seed_input{false};
 
 // TÍTULO DEL ÁREA por OVERLAY (idiomas != inglés): el nombre nativo es un gráfico; con overlay lo
 // dibujamos nosotros (AREA N + nombre traducido con Work Sans). `g_area_title_active` dura desde que
@@ -2064,14 +2071,19 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     };
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
+    // ANTI-REBOTE de ENTRADA (patrón `g_menu_seed_input`): al (re)entrar en CARGAR, la A/START que
+    // abrió CONTINUAR puede seguir mantenida. Se siembra `prev` (se traga el estado mantenido) un
+    // frame para que no cuente como flanco en el file-select. Lo dispara `hh_file_select_hook`.
+    if (g_load_seed_input.exchange(false)) {
+        prev = btn;
+        return false;
+    }
     const uint32_t pressed = btn & ~prev;
     prev = btn;
     const bool sfx = hh::overlay::enabled();
     constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
     const uint32_t dir = btn & (kUp | kDown);
     const hh::menu::LoadPhase phase = hh::menu::load_phase();
-    const bool del_btn = hh_input_button_down("z");   // agacharse = boton X del mando / tecla H
-    const bool acc_btn = hh_input_button_down("a");   // aceptar  = boton A del mando / tecla J
 
     // Prompts Yes/No (ConfirmDelete): arriba/abajo alternan, A confirma la resaltada.
     if (phase == hh::menu::LoadPhase::ConfirmDelete) {
@@ -2116,10 +2128,6 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         hh_leave_load_game(rdram, ctx, obj);
         return true;
     }
-    // Browse: si acabamos de entrar (bloqueo ~120 ms), se ignora el input de la transición.
-    if (hh::menu::load_input_blocked()) {
-        return false;
-    }
     // Browse: arriba/abajo mueven el cursor de la lista (mismo repeat que feed_menu_navigation).
     {
         static uint32_t held = 0;
@@ -2154,8 +2162,9 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
     }
-    // A/Start carga (solo slots con datos); X pide borrar (solo slots con datos). Bindings en vivo.
-    if (acc_btn || (pressed & (0x8000u | 0x1000u))) {
+    // A/Start carga (solo slots con datos); X pide borrar (solo slots con datos). `pressed` es el
+    // FLANCO (0->1) sobre el estado mantenido completo (teclado + mando): mantener el boton no repite.
+    if (pressed & (0x8000u | 0x1000u)) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2169,7 +2178,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
                 return true;
             }
         }
-    } else if (del_btn) {
+    } else if (pressed & 0x2000u) {   // X / Z (agacharse): borra, solo en slots con datos
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2227,11 +2236,15 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
                 "CONTINUAR)\n",
                 g_hook_frame, g_hook_frame - g_load_enter_frame);
     }
+    // Ya tomamos el control del file-select: la transición desde el título terminó.
     g_load_enter = false;
     // Objeto del menu (a0): lo necesita la transición de salida (func_800058DC) y la de carga.
     const uint32_t obj = static_cast<uint32_t>(ctx->r4);
-    // La pantalla activa pasa a ser NUESTRA LoadGame (la pila del modelo).
-    hh::menu::open_load_game();
+    // La pantalla activa pasa a ser NUESTRA LoadGame (la pila del modelo). Si es APERTURA NUEVA,
+    // ceba el anti-rebote (ver `g_load_seed_input`).
+    if (hh::menu::open_load_game()) {
+        g_load_seed_input.store(true);
+    }
     hh_load_trace(rdram, "pre");
     hh::menu_overlay::suppress_native(rdram);
     hh::menu_overlay::set_file_select_active(true);   // categoría FILE-SELECT activa (ocultado)
@@ -2343,16 +2356,19 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     };
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
+    // ANTI-REBOTE de ENTRADA (patrón `g_menu_seed_input`): al (re)entrar en la cápsula, el botón que
+    // la abrió puede seguir mantenido; se traga el estado mantenido un frame para que no cuente como
+    // flanco. Lo dispara `hh_save_menu_hook` en la apertura (ver `g_save_seed_input`).
+    if (g_save_seed_input.exchange(false)) {
+        prev = btn;
+        return false;
+    }
     const uint32_t pressed = btn & ~prev;
     prev = btn;
     const bool sfx = hh::overlay::enabled();
     constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
     const uint32_t dir = btn & (kUp | kDown);
     const hh::menu::SavePhase phase = hh::menu::save_phase();
-    // Bindings REALES de ACEPTAR (guardar) y AGACHARSE (borrar): se consultan en vivo para leer sus
-    // botones/teclas actuales (remapeables). En headless el mando no existe, pero la tecla si.
-    const bool del_btn = hh_input_button_down("z");   // agacharse = boton X del mando / tecla H
-    const bool acc_btn = hh_input_button_down("a");   // aceptar  = boton A del mando / tecla J
 
     // Prompts Yes/No (Ask / ConfirmHere / ConfirmExit / ConfirmDelete): arriba/abajo alterna,
     // A confirma la resaltada.
@@ -2428,10 +2444,6 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         return false;
     }
 
-    // Select: si acabamos de entrar (bloqueo de ~120 ms), se ignora el input de la transicion.
-    if (hh::menu::save_input_blocked()) {
-        return false;
-    }
     // Select: arriba/abajo mueven el cursor de slots (con el mismo repeat que feed_menu_navigation).
     bool fire_up = false, fire_down = false;
     {
@@ -2466,12 +2478,12 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         const hh::menu::Event ev = fire_up ? hh::menu::move_up() : hh::menu::move_down();
         if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
     }
-    // A (aceptar) SIEMPRE guarda; X (agacharse) BORRA solo si la fila es un slot con datos (no
-    // `NEW GAME`). Los bindings se leen en vivo (remapeables). En headless solo hay teclado.
-    if (acc_btn || (pressed & (0x8000u | 0x1000u))) {   // A o Start/Enter
+    // A (aceptar) SIEMPRE guarda; X/Z (agacharse) BORRA solo si la fila es un slot con datos (no
+    // `NEW GAME`). `pressed` es el FLANCO (0->1) sobre el estado mantenido completo (teclado + mando):
+    // mantener pulsado NO repite ni autoguarda/autoborra.
+    if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
         if (env_set("HH_SAVE_TRACE")) {
-            hh::log("[save-flow] A/Start en Select -> ConfirmHere (acc_btn=%d pressed=%d)\n", acc_btn ? 1 : 0,
-                    (pressed & (0x8000u | 0x1000u)) ? 1 : 0);
+            hh::log("[save-flow] A/Start en Select -> ConfirmHere (pressed)\n");
         }
         if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
         const hh::menu::Screen& s = hh::menu::current_screen();
@@ -2481,7 +2493,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_save_yes_selected(true);
             hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmHere);
         }
-    } else if (del_btn) {
+    } else if (pressed & 0x2000u) {   // X / Z (agacharse)
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2501,7 +2513,11 @@ extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     // Objeto del menu (a0): lo necesita la transicion de salida (func_800058DC).
     const uint32_t obj = static_cast<uint32_t>(ctx->r4);
     // Pantalla activa = SaveGame (copia de LoadGame; `rebuild_load_game` la rellena con la lista).
-    hh::menu::open_save_game();
+    // Si es APERTURA NUEVA, ceba el anti-rebote: el botón que abrió la cápsula no debe autoguardar
+    // ni autoborrar en el primer frame (ver `g_save_seed_input`).
+    if (hh::menu::open_save_game()) {
+        g_save_seed_input.store(true);
+    }
     // Categoria FILE-SELECT activa: F8 (`g_native_visible`) oculta/muestra el DATA SAVE nativo.
     hh::menu_overlay::set_file_select_active(true);
     // F8 -> al re-MOSTRAR el nativo, recomponer el titulo `DATA SAVE` (se compone una sola vez; mientras

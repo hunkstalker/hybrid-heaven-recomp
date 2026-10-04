@@ -2,21 +2,16 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-03**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-04**.
 
-**Estado (2026-10-03)**: `main` = **v0.6.1** + **v0.6.2 pusheada y validada** (solo falta el tag). La
-**release v0.6.1 de GitHub estaba rota** y la causa está **medida**: (1) el `.zip` de CI **no incluía los
-datos de runtime** (`assets/`, `saves/templates`, `licences/`; el ejecutable los busca junto a sí) y (2)
-el **repo privado de secretos** del que CI clona el C recompilado seguía con el `RecompiledFuncs` del
-**2026-09-21**, anterior al fix de *jump tables* del **#14** → el binario de GitHub carecía del fix
-(aunque el build local, con `build/recomp` regenerado, sí lo tenía). Los **forks no eran el problema**
-(rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9`, publicados y resolubles por SHA). Hecho: fuente
-única de empaquetado `tools/package_release.py` + `ci.yml`, secreto regenerado y pusheado (`3993e72`),
-`main` (`8a7e076`, `f3de254`) con CI verde, y **validado en Windows** (guardado `.pak` y veneno/#14 OK).
-**Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
-**`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
-Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
-`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
+**Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
+**validado en Windows**): los botones de **acción** del menú (A/START/X) se leían en **estado
+mantenido** y mantener pulsado repetía la acción (p. ej. al confirmar `CONTINUAR` con A/START aún
+pulsada, se cargaba el **primer slot** sin ver el `DATA LOAD`). Ahora van por **flanco estricto con
+rearme** (mantener no repite; soltar y volver a pulsar, sí) y el **auto-repeat queda solo para las
+direcciones**; retirados los bloqueos por ms. Detalle: `RETOMAR.md`,
+`notes/2026-10-04-fix-input-flanco-botones-accion.md`. **En paralelo:** interpolación / desbloquear
+FPS en la rama **`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
 
 ## 1. Objetivo
 
