@@ -73,6 +73,23 @@ extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long lon
                                     unsigned long long *unpaired);
 extern "C" int hh_interp_take_capture(unsigned long long *gen);   // model_tagging.cpp
 
+// La instrumentación de pairing/sondas vive en el fork de RT64 como parte del PATCH de diagnóstico
+// (no en el commit permanente). Para que `main` (RT64 limpio, sin patch) compile/enlace, se definen
+// aquí **stubs débiles**; si el patch está aplicado, el fork define las versiones FUERTES y ganan.
+#if defined(__GNUC__) || defined(__clang__)
+#define HH_WEAK __attribute__((weak))
+extern "C" {
+HH_WEAK void RT64_GetTransformPairing(unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*) {}
+HH_WEAK unsigned long long RT64_GetGroupSeenCount() { return 0; }
+HH_WEAK void RT64_GetEmitterMatHist(unsigned long long* out16) { if (out16) for (int i = 0; i < 16; ++i) out16[i] = 0; }
+HH_WEAK void RT64_GetGbiProbeCounters(unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*, unsigned long long*) {}
+HH_WEAK int RT64_TakePairCapture(unsigned long long*, unsigned long long*, unsigned long long*) { return 0; }
+}
+#endif
+
 namespace {
 // HH_FPS=1: contadores para medir la tasa real de present (update_screen) y de display lists.
 std::atomic<uint64_t> g_hh_dl_count{ 0 };
