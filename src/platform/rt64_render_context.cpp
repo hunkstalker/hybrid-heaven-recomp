@@ -60,6 +60,7 @@ extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned lo
                                          unsigned long long *explicitIds,
                                          unsigned long long *unpairedTagged);
 extern "C" unsigned long long RT64_GetGroupSeenCount();
+extern "C" void RT64_GetEmitterMatHist(unsigned long long *out16);
 extern "C" void RT64_GetGbiProbeCounters(unsigned long long *enable, unsigned long long *dispatch,
                                          unsigned long long *matrixId, unsigned long long *opSeen,
                                          unsigned long long *vertCommon);
@@ -740,11 +741,25 @@ void hh::RT64Context::update_screen() {
             // matrixid=gEXMatrixGroup despachados; op=ultimo opcode extendido visto (0x0C=MatrixGroup).
             unsigned long long gbi_en = 0, gbi_disp = 0, gbi_mid = 0, gbi_op = 0, gbi_vc = 0;
             RT64_GetGbiProbeCounters(&gbi_en, &gbi_disp, &gbi_mid, &gbi_op, &gbi_vc);
+            // HH (A2.2d): materializaciones por EMISOR del tagging (code 4..14 emitter_wrap, 15
+            // C768); si un code no aparece, su geometria sigue huerfana.
+            unsigned long long emat[16] = {};
+            RT64_GetEmitterMatHist(emat);
+            char embuf[200];
+            int eo = 0;
+            for (int i = 4; i < 16 && eo < 170; ++i) {
+                if (emat[i] != 0) {
+                    eo += std::snprintf(embuf + eo, sizeof(embuf) - size_t(eo), "%d:%llu ", i, emat[i]);
+                }
+            }
+            if (eo == 0) {
+                std::snprintf(embuf, sizeof(embuf), "-");
+            }
             hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
                     " gen=%llu groups=%llu fx=%llu ignored=%.1f/s unpaired=%.1f/s"
                     " unpaired_tagged=%.1f/s unpaired_moved=%.1f/s"
                     " | gbi_enable=%llu extdisp=%llu matrixid=%llu extop=%02llX vcommon=%llu"
-                    " target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
+                    " target=%u vi=%u swapChain=%u refresh=%d vsync=%d emitmat=[%s]\n",
                     (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
                     RT64_GetGroupSeenCount(),
                     hh_mtxgroup_skip_count(), hh_mtxgroup_total_count(), hh_fx_group_count(),
@@ -752,7 +767,7 @@ void hh::RT64Context::update_screen() {
                     (upm - um_last) / secs,
                     gbi_en, gbi_disp, gbi_mid, gbi_op, gbi_vc,
                     target, vi_rate, get_display_framerate(),
-                    static_cast<int>(app->userConfig.refreshRate), vsync_real);
+                    static_cast<int>(app->userConfig.refreshRate), vsync_real, embuf);
             f_last = f; t_last = t; i_last = ig; u_last = up; um_last = upm; ex_last = ex; ut_last = ut;
             p0 = now;
         }

@@ -13,6 +13,16 @@
   **descartó** la vía core (materializar pass 1 a través de la frontera de workload: asocia por tiempo,
   rompe el HUD). `notes/2026-10-04-fps-core-frontera-workload-y-pasada2.md`.
 
+- **A2.2d efectos/2D pasada 2 — CERRADA (2026-10-04, sesión 5): no hay artefacto; capturas =
+  transitorios.** El emisor de los efectos es **`func_8000C768`** (tipo 6/12) y **materializa**
+  (`id=EE0F…`, `explicit_ids` 0→~2.300/s). El resto de emisores (`7DE4/8F30/…`) queda **huérfano** por
+  la frontera de workload (`emitmat=[15:…]`). La opción **(a) core** (materializar en el `push`) fue
+  **inerte** (HUD intacto) → **revertida**. Análisis del `pairdump`: ningún id con racha de
+  no-emparejado > 3 frames; la transición de puerta es **cambio de generación** (mismas posiciones, ids
+  nuevos). Cobertura **98.6%** con id; 1.44% AUTO (sin tag, no dispara capturas). Port-only: `C768`
+  unificado bajo `HH_EMIT_TAG` + `emitmat=[]`.
+  `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
+
 ## 2026-10-02 (sesión de bugs)
 
 - **#13 minimapa desanclado al cambiar de Área — HECHO y VALIDADO en Windows (todos los niveles).**

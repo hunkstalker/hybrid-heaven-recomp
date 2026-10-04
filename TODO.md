@@ -48,15 +48,20 @@
     (`emitter_wrap()` → `gEXMatrixGroup` de PROYECCIÓN con id de cámara + generación) → snap del
     encuadre. Se **descartó** la vía core (materializar pass 1 a través de la frontera de workload:
     asocia por tiempo → rompe el HUD). Detalle: `notes/2026-10-04-fps-core-frontera-workload-y-pasada2.md`.
-  - [ ] **A2.2d efectos/2D de pasada 2 (no-emparejados)**: capturas en minas, láser al jugador,
-    partículas de golpe y **transiciones de puerta**. La geometría la dibujan los **emisores de
-    pasada 2** (`7DE4/8F30/8754/C768/…`), no el dispatch (`A828` = fillrects). **Vía**: tagging **en el
-    emisor** (nodo `ctx->r4`), identidad por nodo (`stable_slot`, sin `g_obj_slot`); nodos con **N
-    transforms** → `G_EX_ORDER_AUTO`/`G_EX_ID_IGNORE` (**nunca LINEAR**); efectos → `IGNORE`. NO envolver
-    emisores 2D de menú (congela). Detalle: nota del 2026-10-04 arriba.
+  - [x] **A2.2d efectos/2D de pasada 2 — CERRADA (2026-10-04, sesión 5)**: los efectos los dibuja
+    **`func_8000C768`** (tipo 6/12) y **materializa** (`id=EE0F…`); `emitter_wrap` (`7DE4/8F30/…`) queda
+    **huérfano** por la frontera de workload (`emitmat=[15:…]`). La opción **core (a)** (materializar en
+    el `push`) resultó **inerte** (HUD intacto) → revertida. Las capturas de minas/láser/partículas/
+    puerta-FIGHT son **transitorios** (id nuevo en 1 frame), **no fallos**; ningún id con racha >3
+    frames. Cobertura **98.6%** con id. Detalle:
+    `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
+  - [ ] **Partículas de sprites al curarse (VISUAL, distinto de #10)**: al curar, las partículas de
+    sprite se ven como **cuadrados con degradado** (sospecha: **alpha** de sprite). Reproducir al
+    curarse y revisar el path de sprite/2D (sprite `gEX`, `texrect` o alpha del RDP). Apuntado por el
+    mantenedor 2026-10-04; **siguiente foco**.
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
-    observado** (sin popping; `unpaired_moved` normal) → candidato a cerrar como "no aplica".
+    observado** (sin popping; `unpaired_moved` normal) → localizar el campo o cerrar como "no aplica".
   - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
   - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.

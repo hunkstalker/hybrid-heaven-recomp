@@ -2,9 +2,9 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-03**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-04**.
 
-**Estado (2026-10-03)**: `main` = **v0.6.1** + **v0.6.2 pusheada y validada** (solo falta el tag). La
+**Estado (2026-10-04)**: `main` = **v0.6.1** + **v0.6.2 pusheada y validada** (solo falta el tag). La
 **release v0.6.1 de GitHub estaba rota** y la causa está **medida**: (1) el `.zip` de CI **no incluía los
 datos de runtime** (`assets/`, `saves/templates`, `licences/`; el ejecutable los busca junto a sí) y (2)
 el **repo privado de secretos** del que CI clona el C recompilado seguía con el `RecompiledFuncs` del
@@ -16,13 +16,14 @@ el **repo privado de secretos** del que CI clona el C recompilado seguía con el
 **Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
 **`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
 minas/láseres); **#6 re-fijado con gate de escala ON por defecto** (2.0, validado en 2 runs);
-**pasada 2 CERRADA** (tagging por emisor acotado a `C768`). **Sesión 2026-10-04**: causa raíz del
-**sesgado de cámara medida** — el tagging de **pass 1 no materializa** (los `gEXMatrixGroup` van en
-sub-DLs `G_DL`, el `TransformGroup` queda huérfano) → RT64 interpola la cámara en los cortes. Plan 1
-(materializar en el push, **acotado**) pendiente. Detalle:
-`notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md`.
-Detalle: `RETOMAR.md`, `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md` y
-`notes/2026-10-03-fps-tagging-dobj-y-handoff.md`.
+**sesgado de cámara RESUELTO** (`46b3f0d`, grupo de proyección con generación) y **A2.2d (efectos/2D
+pasada 2) CERRADA**: el emisor de los efectos es **`C768`** y **materializa**; `emitter_wrap` queda
+huérfano por la frontera de workload (`emitmat=[15:…]`), la opción core (materializar en el push) fue
+**inerte** y se revirtió; las capturas de minas/láser/partículas/puerta-FIGHT son **transitorios**
+(aparición/estado/teletransporte), **no fallos** (cobertura **98.6%** con id). **Siguiente foco**:
+partículas de sprites al curarse (visual, **alpha**). Detalle:
+`notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md` y `RETOMAR.md`.
+Detalle release: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 ## 1. Objetivo
 

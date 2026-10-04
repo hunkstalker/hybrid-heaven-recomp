@@ -124,15 +124,6 @@ const bool g_fx_auto = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
-// [hh-cleanup] Pasada 2: experimento acotado a UN emisor (func_8000C768, draw de tipo 6). Envolver
-// TODOS los emisores congelaba el render; aqui solo se rodea C768 (pocas llamadas/frame).
-// `HH_FX_EMIT=1`. Se conserva a proposito (apagado por defecto): inventario y contexto en
-// notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md §Actualizacion 4.
-const bool g_fx_emit = [] {
-    const char* v = std::getenv("HH_FX_EMIT");
-    return v != nullptr && *v != '\0' && *v != '0';
-}();
-
 // [Opción 2] Tagging en el EMISOR de geometría (no en el traversal de pass 1). Medido 2026-10-04:
 // los grupos de pass 1 y la geometría viven en workloads RSP distintos (un `G_RDPFULLSYNC` los
 // separa) y `rsp->reset()` borra el estado extendido en la frontera, así que materializar en
@@ -636,6 +627,13 @@ void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t node, bool
 // generación (cambia en cada corte). Así RT64 no empareja el viewProj a través del corte
 // (`viewProjMap.mapped = matrixId == prev matrixId`) → snap del encuadre, sin tocar los modelview de
 // objeto (huesos/efectos intactos). `emitter_trace` (que llama a `orig`) va en medio.
+//
+// A2.2d: ADEMAS del grupo de PROYECCION, se emite un grupo de MODELVIEW por emisor (el emisor conoce
+// su nodo `ctx->r4`), en el MISMO workload que su geometria. Fase de diagnostico (RETOMAR §Plan A2.2d
+// paso 2): el id es reconocible por EMISOR y nodo (`0xEE000000 | (id_emisor << 16) | (slot & 0xFFFF)`)
+// para localizar en `hh_pairdump.log` que emisor produce los no-emparejados de minas/laser/particulas/
+// puertas. Orden AUTO (nunca LINEAR con N transforms). Tras identificar el efecto se cambia a id por
+// nodo (`interp_id(2, 0, slot, 0)`) y `G_EX_ID_IGNORE` para los efectos (§A2.2d.3).
 void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool can_tag, bool is2d,
                   void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
     const bool tag = g_emit_tag && g_enabled && can_tag && valid_ram(node) && node != 0;
@@ -653,9 +651,28 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
                                      G_EX_ORDER_AUTO, G_EX_EDIT_NONE,
                                      G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
         }
+        // Grupo de MODELVIEW de la geometria que dibuja este emisor. Solo 3D (nunca 2D de menu).
+        if (!is2d) {
+            const uint32_t model = rd_u32(rdram, node + 0x2C);
+            const uint32_t slot = stable_slot(node, model);
+            const uint32_t mvId = 0xEE000000u | (uint32_t(id) << 16) | (slot & 0xFFFFu);
+            if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
+                gEXMatrixGroupDecomposed(cmd, mvId, G_EX_PUSH, /*proj=*/0,
+                                         G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                         G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                         G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                         G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                         G_EX_COMPONENT_AUTO);
+            }
+        }
     }
     emitter_trace(rdram, name, id, node, can_tag, is2d, orig, ctx);
     if (tag) {
+        if (!is2d) {
+            if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+                gEXPopMatrixGroup(cmd, /*proj=*/0);
+            }
+        }
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXPopMatrixGroup(cmd, /*proj=*/1);
         }
@@ -663,19 +680,20 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 }
 }  // namespace
 
-// Unico emisor envuelto (experimento pasada 2): el draw de tipo 6 `func_8000C768`, que enlaza la
-// geometria de la cinta/efecto en sub-DLs (`G_DL`); rodearlo con un grupo deberia taggear esa
-// geometria. Gate `HH_FX_EMIT=1` (junto con HH_FX_PASS2=1). Con OFF, solo traza.
+// Emisor de tipo 6 `func_8000C768` (draw de la cinta/efecto); enlaza su geometria en sub-DLs
+// (`G_DL`). Medido (nota 2026-10-04 §2): es el UNICO emisor que MATERIALIZA su `gEXMatrixGroup`
+// (su geometria va en el mismo workload). Gate unificado `HH_EMIT_TAG=1` (o `HH_FX_EMIT=1`). Para el
+// diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    const bool emit = g_fx_emit && g_enabled && valid_ram(node) && node != 0;
+    const bool emit = g_emit_tag && g_enabled && valid_ram(node) && node != 0;
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
         }
         const uint32_t model = rd_u32(rdram, node + 0x2C);
         const uint32_t slot = stable_slot(node, model);
-        const uint32_t iid = interp_id(/*INTERP_KIND_FX=*/3u, 0u, slot, /*lod=*/0u);
+        const uint32_t iid = 0xEE000000u | (15u << 16) | (slot & 0xFFFFu);
         if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
             gEXMatrixGroupDecomposed(cmd, iid, G_EX_PUSH, /*proj=*/0,
                                      G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,

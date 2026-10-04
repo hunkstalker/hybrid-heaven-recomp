@@ -36,10 +36,10 @@ index 20c0d4d..853e908 100644
                  Map[opCode](state, dl);
              }
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 87392d0..03772d5 100644
+index 87392d0..5314180 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
-@@ -9,6 +9,100 @@
+@@ -9,6 +9,111 @@
  
  #include "xxHash/xxh3.h"
  
@@ -137,10 +137,21 @@ index 87392d0..03772d5 100644
 +    return 1;
 +}
 +
++// HH (A2.2d): histograma de TransformGroups MATERIALIZADOS por emisor del tagging del port. El id
++// del grupo es `0xEE000000 | (code << 16) | slot`; [code] = 4..14 emitter_wrap, 15 = C768. Sirve
++// para medir si la materializacion en el push (plan 1) hace llegar por fin los grupos de cada
++// emisor (si un code no aparece, su geometria sigue huerfana).
++extern "C" uint64_t hh_mat_emit_hist[16] = { 0 };
++extern "C" void RT64_GetEmitterMatHist(unsigned long long *out16) {
++    for (int i = 0; i < 16; i++) {
++        out16[i] = hh_mat_emit_hist[i];
++    }
++}
++
  namespace RT64 {
      // GameFrame
      
-@@ -375,6 +469,130 @@ namespace RT64 {
+@@ -375,6 +480,130 @@ namespace RT64 {
          matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
          matchScenes(orthographicScenes, prevFrame.orthographicScenes);
  
@@ -376,15 +387,17 @@ index fd8b3eb..da9c9f7 100644
  
      void RigidBody::updatePerspective(const hlslpp::float4x4 &prevTransform, const hlslpp::float4x4 &curTransform, uint8_t perspInterpolation) {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index 1da2550..7c932de 100644
+index 1da2550..8b5586f 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
-@@ -6,6 +6,13 @@
+@@ -6,6 +6,15 @@
  
  #include <cassert>
  
 +// HH: contador de gEXMatrixGroup materializados (definido en rt64_game_frame.cpp).
 +extern "C" uint64_t hh_group_seen_count;
++// HH (A2.2d): histograma de materializaciones por emisor del tagging del port (id 0xEE code).
++extern "C" uint64_t hh_mat_emit_hist[16];
 +// HH: sonda del GBI extendido (definida en rt64_game_frame.cpp).
 +extern "C" uint64_t hh_ext_dispatch;
 +extern "C" uint64_t hh_matrixid_count;
@@ -393,7 +406,7 @@ index 1da2550..7c932de 100644
  #include "../include/rt64_extended_gbi.h"
  #include "common/rt64_common.h"
  #include "common/rt64_math.h"
-@@ -506,11 +513,17 @@ namespace RT64 {
+@@ -506,11 +515,22 @@ namespace RT64 {
          const int workloadCursor = state->ext.workloadQueue->writeCursor;
          Workload &workload = state->ext.workloadQueue->workloads[workloadCursor];
  
@@ -407,6 +420,11 @@ index 1da2550..7c932de 100644
 +            const uint32_t hhMid = extended.modelMatrixIdStack[stackIndex].matrixId;
 +            if ((hhMid != G_EX_ID_AUTO) && (hhMid != G_EX_ID_IGNORE)) {
 +                ::hh_group_seen_count++;
++                // HH (A2.2d): histograma por emisor del tagging (id `0xEE` code) para saber que
++                // emisores materializan de verdad (medido: solo C768, code 15).
++                if ((hhMid >> 24) == 0xEEu) {
++                    ::hh_mat_emit_hist[(hhMid >> 16) & 0xFu]++;
++                }
 +            }
          }
          
