@@ -23,13 +23,13 @@
   teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
-- [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
-  `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6**
-  (aura del jefe, gate de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life
-  Charger S) sin síntoma reciente → **cubiertos**. **SIGUIENTE (2026-10-04): A1 (tick lógico) + A3
-  (validar 120/240)**. Queda: LOD, B/C e higiene. **Estado y plan de integración en `main`**:
-  `RETOMAR.md` §"Rama fps-interpolacion-tagging". Work order:
-  **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Handoff: **`RETOMAR.md`**.
+- [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
+  2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
+  de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life Charger S) sin síntoma
+  reciente → **cubiertos**. **En `main` ya activo por defecto** (tagging; apagable `HH_MTXGROUP=0`/
+  `HH_EMIT_TAG=0`). **SIGUIENTE: A1 (tick lógico) + A3 (validar 120/240)**. Queda: LOD, B/C e higiene.
+  Plan/handoff: `RETOMAR.md` §"Rama fps-interpolacion-tagging". Work order:
+  **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
     de paso **widescreen** y **recuadro negro**; **#8** estable.
@@ -39,13 +39,15 @@
     `notes/2026-10-03-fps-tagging-identidad-logica-y-generacion-camara.md`.
   - [x] **A2.2a #6 (regresión) — fix por gate de ESCALA (VALIDADO 2026-10-03)**: el rebobinado del
     efecto es un **reset de escala ~100×**; `HH_SCALE_GATE` **ON por defecto (2.0)** (`=0` off) en
-    `rt64_rigid_body.cpp` (parche RT64), log a `hh_scale.log`. Validado en 2 runs del jefe.
+    `rt64_rigid_body.cpp`, **commit permanente del fork RT64** (`7c46232`), log a `hh_scale.log`.
+    Validado en 2 runs del jefe.
   - [x] **A2.2b pasada 2 (efectos/2D ordenados) — CERRADA (VALIDADO 2026-10-03)**: los wrappers
     `7328/736C/73AC` son **compute-only**; la geometría va en **sub-DLs (`G_DL`)** de los emisores →
     hay que rodear **al emisor** con `gEXMatrixGroup` (no las funciones de cálculo). Envolver todos
     congelaba el render; acotado a **`C768`** (tipo 6) es estable y sin artefactos. Muerte de
-    enemigos comparada con emulador: coincide. Queda **apagado por defecto** (`HH_FX_PASS2`+
-    `HH_FX_EMIT`). Detalle: nota `2026-10-03-...-generacion-camara.md` §Actualización 4.
+    enemigos comparada con emulador: coincide. Los **emisores que taggean** (`C768` + `emitter_wrap`)
+    van **ON por defecto** (`HH_EMIT_TAG=0` off); la **traza** de pasada 2 (`HH_FX_PASS2`) sigue OFF.
+    Detalle: nota `2026-10-03-...-generacion-camara.md` §Actualización 4.
   - [ ] **Limpieza futura de instrumentación de pasada 2/tagging** (decisión: conservar ahora): los
     `[hh-emit]`/histograma de opcodes, `HH_FX_*`, `HH_PAIRING_DUMP` + los log/trazas asociados se
     dejan a propósito para diagnosticar futuros fallos de interpolación. Retirar cuando la épica FPS

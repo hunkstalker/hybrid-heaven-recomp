@@ -42,9 +42,9 @@
 > `main`, el contexto del estado de la interpolación y **cómo integrarla**. No mezclar con el fix de
 > input de `main`.
 
-**Estado de la rama** (28 commits, **sin mergear**): arregla artefactos de la **interpolación de
-frames** a alta tasa. Validado en Windows **con flags** (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`; por defecto
-la rama no cambia nada). Contenido:
+**Estado de la rama** (**MERGEADA en `main`**, 2026-10-04; `main` = `9b45c3a`): arregla artefactos de
+la **interpolación de frames** a alta tasa. **Ya activo por defecto** en `main` (tagging ON; se apaga
+con `HH_MTXGROUP=0`/`HH_EMIT_TAG=0`). Contenido:
 
 - **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): `gEXMatrixGroup` de PROYECCIÓN con generación.
 - **Identidad por nodos** (`stable_slot` + generación de cámara): arreglados **huesos** del PJ, **#6**
@@ -69,16 +69,26 @@ emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
    —ambas lo tocan— y los `.md` de estado). **HECHO (2026-10-04)**.
 2. **Re-validar** en Windows con los flags ON (cámara, identidad, #6/#8) sin regresiones.
    **HECHO (2026-10-04)** por el mantenedor.
-3. **Promover**: **encender por defecto** solo lo **validado** (cámara + identidad + #6); dejar
-   **gateado** lo incompleto (efectos/A2.2d, instrumentación). **HECHO (2026-10-04)**: el tagging de
-   transforms por objeto/nodo (`g_enabled`, `HH_MTXGROUP`) pasa a **ON por defecto** (apagable con
-   `HH_MTXGROUP=0`); `HH_EMIT_TAG`/`HH_FX_PASS2` (efectos pasada 2) siguen **OFF**; el gate de escala
-   (#6) ya estaba **ON** en el patch de RT64.
+3. **Promover**: **encender por defecto** solo lo **validado** (cámara + identidad + #6). **HECHO
+   (2026-10-04)**: el tagging por objeto/nodo (`g_enabled`, `HH_MTXGROUP`) y el tagging de **emisores/
+   cámara** (`g_emit_tag`, `HH_EMIT_TAG`) pasan a **ON por defecto** (apagables con `=0`); el gate de
+   escala (#6) ya estaba **ON** en el patch de RT64 (ahora commit). La instrumentación
+   (HH_PAIRING/LOGs/capturas/TEXDUMP, `HH_FX_PASS2`) sigue **OFF**.
 4. **RT64**: **HECHO (2026-10-04)**: el **gate de discontinuidad de escala/rotación (#6)** es **commit
    permanente** del fork `hunkstalker/rt64` rama `hybrid-heaven` (`7c46232`, pusheado); el gitlink de
    esta rama apunta a él + `runtime.lock` actualizado. La **instrumentación** (contadores/sondas) queda
    **solo** en `patches/rt64/hh-interpolation-tagging.patch`. Detalle: `docs/workflows.md §1.2`.
-5. **Merge/PR a `main`** con su documentación. **Pendiente**.
+5. **Merge/PR a `main`** con su documentación. **HECHO (2026-10-04)**: merge **fast-forward** a `main`
+   (`f144881`), más el fix de build de `9b45c3a` (stubs weak de la instrumentación RT64 para que
+   `main` compile sin el patch). **Pendiente del mantenedor**: `git push origin main`.
+
+### Pendiente tras el merge
+
+- **Validar en Windows desde `main` sin variables** (cámara, huesos, #6, #8). El gate de escala va en
+  el commit del fork (`7c46232`), así que un clon limpio de `main` lo tendrá.
+- `lib/rt64` en local puede quedar “sucio” (patch de diagnóstico aplicado); para `main` limpio:
+  `git -C lib/rt64 checkout -- .`.
+- **Push** de `main` (lo hace el mantenedor).
 
 ### TAREA SIGUIENTE — A1 tick lógico + A3 validar 120/240
 
