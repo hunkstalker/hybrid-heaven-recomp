@@ -33,6 +33,31 @@
 - **Descartado**: materializar pass 1 a través de la frontera de workload ("grupo activo"): asocia por
   **tiempo, no por nodo** → rompe el HUD (el radial azul se movía). Ver la nota.
 
+### Plan A2.2d (primeros pasos, concreto)
+
+Punto de partida: `src/hooks/model_tagging.cpp` → `emitter_wrap()` (línea ~639) y los hooks de emisor
+(~línea 702). `emitter_wrap` hoy **solo** emite el grupo de **proyección** (cámara); hay que volver a
+emitir **también** un grupo de **modelview** por emisor. Registro de los hooks: `sections.cpp` (bajo
+`HH_FX_PASS2`). No hace falta tocar el core.
+
+1. **Re-añadir el grupo modelview** en `emitter_wrap` con id **por nodo**
+   (`interp_id(2, 0, stable_slot(node, model), 0)`, **sin** `g_obj_slot`, que en pass 2 es obsoleto),
+   con push/pop balanceados alrededor de `emitter_trace` (que llama a `orig`).
+2. **Identificar qué es efecto** (no lo sabemos aún). Diagnóstico de 1 run: emitir el grupo con un id
+   **reconocible por emisor** (p. ej. `0xEE000000u | uint32_t(id_emisor)`) y mirar en `hh_pairdump.log`
+   qué `id=EE…` aparece en los no-emparejados de minas/láser/partículas/puertas. Ese emisor (o su tipo
+   de nodo, `rd_u16(rdram, node + 0x2A)`) es el candidato a `IGNORE`.
+3. **Granularidad** (clave): si el nodo tiene **N transforms** (efectos/partículas) → `G_EX_ID_IGNORE`
+   (efectos) o `G_EX_ORDER_AUTO` (evita el barajado de `LINEAR`); `LINEAR` **solo** para mallas de 1
+   transform. `is_effect` por `ntype` o por lista de emisores.
+4. **Validar**: `ignored>0` y caen las `paircap` de esos puntos; **además visual** (huesos, HUD/radial,
+   efectos). OJO: la métrica **no** ve el mal-emparejamiento.
+5. **No envolver** los 2D de menú (`7750/78AC/79B0`, `919C/11958`, `A828`): congela (probable desborde
+   del buffer de gfx). Si un efecto 2D va por ahí, hay que buscar otra vía (rewrite en `send_dl`).
+
+Si el paso 2 revela que el efecto lo dibuja un emisor 2D no envolvible, replantear: taggear en `send_dl`
+(como `hud_rewrite`) o detectarlo en RT64.
+
 ## Otros pendientes
 
 - **LOD** en el hash (id = slot, model, lod): sin campo localizado; probable "no aplica".
