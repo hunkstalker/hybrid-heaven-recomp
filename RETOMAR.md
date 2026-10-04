@@ -38,12 +38,39 @@
 1. Commit del fix + docs (si el mantenedor no lo ha hecho ya).
 2. Validar en Windows el remapeo de teclado (números + teclas del layout ES).
 
-## Otras ramas
+## Rama `fps-interpolacion-tagging` — estado y plan de integración
 
-- **`fps-interpolacion-tagging`** (2 commits `wip` + 1 `docs` + fix identidad lógica, **sin mergear**):
-  tagging de interpolación por hook del port. Detalle y siguiente paso:
-  `notes/2026-10-03-fps-tagging-dobj-y-handoff.md`. Incluye
-  `patches/rt64/hh-interpolation-tagging.patch` (cambios del submódulo `lib/rt64` como patch).
+> **Esta sección la añadió la sesión 2026-10-04** (la que trabajó en esa rama) para dejar aquí, en
+> `main`, el contexto del estado de la interpolación y **cómo integrarla**. No mezclar con el fix de
+> input de `main`.
+
+**Estado de la rama** (28 commits, **sin mergear**): arregla artefactos de la **interpolación de
+frames** a alta tasa. Validado en Windows **con flags** (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`; por defecto
+la rama no cambia nada). Contenido:
+
+- **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): `gEXMatrixGroup` de PROYECCIÓN con generación.
+- **Identidad por nodos** (`stable_slot` + generación de cámara): arreglados **huesos** del PJ, **#6**
+  (gate de escala, en RT64), **#8** (puertas), minas/láseres.
+- **A2.2d CERRADA** (efectos/2D pasada 2, no-bug): los efectos los dibuja `C768` y **materializa**;
+  capturas de minas/láser/partículas/puerta = **transitorios**, no fallos.
+- **Partículas del heal = no-bug** (asset original; coincide con el emulador).
+- Bug **latente** de walkers de DL corregido (`a8212b3`).
+- **Instrumentación**: RT64 vía `patches/rt64/hh-interpolation-tagging.patch` (gates, contadores,
+  pairing) y del port (`HH_MTXGROUP`, `HH_EMIT_TAG`, `HH_PAIRING`, `HH_PAIRING_DUMP`, …). **`lib/rt64`
+  en `main` está limpio**; en la rama el patch se aplica aparte (`docs/workflows.md §1.2`).
+- Handoffs/notas: `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
+  `.../fps-particulas-heal-asset-no-bug.md`, `.../fps-walker-dl-comandos-extendidos-latente.md`.
+
+**Plan de integración en `main`** (por fases; **NO** es un merge ciego):
+
+1. **Sincronizar**: mergear `main` → rama y resolver conflictos (`src/subsystems/input.cpp` —ambas lo
+   tocan— y los `.md` de estado).
+2. **Re-validar** en Windows con los flags ON (cámara, identidad, #6/#8) sin regresiones.
+3. **Promover**: **encender por defecto** solo lo **validado** (cámara + identidad + #6); dejar
+   **gateado** lo incompleto (efectos/A2.2d, instrumentación).
+4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
+   mantener el patch. Detalle: `docs/workflows.md §1.2`.
+5. **Merge/PR a `main`** con su documentación.
 
 ## Árbol
 
