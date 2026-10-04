@@ -16,13 +16,14 @@ el **repo privado de secretos** del que CI clona el C recompilado seguía con el
 **Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
 **`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
 minas/láseres); **#6 re-fijado con gate de escala ON por defecto** (2.0, validado en 2 runs);
-**sesgado de cámara RESUELTO** (`46b3f0d`, grupo de proyección con generación) y **A2.2d (efectos/2D
-pasada 2) CERRADA**: el emisor de los efectos es **`C768`** y **materializa**; `emitter_wrap` queda
-huérfano por la frontera de workload (`emitmat=[15:…]`), la opción core (materializar en el push) fue
-**inerte** y se revirtió; las capturas de minas/láser/partículas/puerta-FIGHT son **transitorios**
-(aparición/estado/teletransporte), **no fallos** (cobertura **98.6%** con id). **Siguiente foco**:
-partículas de sprites al curarse (visual, **alpha**). Detalle:
-`notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md` y `RETOMAR.md`.
+**sesgado de cámara RESUELTO** (`46b3f0d`, grupo de proyección con generación); **A2.2d (efectos/2D
+pasada 2) CERRADA** (`C768` materializa; `emitter_wrap` huérfano por la frontera de workload; la opción
+core fue inerte y se revirtió; capturas = transitorios; cobertura 98.6%); **partículas del heal = no-bug**
+(asset original, coincide con el emulador); bug **latente** de walkers de DL corregido (`a8212b3`).
+**SIGUIENTE (2026-10-04): A1 (estabilizar tick lógico) + A3 (validar 120/240)** — el mantenedor **rara
+vez ve 120 fps y nunca 240** → medir lógica/tick vs present/GPU vs VSync. Detalle:
+`notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
+`notes/2026-10-04-fps-particulas-heal-asset-no-bug.md` y `RETOMAR.md`.
 Detalle release: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 ## 1. Objetivo

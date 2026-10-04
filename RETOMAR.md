@@ -1,68 +1,83 @@
-# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-04, sesión 5)
+# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-04, sesión 6)
 
-> **TAREA (rama): interpolación fiel / desbloquear FPS.** La **cámara** quedó resuelta (`46b3f0d`) y
-> **A2.2d (efectos/2D pasada 2) CERRADA**: los efectos los dibuja `C768` (materializa); el resto de
-> emisores queda huérfano por la frontera de workload; la opción core (a) fue **inerte** y se revirtió;
-> las capturas de efectos son **transitorios**, no fallos. Detalle completo:
-> `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
-> Reglas: `AGENTS.md` y `docs/documentation.md`. La vista no valida 1 frame → capturas **+ ojo**.
+> **TAREA (rama): interpolación fiel / desbloquear FPS.** La **interpolación** (tagging, cámara,
+> efectos) está **cerrada**: cámara `46b3f0d`, A2.2d no-bug, bug latente de walkers corregido
+> (`a8212b3`). Ahora toca la **cadencia**: **A1 (estabilizar el tick lógico)** y **A3 (validar 120/240)**.
+> Referencia: `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §4.
+> Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Estado — lo que funciona (MEDIDO, run del mantenedor)
 
-- **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): `emitter_wrap()` emite un `gEXMatrixGroup` de
-  PROYECCIÓN (`proj=1`) con id de cámara ligado a la generación → snap del encuadre en los cortes.
-- **A2.2d CERRADA**: el emisor de los efectos es **`func_8000C768`** (tipo 6/12) y **materializa**
-  (`hh_pairdump.log` 100% `id=EE0F…`; `explicit_ids` 0→~2.300/s). Cobertura **98.6%** con id.
-- `emitter_wrap` (`7DE4/82C4/8754/8B9C/8F30/D1CC/A06C/13828`): sus grupos **NO** materializan (frontera
-  de workload; `emitmat=[15:…]`). Por eso su geometría va AUTO/heurística (sin fallo visual observado).
-- **Capturas = transitorios**: ningún id con racha de no-emparejado >3 frames; la transición de puerta
-  es **cambio de generación** (mismas posiciones, ids nuevos) → snap correcto.
-- **Arreglados** (previo): huesos del PJ, **#6/#8** (aura del jefe; gate de escala), minas/láseres.
+- **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): grupo de PROYECCIÓN con id de cámara + generación.
+- **A2.2d CERRADA (no-bug)**: los efectos los dibuja `func_8000C768` y materializa (`id=EE0F…`);
+  cobertura 98.6% con id; las capturas de minas/láser/partículas/puerta-FIGHT son **transitorios**.
+- **Partículas del heal = no-bug**: los "quads" son el asset original del juego (glow 8x8 + estrella
+  16x16); coincide con el emulador. Herramientas: `HH_TEXDUMP` + `tools/analysis/decode_texdump.py`.
+- **Bug latente corregido** (`a8212b3`, `dl_snap.cpp`): longitud real de los comandos extendidos en los
+  walkers de DL (no observado en HH). Doc: `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
 
-## TAREA SIGUIENTE — partículas de sprites al curarse (visual)
+## TAREA SIGUIENTE — A1 tick lógico + A3 validar 120/240
 
-- **Síntoma**: al **curarse**, las partículas de sprite se ven como **cuadrados con degradado**.
-  Sospecha del mantenedor: **alpha** de sprite. Es **distinto de #10** (huesos) — #10 no se ha vuelto
-  a ver.
-- **A investigar**: path de sprite/2D (sprite `gEX`, `texrect`, o alpha del RDP). Reproducir al curar
-  y comparar con emulador si hace falta.
-- **A2.4 LOD**: localizar el campo de LOD del modelo o cerrar como "no aplica" (sin caso observado).
-- **#10**: sin síntoma reciente → cubierto salvo indicios nuevos.
+### A1 — Estabilizar el tick lógico (`notes/…-workorder… §4`)
 
-## Instrumentación (reutilizable; se conserva a propósito)
+- Garantizar **2 VI/frame estables** (lógica a **30 Hz**, como el N64) y **slips a 3 VI solo cuando el
+  trabajo no quepa** (no por jitter). Un tick irregular dispara fallos de matching/interpolación.
+- Herramientas: **`HH_DET_CLOCK=1|quant` + `HH_DET_CLOCK_BIAS`** (reloj determinista en el runtime,
+  `ultramodern timer.cpp`), compensación de stalls (precarga/caché de módulos `trans`, audio/DMA).
+- Verificar que **render/present no realimentan el tick** (que el frame de RT64 no retrase la lógica).
+- **Criterio**: cadencia estable (2 VI/tick, `d2` dominante en `hh_tick.log`, `d3/d4+=0`); desaparecen
+  los artefactos dependientes de jitter (hitches de puerta).
 
-- `HH_MTXGROUP=1` tagging; `HH_MTXGROUP_LOG=1` → `[hh-types]`, `[hh-mtxgroup]`, `[hh-emit]`.
-- `HH_EMIT_TAG=1` (alias `HH_FX_EMIT`) → tagging de emisores/cámara (`C768` incluido).
-- `HH_FX_PASS2=1` → registra hooks de emisores de pasada 2 (traza).
-- `HH_PAIRING=1` → `[hh-pair]`, ahora con **`emitmat=[code:count …]`** (materializaciones por emisor:
-  codes 4–14 `emitter_wrap`, 15 `C768`).
-- `HH_PAIRCAP=<min moved>` / `HH_GENCAP=1` → `paircap_*/gencap_*.bmp` + `[hh-cap]`.
-- `HH_PAIRING_DUMP=<min moved>` → `hh_pairdump.log` (append: borrar antes de cada run).
-- `HH_SCALE_GATE` (def. ON 2.0; `=0` off), `HH_ROT_GATE` (sonda), `HH_CAPMAX=<n>`.
-- **OJO**: `unpaired` **no** mide mal-emparejamiento. Validar transitorios por **racha de frames** del
-  `id` en el dump, no por capturas sueltas.
+### A3 — Validar a 120/240 Hz (Windows RTX 4080 + Steam Deck)
 
-### Run del mantenedor (validación)
+- Regresión: menús, guardado, combate, cinemáticas; **sin** parpadeo ni geometría incoherente.
+- A/B por métrica (`HH_FPS=1`) y ojo; F9 (interpolación ON/OFF), F8 (PresentEarly).
+
+### Observación del mantenedor (2026-10-04)
+
+**Rara vez ve 120 fps y nunca 240.** `[hh-fps]` ya imprime `present vs target`, `target/vi/swapChain/
+refresh/vsync`. Primer paso: **medir** con `HH_FPS=1` a 120/240 (menú GRÁFICOS o `HH_REFRESH_RATE=manual:<hz>`),
+distinguir si el cuello está en: (a) **lógica/tick** (slips → `hh_slow.log`), (b) **present/GPU**
+(`present` por debajo de `target` con tick sano) o (c) **VSync/monitor** (`target=swapChain`).
+
+## Instrumentación (reutilizable)
+
+- **Cadencia**: `HH_FPS=1` → `[hh-fps]` (update/present + target/vi/swapChain/refresh/vsync);
+  `HH_DIAG=1` → **`hh_tick.log`** (ticks, `d1..d4+` = VI por tick, `max_dt`) y **`hh_slow.log`**
+  (ticks >36 ms: `send_dl`/`update_screen`/`guest_busy`/`pending_ext`);
+  `HH_STATE_SECS=<s>` → `hh_state.log` (estado de hilos).
+- **Present/video**: `HH_REFRESH_RATE=original|display|manual:<hz>`; **F9** = toggle interpolación;
+  **F8** = menu nativo; `HH_PRESENT_EARLY=0` (=F8 sonda).
+- **Runtime**: `HH_VI_EVERY=<n>` (entrega VI al guest; diagnóstico de cadencia), `HH_DET_CLOCK[_BIAS]`.
+- **Tagging/interpolación** (de la tarea previa): `HH_MTXGROUP`, `HH_EMIT_TAG`/`HH_FX_EMIT`, `HH_FX_PASS2`,
+  `HH_PAIRING` (con `emitmat=[…]`), `HH_PAIRCAP`/`HH_GENCAP`, `HH_PAIRING_DUMP`, `HH_SCALE_GATE`.
+
+### Run del mantenedor (cadencia)
 
 ```powershell
 hybrid-heaven-recomp\build_windows.local.bat
-$env:HH_MTXGROUP='1'; $env:HH_PAIRING='1'; $env:HH_MTXGROUP_LOG='1'; $env:HH_FX_PASS2='1'; $env:HH_EMIT_TAG='1'; $env:HH_PAIRCAP='2'; $env:HH_GENCAP='1'; $env:HH_PAIRING_DUMP='1'
+$env:HH_FPS='1'; $env:HH_DIAG='1'; $env:HH_STATE_SECS='2'; $env:HH_MTXGROUP='1'; $env:HH_EMIT_TAG='1'
 hybrid-heaven-recomp\run_windows.bat release
 ```
-Logs en `build\windows\bin\Release\` (`hh.log`, `hh_pairdump.log`, capturas).
+Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `hh_state.log`). Borrar los
+`hh_*.log` antes de cada run (algunos abren en `w`/append).
 
-## Árbol
+## Árbol y pistas
 
-- `src/hooks/model_tagging.cpp` (tagging + `emitter_wrap` cámara/modelview + `C768` unificado),
-  `sections.cpp` (hooks), `rt64_render_context.cpp` (`[hh-pair]` + `emitmat`),
-  `patches/rt64/hh-interpolation-tagging.patch` (instrumentación del fork).
-- `lib/rt64` SUCIO (fork): la instrumentación vive en el patch; **no commitear el submódulo**.
+- Tick/lógica: `src/subsystems/input.cpp` (`get_input`, `HH_DIAG`, `hh_tick.log`/`hh_slow.log`),
+  `src/platform/main.cpp` (`HH_STATE_SECS`), runtime `N64ModernRuntime` (`events.cpp`, `timer.cpp`).
+- Present/GPU: `src/platform/rt64_render_context.cpp` (`[hh-fps]`, send_dl/update_screen),
+  `lib/rt64` (`rt64_workload_queue.cpp`, present queue).
+- Notas: `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §4 (A1/A3),
+  `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`,
+  `notes/2026-09-19-causa-raiz-cadencia-frames.md` (1 vs 2 VI/tick),
+  `notes/2026-09-22-fps-y-present-early.md`.
+- `lib/rt64` SUCIO (fork): la instrumentación va en el patch; **no commitear el submódulo**.
 
 ## Pitfalls (NO repetir)
 
-- El tagging por emisor **solo** materializa donde la geometría va en el mismo workload (`C768`);
-  materializar en el `push` (plan 1) **no** cruza la frontera. Solo la cruzaría el "grupo activo"
-  cross-workload (rompe HUD) o un rewrite en `send_dl`.
-- **NO** envolver los emisores 2D de menú (`7750/78AC/79B0`, `919C/11958`, `A828`): congela.
-- `unpaired` **no** es "mal emparejado": un id nuevo en 1 frame es normal (efecto/estado/teletransporte).
+- **Metas**: ">30 visual" ya existe (interpolación); **240 "reales" (lógica a 240) NO** es el objetivo
+  (eso es la Fase B/ADR). No confundir fps **presentados** con lógica.
+- No concluir cuelgues/freeze solo desde headless; validar en Windows.
+- `HH_VI_EVERY` es **diagnóstico global** (baja el frame en todo el juego), no un fix.
 - **NO** `git reset --hard`; no editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.

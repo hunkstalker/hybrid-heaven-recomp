@@ -19,9 +19,9 @@
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
   `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6**
   (aura del jefe, gate de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life
-  Charger S) sin síntoma reciente → **cubiertos**. Queda: sprites/alpha al curar, LOD, A1/A3/B/C e
-  higiene. Work order: **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
-  Handoff: **`RETOMAR.md`**.
+  Charger S) sin síntoma reciente → **cubiertos**. **SIGUIENTE (2026-10-04): A1 (tick lógico) + A3
+  (validar 120/240)**. Queda: LOD, B/C e higiene. Work order:
+  **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Handoff: **`RETOMAR.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
     de paso **widescreen** y **recuadro negro**; **#8** estable.
@@ -57,16 +57,18 @@
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
   - [x] **Partículas de sprites al curarse — CERRADO (no-bug)**: los "quads" son el **asset original**
     del juego (textura cuadrada de glow 8x8 + estrella 16x16); coincide con el emulador (dump del
-    emulador). No es interpolación ni tagging ni RT64. Ver
-    `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
+    emulador y `HH_TEXDUMP`). No es interpolación ni tagging ni RT64. Ver
+    `notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
   - [ ] **LATENTE: walkers de DL + comandos extendidos** (`src/hooks/dl_snap.cpp`): el salto de `0x64`
     con **longitud fija 16B** desincroniza con `gEXPopMatrixGroup`/`gEXSetRectAspect` (8B) → puede
     perder el scissor de overscan (**4:3 intermitente**) y cortar las trazas 2D. **No observado** en
     HH. Doc + fix: `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
     observado** (sin popping; `unpaired_moved` normal) → localizar el campo o cerrar como "no aplica".
-  - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
-  - [ ] **A3**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica.
+  - [•] **A1 (SIGUIENTE)**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
+  - [•] **A3 (SIGUIENTE)**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica. **OJO**:
+    el mantenedor **rara vez ve 120 fps y nunca 240** → medir con `HH_FPS=1`/`hh_tick.log`/`hh_slow.log`
+    si el cuello es lógica/tick, present/GPU o VSync.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
   - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
 
