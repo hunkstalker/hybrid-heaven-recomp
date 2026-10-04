@@ -12,8 +12,10 @@ los flujos leían acciones en estado mantenido). Fix: **una sola vía** para las
 (`hh_input_action_edges()`: teclado **+ ratón + mando + inyección**) con **flanco estricto con rearme**
 (mantener no repite) y **auto-repeat solo para direcciones**; seed en el hook de apertura; retirados los
 bloqueos por ms. Detalle: `RETOMAR.md`, `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
-**En paralelo:** interpolación / desbloquear FPS en la rama **`fps-interpolacion-tagging`** (tagging por
-hook; sin validar gameplay).
+**En paralelo:** interpolación / desbloquear FPS en la rama **`fps-interpolacion-tagging`** — **validado
+en Windows** (con flags `HH_MTXGROUP`/`HH_EMIT_TAG`): cámara, identidad por nodos (huesos), #6/#8,
+minas/láseres; A2.2d cerrada; **pendiente A1 (tick lógico) + A3 (validar 120/240) e integrar en `main`**
+(plan por fases en `RETOMAR.md` §"Rama fps-interpolacion-tagging").
 
 **Fix de remapeo de teclado en CONTROLES (#17, 2026-10-04)**: asignar teclas (números, etc.) no
 persistía. Causas: los **defaults** de teclado se reinyectaban al cargar y ganaban a la tecla nueva;

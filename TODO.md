@@ -24,9 +24,13 @@
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
 - [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
-  tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de
-  picos 60–98/s a media 3.4/s; falta validar en gameplay. Estado y siguiente paso:
-  `notes/2026-10-03-fps-tagging-dobj-y-handoff.md` §1–§6. (Pendiente mergear la rama cuando valide.)
+  arregla artefactos de la **interpolación de frames** a alta tasa. **Ya validado en Windows** (con
+  flags `HH_MTXGROUP`/`HH_EMIT_TAG`): **sesgado de cámara** (`46b3f0d`), **identidad por nodos**
+  (huesos), **#6** (gate de escala), **#8** (puertas), minas/láseres; **A2.2d cerrada** (efectos, no-bug);
+  partículas del heal = no-bug; bug latente de walkers de DL corregido (`a8212b3`). **Pendiente**:
+  **A1 (tick lógico) + A3 (validar 120/240)** e **integrar en `main`**. Estado, fixes y **plan de
+  integración**: `RETOMAR.md` §"Rama fps-interpolacion-tagging". Notas:
+  `notes/2026-10-04-fps-*.md`.
 
 - [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
   hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o
@@ -305,11 +309,11 @@
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
   `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
-- [ ] **Artefacto de interpolación de frames (puerta + jefe del nivel 1) — APLAZADO (largo plazo)**:
-  con `Refresh Rate = Display` (interpolación ON, v0.4.0) cierta **puerta** parpadea y el **primer
-  jefe del nivel 1** muestra geometría incoherente; con `Original` no ocurre (PresentEarly no
-  influye). **Depende de desacoplar la lógica del juego del render** (lógica a 60 Hz) → épica aparte.
-  Ver `RETOMAR.md` y `notes/2026-09-22-fps-y-present-early.md`.
+- [ ] **Artefacto de interpolación "puerta + jefe del nivel 1"**: **resuelto en la rama
+  `fps-interpolacion-tagging`** (puerta #8 por tagging; jefe #6 por gate de escala); **no** hizo falta
+  desacoplar la lógica del render a 60 Hz (eso sería la Fase B/ADR de pacing). Se integrará en `main`
+  con esa rama. Ver `RETOMAR.md` §"Rama fps-interpolacion-tagging" y
+  `notes/2026-09-22-fps-y-present-early.md`.
 - [ ] **2.º mando / 2.º Controller Pak — `MODO VS` no validable (2026-09-27)**: `MODO COMBATE →
   MODO VS` no se pudo validar; el port **solo reporta el puerto 0** de mando
   (`src/subsystems/input.cpp`: `return controller_num == 0` por el arranque del juego), así que no se
