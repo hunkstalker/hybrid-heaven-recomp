@@ -697,7 +697,8 @@ void register_title_menu_hook() {
     // prioriza el Rumble Pak; con VIBRACIÓN=SÍ el juego concluye "no hay Controller Pak" y no guarda.
     // El hook fuerza la rama "Controller Pak OK" sin dejar de inicializar el motor (ver definición).
     recomp::overlays::add_loaded_function(0x80002BE0, hh_pak_detect_hook);
-    // TAGGING DE TRANSFORMS (HH_MTXGROUP=1), identidad logica + grupo por NODO:
+    // TAGGING DE TRANSFORMS (ON por defecto; `HH_MTXGROUP=0` lo apaga), identidad logica + grupo por
+    // NODO:
     //   `func_800068C0` (residente) es el TRAVERSAL del arbol DOBJ de UN objeto; su hook fija el
     //   SLOT del objeto (identidad estable generacional, ver model_tagging.cpp) y evalua la camara.
     //   `func_800069A8` (residente) es el DISPATCH por nodo, llamado SOLO desde ese traversal; su
@@ -705,33 +706,36 @@ void register_title_menu_hook() {
     //   `G_EX_ORDER_AUTO` para tipos 1..4 (sprites/efectos) o `LINEAR` para mallas/huesos.
     //   El grupo por objeto con LINEAR barajaba el esqueleto del PJ cuando cambiaba el orden/numero
     //   de transforms; por nodo cada hueso empareja por su propia identidad.
-    // Con el flag OFF ambos hooks delegan sin mas. Residentes: no hace falta re-registrar por carga.
+    // Con `HH_MTXGROUP=0` ambos hooks delegan sin mas. Residentes: no hace falta re-registrar por carga.
     recomp::overlays::add_loaded_function(0x800068C0, hh_object_draw_hook);
     recomp::overlays::add_loaded_function(0x800069A8, hh_node_draw_hook);
-    // Pasada 2 ordenada/transparente (efectos/2D), antes SIN taggear: wrappers que llaman a
-    // func_80007114. GATEADA por HH_FX_PASS2: al emitir dentro de ese pase la DL se rompia
-    // (`groups_seen=0`), probablemente porque usa otro cursor de gfx. Off por defecto; a depurar.
+    // EMISORES de pasada 2 (cámara + tagging de efectos): se registran SIEMPRE. El tagging interno
+    // está gateado por `g_emit_tag && g_enabled` (ambos ON por defecto; `HH_EMIT_TAG=0` lo apaga). El
+    // fix de CÁMARA vive en `emitter_wrap`/`hh_emit_c768_hook`, así que sin registrar estos hooks la
+    // cámara quedaría fuera. Solo envuelven emisores que DIBUJAN 3D (los `is2d` y setup de menú no
+    // taggean); el "congeló el render" medido venía de envolver los compute-only de la cinta.
+    recomp::overlays::add_loaded_function(0x8000C768, hh_emit_c768_hook);
+    recomp::overlays::add_loaded_function(0x80007DE4, hh_emit_7de4_hook);
+    recomp::overlays::add_loaded_function(0x800082C4, hh_emit_82c4_hook);
+    recomp::overlays::add_loaded_function(0x80008754, hh_emit_8754_hook);
+    recomp::overlays::add_loaded_function(0x80008B9C, hh_emit_8b9c_hook);
+    recomp::overlays::add_loaded_function(0x80008F30, hh_emit_8f30_hook);
+    recomp::overlays::add_loaded_function(0x8000D1CC, hh_emit_d1cc_hook);
+    recomp::overlays::add_loaded_function(0x8000A06C, hh_emit_a06c_hook);
+    recomp::overlays::add_loaded_function(0x80013828, hh_emit_13828_hook);
+    // INSTRUMENTACIÓN de pasada 2 ordenada/transparente, SOLO diagnóstico (HH_FX_PASS2=1):
+    //   - wrappers de la cinta (`7328/736C/73AC`): compute-only, NO emiten gfx -> no taggean.
+    //   - emisores que solo TRAZAN (setup de menú / 2D): `7750/78AC/79B0/11958/A828/919C`.
     if (const char* fx = std::getenv("HH_FX_PASS2"); fx != nullptr && *fx != '\0' && *fx != '0') {
         recomp::overlays::add_loaded_function(0x80007328, hh_fx_7328_hook);
         recomp::overlays::add_loaded_function(0x8000736C, hh_fx_736c_hook);
         recomp::overlays::add_loaded_function(0x800073AC, hh_fx_73ac_hook);
-        // Localizar el emisor real de la geometria de efectos (los wrappers de arriba solo calculan
-        // la cinta). Solo trazan `[hh-emit]` (delta de cursor); no tagging aun.
-        recomp::overlays::add_loaded_function(0x8000C768, hh_emit_c768_hook);
         recomp::overlays::add_loaded_function(0x80007750, hh_emit_7750_hook);
         recomp::overlays::add_loaded_function(0x800078AC, hh_emit_78ac_hook);
         recomp::overlays::add_loaded_function(0x800079B0, hh_emit_79b0_hook);
-        recomp::overlays::add_loaded_function(0x80007DE4, hh_emit_7de4_hook);
-        recomp::overlays::add_loaded_function(0x800082C4, hh_emit_82c4_hook);
-        recomp::overlays::add_loaded_function(0x80008754, hh_emit_8754_hook);
-        recomp::overlays::add_loaded_function(0x80008B9C, hh_emit_8b9c_hook);
-        recomp::overlays::add_loaded_function(0x80008F30, hh_emit_8f30_hook);
-        recomp::overlays::add_loaded_function(0x8000D1CC, hh_emit_d1cc_hook);
         recomp::overlays::add_loaded_function(0x80011958, hh_emit_11958_hook);
         recomp::overlays::add_loaded_function(0x8000A828, hh_emit_a828_hook);
         recomp::overlays::add_loaded_function(0x8000919C, hh_emit_919c_hook);
-        recomp::overlays::add_loaded_function(0x8000A06C, hh_emit_a06c_hook);
-        recomp::overlays::add_loaded_function(0x80013828, hh_emit_13828_hook);
     }
     // DIAGNOSTICO TEMPORAL: fuerza la escena de logos en headless (HH_FORCE_INTRO=1).
     recomp::overlays::add_loaded_function(0x801C1508, hh_force_intro_hook);

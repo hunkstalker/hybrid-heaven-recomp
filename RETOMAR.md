@@ -68,8 +68,12 @@ emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
 1. **Sincronizar**: `git merge main` en esta rama y resolver conflictos (`src/subsystems/input.cpp`
    —ambas lo tocan— y los `.md` de estado). **HECHO (2026-10-04)**.
 2. **Re-validar** en Windows con los flags ON (cámara, identidad, #6/#8) sin regresiones.
+   **HECHO (2026-10-04)** por el mantenedor.
 3. **Promover**: **encender por defecto** solo lo **validado** (cámara + identidad + #6); dejar
-   **gateado** lo incompleto (efectos/A2.2d, instrumentación).
+   **gateado** lo incompleto (efectos/A2.2d, instrumentación). **HECHO (2026-10-04)**: el tagging de
+   transforms por objeto/nodo (`g_enabled`, `HH_MTXGROUP`) pasa a **ON por defecto** (apagable con
+   `HH_MTXGROUP=0`); `HH_EMIT_TAG`/`HH_FX_PASS2` (efectos pasada 2) siguen **OFF**; el gate de escala
+   (#6) ya estaba **ON** en el patch de RT64.
 4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
    mantener el patch. Detalle: `docs/workflows.md §1.2`.
 5. **Merge/PR a `main`** con su documentación (`notes/2026-10-04-fps-*`).

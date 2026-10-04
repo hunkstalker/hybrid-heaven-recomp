@@ -27,7 +27,10 @@
 //   func_80006790_7390 (lista global de roots) -> func_800068C0_74C0 (traversal DOBJ de un objeto)
 //     -> func_800069A8_75A8 (DISPATCH por tipo de nodo) -> malla/efectos/... (todos con G_MTX)
 //
-// Gate: HH_MTXGROUP=1 (por defecto OFF). Con OFF el hook delega sin mas.
+// Gate: el tagging está **ON por defecto** (promovido 2026-10-04 tras validar en Windows); se apaga
+// con `HH_MTXGROUP=0` (objetos/nodos) o `HH_EMIT_TAG=0`/`HH_FX_EMIT=0` (emisores/cámara). La
+// instrumentación de diagnóstico (HH_PAIRING, HH_MTXGROUP_LOG, HH_PAIRCAP, HH_GENCAP,
+// HH_PAIRING_DUMP, HH_TEXDUMP, HH_FX_PASS2) sigue **OFF** por defecto.
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -110,9 +113,13 @@ inline float rd_f32(uint8_t* rdram, uint32_t kseg0) {
     return f;
 }
 
+// Gate del tagging de transforms por objeto/nodo (cámara, identidad lógica, huesos, #8). **ON por
+// defecto** (promovido 2026-10-04 tras validar en Windows): sin tagging, la interpolación de alta
+// tasa deja artefactos (sesgado de cámara, huesos, puertas). `HH_MTXGROUP=0` lo apaga (A/B y
+// diagnóstico; deja el comportamiento previo a la épica).
 const bool g_enabled = [] {
     const char* v = std::getenv("HH_MTXGROUP");
-    return v != nullptr && *v != '\0' && *v != '0';
+    return !(v != nullptr && *v != '\0' && *v == '0');   // por defecto ON; `0` lo apaga
 }();
 
 const bool g_trace = std::getenv("HH_MTXGROUP_LOG") != nullptr;
@@ -129,15 +136,17 @@ const bool g_fx_auto = [] {
 // separa) y `rsp->reset()` borra el estado extendido en la frontera, así que materializar en
 // `RSP::matrixId` no alcanza a la geometría (`explicit_ids=0`). El tag tiene que emitirse donde está
 // la geometría: envolviendo el emisor que dibuja (patrón ya validado con `C768`).
-// `HH_EMIT_TAG=1` (o `HH_FX_EMIT=1` como alias). Solo emisores que DIBUJAN 3D (`can_tag && !is2d`);
-// los setup de menú (7750/78AC/79B0) y los 2D (919C/11958) quedan fuera (el "congeló el render"
-// medido venía de envolverlos todos).
+// `HH_EMIT_TAG=0` (o `HH_FX_EMIT=0`) lo apaga. **ON por defecto** (promovido 2026-10-04 tras validar
+// en Windows): el fix de cámara vive en `emitter_wrap()` y su gate es `g_emit_tag && g_enabled`, así
+// que sin este gate la cámara (y los emisores de pasada 2) quedaría fuera. Solo emisores que DIBUJAN
+// 3D (`can_tag && !is2d`); los setup de menú (7750/78AC/79B0) y los 2D (919C/11958) quedan fuera (el
+// "congeló el render" medido venía de envolverlos todos).
 const bool g_emit_tag = [] {
     const char* v = std::getenv("HH_EMIT_TAG");
-    const bool on = (v != nullptr && *v != '\0' && *v != '0');
+    const bool off = (v != nullptr && *v != '\0' && *v == '0');
     const char* f = std::getenv("HH_FX_EMIT");
-    const bool alias = (f != nullptr && *f != '\0' && *f != '0');
-    return on || alias;
+    const bool off_alias = (f != nullptr && *f != '\0' && *f == '0');
+    return !(off || off_alias);   // por defecto ON; `0` (cualquiera de los dos) lo apaga
 }();
 
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
