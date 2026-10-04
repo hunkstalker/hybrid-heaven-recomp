@@ -252,8 +252,9 @@ void area_sub_from_value(uint16_t value, int& area, int& sub);
 const char* load_game_row_text(int index);   // texto de la fila (dibujo 1:1), o nullptr
 void refresh_load_game();                    // reconstruye LoadGame/SaveGame desde el `.pak`
 // Fija la pila a [Root, LoadGame] (idempotente) y refresca la lista. La llama el hook del file-select
-// (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra.
-void open_load_game();
+// (Fase 3) para que, al dar CONTINUAR, la pantalla activa sea la nuestra. Devuelve `true` si fue una
+// APERTURA NUEVA (no estaba abierta): el hook lo usa para cebar el anti-rebote de entrada.
+bool open_load_game();
 // Cierra la "sesión" de carga: al volver a ENTRAR en CONTINUAR el flujo debe REINICIARSE en `Browse`
 // (si no, se quedaría la última fase, p. ej. `Loaded`, y A solo saldría). La llama el hook al salir.
 void close_load_game();
@@ -276,14 +277,12 @@ void set_load_target_slot(int slot);
 // CARGAR: mensaje de la fase `Browse` con los bindings REALES insertados (p. ej. `A/J` carga,
 // `X/H` borra). Sustituye al `Select play data to be loaded.` nativo.
 std::string load_select_message();
-// true durante ~120 ms tras entrar en `Browse`/`Removed`: ignora el input que provocó la transición.
-bool load_input_blocked();
 
 // --- GUARDAR PARTIDA (copia 1:1 de la UI de cargar sobre el DATA SAVE nativo) --------------------
 // La pantalla `SaveGame` parte como COPIA de `LoadGame` (mismos 45 slots y metadatos). El hook de la
 // vía de guardado (0x803771A4) la publica ENCIMA del DATA SAVE nativo (sin ocultarlo) para poder
-// comparar ambas UI y ajustar la de guardado a 1:1. No hay lógica de guardado todavía.
-void open_save_game();
+// comparar ambas UI y ajustar la de guardado a 1:1. Devuelve `true` si fue una APERTURA NUEVA.
+bool open_save_game();
 // Cierra la "sesión" de guardado: al volver a ENTRAR en la cápsula el flujo debe REINICIARSE en `Ask`
 // (si no, se quedaba la última fase, p. ej. `Completed`, y A solo salía). La llama el hook al salir.
 void close_save_game();
@@ -316,8 +315,6 @@ void set_save_target_slot(int slot);
 // GUARDAR: mensaje de la fase `Select` (SUSTITUYE al `Select location in which to save play data.`)
 // con los bindings REALES insertados (p. ej. `A/J` guarda, `X/H` borra).
 std::string save_select_message();
-// true durante ~120 ms tras entrar en `Select`/`Removed`: ignora el input que provoco la transicion.
-bool save_input_blocked();
 
 // --- ELEGIR NIVEL (EXTRAS): CARGAR/GUARDAR/ELIMINAR + IR A NIVEL ---------------------------------
 // `game_loaded` = hay una partida viva (se pone al cargar/empezar y al deserializar el personaje).

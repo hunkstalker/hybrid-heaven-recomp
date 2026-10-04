@@ -6,21 +6,29 @@
 
 ## Ahora (priorizado)
 
-- [•] **v0.6.2 — Release de GitHub rota (abierta 2026-10-03; VALIDADO, solo falta tag/release)**:
-  reproducida. **Medido**: (1) el `.zip` de v0.6.1 no incluye `assets/`/`saves/templates`/`licences/`;
-  (2) los **forks no eran el problema** (rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9` publicados y
-  resolubles por SHA); (3) la causa real de #14/veneno es el **repo de secretos** con el `RecompiledFuncs`
-  del 2026-09-21 (pre-fix jump tables): solo 6 ficheros difieren del `build/recomp` regenerado.
-  **Hecho:** `tools/package_release.py` + `ci.yml` (ambos jobs) empaquetan `assets/` y `saves/templates`;
-  secrets publicado (`3993e72`); push `main` (`8a7e076`, `f3de254`); CI verde y artefacto verificado.
-  **Validado en Windows (2026-10-03)**: guardado `.pak` y veneno/#14 OK. **Pendiente:** tag/release
-  `v0.6.2`. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+- [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
+  `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
+  y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Release `v0.6.2`
+  publicada. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+
+- [x] **Fix de input "mantener pulsado" + X del mando en CARGAR/GUARDAR — HECHO y VALIDADO en Windows
+  (2026-10-04)**: acciones por **flanco estricto con rearme** y lectura **unificada**
+  (`hh_input_action_edges`: teclado+ratón+mando+inyección); auto-repeat solo en direcciones; retirados
+  los bloqueos por ms. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`; resumen en
+  `docs/TAREAS-HECHAS.md`.
+
+- [x] **Fix de remapeo de teclado en CONTROLES (#17) — HECHO (2026-10-04)**: asignar teclas no
+  persistía (defaults reinyectados), teclas con nombre que rompe el INI (`; = #`) se perdían y la
+  fuente no dibuja `[ ] \ '`. Fix: `[keys]` autoritativo, nombres seguros `sc_<n>`, solo se mapean
+  teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
+  `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; rama
   `fps-interpolacion-tagging`)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6**
   (aura del jefe, gate de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life
   Charger S) sin síntoma reciente → **cubiertos**. **SIGUIENTE (2026-10-04): A1 (tick lógico) + A3
-  (validar 120/240)**. Queda: LOD, B/C e higiene. Work order:
+  (validar 120/240)**. Queda: LOD, B/C e higiene. **Estado y plan de integración en `main`**:
+  `RETOMAR.md` §"Rama fps-interpolacion-tagging". Work order:
   **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**. Handoff: **`RETOMAR.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
@@ -71,7 +79,6 @@
     si el cuello es lógica/tick, present/GPU o VSync.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
   - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
-
 
 - [ ] **Repaso de FPS (apuntado 2026-10-03)**: el mantenedor tiene 70–110 fps en gameplay y cree que
   debería dar más (RTX 4080 / i7-14700K). `[MEDIDO]` `target=swapChain=120, vsync=1` → **techo 120**

@@ -4,6 +4,23 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## 2026-10-04
+
+- **Fix de input: "mantener pulsado" repetía la acción + X del mando no borraba (CARGAR/GUARDAR) —
+  HECHO y VALIDADO en Windows.** Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se
+  cargaba el **primer slot** sin ver el `DATA LOAD`; (2) **borrar un slot con el botón X del mando no
+  funcionaba** (solo la tecla H). Causa: lectura **inconsistente** del input — `read_input_button()` no
+  incluye el mando y los flujos leían acciones en estado mantenido. Fix: **una sola vía** para acciones,
+  `hh_input_action_edges()` (teclado **+ ratón + mando + inyección**) con **flanco estricto con rearme**;
+  auto-repeat **solo** para direcciones; seed en el hook de apertura; retirados los bloqueos por ms.
+  `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
+- **Fix de remapeo de teclado en CONTROLES (#17) — HECHO.** Asignar teclas (números, etc.) no persistía:
+  los **defaults** de teclado se reinyectaban al cargar y ganaban a la tecla reasignada; además, teclas
+  cuyo nombre rompe el INI (`; = #`) se perdían, y la fuente no dibuja `[ ] \ '`. Fix: `[keys]` es
+  **fuente autoritativa**, nombres seguros `sc_<n>` para el INI, **solo se mapean teclas dibujables**
+  (`glyph_value`+`menu_char`) y el rótulo se muestra **según la layout del SO** (`¡` en teclado ES)
+  guardando por scancode. `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
+
 ## FPS / interpolación (2026-10-02 … 2026-10-04)
 
 - **Sesgado de cámara — RESUELTO y validado en Windows (2026-10-04, `46b3f0d`).** *Shearing* de 1 frame

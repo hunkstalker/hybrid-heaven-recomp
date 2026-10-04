@@ -1015,25 +1015,25 @@ void push(ScreenId id) {
 static LoadPhase g_load_phase = LoadPhase::Browse;
 static bool g_load_yes = true;
 static int g_load_target_slot = -1;
-// Marca temporal al entrar en `Browse`/`Removed` para ignorar el input del frame de la transición.
-static std::chrono::steady_clock::time_point g_load_ignore_input_tp{};
 // ¿Sesión de carga activa? Se pone al abrir y se limpia en close_load_game() (al salir de CONTINUAR).
 // Sirve para REINICIAR el flujo al reentrar aunque la pila siga siendo [Root, LoadGame].
 static bool g_load_open = false;
 
 // Fase 3: fija la pila a [Root, LoadGame] y refresca la lista. Idempotente. La llama el hook del
-// file-select al dar CONTINUAR, para que la pantalla activa sea la nuestra.
-void open_load_game() {
+// file-select al dar CONTINUAR, para que la pantalla activa sea la nuestra. Devuelve `true` si fue
+// una APERTURA NUEVA (para que el hook cebe el anti-rebote de entrada).
+bool open_load_game() {
     ensure();
     // Ya está abierta: NO se reconstruye la lista. `rebuild_load_game()` fuerza el cursor al primer
     // slot con datos; llamarlo cada frame (el hook corre por frame) devolvía el cursor arriba tras
     // cada movimiento (bug "se mueve abajo y vuelve arriba"). La lista se refresca al (re)entrar.
     if (g_load_open && g_stack.size() == 2 && g_stack[0] == ScreenId::Root &&
         g_stack[1] == ScreenId::LoadGame) {
-        return;
+        return false;
     }
     rebuild_load_game();
-    if (!g_load_open) {
+    const bool opened = !g_load_open;
+    if (opened) {
         // (Re)entrada en CONTINUAR: el flujo arranca en `Browse` (lista interactiva). Sin esto se
         // quedaría la última fase (p. ej. `Loaded`) y A solo saldría. El cursor va a la primera
         // partida con datos (rebuild_load_game ya lo coloca).
@@ -1045,6 +1045,7 @@ void open_load_game() {
     g_stack.clear();
     g_stack.push_back(ScreenId::Root);
     g_stack.push_back(ScreenId::LoadGame);
+    return opened;
 }
 
 // Al salir de CONTINUAR (transición de escena / B al título): marca la sesión como cerrada para que
@@ -1068,8 +1069,6 @@ void close_load_game() {
 static SavePhase g_save_phase = SavePhase::Ask;
 static bool g_save_yes = true;
 static int g_save_target_slot = -1;
-// Marca temporal al entrar en `Select`/`Removed` para ignorar el input del frame de la transicion.
-static std::chrono::steady_clock::time_point g_save_ignore_input_tp{};
 // ¿Sesión de guardado activa? Se pone al abrir y se limpia en close_save_game() (al salir de la
 // cápsula). Sirve para REINICIAR el flujo al reentrar aunque la pila siga siendo [Root, SaveGame].
 static bool g_save_open = false;
@@ -1077,10 +1076,12 @@ static bool g_save_open = false;
 // GUARDAR PARTIDA: fija la pila a [Root, SaveGame] (idempotente). La llama el hook de la vía de
 // guardado (0x803771A4) para publicar la COPIA de la UI de cargar ENCIMA del DATA SAVE nativo. Como
 // `rebuild_load_game()` rellena también SaveGame con la misma lista, aquí basta con el foco.
-void open_save_game() {
+// Devuelve `true` si fue una APERTURA NUEVA de la cápsula (para cebar el anti-rebote).
+bool open_save_game() {
     ensure();
     rebuild_load_game();
-    if (!g_save_open) {
+    const bool opened = !g_save_open;
+    if (opened) {
         // (Re)entrada en la cápsula: el flujo arranca en `Ask` (`Save play data?` Yes/No, slots
         // ocultos). Sin esto se quedaba la última fase (p. ej. `Completed`) y A solo salía.
         g_save_phase = SavePhase::Ask;
@@ -1092,11 +1093,12 @@ void open_save_game() {
         }
     }
     if (g_stack.size() == 2 && g_stack[0] == ScreenId::Root && g_stack[1] == ScreenId::SaveGame) {
-        return;   // ya está abierta
+        return opened;   // ya está abierta
     }
     g_stack.clear();
     g_stack.push_back(ScreenId::Root);
     g_stack.push_back(ScreenId::SaveGame);
+    return opened;
 }
 
 // Al salir de la cápsula: marca la sesión como cerrada para que la próxima entrada reinicie el flujo.
@@ -1104,17 +1106,9 @@ void close_save_game() { g_save_open = false; }
 
 SavePhase save_phase() { return g_save_phase; }
 void set_save_phase(SavePhase phase) {
-    // Al entrar en `Select` (o `Removed`) se ignora el input de ESTE frame: la A que confirmo el
-    // prompt anterior (o el `Removed`) no debe contar como seleccion de slot/guardado (si no, Select
-    // pasa a ConfirmHere en el acto y el mensaje apenas se ve). Ver traza HH_SAVE_TRACE.
-    if (phase == SavePhase::Select || phase == SavePhase::Removed) {
-        g_save_ignore_input_tp = std::chrono::steady_clock::now();
-    }
+    // El anti-rebote del input lo lleva el FLANCO del propio flujo (`feed_save_flow`), no un bloqueo
+    // por tiempo: la A que confirmó el prompt anterior ya no cuenta como nueva pulsación.
     g_save_phase = phase;
-}
-// true si la fase cambio hace menos de `ms` (para ignorar el input que la provoco).
-bool save_input_blocked() {
-    return (std::chrono::steady_clock::now() - g_save_ignore_input_tp) < std::chrono::milliseconds(120);
 }
 bool save_confirm() { return g_save_phase == SavePhase::Ask; }
 void set_save_confirm(bool on) { set_save_phase(on ? SavePhase::Ask : SavePhase::Select); }
@@ -1161,20 +1155,14 @@ std::string save_select_message() {
 // que además arranca la escena (transición nativa).
 LoadPhase load_phase() { return g_load_phase; }
 void set_load_phase(LoadPhase phase) {
-    // Al entrar en `Browse` (o `Removed`) se ignora el input de ESTE frame: la A que confirmó el
-    // prompt anterior (o el `Removed`) no debe contar como selección de slot/carga.
-    if (phase == LoadPhase::Browse || phase == LoadPhase::Removed) {
-        g_load_ignore_input_tp = std::chrono::steady_clock::now();
-    }
+    // El anti-rebote del input lo lleva el FLANCO del propio flujo (`feed_load_flow`), no un bloqueo
+    // por tiempo: la A que confirmó el prompt anterior ya no cuenta como nueva pulsación.
     g_load_phase = phase;
 }
 bool load_yes_selected() { return g_load_yes; }
 void set_load_yes_selected(bool on) { g_load_yes = on; }
 int load_target_slot() { return g_load_target_slot; }
 void set_load_target_slot(int slot) { g_load_target_slot = slot; }
-bool load_input_blocked() {
-    return (std::chrono::steady_clock::now() - g_load_ignore_input_tp) < std::chrono::milliseconds(120);
-}
 // Bindings REALES de ACEPTAR (cargar) y AGACHARSE (borrar): botón/tecla, p. ej. `A/J` y `X/H`. La
 // CLAVE es el texto original en INGLES (con sus `\n`, entrada de assets/lang/*.txt); los `%s` se
 // sustituyen DESPUÉS de traducir (mismo patrón que `save_select_message`).

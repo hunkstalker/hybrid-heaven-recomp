@@ -1,50 +1,82 @@
-# RETOMAR — handoff RAMA `fps-interpolacion-tagging` (2026-10-04, sesión 6)
+# RETOMAR — handoff (2026-10-04)
 
-> **TAREA (rama): interpolación fiel / desbloquear FPS.** La **interpolación** (tagging, cámara,
-> efectos) está **cerrada**: cámara `46b3f0d`, A2.2d no-bug, bug latente de walkers corregido
-> (`a8212b3`). Ahora toca la **cadencia**: **A1 (estabilizar el tick lógico)** y **A3 (validar 120/240)**.
-> Referencia: `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §4.
+> Handoff corto. **`main` = `v0.6.2`** (release publicada) + **fix de input** (remapo de acciones y
+> teclado, validados en Windows). **Rama `fps-interpolacion-tagging`**: interpolación cerrada (cámara,
+> identidad, #6/#8, A2.2d); pendiente **A1 (tick lógico) + A3 (validar 120/240)** e **integrar en `main`**.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## INTENCIÓN: integrar en `main` (adelantar los arreglos visuales validados)
+## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
 
-**Objetivo de la rama:** llegar a **integrar en `main`** lo que ya está **validado** (aunque no
-tengamos el **100% de emparejamiento**), para que esos arreglos visuales lleguen a los usuarios.
+**Hecho y VALIDADO en Windows (2026-10-04):**
 
-**Lo validado y candidato a promover** (cámara, identidad por nodos, **#6** gate de escala, **#8**,
-huesos, minas/láseres). **Lo que se deja gateado** (no promover por defecto): efectos/A2.2d e
-instrumentación de diagnóstico.
+- Los flujos propios del menú leían aceptar/borrar (A/START/X) en vías **inconsistentes** (estado
+  mantenido de la ranura o `hh_input_button_down`, que **no incluye el mando**). Efectos: (1) al
+  confirmar CONTINUAR con A/START aún pulsada se cargaba el **primer slot** sin ver el `DATA LOAD`;
+  (2) **X del mando no borraba** slots (solo la tecla H).
+- Fix: **una sola vía** para las acciones, `hh_input_action_edges()` (`input.cpp`): **teclado + ratón +
+  mando + inyección** con **flanco estricto con rearme** (mantener no repite). Las **direcciones**
+  conservan su auto-repeat. Anti-rebote de entrada por seed en el hook de apertura
+  (`hh_input_action_seed`); retirados los bloqueos por ms `load/save_input_blocked`.
+- Verificado Windows: CONTINUAR no carga con A/START mantenida; GUARDAR no autoguarda/autoborra;
+  **borrar con X del mando OK**; teclado y mando a la vez; direcciones siguen repitiendo. Linux compila.
+- Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
-**Plan de integración (por fases; NO es un merge ciego):**
-1. **Sincronizar**: `git merge main` en esta rama; resolver conflictos (`src/subsystems/input.cpp`
-   —`main` lo tocó para el fix de input— y los `.md` de estado `RETOMAR/TODO/PROYECTO`).
-2. **Re-validar** en Windows con los flags ON (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`) sin regresiones.
-3. **Promover**: **encender por defecto** solo lo validado (cámara + identidad + #6); dejar gateado
-   lo incompleto.
-4. **RT64**: `main` (y esta carpeta, tras revertir) tiene `lib/rt64` **limpio**; la instrumentación
-   (gates de escala/rotación, contadores, pairing) vive **solo** en
-   `patches/rt64/hh-interpolation-tagging.patch`. Para **activarla** en esta rama:
-   `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; para **quitarla**:
-   `git -C lib/rt64 checkout -- .`. Para un release, **commitear el fork** (gate de escala, etc.) + subir
-   la chincheta. (Explicación completa en `docs/workflows.md §1.2`, que **llega a la rama con el sync del paso 1**.)
-5. **Merge/PR a `main`** con la documentación (`notes/2026-10-04-fps-*`).
+### Fix de remapeo de teclado en CONTROLES (#17) — HECHO (2026-10-04)
 
-> Ver también: `main`'s `RETOMAR.md` tiene una sección con este mismo plan (contexto desde `main`).
+- Asignar teclas (números, etc.) no persistía. Causas: los **defaults** de teclado se reinyectaban al
+  cargar y ganaban a la tecla reasignada; teclas cuyo nombre rompe el INI (`; = #`) se perdían; la
+  fuente no dibuja `[ ] \ '`.
+- Fix (`input.cpp`): `[keys]` es **fuente autoritativa** del teclado; nombres seguros `sc_<n>` para el
+  INI; **solo se mapean teclas dibujables** (`glyph_value` + `menu_char`, incluye `¡¿` y acentos); el
+  rótulo se muestra **según la layout del SO** (`¡` en teclado ES), guardando por **scancode**.
+- Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`. Pendiente validar en Windows.
 
-## Estado — lo que funciona (MEDIDO, run del mantenedor)
+### Pendiente
 
-- **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): grupo de PROYECCIÓN con id de cámara + generación.
-- **A2.2d CERRADA (no-bug)**: los efectos los dibuja `func_8000C768` y materializa (`id=EE0F…`);
-  cobertura 98.6% con id; las capturas de minas/láser/partículas/puerta-FIGHT son **transitorios**.
-- **Partículas del heal = no-bug**: los "quads" son el asset original del juego (glow 8x8 + estrella
-  16x16); coincide con el emulador. Herramientas: `HH_TEXDUMP` + `tools/analysis/decode_texdump.py`.
-- **Bug latente corregido** (`a8212b3`, `dl_snap.cpp`): longitud real de los comandos extendidos en los
-  walkers de DL (no observado en HH). Doc: `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
+1. Commit del fix + docs (si el mantenedor no lo ha hecho ya).
+2. Validar en Windows el remapeo de teclado (números + teclas del layout ES).
 
-## TAREA SIGUIENTE — A1 tick lógico + A3 validar 120/240
+## Rama `fps-interpolacion-tagging` — estado y plan de integración
 
-### A1 — Estabilizar el tick lógico (`notes/…-workorder… §4`)
+> **Esta sección la añadió la sesión 2026-10-04** (la que trabajó en esa rama) para dejar aquí, en
+> `main`, el contexto del estado de la interpolación y **cómo integrarla**. No mezclar con el fix de
+> input de `main`.
 
+**Estado de la rama** (28 commits, **sin mergear**): arregla artefactos de la **interpolación de
+frames** a alta tasa. Validado en Windows **con flags** (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`; por defecto
+la rama no cambia nada). Contenido:
+
+- **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): `gEXMatrixGroup` de PROYECCIÓN con generación.
+- **Identidad por nodos** (`stable_slot` + generación de cámara): arreglados **huesos** del PJ, **#6**
+  (gate de escala, en RT64), **#8** (puertas), minas/láseres.
+- **A2.2d CERRADA** (efectos/2D pasada 2, no-bug): los efectos los dibuja `C768` y **materializa**;
+  capturas de minas/láser/partículas/puerta = **transitorios**, no fallos.
+- **Partículas del heal = no-bug** (asset original; coincide con el emulador).
+- Bug **latente** de walkers de DL corregido (`a8212b3`).
+- **Instrumentación**: RT64 vía `patches/rt64/hh-interpolation-tagging.patch` (gates, contadores,
+  pairing) y del port (`HH_MTXGROUP`, `HH_EMIT_TAG`, `HH_PAIRING`, `HH_PAIRING_DUMP`, …). **`lib/rt64`
+  en `main` está limpio**; en la rama el patch se aplica aparte (`docs/workflows.md §1.2`).
+- Handoffs/notas: `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
+  `.../fps-particulas-heal-asset-no-bug.md`, `.../fps-walker-dl-comandos-extendidos-latente.md`.
+
+### INTENCIÓN: integrar en `main` (promover los arreglos validados)
+
+**Objetivo de la rama:** llegar a **integrar en `main`** lo ya **validado** (aunque no haya 100% de
+emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
+
+**Plan de integración** (por fases; **NO** es un merge ciego):
+1. **Sincronizar**: `git merge main` en esta rama y resolver conflictos (`src/subsystems/input.cpp`
+   —ambas lo tocan— y los `.md` de estado). **HECHO (2026-10-04)**.
+2. **Re-validar** en Windows con los flags ON (cámara, identidad, #6/#8) sin regresiones.
+3. **Promover**: **encender por defecto** solo lo **validado** (cámara + identidad + #6); dejar
+   **gateado** lo incompleto (efectos/A2.2d, instrumentación).
+4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
+   mantener el patch. Detalle: `docs/workflows.md §1.2`.
+5. **Merge/PR a `main`** con su documentación (`notes/2026-10-04-fps-*`).
+
+### TAREA SIGUIENTE — A1 tick lógico + A3 validar 120/240
+
+**A1 — Estabilizar el tick lógico** (`notes/…-workorder… §4`):
 - Garantizar **2 VI/frame estables** (lógica a **30 Hz**, como el N64) y **slips a 3 VI solo cuando el
   trabajo no quepa** (no por jitter). Un tick irregular dispara fallos de matching/interpolación.
 - Herramientas: **`HH_DET_CLOCK=1|quant` + `HH_DET_CLOCK_BIAS`** (reloj determinista en el runtime,
@@ -53,8 +85,7 @@ instrumentación de diagnóstico.
 - **Criterio**: cadencia estable (2 VI/tick, `d2` dominante en `hh_tick.log`, `d3/d4+=0`); desaparecen
   los artefactos dependientes de jitter (hitches de puerta).
 
-### A3 — Validar a 120/240 Hz (Windows RTX 4080 + Steam Deck)
-
+**A3 — Validar a 120/240 Hz (Windows RTX 4080 + Steam Deck)**:
 - Regresión: menús, guardado, combate, cinemáticas; **sin** parpadeo ni geometría incoherente.
 - A/B por métrica (`HH_FPS=1`) y ojo; F9 (interpolación ON/OFF), F8 (PresentEarly).
 
@@ -74,7 +105,7 @@ distinguir si el cuello está en: (a) **lógica/tick** (slips → `hh_slow.log`)
 - **Present/video**: `HH_REFRESH_RATE=original|display|manual:<hz>`; **F9** = toggle interpolación;
   **F8** = menu nativo; `HH_PRESENT_EARLY=0` (=F8 sonda).
 - **Runtime**: `HH_VI_EVERY=<n>` (entrega VI al guest; diagnóstico de cadencia), `HH_DET_CLOCK[_BIAS]`.
-- **Tagging/interpolación** (de la tarea previa): `HH_MTXGROUP`, `HH_EMIT_TAG`/`HH_FX_EMIT`, `HH_FX_PASS2`,
+- **Tagging/interpolación**: `HH_MTXGROUP`, `HH_EMIT_TAG`/`HH_FX_EMIT`, `HH_FX_PASS2`,
   `HH_PAIRING` (con `emitmat=[…]`), `HH_PAIRCAP`/`HH_GENCAP`, `HH_PAIRING_DUMP`, `HH_SCALE_GATE`.
 
 ### Run del mantenedor (cadencia)
@@ -89,6 +120,8 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
 
 ## Árbol y pistas
 
+- `main` = `v0.6.2` + fix de input, **submódulos limpios** en sus pins. La rama `fps-interpolacion-tagging`
+  = `main` sincronizado + épica de interpolación.
 - Tick/lógica: `src/subsystems/input.cpp` (`get_input`, `HH_DIAG`, `hh_tick.log`/`hh_slow.log`),
   `src/platform/main.cpp` (`HH_STATE_SECS`), runtime `N64ModernRuntime` (`events.cpp`, `timer.cpp`).
 - Present/GPU: `src/platform/rt64_render_context.cpp` (`[hh-fps]`, send_dl/update_screen),
@@ -106,6 +139,10 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
 
 - **Metas**: ">30 visual" ya existe (interpolación); **240 "reales" (lógica a 240) NO** es el objetivo
   (eso es la Fase B/ADR). No confundir fps **presentados** con lógica.
+- **F7** = captura del HUD 2D; no sirve para artefactos 3D transitorios.
+- **La vista no valida** (el mantenedor vio "mejoras" con un `.exe` viejo): validar por métrica.
 - No concluir cuelgues/freeze solo desde headless; validar en Windows.
 - `HH_VI_EVERY` es **diagnóstico global** (baja el frame en todo el juego), no un fix.
+- **Botones vs direcciones**: los botones de acción van por **flanco**; el **auto-repeat es solo para
+  direcciones**. No leer acciones en estado mantenido (bug 2026-10-04).
 - **NO** `git reset --hard`; no editar el C generado; no tocar ROMs/forks sin pedir; no push sin pedir.

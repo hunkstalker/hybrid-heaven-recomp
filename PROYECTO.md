@@ -4,27 +4,32 @@
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-04**.
 
-**Estado (2026-10-04)**: `main` = **v0.6.1** + **v0.6.2 pusheada y validada** (solo falta el tag). La
-**release v0.6.1 de GitHub estaba rota** y la causa está **medida**: (1) el `.zip` de CI **no incluía los
-datos de runtime** (`assets/`, `saves/templates`, `licences/`; el ejecutable los busca junto a sí) y (2)
-el **repo privado de secretos** del que CI clona el C recompilado seguía con el `RecompiledFuncs` del
-**2026-09-21**, anterior al fix de *jump tables* del **#14** → el binario de GitHub carecía del fix
-(aunque el build local, con `build/recomp` regenerado, sí lo tenía). Los **forks no eran el problema**
-(rt64 `a8f0a70`, NMR `a11fbf2`, N64Recomp `cab94d9`, publicados y resolubles por SHA). Hecho: fuente
-única de empaquetado `tools/package_release.py` + `ci.yml`, secreto regenerado y pusheado (`3993e72`),
-`main` (`8a7e076`, `f3de254`) con CI verde, y **validado en Windows** (guardado `.pak` y veneno/#14 OK).
-**Pendiente:** tag/release `v0.6.2`. **En paralelo:** interpolación / desbloquear FPS en la rama
-**`fps-interpolacion-tagging`** — identidad rehecha y **validada en gameplay** (huesos del PJ, #6, #8,
-minas/láseres); **#6 re-fijado con gate de escala ON por defecto** (2.0, validado en 2 runs);
-**sesgado de cámara RESUELTO** (`46b3f0d`, grupo de proyección con generación); **A2.2d (efectos/2D
-pasada 2) CERRADA** (`C768` materializa; `emitter_wrap` huérfano por la frontera de workload; la opción
-core fue inerte y se revirtió; capturas = transitorios; cobertura 98.6%); **partículas del heal = no-bug**
-(asset original, coincide con el emulador); bug **latente** de walkers de DL corregido (`a8212b3`).
-**SIGUIENTE (2026-10-04): A1 (estabilizar tick lógico) + A3 (validar 120/240)** — el mantenedor **rara
-vez ve 120 fps y nunca 240** → medir lógica/tick vs present/GPU vs VSync. Detalle:
+**Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
+**validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
+el **primer slot** sin ver el `DATA LOAD`; (2) **borrar un slot con el botón X del mando no funcionaba**
+(solo la tecla H). Causa: lectura de input **inconsistente** (`read_input_button()` no incluye el mando;
+los flujos leían acciones en estado mantenido). Fix: **una sola vía** para las acciones
+(`hh_input_action_edges()`: teclado **+ ratón + mando + inyección**) con **flanco estricto con rearme**
+(mantener no repite) y **auto-repeat solo para direcciones**; seed en el hook de apertura; retirados los
+bloqueos por ms. Detalle: `RETOMAR.md`, `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
+
+**Fix de remapeo de teclado en CONTROLES (#17, 2026-10-04)**: asignar teclas (números, etc.) no
+persistía. Causas: los **defaults** de teclado se reinyectaban al cargar y ganaban a la tecla nueva;
+teclas cuyo nombre rompe el INI (`; = #`) se perdían; la fuente no dibuja `[ ] \ '`. Fix: `[keys]` es
+**fuente autoritativa** del teclado, nombres seguros `sc_<n>`, **solo se mapean teclas dibujables**
+(`glyph_value`+`menu_char`) y el rótulo se muestra **según la layout del SO** (`¡` en ES), guardando
+por scancode. Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
+
+**En paralelo (rama `fps-interpolacion-tagging`, NO en main)**: interpolación / desbloquear FPS —
+**validado en Windows** con flags (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`; por defecto la rama no cambia nada).
+Identidad por nodos rehecha (huesos del PJ), **sesgado de cámara RESUELTO** (`46b3f0d`), **#6** (gate de
+escala ON 2.0) y **#8** (puertas), minas/láseres; **A2.2d (efectos/2D pasada 2) CERRADA** (`C768`
+materializa; capturas = transitorios; cobertura **98.6%**); **partículas del heal = no-bug** (asset
+original); bug **latente** de walkers de DL corregido (`a8212b3`). **Pendiente: A1 (estabilizar tick
+lógico) + A3 (validar 120/240) e integrar en `main`** (plan por fases en
+`RETOMAR.md` §"Rama fps-interpolacion-tagging"). Detalle:
 `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
-`notes/2026-10-04-fps-particulas-heal-asset-no-bug.md` y `RETOMAR.md`.
-Detalle release: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+`notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
 
 ## 1. Objetivo
 
