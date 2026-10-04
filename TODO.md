@@ -11,10 +11,11 @@
   y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Release `v0.6.2`
   publicada. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
-- [x] **Fix de input "mantener pulsado" (CARGAR/GUARDAR) — HECHO y VALIDADO en Windows (2026-10-04)**:
-  botones de acción por **flanco estricto con rearme** (mantener no repite), auto-repeat solo en
-  direcciones; retirados los bloqueos por ms. Detalle:
-  `notes/2026-10-04-fix-input-flanco-botones-accion.md`; resumen en `docs/TAREAS-HECHAS.md`.
+- [x] **Fix de input "mantener pulsado" + X del mando en CARGAR/GUARDAR — HECHO y VALIDADO en Windows
+  (2026-10-04)**: acciones por **flanco estricto con rearme** y lectura **unificada**
+  (`hh_input_action_edges`: teclado+ratón+mando+inyección); auto-repeat solo en direcciones; retirados
+  los bloqueos por ms. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`; resumen en
+  `docs/TAREAS-HECHAS.md`.
 
 - [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
   tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de

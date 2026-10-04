@@ -1777,6 +1777,48 @@ extern "C" bool hh_input_button_down(const char* action_key) {
     return (read_input_button() & target) != 0;
 }
 
+// Botones del MANDO (SDL) ya traducidos a botones N64 segun el perfil. Mismo mapeo que `get_input`.
+// Se separa aqui porque `read_input_button()` (usado por varias UIs) solo cubre teclado+raton+inyeccion.
+static n64_button hh_read_gamepad_buttons() {
+    SDL_GameController* controller = hh_pad_controller();
+    if (controller == nullptr) return 0;
+    const PadProfile& prof = hh_active_profile();
+    return n64_button(
+          SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A) * prof.a
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B) * prof.b
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X) * prof.x
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y) * prof.y
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK) * prof.back
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START) * prof.start
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP) * prof.dup
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN) * prof.ddown
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT) * prof.dleft
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT) * prof.dright
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER) * prof.lb
+        | SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER) * prof.rb);
+}
+
+// Input de ACCION del menu (teclado + raton + MANDO + inyeccion) como mascara N64. Es la via
+// UNIFICADA y consistente: `read_input_button()` no incluye el mando, asi que se OR-ea aqui.
+static n64_button hh_action_input_now() {
+    return static_cast<n64_button>(read_input_button() | hh_read_gamepad_buttons());
+}
+
+// FLANCO ESTRICTO con rearme para las ACCIONES del menu (A/B/START/X...): devuelve la mascara de
+// botones que acaban de PULSARSE (0->1) este frame. Mantener no repite hasta soltar y volver a
+// pulsar. DEBE llamarse UNA sola vez por frame (actualiza el estado previo); los bits se comparan
+// luego contra el resultado. `hh_input_action_seed()` siembra el estado previo en la entrada.
+static n64_button hh_action_prev = 0;
+extern "C" n64_button hh_input_action_edges() {
+    const n64_button now = hh_action_input_now();
+    const n64_button edges = static_cast<n64_button>(now & ~hh_action_prev);
+    hh_action_prev = now;   // rearme
+    return edges;
+}
+extern "C" void hh_input_action_seed() {
+    hh_action_prev = hh_action_input_now();
+}
+
 void hh::set_rumble(int controller_num, bool rumble) {
     // HH: la vibracion es GLOBAL: vibran todos los mandos conectados (J1 y J2 a la vez), tal como
     // se quiere en el modo local. `controller_num` se ignora a proposito; el registro de mandos lo

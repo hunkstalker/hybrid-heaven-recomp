@@ -278,11 +278,15 @@ nativo ve a 0 mientras manda el overlay (`feed_menu_navigation`).
 **Aceptar = A o START** en el menú de título/port y en las UIs de cargar/guardar (`DATA LOAD`/`DATA
 SAVE`), como en el original. **Comportamiento normal de videojuego**: los botones de **acción**
 (A/B/START/X/Z) se leen por **flanco estricto con rearme** (una pulsación = una acción; mantener no
-repite hasta soltar y volver a pulsar) y el **auto-repeat se aplica solo a las direcciones**
-(scroll de listas, selectores izq/der). Anti-rebote de entrada (`g_menu_seed_input`, y
-`g_load_seed_input`/`g_save_seed_input` en las UIs de cargar/guardar): al (re)entrar, el primer frame
-**traga** el estado mantenido (siembra `prev`) para que el botón que abrió la pantalla no dispare una
-acción; los frames siguientes ya generan flanco. Ver `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
+repite hasta soltar y volver a pulsar) y el **auto-repeat se aplica solo a las direcciones** (scroll de
+listas, selectores izq/der). Anti-rebote de entrada (`g_menu_seed_input`, y
+`g_load_seed_input`/`g_save_seed_input` en las UIs de cargar/guardar): al (re)entrar, se siembra el
+estado para que el botón que abrió la pantalla no dispare una acción.
+**Lectura de acciones unificada** (`hh_input_action_edges()` en `input.cpp`): teclado **+ ratón + mando
++ inyección** con flanco; así el mando funciona en todos los menús sin depender de la ranura del SI (que
+queda para direcciones/auto-repeat). Antes las acciones se leían de vías distintas y `hh_input_button_down`
+no incluía el mando (por eso X del mando no borraba). Ver
+`notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
 ## SFX
 

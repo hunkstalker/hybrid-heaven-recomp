@@ -5,13 +5,15 @@
 > Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-04**.
 
 **Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
-**validado en Windows**): los botones de **acción** del menú (A/START/X) se leían en **estado
-mantenido** y mantener pulsado repetía la acción (p. ej. al confirmar `CONTINUAR` con A/START aún
-pulsada, se cargaba el **primer slot** sin ver el `DATA LOAD`). Ahora van por **flanco estricto con
-rearme** (mantener no repite; soltar y volver a pulsar, sí) y el **auto-repeat queda solo para las
-direcciones**; retirados los bloqueos por ms. Detalle: `RETOMAR.md`,
-`notes/2026-10-04-fix-input-flanco-botones-accion.md`. **En paralelo:** interpolación / desbloquear
-FPS en la rama **`fps-interpolacion-tagging`** (tagging por hook; sin validar gameplay).
+**validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
+el **primer slot** sin ver el `DATA LOAD`; (2) **borrar un slot con el botón X del mando no funcionaba**
+(solo la tecla H). Causa: lectura de input **inconsistente** (`read_input_button()` no incluye el mando;
+los flujos leían acciones en estado mantenido). Fix: **una sola vía** para las acciones
+(`hh_input_action_edges()`: teclado **+ ratón + mando + inyección**) con **flanco estricto con rearme**
+(mantener no repite) y **auto-repeat solo para direcciones**; seed en el hook de apertura; retirados los
+bloqueos por ms. Detalle: `RETOMAR.md`, `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
+**En paralelo:** interpolación / desbloquear FPS en la rama **`fps-interpolacion-tagging`** (tagging por
+hook; sin validar gameplay).
 
 ## 1. Objetivo
 

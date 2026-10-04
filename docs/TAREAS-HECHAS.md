@@ -6,13 +6,13 @@
 
 ## 2026-10-04
 
-- **Fix de input: "mantener pulsado" repetía la acción (CARGAR/GUARDAR) — HECHO y VALIDADO en Windows.**
-  Los flujos propios leían A/START/X en **estado mantenido** (`hh_input_button_down`, nivel), así que
-  mantener pulsado repetía; al confirmar `CONTINUAR` con A/START aún pulsada se cargaba el **primer
-  slot** sin ver el `DATA LOAD`. Fix: **flanco estricto con rearme** para botones de acción
-  (`pressed = btn & ~prev`, cubre teclado **y** mando) y **auto-repeat solo para direcciones**;
-  anti-rebote de entrada por *seed* (`g_load_seed_input`/`g_save_seed_input`); retirados los bloqueos
-  por ms `load/save_input_blocked`. `open_load_game`/`open_save_game` devuelven "apertura nueva".
+- **Fix de input: "mantener pulsado" repetía la acción + X del mando no borraba (CARGAR/GUARDAR) —
+  HECHO y VALIDADO en Windows.** Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se
+  cargaba el **primer slot** sin ver el `DATA LOAD`; (2) **borrar un slot con el botón X del mando no
+  funcionaba** (solo la tecla H). Causa: lectura **inconsistente** del input — `read_input_button()` no
+  incluye el mando y los flujos leían acciones en estado mantenido. Fix: **una sola vía** para acciones,
+  `hh_input_action_edges()` (teclado **+ ratón + mando + inyección**) con **flanco estricto con rearme**;
+  auto-repeat **solo** para direcciones; seed en el hook de apertura; retirados los bloqueos por ms.
   `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
 ## 2026-10-02 (sesión de bugs)

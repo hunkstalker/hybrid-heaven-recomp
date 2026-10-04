@@ -7,20 +7,21 @@
 > **`fps-interpolacion-tagging`** (ver §"Otras ramas").
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
-## Tarea actual — fix de input (botones de acción por flanco)
+## Tarea actual — fix de input (acciones por flanco + lectura unificada)
 
 **Hecho y VALIDADO en Windows (2026-10-04):**
 
-- Los flujos propios del menú (`feed_load_flow`/`feed_save_flow`) leían aceptar/borrar
-  (A/START/X) en **estado mantenido** (`hh_input_button_down`, nivel) → mantener pulsado repetía la
-  acción. Efecto reportado: al confirmar CONTINUAR con A/START aún pulsada, se cargaba el **primer
-  slot** sin ver el `DATA LOAD`.
-- Fix: **flanco estricto con rearme** para los botones de acción (`pressed = btn & ~prev`, que ya
-  cubre teclado **y** mando). Las **direcciones** conservan su auto-repeat. Anti-rebote de entrada por
-  *seed* (`g_load_seed_input`/`g_save_seed_input`); retirados los bloqueos por ms
-  `load/save_input_blocked`. `open_load_game`/`open_save_game` devuelven "apertura nueva".
-- Verificado: mantener A/START en CONTINUAR → se ve `DATA LOAD`; en GUARDAR mantener A no autoguarda
-  y mantener X no autoborra; direcciones siguen repitiendo. Linux compila.
+- Los flujos propios del menú leían aceptar/borrar (A/START/X) en vías **inconsistentes** (estado
+  mantenido de la ranura o `hh_input_button_down`, que **no incluye el mando**). Efectos: (1) al
+  confirmar CONTINUAR con A/START aún pulsada se cargaba el **primer slot** sin ver el `DATA LOAD`;
+  (2) **X del mando no borraba** slots (solo la tecla H).
+- Fix: **una sola vía** para las acciones, `hh_input_action_edges()` (`input.cpp`): **teclado + ratón +
+  mando + inyección** con **flanco estricto con rearme** (mantener no repite). Las **direcciones**
+  conservan su auto-repeat. Anti-rebote de entrada por seed en el hook de apertura
+  (`hh_input_action_seed`); retirados los bloqueos por ms `load/save_input_blocked`.
+- Verificado Windows: CONTINUAR no carga con A/START mantenida; GUARDAR no autoguarda/autoborra;
+  **borrar con X del mando OK**; teclado y mando a la vez; direcciones siguen repitiendo. Linux compila.
+- Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
 ### Pendiente
 

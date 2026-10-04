@@ -65,6 +65,8 @@ extern "C" void func_80002A94_3694(uint8_t* rdram, recomp_context* ctx);       /
 extern "C" void func_801C3D84_11BD854(uint8_t* rdram, recomp_context* ctx);    // update file-select (envuelto)
 extern "C" void func_801426B0_103AE80(uint8_t* rdram, recomp_context* ctx);    // setup del DATA LOAD
 extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx);       // UI de cargar encima del save
+extern "C" unsigned short hh_input_action_edges();   // flanco de accion (teclado+raton+mando), 1 vez/frame
+extern "C" void hh_input_action_seed();              // siembra el flanco de accion (entrada)
 extern "C" void hh_save_setup_hook(uint8_t* rdram, recomp_context* ctx);      // setup del save (activa categoria)
 extern "C" void hh_pc_menu_register();  // src/hooks/hh_menu.cpp
 extern "C" void hh_accent_register();   // src/hooks/text_glyphs.cpp
@@ -1172,9 +1174,11 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
     // ANTI-REBOTE (ver `g_menu_seed_input`): primer frame tras (re)entrar al menú -> traga el estado
-    // mantenido (siembra `prev`) y no navega, para que el START que abrió el menú no dispare una acción.
+    // mantenido (siembra `prev` y el flanco de acción) y no navega, para que el START que abrió el
+    // menú no dispare una acción.
     if (g_menu_seed_input.exchange(false)) {
         prev = btn;
+        hh_input_action_seed();
         return;
     }
     // CONTROLES: mientras se captura un input para reasignar, se consume el frame y NO se navega
@@ -1189,6 +1193,10 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     }
     const uint32_t pressed = btn & ~prev;   // flanco de pulsación (el juego repite al mantener)
     prev = btn;
+    // FLANCO de ACCIONES (A/B/START/X) por la via unificada teclado+raton+MANDO. Se consume UNA vez
+    // por frame de navegacion (actualiza su estado previo). `pressed` (ranura del SI) sigue valiendo
+    // para direcciones/repeat y se OR-ea para no perder input nativo/inyeccion.
+    const uint32_t action_edges = hh_input_action_edges();
     // Tras asignar/cancelar se bloquea 0.25 s SOLO aceptar/atras (no el resto del control): asi el
     // input de la asignacion (p. ej. la tecla de "atras") no ejecuta su accion mientras se suelta.
     const bool nav_block = hh::pad_capture_blocking();
@@ -1237,10 +1245,13 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             emitted = (ev != hh::menu::Event::None);
         }
     }
-    // Aceptar = A (0x8000) o START (0x1000). En PC el START por defecto es Enter; en el original
-    // tambien se entra en los menus con Start. Ver docs/releases/v0.6.0.md.
-    if (!nav_block && (pressed & (0x8000u | 0x1000u))) ev = hh::menu::confirm();   // A/Start: entra / marca
-    if (!nav_block && (pressed & 0x4000u)) ev = hh::menu::back();      // B: atras (en vivo, sin X)
+    // Aceptar = A (0x8000) o START (0x1000); atras = B (0x4000). SOLO por el flanco unificado
+    // teclado+raton+mando+inyeccion (`action_edges`): asi el MANDO funciona en todos los menus y no
+    // hay doble fuente que pueda rearmarse (la ranura del SI queda para direcciones/auto-repeat).
+    const bool menu_accept = (action_edges & (0x8000u | 0x1000u)) != 0;
+    const bool menu_back = (action_edges & 0x4000u) != 0;
+    if (!nav_block && menu_accept) ev = hh::menu::confirm();   // A/Start: entra / marca
+    if (!nav_block && menu_back) ev = hh::menu::back();        // B: atras (en vivo, sin X)
     const bool same_screen = (hh::menu::current_screen().id == screen_before);
     // MODO COMBATE: al confirmar la entrada de la raiz arrancamos TAMBIEN el submenu NATIVO
     // (sel=2 + A inyectada) para que exista su estado (callback func_801C4200) y podamos despachar
@@ -1256,7 +1267,7 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
     // config.ini [video]. Solo al cambiar el valor (izq/der) o al confirmar con A, no al pasar el
     // cursor por encima.
     if (ev != hh::menu::Event::None && same_screen &&
-        (moved_h || (pressed & (0x8000u | 0x1000u)))) {
+        (moved_h || (action_edges & (0x8000u | 0x1000u)))) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2072,14 +2083,22 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
     // ANTI-REBOTE de ENTRADA (patrón `g_menu_seed_input`): al (re)entrar en CARGAR, la A/START que
-    // abrió CONTINUAR puede seguir mantenida. Se siembra `prev` (se traga el estado mantenido) un
-    // frame para que no cuente como flanco en el file-select. Lo dispara `hh_file_select_hook`.
+    // abrió CONTINUAR puede seguir mantenida. El flanco de acciones se siembra YA en el hook de
+    // apertura (`hh_file_select_hook`), no aqui, para que no se cuele si `feed_load_flow` no procesa
+    // el frame exacto de la apertura. Aqui solo se traga el estado de la ranura (direcciones).
     if (g_load_seed_input.exchange(false)) {
         prev = btn;
         return false;
     }
     const uint32_t pressed = btn & ~prev;
     prev = btn;
+    // ACCIONES (A/START, X/Z): SOLO por el flanco unificado teclado+raton+mando+inyeccion. NO se
+    // OR-ea con `pressed` (ranura del SI): esa ranura es estado mantenido reescrito por el poll del
+    // juego y su flanco local puede rearmarse (seed, frames perdidos, muting del file-select) y
+    // disparar la accion DOS veces. `pressed` queda reservado para DIRECCIONES/auto-repeat.
+    const uint32_t action_edges = hh_input_action_edges();
+    const bool accept_btn = (action_edges & (0x8000u | 0x1000u)) != 0;
+    const bool delete_btn = (action_edges & 0x2000u) != 0;
     const bool sfx = hh::overlay::enabled();
     constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
     const uint32_t dir = btn & (kUp | kDown);
@@ -2091,7 +2110,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_load_yes_selected(!hh::menu::load_yes_selected());
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
-        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
+        if (accept_btn) {   // A o Start/Enter
             const bool yes = hh::menu::load_yes_selected();
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (yes) {
@@ -2112,7 +2131,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     }
     // Loaded: A sale (la escena ya está montada). Removed: A vuelve a Browse (NO sale).
     if (phase == hh::menu::LoadPhase::Loaded || phase == hh::menu::LoadPhase::Removed) {
-        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
+        if (accept_btn) {   // A o Start/Enter
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (phase == hh::menu::LoadPhase::Removed) {
                 hh::menu::set_load_phase(hh::menu::LoadPhase::Browse);
@@ -2124,7 +2143,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         return false;
     }
     // Browse: B -> volver al MENÚ DE TÍTULO (rama de cancelar nativa; NO es la cápsula del guardado).
-    if (pressed & 0x4000u) {
+    if (action_edges & 0x4000u) {
         hh_leave_load_game(rdram, ctx, obj);
         return true;
     }
@@ -2162,9 +2181,9 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
     }
-    // A/Start carga (solo slots con datos); X pide borrar (solo slots con datos). `pressed` es el
-    // FLANCO (0->1) sobre el estado mantenido completo (teclado + mando): mantener el boton no repite.
-    if (pressed & (0x8000u | 0x1000u)) {
+    // A/Start carga (solo slots con datos); X pide borrar (solo slots con datos). `accept_btn` y
+    // `delete_btn` son FLANCOS (0->1) sobre teclado+raton+mando: mantener el boton no repite.
+    if (accept_btn) {
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2178,7 +2197,7 @@ static bool feed_load_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
                 return true;
             }
         }
-    } else if (pressed & 0x2000u) {   // X / Z (agacharse): borra, solo en slots con datos
+    } else if (delete_btn) {   // X / Z (agacharse): borra, solo en slots con datos
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2244,6 +2263,7 @@ extern "C" void hh_file_select_hook(uint8_t* rdram, recomp_context* ctx) {
     // ceba el anti-rebote (ver `g_load_seed_input`).
     if (hh::menu::open_load_game()) {
         g_load_seed_input.store(true);
+        hh_input_action_seed();   // traga YA el flanco de accion del boton que abrio CONTINUAR
     }
     hh_load_trace(rdram, "pre");
     hh::menu_overlay::suppress_native(rdram);
@@ -2357,14 +2377,20 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     const uint32_t btn = rh16(0x80089476u) | rh16(0x8008947Eu);
     static uint32_t prev = 0;
     // ANTI-REBOTE de ENTRADA (patrón `g_menu_seed_input`): al (re)entrar en la cápsula, el botón que
-    // la abrió puede seguir mantenido; se traga el estado mantenido un frame para que no cuente como
-    // flanco. Lo dispara `hh_save_menu_hook` en la apertura (ver `g_save_seed_input`).
+    // la abrió puede seguir mantenido; se traga el estado de la ranura (direcciones) un frame. El
+    // flanco de ACCIONES se siembra YA en `hh_save_menu_hook` en la apertura.
     if (g_save_seed_input.exchange(false)) {
         prev = btn;
         return false;
     }
     const uint32_t pressed = btn & ~prev;
     prev = btn;
+    // ACCIONES (A/START/X): SOLO por el flanco unificado teclado+raton+mando+inyeccion (no se OR-ea
+    // con `pressed`, que es estado mantenido de la ranura y puede rearmarse). `pressed` queda para
+    // direcciones/auto-repeat.
+    const uint32_t action_edges = hh_input_action_edges();
+    const bool accept_btn = (action_edges & (0x8000u | 0x1000u)) != 0;
+    const bool delete_btn = (action_edges & 0x2000u) != 0;
     const bool sfx = hh::overlay::enabled();
     constexpr uint32_t kUp = 0x800u, kDown = 0x400u;
     const uint32_t dir = btn & (kUp | kDown);
@@ -2378,7 +2404,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_save_yes_selected(!hh::menu::save_yes_selected());
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
         }
-        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
+        if (accept_btn) {   // A o Start/Enter
             const bool yes = hh::menu::save_yes_selected();
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             // DIAGNOSTICO (HH_SAVE_TRACE=1): por que prompt se pulso A y a que fase se pasa.
@@ -2432,7 +2458,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
     }
     // Completed: cualquier A cierra el mensaje y sale de la capsula. Removed: vuelve a Select (NO sale).
     if (phase == hh::menu::SavePhase::Completed || phase == hh::menu::SavePhase::Removed) {
-        if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
+        if (accept_btn) {   // A o Start/Enter
             if (sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Accept);
             if (phase == hh::menu::SavePhase::Removed) {
                 hh::menu::set_save_phase(hh::menu::SavePhase::Select);
@@ -2479,9 +2505,9 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
         if (ev != hh::menu::Event::None && sfx) hh::menu_sfx::play(hh::menu_sfx::Sfx::Move);
     }
     // A (aceptar) SIEMPRE guarda; X/Z (agacharse) BORRA solo si la fila es un slot con datos (no
-    // `NEW GAME`). `pressed` es el FLANCO (0->1) sobre el estado mantenido completo (teclado + mando):
-    // mantener pulsado NO repite ni autoguarda/autoborra.
-    if (pressed & (0x8000u | 0x1000u)) {   // A o Start/Enter
+    // `NEW GAME`). `accept_btn`/`delete_btn` son FLANCOS (0->1) sobre teclado+raton+mando: mantener
+    // pulsado NO repite ni autoguarda/autoborra.
+    if (accept_btn) {   // A o Start/Enter
         if (env_set("HH_SAVE_TRACE")) {
             hh::log("[save-flow] A/Start en Select -> ConfirmHere (pressed)\n");
         }
@@ -2493,7 +2519,7 @@ static bool feed_save_flow(uint8_t* rdram, recomp_context* ctx, uint32_t obj) {
             hh::menu::set_save_yes_selected(true);
             hh::menu::set_save_phase(hh::menu::SavePhase::ConfirmHere);
         }
-    } else if (pressed & 0x2000u) {   // X / Z (agacharse)
+    } else if (delete_btn) {   // X / Z (agacharse)
         const hh::menu::Screen& s = hh::menu::current_screen();
         if (s.cursor >= 0 && s.cursor < static_cast<int>(s.entries.size())) {
             const hh::menu::Entry& cur = s.entries[s.cursor];
@@ -2517,6 +2543,7 @@ extern "C" void hh_save_menu_hook(uint8_t* rdram, recomp_context* ctx) {
     // ni autoborrar en el primer frame (ver `g_save_seed_input`).
     if (hh::menu::open_save_game()) {
         g_save_seed_input.store(true);
+        hh_input_action_seed();   // traga YA el flanco de accion del boton que abrio la capsula
     }
     // Categoria FILE-SELECT activa: F8 (`g_native_visible`) oculta/muestra el DATA SAVE nativo.
     hh::menu_overlay::set_file_select_active(true);
