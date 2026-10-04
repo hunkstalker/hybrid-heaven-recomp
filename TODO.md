@@ -17,6 +17,12 @@
   los bloqueos por ms. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`; resumen en
   `docs/TAREAS-HECHAS.md`.
 
+- [x] **Fix de remapeo de teclado en CONTROLES (#17) — HECHO (2026-10-04)**: asignar teclas no
+  persistía (defaults reinyectados), teclas con nombre que rompe el INI (`; = #`) se perdían y la
+  fuente no dibuja `[ ] \ '`. Fix: `[keys]` autoritativo, nombres seguros `sc_<n>`, solo se mapean
+  teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
+  `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
+
 - [ ] **Desbloquear FPS / interpolación fiel (épica; rama `fps-interpolacion-tagging`, NO en main)**:
   tagging por hook del port (dispatch DOBJ `func_800069A8`) → llega a RT64 y baja `unpaired_moved` de
   picos 60–98/s a media 3.4/s; falta validar en gameplay. Estado y siguiente paso:

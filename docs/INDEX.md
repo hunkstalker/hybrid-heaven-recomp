@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 263 | 2026-10-04 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 270 | 2026-10-04 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-10-02 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 348 | 2026-10-04 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 354 | 2026-10-04 |
 
 ## Técnico y guías (vivos)
 
@@ -20,7 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 184 | 2026-10-04 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 190 | 2026-10-04 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
@@ -68,6 +68,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [Fix: remapeo de teclado en CONTROLES no persistía (defaults, símbolos, layout)](../notes/2026-10-04-fix-remapeo-teclado-persistencia.md) | Sesión 2026-10-04 (cont.), rama **`main`**. Bug reportado en GitHub (**#17**, El-Rana): en | 62 | 2026-10-04 |
 | [Fix de input: "mantener pulsado" disparaba la acción repetidamente + unificación de la lectura](../notes/2026-10-04-fix-input-flanco-botones-accion.md) | Sesión 2026-10-04, rama **`main`** (v0.6.2). **VALIDADO en Windows por el mantenedor** (teclado y | 96 | 2026-10-04 |
 | [Release v0.6.2 — empaquetado sin assets y C recompilado obsoleto (2026-10-03)](../notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md) | Sesión sobre `main` (v0.6.1 + handoff). Objetivo: lanzar v0.6.2 porque la release v0.6.1 de GitHub | 60 | 2026-10-03 |
 | [FPS/interpolación — tagging DOBJ, resultados y handoff (2026-10-03)](../notes/2026-10-03-fps-tagging-dobj-y-handoff.md) | Sesión larga. Estado real, sin inflar. Dos ramas de trabajo: **(1)** el tagging de interpolación | 146 | 2026-10-03 |

@@ -15,6 +15,13 @@ bloqueos por ms. Detalle: `RETOMAR.md`, `notes/2026-10-04-fix-input-flanco-boton
 **En paralelo:** interpolación / desbloquear FPS en la rama **`fps-interpolacion-tagging`** (tagging por
 hook; sin validar gameplay).
 
+**Fix de remapeo de teclado en CONTROLES (#17, 2026-10-04)**: asignar teclas (números, etc.) no
+persistía. Causas: los **defaults** de teclado se reinyectaban al cargar y ganaban a la tecla nueva;
+teclas cuyo nombre rompe el INI (`; = #`) se perdían; la fuente no dibuja `[ ] \ '`. Fix: `[keys]` es
+**fuente autoritativa** del teclado, nombres seguros `sc_<n>`, **solo se mapean teclas dibujables**
+(`glyph_value`+`menu_char`) y el rótulo se muestra **según la layout del SO** (`¡` en ES), guardando
+por scancode. Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
+
 ## 1. Objetivo
 
 Port nativo a PC de **Hybrid Heaven** (N64, Konami/KCEO, 1999, proyecto interno **RZ011**) por

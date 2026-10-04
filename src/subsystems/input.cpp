@@ -31,6 +31,7 @@
 
 #include "hh.h"
 #include "hh/config_ini.h"
+#include "hh/font.h"
 #include "hh/hudrewrite.h"
 #include "hh/menu.h"
 
@@ -132,6 +133,12 @@ static float controller_axis_to_float(Sint16 value);
 static SDL_Scancode hh_scancode_by_name(const std::string& name) {
     std::string want = name;
     for (char& c : want) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    // Nombre "seguro" escogido por `hh_key_name_safe` para teclas cuyo nombre SDL rompe el formato
+    // INI (`=[]# ;` o espacio): `sc_<n>` con el indice de scancode.
+    if (want.rfind("sc_", 0) == 0) {
+        const long n = std::strtol(want.c_str() + 3, nullptr, 10);
+        if (n >= 0 && n < SDL_NUM_SCANCODES) return static_cast<SDL_Scancode>(n);
+    }
     for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
         const char* n = SDL_GetScancodeName(static_cast<SDL_Scancode>(sc));
         if (n == nullptr || *n == '\0') continue;
@@ -142,13 +149,93 @@ static SDL_Scancode hh_scancode_by_name(const std::string& name) {
     return SDL_SCANCODE_UNKNOWN;
 }
 
-static std::string hh_scancode_display(SDL_Scancode sc) {
+// Nombre de tecla APTO para `config.ini`: el de SDL, salvo si contiene caracteres que rompen el
+// formato (`=`, `[`, `]`, `#`, `;`, espacio/tab) -> se usa `sc_<n>` (lo resuelve hh_scancode_by_name).
+// Sin esto, teclas como `;` = , `=` o `#` se escribian pero el parser las descartaba al recargar
+// (bug: "asigno una tecla y no se guarda").
+static std::string hh_key_name_safe(SDL_Scancode sc) {
+    const char* n = SDL_GetScancodeName(sc);
+    if (n == nullptr || *n == '\0') return std::string("sc_") + std::to_string(static_cast<int>(sc));
+    for (const char* p = n; *p != '\0'; ++p) {
+        if (*p == '=' || *p == '[' || *p == ']' || *p == '#' || *p == ';' || *p == ' ' ||
+            *p == '\t') {
+            return std::string("sc_") + std::to_string(static_cast<int>(sc));
+        }
+    }
+    return n;
+}
+
+// Rotulo FISICO de la tecla (posicion US), estable e independiente del layout. Es el que se USA para
+// GUARDAR/leer la config (`hh_scancode_by_name`). Mayusculas; ENTER/ESC normalizados.
+static std::string hh_scancode_phys_name(SDL_Scancode sc) {
     const char* n = SDL_GetScancodeName(sc);
     std::string s = (n != nullptr) ? n : "";
     for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     if (s == "RETURN" || s == "KP ENTER" || s == "KEYPAD ENTER") s = "ENTER";
     if (s == "ESCAPE") s = "ESC";
     return s;
+}
+
+// Rotulo segun la LAYOUT del SO (lo que el usuario ve al pulsar la tecla). Se usa solo para MOSTRAR
+// en CONTROLES: en un teclado ES la tecla fisica `=` imprime `¡`. NO se usa para persistir (depende
+// del layout activo). Vacio si SDL no puede resolverlo.
+static std::string hh_scancode_layout_name(SDL_Scancode sc) {
+    const SDL_Keycode k = SDL_GetKeyFromScancode(sc);
+    if (k == SDLK_UNKNOWN) return {};
+    const char* n = SDL_GetKeyName(k);
+    if (n == nullptr || *n == '\0') return {};
+    std::string s = n;
+    for (char& c : s) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    if (s == "RETURN" || s == "KP ENTER" || s == "KEYPAD ENTER") s = "ENTER";
+    if (s == "ESCAPE") s = "ESC";
+    return s;
+}
+
+// ¿Se puede dibujar `s` con la fuente del menu? Valida cada CODEPOINT (UTF-8): ASCII via `glyph_value`
+// y acentos/simbolos latinos (`¡¿·ÆŒ` y vocales acentuadas) via `menu_char`. false si alguno no tiene
+// glifo.
+static bool hh_text_drawable(const std::string& s) {
+    if (s.empty()) return false;
+    size_t i = 0;
+    while (i < s.size()) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        unsigned cp = c;
+        size_t len = 1;
+        if (c >= 0xF0) { cp = c & 0x07u; len = 4; }
+        else if (c >= 0xE0) { cp = c & 0x0Fu; len = 3; }
+        else if (c >= 0xC0) { cp = c & 0x1Fu; len = 2; }
+        if (i + len > s.size()) return false;
+        for (size_t k = 1; k < len; ++k) {
+            cp = (cp << 6) | (static_cast<unsigned char>(s[i + k]) & 0x3Fu);
+        }
+        i += len;
+        unsigned v = 0;
+        int mark = 0;
+        if (cp < 0x80) {
+            if (!hh::font::game::glyph_value(static_cast<unsigned char>(cp), v)) return false;
+        } else if (!hh::font::game::menu_char(cp, v, mark)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Rotulo que se MUESTRA en CONTROLES: el de la layout del SO si se puede dibujar; si no (p. ej. `¡`,
+// `[`, `'`), se cae al nombre fisico (que suele ser ASCII dibujable: `=`, `[`... o `[` tambien sin
+// glifo -> se devuelve y la captura lo rechaza). Perspective: el usuario ve su tecla; si la fuente no
+// la tiene, al menos ve algo.
+static std::string hh_scancode_display(SDL_Scancode sc) {
+    const std::string layout = hh_scancode_layout_name(sc);
+    if (hh_text_drawable(layout)) return layout;
+    return hh_scancode_phys_name(sc);
+}
+
+// ¿El nombre de la tecla se puede DIBUJAR con la fuente del menu? Se usa al REASIGNAR en CONTROLES:
+// solo se aceptan teclas cuyo rotulo tenga glifo en la fuente (`glyph_value`). Asi no se asigna una
+// tecla que luego no se podria mostrar (la fuente no tiene `[ ] { } ^ _ \` ~ " '`, etc.). El espacio
+// (0x20) tambien vale (glifo vacio).
+static bool hh_key_drawable(SDL_Scancode sc) {
+    return hh_text_drawable(hh_scancode_display(sc));
 }
 
 // Ejes de movimiento (stick izquierdo). Solo el TECLADO es configurable; el mando es el stick.
@@ -342,6 +429,28 @@ static void hh_pad_config_load() {
             fclose(t);
             fprintf(stderr, "[PAD] config.ini no existia: creada plantilla con el mapeo por defecto\n");
             f = fopen(path.c_str(), "rb");
+        }
+    }
+    // Si el fichero trae una seccion `[keys]`, esa es la FUENTE AUTORITATIVA del teclado: se parte de
+    // CERO (sin defaults) antes de aplicar la seccion. Si no, los defaults sobrevivirian a las teclas
+    // reasignadas: p. ej. al asignar `1` a ACEPTAR se borra `J`, pero al recargar se reinyectaba el
+    // default `J=A` y el menu CONTROLES volvia a mostrar `J` (parecia que el numero "no se guardaba").
+    if (f != nullptr) {
+        bool has_keys_section = false;
+        {
+            char probe[512];
+            while (fgets(probe, sizeof(probe), f) != nullptr) {
+                std::string t = hh_pad_trim(probe);
+                if (t.size() >= 2 && t.front() == '[' && t.back() == ']' &&
+                    hh_pad_trim(t.substr(1, t.size() - 2)) == "keys") {
+                    has_keys_section = true;
+                    break;
+                }
+            }
+        }
+        std::rewind(f);
+        if (has_keys_section) {
+            hh_key_map.clear();
         }
     }
     if (f != nullptr) {
@@ -635,15 +744,14 @@ static void hh_key_assign(SDL_Scancode sc, n64_button target) {
 static void hh_key_save() {
     std::vector<std::pair<std::string, std::string>> kv;
     for (const auto& e : hh_key_map) {
-        std::string name = SDL_GetScancodeName(e.first);
-        if (name.empty()) continue;
-        kv.emplace_back(name, hh_pad_button_name(e.second));
+        // Nombre APTO para el INI (escapa `=[]# ;`/espacio como `sc_<n>`): si no, teclas como `;`
+        // se guardaban pero el parser las descartaba al recargar.
+        kv.emplace_back(hh_key_name_safe(e.first), hh_pad_button_name(e.second));
     }
     // Ejes de movimiento: `axis_up = W`, etc. (valor = nombre de tecla).
     static const char* kAxisName[HH_AXIS_COUNT] = { "axis_up", "axis_down", "axis_left", "axis_right" };
     for (int a = 0; a < HH_AXIS_COUNT; ++a) {
-        const char* n = SDL_GetScancodeName(hh_axis_key[a]);
-        if (n != nullptr && *n != '\0') kv.emplace_back(kAxisName[a], n);
+        kv.emplace_back(kAxisName[a], hh_key_name_safe(hh_axis_key[a]));
         kv.emplace_back(std::string(kAxisName[a]) + "_gp", hh_axis_gp_name(hh_axis_gp[a]));
     }
     // Borra la seccion entera antes de reescribirla: si no, los bindings viejos (teclas que ya no
@@ -729,6 +837,9 @@ void hh::pad_capture_poll() {
         for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
             const bool down = kb[sc] != 0;
             if (down && !g_prev_key[static_cast<size_t>(sc)]) {
+                if (!hh_key_drawable(static_cast<SDL_Scancode>(sc))) {
+                    continue;   // tecla sin glifo en la fuente del menu: no se puede mostrar
+                }
                 hh_axis_key[axis] = static_cast<SDL_Scancode>(sc);
                 hh_key_save();
                 fprintf(stderr, "[PAD] eje '%s' <- tecla %s\n", g_capture_action.c_str(),
@@ -781,10 +892,14 @@ void hh::pad_capture_poll() {
         g_capture_action.clear();
         return;
     }
-    // Teclado: primer scancode recien pulsado.
+    // Teclado: primer scancode recien pulsado que se pueda DIBUJAR (la fuente del menu no tiene todos
+    // los simbolos). Las teclas no dibujables se ignoran (no se asignan).
     for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc) {
         const bool down = kb[sc] != 0;
         if (down && !g_prev_key[static_cast<size_t>(sc)]) {
+            if (!hh_key_drawable(static_cast<SDL_Scancode>(sc))) {
+                continue;
+            }
             hh_key_assign(static_cast<SDL_Scancode>(sc), target);
             hh_key_save();
             fprintf(stderr, "[PAD] '%s' <- tecla %s\n", g_capture_action.c_str(),

@@ -23,9 +23,20 @@
   **borrar con X del mando OK**; teclado y mando a la vez; direcciones siguen repitiendo. Linux compila.
 - Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`.
 
+### Fix de remapeo de teclado en CONTROLES (#17) — HECHO (2026-10-04)
+
+- Asignar teclas (números, etc.) no persistía. Causas: los **defaults** de teclado se reinyectaban al
+  cargar y ganaban a la tecla reasignada; teclas cuyo nombre rompe el INI (`; = #`) se perdían; la
+  fuente no dibuja `[ ] \ '`.
+- Fix (`input.cpp`): `[keys]` es **fuente autoritativa** del teclado; nombres seguros `sc_<n>` para el
+  INI; **solo se mapean teclas dibujables** (`glyph_value` + `menu_char`, incluye `¡¿` y acentos); el
+  rótulo se muestra **según la layout del SO** (`¡` en teclado ES), guardando por **scancode**.
+- Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`. Pendiente validar en Windows.
+
 ### Pendiente
 
 1. Commit del fix + docs (si el mantenedor no lo ha hecho ya).
+2. Validar en Windows el remapeo de teclado (números + teclas del layout ES).
 
 ## Otras ramas
 
