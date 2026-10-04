@@ -6,8 +6,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <mutex>
 #include <string>
+#include <system_error>
 
 #define HLSL_CPU
 #include "hle/rt64_application.h"
@@ -509,6 +511,17 @@ hh::RT64Context::RT64Context(uint8_t* rdram, ultramodern::renderer::WindowHandle
         return;
     }
     hh::log("RT64: setup SUCCESS\n");
+
+    // HH_TEXDUMP=<carpeta>: inicia el volcado de texturas de RT64 DESDE EL ARRANQUE (sin F1 manual).
+    // Equivale a Inspector -> Textures -> "Start dumping textures": cada textura unica (por hash) se
+    // escribe como <hash>.v5.{tmem,tile.json,rice.rdram,rice.json}. Sirve para identificar assets
+    // (p. ej. el sprite de las particulas del heal). Decodificar: tools/analysis/decode_texdump.py.
+    if (const char* dump = std::getenv("HH_TEXDUMP"); dump != nullptr && *dump != '\0') {
+        std::error_code ec;
+        std::filesystem::create_directories(dump, ec);
+        app->state->dumpingTexturesDirectory = dump;
+        hh::log("[hh] HH_TEXDUMP: volcado de texturas activo -> %s\n", dump);
+    }
 
     // High frame rate: presenta cada frame en cuanto se dibuja (menos latencia; como la referencia).
     // Default ON; `HH_PRESENT_EARLY=0` lo desactiva (comportamiento anterior).
