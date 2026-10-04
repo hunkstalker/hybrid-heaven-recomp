@@ -21,8 +21,12 @@ instrumentación de diagnóstico.
 2. **Re-validar** en Windows con los flags ON (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`) sin regresiones.
 3. **Promover**: **encender por defecto** solo lo validado (cámara + identidad + #6); dejar gateado
    lo incompleto.
-4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
-   mantener `patches/rt64/hh-interpolation-tagging.patch` (ver `docs/workflows.md §1.2`).
+4. **RT64**: `main` (y esta carpeta, tras revertir) tiene `lib/rt64` **limpio**; la instrumentación
+   (gates de escala/rotación, contadores, pairing) vive **solo** en
+   `patches/rt64/hh-interpolation-tagging.patch`. Para **activarla** en esta rama:
+   `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; para **quitarla**:
+   `git -C lib/rt64 checkout -- .`. Para un release, **commitear el fork** (gate de escala, etc.) + subir
+   la chincheta. (Explicación completa en `docs/workflows.md §1.2`, que **llega a la rama con el sync del paso 1**.)
 5. **Merge/PR a `main`** con la documentación (`notes/2026-10-04-fps-*`).
 
 > Ver también: `main`'s `RETOMAR.md` tiene una sección con este mismo plan (contexto desde `main`).
@@ -93,7 +97,10 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
   `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`,
   `notes/2026-09-19-causa-raiz-cadencia-frames.md` (1 vs 2 VI/tick),
   `notes/2026-09-22-fps-y-present-early.md`.
-- `lib/rt64` SUCIO (fork): la instrumentación va en el patch; **no commitear el submódulo**.
+- **`lib/rt64`**: en `main` está **limpio** (pineado a `a8f0a70`, con el fix 2D). La instrumentación de
+  esta rama va en el **patch**, no commiteada en el submódulo. Para activarla aquí:
+  `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; quitarla:
+  `git -C lib/rt64 checkout -- .`. **No commitear el submódulo** (fork).
 
 ## Pitfalls (NO repetir)
 
