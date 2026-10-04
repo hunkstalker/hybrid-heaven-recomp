@@ -74,9 +74,11 @@ emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
    transforms por objeto/nodo (`g_enabled`, `HH_MTXGROUP`) pasa a **ON por defecto** (apagable con
    `HH_MTXGROUP=0`); `HH_EMIT_TAG`/`HH_FX_PASS2` (efectos pasada 2) siguen **OFF**; el gate de escala
    (#6) ya estaba **ON** en el patch de RT64.
-4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
-   mantener el patch. Detalle: `docs/workflows.md §1.2`.
-5. **Merge/PR a `main`** con su documentación (`notes/2026-10-04-fps-*`).
+4. **RT64**: **HECHO (2026-10-04)**: el **gate de discontinuidad de escala/rotación (#6)** es **commit
+   permanente** del fork `hunkstalker/rt64` rama `hybrid-heaven` (`7c46232`, pusheado); el gitlink de
+   esta rama apunta a él + `runtime.lock` actualizado. La **instrumentación** (contadores/sondas) queda
+   **solo** en `patches/rt64/hh-interpolation-tagging.patch`. Detalle: `docs/workflows.md §1.2`.
+5. **Merge/PR a `main`** con su documentación. **Pendiente**.
 
 ### TAREA SIGUIENTE — A1 tick lógico + A3 validar 120/240
 
@@ -134,10 +136,11 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
   `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`,
   `notes/2026-09-19-causa-raiz-cadencia-frames.md` (1 vs 2 VI/tick),
   `notes/2026-09-22-fps-y-present-early.md`.
-- **`lib/rt64`**: en `main` está **limpio** (pineado a `a8f0a70`, con el fix 2D). La instrumentación de
-  esta rama va en el **patch**, no commiteada en el submódulo. Para activarla aquí:
+- **`lib/rt64`**: `main` pinea `a8f0a70` (fix 2D); esta rama pinea **`7c46232`** (fix 2D + **gate de
+  discontinuidad de escala/rotación**, commit permanente del fork `hybrid-heaven`). La instrumentación
+  (contadores/sondas) va en el **patch**, no commiteada. Para activarla aquí:
   `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; quitarla:
-  `git -C lib/rt64 checkout -- .`. **No commitear el submódulo** (fork).
+  `git -C lib/rt64 checkout -- .`. Detalle: `docs/workflows.md §1.2`.
 
 ## Pitfalls (NO repetir)
 

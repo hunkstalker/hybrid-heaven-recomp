@@ -82,13 +82,19 @@ tools/build_linux.sh --help
 
 ### 1.2 Cambios temporales en `lib/rt64` (patch) y rama de interpolación
 
-**Regla:** en el fork `lib/rt64`, **commit = fix permanente** (p. ej. el fix 2D, commit `a8f0a70`, que ya
-está en el fork y al que apuntan `main` y la rama); **patch = cambios temporales/de diagnóstico** (la
-instrumentación de la épica FPS: gates de escala/rotación, contadores `emitmat`/pairing, sondas GBI),
-que **no** se commitean en el fork.
+**Regla:** en el fork `lib/rt64`, **commit = fix permanente**; **patch = instrumentación/de diagnóstico**
+(contadores `emitmat`/pairing, sondas GBI), que **no** se commitea en el fork. En la rama
+`fps-interpolacion-tagging`:
 
-- El patch vive en la rama **`fps-interpolacion-tagging`**: `patches/rt64/hh-interpolation-tagging.patch`
-  (en `main` **no existe**). Debe coincidir con `git -C lib/rt64 diff` de la rama; para regenerarlo:
+- **Fixes permanentes (commit del fork)**: el fix 2D (`a8f0a70`) y el **gate de discontinuidad de
+  escala/rotación** (commit `7c46232`, sobre `5b11988`). El gitlink de la rama apunta a `7c46232`.
+  Para añadir un fix: commitear en `lib/rt64` (rama `hybrid-heaven`), `git push fork hybrid-heaven`,
+  y **bumpear** el gitlink (`git submodule update`/`git add lib/rt64`) + `runtime.lock`. En `main`
+  el pin es `a8f0a70` hasta que la épica se mergee.
+- **Instrumentación (patch)**: `patches/rt64/hh-interpolation-tagging.patch` contiene **solo** los
+  ficheros de diagnóstico (`rt64_gbi_extended.cpp`, `rt64_game_frame.cpp`, `rt64_interpreter.cpp`,
+  `rt64_rsp.cpp`); **no** incluye el fix de escala (ya es commit). Debe coincidir con
+  `git -C lib/rt64 diff` de la rama; para regenerarlo:
   `git -C lib/rt64 diff > patches/rt64/hh-interpolation-tagging.patch`.
 - **Trabajar en `main` con RT64 limpio** (evita el confound del gate de escala ON por defecto):
   `git -C lib/rt64 checkout -- .` (revierte el patch aplicado). **No se pierde**: está en el patch de la
@@ -96,7 +102,8 @@ que **no** se commitean en el fork.
 - **Volver a la rama de interpolación y recuperar la instrumentación**:
   `git checkout fps-interpolacion-tagging` y `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`.
 - La lista de flags/env de esa instrumentación está en `RETOMAR.md` (rama). El submódulo **no se
-  commitea** (fork); su estado "sucio" es la instrumentación aplicada.
+  commitea** con la instrumentación; su estado "sucio" es la instrumentación aplicada (el commit del
+  fix sí se publica en el fork y se refleja en el gitlink).
 
 ## 2. Ejecutar headless (Linux)
 

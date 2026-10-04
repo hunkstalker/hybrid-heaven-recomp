@@ -25,7 +25,7 @@
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
-| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 359 | 2026-10-02 |
+| [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 359 | 2026-10-04 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
 | [v0.3.0 - Widescreen HUD anchoring & minimap fix](releases/v0.3.0.md) | Primera release con el HUD/minimapa **anclados** en widescreen. | 11 | 2026-09-22 |
@@ -41,7 +41,7 @@
 | [v0.6.2 - Fix Release with assets & regenerated C](releases/v0.6.2.md) | Re-release de **v0.6.1**: no cambia el código del port. La v0.6.1 publicada en GitHub estaba **rota** | 40 | 2026-10-03 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
-| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 314 | 2026-09-28 |
+| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 321 | 2026-10-04 |
 
 ## Decisiones (ADR, inmutables)
 
