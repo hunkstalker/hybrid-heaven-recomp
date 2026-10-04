@@ -80,6 +80,24 @@ tools/build_linux.sh --help
 - Detalle de la decisión: `adr/0005-build-reproducible-y-artefactos.md` y
   `adr/0009-no-versionar-c-recompilado.md`.
 
+### 1.2 Cambios temporales en `lib/rt64` (patch) y rama de interpolación
+
+**Regla:** en el fork `lib/rt64`, **commit = fix permanente** (p. ej. el fix 2D, commit `a8f0a70`, que ya
+está en el fork y al que apuntan `main` y la rama); **patch = cambios temporales/de diagnóstico** (la
+instrumentación de la épica FPS: gates de escala/rotación, contadores `emitmat`/pairing, sondas GBI),
+que **no** se commitean en el fork.
+
+- El patch vive en la rama **`fps-interpolacion-tagging`**: `patches/rt64/hh-interpolation-tagging.patch`
+  (en `main` **no existe**). Debe coincidir con `git -C lib/rt64 diff` de la rama; para regenerarlo:
+  `git -C lib/rt64 diff > patches/rt64/hh-interpolation-tagging.patch`.
+- **Trabajar en `main` con RT64 limpio** (evita el confound del gate de escala ON por defecto):
+  `git -C lib/rt64 checkout -- .` (revierte el patch aplicado). **No se pierde**: está en el patch de la
+  rama.
+- **Volver a la rama de interpolación y recuperar la instrumentación**:
+  `git checkout fps-interpolacion-tagging` y `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`.
+- La lista de flags/env de esa instrumentación está en `RETOMAR.md` (rama). El submódulo **no se
+  commitea** (fork); su estado "sucio" es la instrumentación aplicada.
+
 ## 2. Ejecutar headless (Linux)
 
 ```sh
