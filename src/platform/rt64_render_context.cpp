@@ -60,6 +60,9 @@ extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned lo
                                          unsigned long long *explicitIds,
                                          unsigned long long *unpairedTagged);
 extern "C" unsigned long long RT64_GetGroupSeenCount();
+extern "C" void RT64_GetGbiProbeCounters(unsigned long long *enable, unsigned long long *dispatch,
+                                         unsigned long long *matrixId, unsigned long long *opSeen,
+                                         unsigned long long *vertCommon);
 extern "C" unsigned long long hh_mtxgroup_skip_count();
 extern "C" unsigned long long hh_mtxgroup_total_count();
 extern "C" unsigned long long hh_fx_group_count();   // pasada 2 (model_tagging.cpp)
@@ -733,15 +736,21 @@ void hh::RT64Context::update_screen() {
             const uint32_t vi_rate = (app->sharedQueueResources != nullptr)
                                          ? app->sharedQueueResources->viOriginalRate : 0;
             const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
+            // Sonda GBI: enable=hooks gEXEnable aceptados; extdisp=entradas a extendedOp;
+            // matrixid=gEXMatrixGroup despachados; op=ultimo opcode extendido visto (0x0C=MatrixGroup).
+            unsigned long long gbi_en = 0, gbi_disp = 0, gbi_mid = 0, gbi_op = 0, gbi_vc = 0;
+            RT64_GetGbiProbeCounters(&gbi_en, &gbi_disp, &gbi_mid, &gbi_op, &gbi_vc);
             hh::log("[hh-pair] frames=%.1f/s transforms=%.1f/s explicit_ids=%.1f/s groups_seen=%llu"
                     " gen=%llu groups=%llu fx=%llu ignored=%.1f/s unpaired=%.1f/s"
                     " unpaired_tagged=%.1f/s unpaired_moved=%.1f/s"
-                    " | target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
+                    " | gbi_enable=%llu extdisp=%llu matrixid=%llu extop=%02llX vcommon=%llu"
+                    " target=%u vi=%u swapChain=%u refresh=%d vsync=%d\n",
                     (f - f_last) / secs, (t - t_last) / secs, (ex - ex_last) / secs,
                     RT64_GetGroupSeenCount(),
                     hh_mtxgroup_skip_count(), hh_mtxgroup_total_count(), hh_fx_group_count(),
                     (ig - i_last) / secs, (up - u_last) / secs, (ut - ut_last) / secs,
                     (upm - um_last) / secs,
+                    gbi_en, gbi_disp, gbi_mid, gbi_op, gbi_vc,
                     target, vi_rate, get_display_framerate(),
                     static_cast<int>(app->userConfig.refreshRate), vsync_real);
             f_last = f; t_last = t; i_last = ig; u_last = up; um_last = upm; ex_last = ex; ut_last = ut;
@@ -774,11 +783,19 @@ void hh::RT64Context::update_screen() {
             return e != nullptr && *e != '\0' && *e != '0';
         }();
         static int cap_seq = 0;
+        // Tope ajustable con `HH_CAPMAX` (def. 80). Sirve para runs para el LOD: con HH_GENCAP y
+        // capturas frecuentes, 80 se agotan antes de la ventana que interesa; subirlo permite
+        // muestrear mas cortes de camara/transiciones y luego comparar los BMP entre si.
+        static const int cap_max = [] {
+            const char* e = std::getenv("HH_CAPMAX");
+            const int v = (e != nullptr && *e != '\0') ? atoi(e) : 80;
+            return (v > 0) ? v : 80;
+        }();
         static auto cap_last = std::chrono::steady_clock::now() - std::chrono::seconds(10);
         const auto now = std::chrono::steady_clock::now();
         const bool cooldown =
             std::chrono::duration_cast<std::chrono::milliseconds>(now - cap_last).count() >= 120;
-        if (cap_seq < 80 && cooldown) {
+        if (cap_seq < cap_max && cooldown) {
             unsigned long long moved = 0, tagged = 0, unpaired = 0, gen = 0;
             const bool pair = RT64_TakePairCapture(&moved, &tagged, &unpaired) != 0;
             const bool genb = gencap_on && (hh_interp_take_capture(&gen) != 0);

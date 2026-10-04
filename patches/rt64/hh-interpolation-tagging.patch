@@ -1,8 +1,45 @@
+diff --git a/src/gbi/rt64_gbi_extended.cpp b/src/gbi/rt64_gbi_extended.cpp
+index 20c0d4d..853e908 100644
+--- a/src/gbi/rt64_gbi_extended.cpp
++++ b/src/gbi/rt64_gbi_extended.cpp
+@@ -6,6 +6,12 @@
+ 
+ #include "../include/rt64_extended_gbi.h"
+ 
++// HH: contadores de la sonda del GBI extendido (definidos en rt64_game_frame.cpp).
++extern "C" uint64_t hh_enable_count;
++extern "C" uint64_t hh_ext_dispatch;
++extern "C" uint64_t hh_matrixid_count;
++extern "C" uint64_t hh_ext_op_seen;
++
+ namespace RT64 {
+     namespace GBI_EXTENDED {
+         static GBIFunction Map[G_EX_MAX];
+@@ -351,6 +357,7 @@ namespace RT64 {
+                     }
+                     
+                     state->enableExtendedGBI(extendedOpCode);
++                    hh_enable_count++;
+                     break;
+                 }
+                 case RT64_HOOK_OP_DISABLE:
+@@ -377,6 +384,11 @@ namespace RT64 {
+             assert(MapInitialized);
+ 
+             uint32_t opCode = (*dl)->p0(0, 24);
++            hh_ext_dispatch++;
++            hh_ext_op_seen = opCode;
++            if (opCode == G_EX_MATRIXGROUP_V1) {
++                hh_matrixid_count++;
++            }
+             if (opCode < G_EX_MAX) {
+                 Map[opCode](state, dl);
+             }
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 87392d0..232e8b3 100644
+index 87392d0..03772d5 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
-@@ -9,6 +9,74 @@
+@@ -9,6 +9,100 @@
  
  #include "xxHash/xxh3.h"
  
@@ -37,8 +74,34 @@ index 87392d0..232e8b3 100644
 +// rt64_rsp.cpp (namespace RT64) lo toque sin ambiguedad de namespaces.
 +extern "C" uint64_t hh_group_seen_count = 0;
 +
++// HH: sonda del GBI extendido (HH_GBI_PROBE=1). Sirve para localizar POR QUE el tagging no
++// materializa en pass 1 aunque el port emita `gEXEnable`:
++//   - hh_enable_count: hooks `gEXEnable` (RT64_HOOK_OP_ENABLE) recibidos y aceptados.
++//   - hh_ext_dispatch: veces que el interprete entra en `extendedOp` con el GBI extendido activo.
++//   - hh_matrixid_count: `matrixId` (gEXMatrixGroup) procesados dentro de extendedOp.
++//   - hh_ext_op_seen: ultimo opcode extendido leido en extendedOp (G_EX_MATRIXGROUP_V1=0x0C...).
++extern "C" uint64_t hh_enable_count = 0;
++extern "C" uint64_t hh_ext_dispatch = 0;
++extern "C" uint64_t hh_matrixid_count = 0;
++extern "C" uint64_t hh_ext_op_seen = 0;
++// setVertexCommon invocado (donde se materializaria el grupo). Cuenta si `G_VTX` con
++// `modelMatrixIdStackChanged` no se esta llamando durante el dibujo de los objetos taggeados.
++extern "C" uint64_t hh_vertcommon_count = 0;
++
 +extern "C" unsigned long long RT64_GetGroupSeenCount() {
 +    return hh_group_seen_count;
++}
++
++extern "C" void RT64_GetGbiProbeCounters(unsigned long long *enable, unsigned long long *dispatch,
++                                         unsigned long long *matrixId, unsigned long long *opSeen,
++                                         unsigned long long *vertCommon) {
++    *enable = hh_enable_count;
++    *dispatch = hh_ext_dispatch;
++    *matrixId = hh_matrixid_count;
++    *opSeen = hh_ext_op_seen;
++    if (vertCommon != nullptr) {
++        *vertCommon = hh_vertcommon_count;
++    }
 +}
 +
 +extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned long long *total,
@@ -77,7 +140,7 @@ index 87392d0..232e8b3 100644
  namespace RT64 {
      // GameFrame
      
-@@ -375,6 +443,130 @@ namespace RT64 {
+@@ -375,6 +469,130 @@ namespace RT64 {
          matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
          matchScenes(orthographicScenes, prevFrame.orthographicScenes);
  
@@ -208,6 +271,20 @@ index 87392d0..232e8b3 100644
          if (!workloadsModified.empty()) {
              thread_local std::vector<BufferUploader::Upload> uploads;
              uploads.clear();
+diff --git a/src/hle/rt64_interpreter.cpp b/src/hle/rt64_interpreter.cpp
+index dccaa87..c97193b 100644
+--- a/src/hle/rt64_interpreter.cpp
++++ b/src/hle/rt64_interpreter.cpp
+@@ -173,6 +173,9 @@ namespace RT64 {
+             opCode = (dl->w0 >> 24);
+ 
+             if ((extendedOpCode != 0) && (opCode == extendedOpCode)) {
++                // Los handlers de `Map[opCode]` ya avanzan `*dl` al ultimo word de su comando; el
++                // `dl++` de abajo cierra el avance. NO anadir la longitud aqui (duplicaba el salto
++                // y desalineaba la DL: rompia el HUD/widescreen).
+                 extendedFunction(state, &dl);
+             }
+             else {
 diff --git a/src/hle/rt64_rigid_body.cpp b/src/hle/rt64_rigid_body.cpp
 index fd8b3eb..da9c9f7 100644
 --- a/src/hle/rt64_rigid_body.cpp
@@ -299,20 +376,30 @@ index fd8b3eb..da9c9f7 100644
  
      void RigidBody::updatePerspective(const hlslpp::float4x4 &prevTransform, const hlslpp::float4x4 &curTransform, uint8_t perspInterpolation) {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index 1da2550..d219c08 100644
+index 1da2550..7c932de 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
-@@ -6,6 +6,9 @@
+@@ -6,6 +6,13 @@
  
  #include <cassert>
  
 +// HH: contador de gEXMatrixGroup materializados (definido en rt64_game_frame.cpp).
 +extern "C" uint64_t hh_group_seen_count;
++// HH: sonda del GBI extendido (definida en rt64_game_frame.cpp).
++extern "C" uint64_t hh_ext_dispatch;
++extern "C" uint64_t hh_matrixid_count;
++extern "C" uint64_t hh_vertcommon_count;
 +
  #include "../include/rt64_extended_gbi.h"
  #include "common/rt64_common.h"
  #include "common/rt64_math.h"
-@@ -511,6 +514,11 @@ namespace RT64 {
+@@ -506,11 +513,17 @@ namespace RT64 {
+         const int workloadCursor = state->ext.workloadQueue->writeCursor;
+         Workload &workload = state->ext.workloadQueue->workloads[workloadCursor];
+ 
++        ::hh_vertcommon_count++;
+         if (extended.modelMatrixIdStackChanged) {
+             const int stackIndex = extended.modelMatrixIdStackSize - 1;
              extended.curModelMatrixIdGroupIndex = int(workload.drawData.transformGroups.size());
              workload.drawData.transformGroups.emplace_back(extended.modelMatrixIdStack[stackIndex]);
              extended.modelMatrixIdStackChanged = false;
