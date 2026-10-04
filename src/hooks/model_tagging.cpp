@@ -133,6 +133,22 @@ const bool g_fx_emit = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
+// [Opción 2] Tagging en el EMISOR de geometría (no en el traversal de pass 1). Medido 2026-10-04:
+// los grupos de pass 1 y la geometría viven en workloads RSP distintos (un `G_RDPFULLSYNC` los
+// separa) y `rsp->reset()` borra el estado extendido en la frontera, así que materializar en
+// `RSP::matrixId` no alcanza a la geometría (`explicit_ids=0`). El tag tiene que emitirse donde está
+// la geometría: envolviendo el emisor que dibuja (patrón ya validado con `C768`).
+// `HH_EMIT_TAG=1` (o `HH_FX_EMIT=1` como alias). Solo emisores que DIBUJAN 3D (`can_tag && !is2d`);
+// los setup de menú (7750/78AC/79B0) y los 2D (919C/11958) quedan fuera (el "congeló el render"
+// medido venía de envolverlos todos).
+const bool g_emit_tag = [] {
+    const char* v = std::getenv("HH_EMIT_TAG");
+    const bool on = (v != nullptr && *v != '\0' && *v != '0');
+    const char* f = std::getenv("HH_FX_EMIT");
+    const bool alias = (f != nullptr && *f != '\0' && *f != '0');
+    return on || alias;
+}();
+
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
 uint32_t sGeneration = 1;
@@ -612,6 +628,39 @@ void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t node, bool
     hh::log("[hh-emit] %s f=%llu cur=%08X->%08X d=%u vtx=%u tri=%u tex=%u ops=%s a0=%08X a1=%08X\n",
             name, (unsigned long long)f, before, after, after - before, vtx, tri, tex, ops, a0, a1);
 }
+
+// [Opción 2] Tagging de la CÁMARA como grupo de PROYECCIÓN. Medido: taggear el modelview del nodo
+// (Opción 2a) no quitó el skew y rompió huesos/2D. La cámara va horneada en la matriz de
+// vista/proyección que estos emisores cargan con `G_MTX` proyección (`0xDA38...`); lo correcto es
+// rodear al emisor con un `gEXMatrixGroup` de PROYECCIÓN (`proj=1`) con un id de CÁMARA ligado a la
+// generación (cambia en cada corte). Así RT64 no empareja el viewProj a través del corte
+// (`viewProjMap.mapped = matrixId == prev matrixId`) → snap del encuadre, sin tocar los modelview de
+// objeto (huesos/efectos intactos). `emitter_trace` (que llama a `orig`) va en medio.
+void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool can_tag, bool is2d,
+                  void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
+    const bool tag = g_emit_tag && g_enabled && can_tag && valid_ram(node) && node != 0;
+    if (tag) {
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXEnable(cmd);
+        }
+        // Id de CÁMARA: misma generacion para todos los nodos del frame; cambia en cada corte.
+        const uint32_t camId = interp_id(/*INTERP_KIND_CAM=*/4u, 0u, 0u, 0u);
+        if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
+            gEXMatrixGroupDecomposed(cmd, camId, G_EX_PUSH, /*proj=*/1,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_ORDER_AUTO, G_EX_EDIT_NONE,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
+        }
+    }
+    emitter_trace(rdram, name, id, node, can_tag, is2d, orig, ctx);
+    if (tag) {
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXPopMatrixGroup(cmd, /*proj=*/1);
+        }
+    }
+}
 }  // namespace
 
 // Unico emisor envuelto (experimento pasada 2): el draw de tipo 6 `func_8000C768`, que enlaza la
@@ -653,22 +702,22 @@ extern "C" void hh_emit_79b0_hook(uint8_t* rdram, recomp_context* ctx) {
     emitter_trace(rdram, "79B0", 3, 0, /*can_tag=*/false, false, func_800079B0_85B0, ctx);
 }
 extern "C" void hh_emit_7de4_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "7DE4", 4, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80007DE4_89E4, ctx);
+    emitter_wrap(rdram, "7DE4", 4, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80007DE4_89E4, ctx);
 }
 extern "C" void hh_emit_82c4_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "82C4", 5, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_800082C4_8EC4, ctx);
+    emitter_wrap(rdram, "82C4", 5, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_800082C4_8EC4, ctx);
 }
 extern "C" void hh_emit_8754_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8754", 6, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008754_9354, ctx);
+    emitter_wrap(rdram, "8754", 6, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008754_9354, ctx);
 }
 extern "C" void hh_emit_8b9c_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8B9C", 7, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008B9C_979C, ctx);
+    emitter_wrap(rdram, "8B9C", 7, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008B9C_979C, ctx);
 }
 extern "C" void hh_emit_8f30_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "8F30", 8, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008F30_9B30, ctx);
+    emitter_wrap(rdram, "8F30", 8, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80008F30_9B30, ctx);
 }
 extern "C" void hh_emit_d1cc_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "D1CC", 9, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000D1CC_DDCC, ctx);
+    emitter_wrap(rdram, "D1CC", 9, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000D1CC_DDCC, ctx);
 }
 extern "C" void hh_emit_11958_hook(uint8_t* rdram, recomp_context* ctx) {
     emitter_trace(rdram, "11958", 10, ctx->r4, /*can_tag=*/true, /*is2d=*/true, func_80011958_12558, ctx);
@@ -680,8 +729,8 @@ extern "C" void hh_emit_919c_hook(uint8_t* rdram, recomp_context* ctx) {
     emitter_trace(rdram, "919C", 12, ctx->r4, /*can_tag=*/true, /*is2d=*/true, func_8000919C_9D9C, ctx);
 }
 extern "C" void hh_emit_a06c_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "A06C", 13, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000A06C_AC6C, ctx);
+    emitter_wrap(rdram, "A06C", 13, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_8000A06C_AC6C, ctx);
 }
 extern "C" void hh_emit_13828_hook(uint8_t* rdram, recomp_context* ctx) {
-    emitter_trace(rdram, "13828", 14, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80013828_14428, ctx);
+    emitter_wrap(rdram, "13828", 14, ctx->r4, /*can_tag=*/true, /*is2d=*/false, func_80013828_14428, ctx);
 }
