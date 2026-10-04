@@ -4,6 +4,15 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## FPS / interpolación (2026-10-02 … 2026-10-04)
+
+- **Sesgado de cámara — RESUELTO y validado en Windows (2026-10-04, `46b3f0d`).** *Shearing* de 1 frame
+  en los cortes de cámara (p. ej. FIGHT). La cámara va horneada en la matriz de **vista/proyección**;
+  fix **port-only** en `src/hooks/model_tagging.cpp` (`emitter_wrap()` → `gEXMatrixGroup` de PROYECCIÓN
+  con id de cámara + generación) → RT64 no empareja el viewProj en el corte → snap del encuadre. Se
+  **descartó** la vía core (materializar pass 1 a través de la frontera de workload: asocia por tiempo,
+  rompe el HUD). `notes/2026-10-04-fps-core-frontera-workload-y-pasada2.md`.
+
 ## 2026-10-02 (sesión de bugs)
 
 - **#13 minimapa desanclado al cambiar de Área — HECHO y VALIDADO en Windows (todos los niveles).**

@@ -43,13 +43,17 @@
     `[hh-emit]`/histograma de opcodes, `HH_FX_*`, `HH_PAIRING_DUMP` + los log/trazas asociados se
     dejan a propósito para diagnosticar futuros fallos de interpolación. Retirar cuando la épica FPS
     cierre. Inventario de variables en la nota del 2026-10-03.
-  - [ ] **A2.2c sesgado de cámara — CAUSA RAÍZ MEDIDA (2026-10-04), SIN RESOLVER**: *shearing* en
-    cortes. En este estado el **tagging de pass 1 NO materializa** (`explicit_ids=0`, `groups_seen=0`)
-    porque la geometría va en **sub-DLs (`G_DL`)** y el `TransformGroup` se crea en el siguiente
-    `setVertexCommon` (tras el `pop`) → huérfano. **Plan 1**: materializar el grupo en `RSP::matrixId`
-    (push), **acotado** (solo `proj=0` + `G_MTX` real) para no romper 2D/HUD (un intento sin acotar
-    rompió el HUD). Detalle + sonda GBI + lección de git:
-    `notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md`.
+  - [x] **A2.2c sesgado de cámara — RESUELTO y validado (2026-10-04, `46b3f0d`)**. *Shearing* en cortes
+    (FIGHT): la cámara va horneada en la matriz de **vista/proyección**; fix **port-only**
+    (`emitter_wrap()` → `gEXMatrixGroup` de PROYECCIÓN con id de cámara + generación) → snap del
+    encuadre. Se **descartó** la vía core (materializar pass 1 a través de la frontera de workload:
+    asocia por tiempo → rompe el HUD). Detalle: `notes/2026-10-04-fps-core-frontera-workload-y-pasada2.md`.
+  - [ ] **A2.2d efectos/2D de pasada 2 (no-emparejados)**: capturas en minas, láser al jugador,
+    partículas de golpe y **transiciones de puerta**. La geometría la dibujan los **emisores de
+    pasada 2** (`7DE4/8F30/8754/C768/…`), no el dispatch (`A828` = fillrects). **Vía**: tagging **en el
+    emisor** (nodo `ctx->r4`), identidad por nodo (`stable_slot`, sin `g_obj_slot`); nodos con **N
+    transforms** → `G_EX_ORDER_AUTO`/`G_EX_ID_IGNORE` (**nunca LINEAR**); efectos → `IGNORE`. NO envolver
+    emisores 2D de menú (congela). Detalle: nota del 2026-10-04 arriba.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
     observado** (sin popping; `unpaired_moved` normal) → candidato a cerrar como "no aplica".
