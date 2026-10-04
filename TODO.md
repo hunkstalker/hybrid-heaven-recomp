@@ -55,10 +55,14 @@
     frames. Cobertura **98.6%** con id. Detalle:
     `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
   - [x] **A2.3**: **quitado** el skip-spawn propio (RT64 salta solo los IDs sin contraparte).
-  - [ ] **Partículas de sprites al curarse (VISUAL, distinto de #10)**: al curar, las partículas de
-    sprite se ven como **cuadrados con degradado** (sospecha: **alpha** de sprite). Reproducir al
-    curarse y revisar el path de sprite/2D (sprite `gEX`, `texrect` o alpha del RDP). Apuntado por el
-    mantenedor 2026-10-04; **siguiente foco**.
+  - [x] **Partículas de sprites al curarse — CERRADO (no-bug)**: los "quads" son el **asset original**
+    del juego (textura cuadrada de glow 8x8 + estrella 16x16); coincide con el emulador (dump del
+    emulador). No es interpolación ni tagging ni RT64. Ver
+    `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
+  - [ ] **LATENTE: walkers de DL + comandos extendidos** (`src/hooks/dl_snap.cpp`): el salto de `0x64`
+    con **longitud fija 16B** desincroniza con `gEXPopMatrixGroup`/`gEXSetRectAspect` (8B) → puede
+    perder el scissor de overscan (**4:3 intermitente**) y cortar las trazas 2D. **No observado** en
+    HH. Doc + fix: `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
     observado** (sin popping; `unpaired_moved` normal) → localizar el campo o cerrar como "no aplica".
   - [ ] **A1**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).

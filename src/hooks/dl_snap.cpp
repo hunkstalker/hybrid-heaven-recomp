@@ -28,11 +28,26 @@ constexpr uint8_t kSetScissor = 0xED;
 constexpr uint8_t kMoveWord   = 0xDB;
 constexpr uint8_t kDl         = 0xDE;
 constexpr uint8_t kEndDl      = 0xDF;
-// Opcode del GBI extendido de RT64 (RT64_EXTENDED_OPCODE). Sus comandos son de 2 palabras y el
-// walker NO los conoce; sin saltrarlos, el chequeo `op > 0x07 && op < 0xD3` (0x64 cae dentro) aborta
-// el recorrido ANTES del G_SETSCISSOR de overscan -> no se reescribe -> la escena no expande (4:3).
+// Opcode del GBI extendido de RT64 (RT64_EXTENDED_OPCODE). El walker NO conoce los comandos
+// extendidos; sin saltarlos, el chequeo `op > 0x07 && op < 0xD3` (0x64 cae dentro) aborta el
+// recorrido ANTES del G_SETSCISSOR de overscan -> no se reescribe -> la escena no expande (4:3).
 // Introducido por el tagging (src/hooks/model_tagging.cpp), que emite gEXMatrixGroup (0x64) en la DL.
+//
+// OJO: la longitud es VARIABLE (G_EX_COMMAND1/2/3/4). Avanzar siempre 16 bytes desincroniza en los
+// comandos de 1 palabra (gEXPopMatrixGroup -> G_EX_POPMATRIXGROUP_V1, gEXSetRectAspect) y salta un
+// comando con cada pop -> 2D/matching intermitente. Se calcula por el sub-opcode (bits 0..23).
 constexpr uint8_t kExtended   = 0x64;
+constexpr uint32_t kExtPopMatrixGroup = 0x00000Du;   // G_EX_POPMATRIXGROUP_V1  (1 palabra)
+constexpr uint32_t kExtSetRectAspect  = 0x000033u;   // G_EX_SETRECTASPECT_V1   (1 palabra)
+inline uint32_t extended_command_words(uint32_t w0) {
+    switch (w0 & 0x00FFFFFFu) {
+        case kExtPopMatrixGroup:
+        case kExtSetRectAspect:
+            return 1;
+        default:   // MATRIXGROUP, SETSCISSOR, SETRECTALIGN, SETVIEWPORTALIGN, ... (2 palabras)
+            return 2;
+    }
+}
 constexpr uint8_t kRdpHalf1   = 0xE1;
 constexpr uint8_t kRdpHalf2   = 0xF1;
 constexpr uint8_t kTexRect    = 0xE4;
@@ -86,7 +101,7 @@ struct Walker {
             // gEXMatrixGroup (0x64) en la DL y el walker abortara aqui, no llegaria al G_SETSCISSOR
             // de overscan -> widescreen roto (4:3). Ver nota 2026-10-03.
             if (op == kExtended) {
-                pc += 16;   // el comando extendido ocupa 2 palabras
+                pc += 8u * extended_command_words(w0);   // longitud variable: nunca asumir 2 palabras
                 continue;
             }
             // F3DEX2 no tiene comandos entre G_QUAD (0x07) y G_SPECIAL_3 (0xD3): llegar a uno
@@ -182,6 +197,10 @@ struct HudWalker {
             const uint32_t w0 = hh::hudid::read_word(rdram, pc);
             const uint32_t w1 = hh::hudid::read_word(rdram, pc + 4);
             const uint8_t op = static_cast<uint8_t>(w0 >> 24);
+            if (op == kExtended) {
+                pc += 8u * extended_command_words(w0);   // saltar tag extendido (longitud variable)
+                continue;
+            }
             if (op > 0x07 && op < 0xD3) return;
             pc += 8;
             switch (op) {
@@ -438,6 +457,12 @@ struct DlDumper {
             const uint32_t w0 = hh::hudid::read_word(rdram, pc);
             const uint32_t w1 = hh::hudid::read_word(rdram, pc + 4);
             const uint8_t op = static_cast<uint8_t>(w0 >> 24);
+            if (op == kExtended) {
+                std::fprintf(f, "%06X: %02X  %08X %08X\n", pc, op, w0, w1);
+                ++count;
+                pc += 8u * extended_command_words(w0);   // saltar tag extendido (longitud variable)
+                continue;
+            }
             if (op > 0x07 && op < 0xD3) return;
             std::fprintf(f, "%06X: %02X  %08X %08X\n", pc, op, w0, w1);
             ++count;
