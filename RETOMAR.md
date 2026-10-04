@@ -6,6 +6,27 @@
 > Referencia: `notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §4.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
+## INTENCIÓN: integrar en `main` (adelantar los arreglos visuales validados)
+
+**Objetivo de la rama:** llegar a **integrar en `main`** lo que ya está **validado** (aunque no
+tengamos el **100% de emparejamiento**), para que esos arreglos visuales lleguen a los usuarios.
+
+**Lo validado y candidato a promover** (cámara, identidad por nodos, **#6** gate de escala, **#8**,
+huesos, minas/láseres). **Lo que se deja gateado** (no promover por defecto): efectos/A2.2d e
+instrumentación de diagnóstico.
+
+**Plan de integración (por fases; NO es un merge ciego):**
+1. **Sincronizar**: `git merge main` en esta rama; resolver conflictos (`src/subsystems/input.cpp`
+   —`main` lo tocó para el fix de input— y los `.md` de estado `RETOMAR/TODO/PROYECTO`).
+2. **Re-validar** en Windows con los flags ON (`HH_MTXGROUP=1`/`HH_EMIT_TAG=1`) sin regresiones.
+3. **Promover**: **encender por defecto** solo lo validado (cámara + identidad + #6); dejar gateado
+   lo incompleto.
+4. **RT64**: para un release, **commitear el fork** (gate de escala, etc.) + subir la chincheta; o
+   mantener `patches/rt64/hh-interpolation-tagging.patch` (ver `docs/workflows.md §1.2`).
+5. **Merge/PR a `main`** con la documentación (`notes/2026-10-04-fps-*`).
+
+> Ver también: `main`'s `RETOMAR.md` tiene una sección con este mismo plan (contexto desde `main`).
+
 ## Estado — lo que funciona (MEDIDO, run del mantenedor)
 
 - **Sesgado de cámara RESUELTO** (`46b3f0d`, port-only): grupo de PROYECCIÓN con id de cámara + generación.
