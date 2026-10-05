@@ -149,14 +149,13 @@ const bool g_emit_tag = [] {
     return !(off || off_alias);   // por defecto ON; `0` (cualquiera de los dos) lo apaga
 }();
 
-// A/B fino del tagging de emisores: separa el grupo de PROYECCION (camara) del de MODELVIEW (geometria
-// del emisor). Medido (2026-10-05): el grupo de **proyeccion por emisor** rompe la **camara al apuntar**
-// (con N grupos de proyeccion por frame, RT64 empareja el viewProj por indice y se desalinea); el
-// modelview por emisor (con generacion) ya hace snap en los cortes. Por eso **proyeccion OFF por
-// defecto**; `HH_EMIT_PROJ=1` la reactiva (A/B). El modelview sigue ON (`HH_EMIT_MV=0` lo apaga).
+// A/B fino del tagging de emisores. El grupo de PROYECCION (camara) se emite SOLO en el emisor de
+// camara (`7DE4` = func_80007DE4, que hace guPerspective+guLookAt), UNA vez por frame; antes se
+// emitia en TODOS los emisores y RT64 emparejaba mal el viewProj (camara al apuntar rota). El
+// MODELVIEW va en el resto de emisores 3D. `HH_EMIT_PROJ=0` / `HH_EMIT_MV=0` los apagan (A/B).
 const bool g_emit_proj = [] {
     const char* v = std::getenv("HH_EMIT_PROJ");
-    return v != nullptr && *v != '\0' && *v != '0';   // por defecto OFF; `1` la enciende
+    return !(v != nullptr && *v != '\0' && *v == '0');   // por defecto ON (solo emisor de camara)
 }();
 const bool g_emit_mv = [] {
     const char* v = std::getenv("HH_EMIT_MV");
@@ -660,8 +659,13 @@ void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t node, bool
 void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool can_tag, bool is2d,
                   void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
     const bool base = g_emit_tag && g_enabled && can_tag && valid_ram(node) && node != 0;
-    const bool tag_proj = base && g_emit_proj;           // grupo de PROYECCION (camara)
-    const bool tag_mv = base && g_emit_mv && !is2d;       // grupo de MODELVIEW de la geometria
+    // `7DE4` (id 4) es el emisor de CAMARA (`func_80007DE4_89E4`: guPerspective+guLookAt): recibe el
+    // grupo de PROYECCION (una vez por frame, id de camara con generacion). El resto de emisores 3D
+    // reciben el de MODELVIEW. Envolver el emisor de camara como modelview hacia que el objeto del
+    // menu de titulo "se moviera en coordenadas".
+    const bool is_camera = (id == 4);
+    const bool tag_proj = base && is_camera && g_emit_proj;       // grupo de PROYECCION (camara)
+    const bool tag_mv = base && !is_camera && g_emit_mv && !is2d; // grupo de MODELVIEW de la geometria
     if (tag_proj || tag_mv) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
