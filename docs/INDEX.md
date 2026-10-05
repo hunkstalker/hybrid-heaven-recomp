@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 288 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 435 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 433 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -70,7 +70,7 @@
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
 | [2026-10-05 — Verificación de base: jump tables cross-function (clase #14/veneno)](../notes/2026-10-05-verificacion-base-jumptables.md) | Sesión de verificación (rama `verificacion-byte-match`). Herramientas nuevas en `tools/verify/`. | 46 | 2026-10-05 |
-| [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 53 | 2026-10-05 |
+| [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 47 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |
 | [2026-10-05 — inventario: caja negra anclada a la derecha — ARREGLADO y VALIDADO](../notes/2026-10-05-fix-inventario-caja-negra-ancla.md) | Estado: **validado por el mantenedor en Windows (2026-10-05)**. Continúa el handoff | 51 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |

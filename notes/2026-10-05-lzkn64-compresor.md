@@ -25,29 +25,23 @@ Cabecera: `u32 BE` = longitud total del stream comprimido (incluye la cabecera).
 - Selección: en cada posición se emite **un token**: se toma el que **más consume** entre
   cero-repetición-backref; en empate gana RLE; si no, se acumula `raw` (≤31) parando ante RLE/backref.
 - El decompresor **ignora bits del cmd**; el original los usa (`rlev` con base `0xC0`, no `0xA0`).
+- **Quirk del original (clave)**: el run de ceros se corta en la próxima posición
+  `(i+pos) & 0xFFF ∈ {0x21, 0x421, 0x821, 0xC21}`, es decir `pos ≡ 0x21 (mod 0x400)`. Esto explica
+  el troceado "raro" de runs largos (`65 → 34+31`, `1024 → 257,257,207,257,46`, etc.).
+- **Padding**: la cabecera = longitud **sin** el pad; si es impar se añade un byte `0x00`.
 
 ## Resultado
 
 `tools/verify/verify_lzkn64_roundtrip.py` sobre los 482 ficheros comprimidos:
 
 - **Round-trip semántico `decompress(compress(x)) == x`: 482/482.**
-- **Byte-exacto vs retail: 477/482.**
+- **Byte-exacto vs retail: 482/482 (`rec == raw` completo, incluido el padding).**
 
-Casos no byte-exactos (chunking exótico de runs de ceros; el original los parte de forma no obvia):
-
-| idx | dec size |
-|---|---|
-| 0 | 4096 |
-| 54 | 42464 |
-| 21 | 73648 |
-| 24 | 124112 |
-| 7 | 564464 |
-
-Se probó una hipótesis `primer chunk = 256-(pos%256)+33` (encajaba en 4 de ellos) pero **rompía otros**
-(469/482) → descartada. **Pendiente**: clonar el troceado exacto para lograr SHA1 retail (si algún día
-se necesita; el port no comprime).
+El codec LZKN64 está clonado exactamente. (El `rommy.py compress` a nivel de ROM da otro tamaño/SHA1
+porque **compacta el contenedor**; no es un test del codec. El test válido —y superado— es por fichero.)
 
 ## Herramienta
 
-- `tools/lzkn64/lzkn64.py` — `decompress` (ya existía) + `compress` (nuevo).
+- `tools/lzkn64/lzkn64.py` — `decompress` (ya existía) + `compress` (nuevo, byte-exacto). El algoritmo
+  original fue revertido por Fluvian / LiquidCat64 (`Fluvian/lzkn64`, referencias MIT).
 - `tools/verify/verify_lzkn64_roundtrip.py` — validación contra la ROM.

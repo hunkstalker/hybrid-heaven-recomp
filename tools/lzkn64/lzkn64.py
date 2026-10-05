@@ -115,7 +115,15 @@ def compress(data):
         rr = rep_at(pos)
         cands = []
         if zr >= 2:
-            cands.append(('zero', zr, 0))
+            # Quirk del compresor original: el run de ceros se capa en la proxima
+            # posicion (i+pos) & 0xFFF == 0x21 (mod 0x400). Ver tools/verify.
+            fwm = 257 if (n - pos - 1) > 257 else (n - pos)
+            if fwm > 33:
+                for i in range(34, fwm + 1):
+                    if (i + pos) & 0xFFF in (0x021, 0x421, 0x821, 0xC21):
+                        fwm = i
+                        break
+            cands.append(('zero', min(zr, fwm), 0))
         if rr >= 3:
             cands.append(('rlev', min(rr, 32), data[pos]))
         if M >= 4:
@@ -137,13 +145,12 @@ def compress(data):
             continue
         k, ln, val = kind
         if k == 'zero':
-            if zr > 32:
-                c = min(257, zr)
+            c = ln
+            if c >= 33:
                 body.append(0xFF); body.append(c - 2)
-                pos += c
             else:
-                body.append(0xE0 | (zr - 2))
-                pos += zr
+                body.append(0xE0 | (c - 2))
+            pos += c
         elif k == 'rlev':
             c = min(32, rr)
             body.append(0xC0 | (c - 2)); body.append(data[pos])
@@ -154,4 +161,7 @@ def compress(data):
             pos += ln
 
     total = 4 + len(body)
-    return struct.pack('>I', total) + bytes(body)
+    out = struct.pack('>I', total) + bytes(body)
+    if total % 2 != 0:          # el original alinea a par (cabecera = longitud sin el pad)
+        out += b'\x00'
+    return out
