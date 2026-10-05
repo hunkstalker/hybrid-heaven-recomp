@@ -87,10 +87,11 @@ tools/build_linux.sh --help
 `fps-interpolacion-tagging`:
 
 - **Fixes permanentes (commit del fork)**: el fix 2D (`a8f0a70`) y el **gate de discontinuidad de
-  escala/rotación** (commit `7c46232`, sobre `5b11988`). El gitlink de la rama apunta a `7c46232`.
-  Para añadir un fix: commitear en `lib/rt64` (rama `hybrid-heaven`), `git push fork hybrid-heaven`,
-  y **bumpear** el gitlink (`git submodule update`/`git add lib/rt64`) + `runtime.lock`. En `main`
-  el pin es `a8f0a70` hasta que la épica se mergee.
+  escala/rotación** (commit `7c46232`). El gitlink de `main` apunta a **`234151a`** (`7c46232` +
+  plume **upstream** `d890ac8`); el pin anterior a `5b11988` apuntaba a un commit de plume no publicado
+  y rompía el clon limpio/CI (`notes/2026-10-05-ci-fix-plume-pin.md`). Para añadir un fix: commitear en
+  `lib/rt64` (rama `hybrid-heaven`), `git push fork hybrid-heaven`, y **bumpear** el gitlink
+  (`git submodule update`/`git add lib/rt64`) + `runtime.lock`.
 - **Instrumentación (patch)**: `patches/rt64/hh-interpolation-tagging.patch` contiene **solo** los
   ficheros de diagnóstico (`rt64_gbi_extended.cpp`, `rt64_game_frame.cpp`, `rt64_interpreter.cpp`,
   `rt64_rsp.cpp`); **no** incluye el fix de escala (ya es commit). Debe coincidir con

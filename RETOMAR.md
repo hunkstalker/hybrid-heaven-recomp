@@ -15,10 +15,15 @@
 `[hh-mapbg]`. Detalle: `notes/2026-10-05-fix-inventario-caja-negra-ancla.md` (síntoma:
 `notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`).
 
-### Siguiente: push/tag de `v0.7.0`
+### Fix de CI (2026-10-05) — pin de plume + push/tag de `v0.7.0`
 
-Con el fix validado, queda **push de `main`** (forks `lib/` primero si toca; aquí **no** se tocaron) y
-**tag de `v0.7.0`**, a petición del mantenedor.
+El push de `main` destapó que el pin de RT64 (`7c46232`, vía `5b11988`) arrastraba un submódulo
+`plume` a un commit **no publicado** (`71fd344`), rompiendo el clon limpio/CI. Arreglado con **B**: commit
+`234151a` en `lib/rt64` devuelve plume a **upstream** `d890ac8` (el de v0.6.2); `main` sube su pin
+(gitlink + `runtime.lock`). Detalle: `notes/2026-10-05-ci-fix-plume-pin.md`.
+
+**Push (orden)**: `git -C lib/rt64 push fork hybrid-heaven` y luego `git push origin main`; **tag**
+`v0.7.0` a petición del mantenedor. El pin `234151a` no estará en el fork hasta el primer push.
 
 ## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
 
@@ -90,8 +95,11 @@ emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
    escala (#6) ya estaba **ON** en el patch de RT64 (ahora commit). La instrumentación
    (HH_PAIRING/LOGs/capturas/TEXDUMP, `HH_FX_PASS2`) sigue **OFF**.
 4. **RT64**: **HECHO (2026-10-04)**: el **gate de discontinuidad de escala/rotación (#6)** es **commit
-   permanente** del fork `hunkstalker/rt64` rama `hybrid-heaven` (`7c46232`, pusheado); el gitlink de
-   esta rama apunta a él + `runtime.lock` actualizado. La **instrumentación** (contadores/sondas) queda
+   permanente** del fork `hunkstalker/rt64` rama `hybrid-heaven` (`7c46232`); el gitlink de
+   esta rama apunta a él + `runtime.lock` actualizado. **Corregido (2026-10-05)**: el pin sube a
+   `234151a` (sobre `7c46232`) para devolver plume a upstream `d890ac8`, porque el pin anterior a
+   `5b11988` apuntaba a un commit de plume no publicado y rompía el clon limpio/CI; ver
+   `notes/2026-10-05-ci-fix-plume-pin.md`. La **instrumentación** (contadores/sondas) queda
    **solo** en `patches/rt64/hh-interpolation-tagging.patch`. Detalle: `docs/workflows.md §1.2`.
 5. **Merge/PR a `main`** con su documentación. **HECHO (2026-10-04)**: merge **fast-forward** a `main`
    (`f144881`), más el fix de build de `9b45c3a` (stubs weak de la instrumentación RT64 para que
@@ -100,7 +108,7 @@ emparejamiento), para que esos arreglos visuales lleguen a los usuarios.
 ### Pendiente tras el merge
 
 - **Validar en Windows desde `main` sin variables** (cámara, huesos, #6, #8). El gate de escala va en
-  el commit del fork (`7c46232`), así que un clon limpio de `main` lo tendrá.
+  el commit del fork (`7c46232`, pin actual `234151a`), así que un clon limpio de `main` lo tendrá.
 - `lib/rt64` en local puede quedar “sucio” (patch de diagnóstico aplicado); para `main` limpio:
   `git -C lib/rt64 checkout -- .`.
 - **Push** de `main` (lo hace el mantenedor).
@@ -152,8 +160,8 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
 ## Árbol y pistas
 
 - `main` = `v0.7.0` (v0.6.2 + fix de input + épica de interpolación integrada; **ON por defecto**),
-  **submódulos limpios**: `lib/rt64` en **`7c46232`** (fix 2D + gate de escala/rotación). La rama
-  `fps-interpolacion-tagging` = `main` (idéntica).
+  **submódulos limpios**: `lib/rt64` en **`234151a`** (fix 2D + gate de escala/rotación; `7c46232` +
+  plume upstream). La rama `fps-interpolacion-tagging` = `main` (idéntica).
 - Tick/lógica: `src/subsystems/input.cpp` (`get_input`, `HH_DIAG`, `hh_tick.log`/`hh_slow.log`),
   `src/platform/main.cpp` (`HH_STATE_SECS`), runtime `N64ModernRuntime` (`events.cpp`, `timer.cpp`).
 - Present/GPU: `src/platform/rt64_render_context.cpp` (`[hh-fps]`, send_dl/update_screen),
@@ -162,8 +170,9 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
   `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`,
   `notes/2026-09-19-causa-raiz-cadencia-frames.md` (1 vs 2 VI/tick),
   `notes/2026-09-22-fps-y-present-early.md`.
-- **`lib/rt64`**: `main` pinea **`7c46232`** (fix 2D + **gate de discontinuidad de escala/rotación**,
-  commit permanente del fork `hybrid-heaven`). La instrumentación (contadores/sondas) va en el
+- **`lib/rt64`**: `main` pinea **`234151a`** (fix 2D + **gate de discontinuidad de escala/rotación**
+  `7c46232`, + plume upstream `d890ac8`; commit permanente del fork `hybrid-heaven`). La instrumentación
+  (contadores/sondas) va en el
   **patch** `patches/rt64/hh-interpolation-tagging.patch`, no commiteada; el port enlaza sin ella por
   los **stubs** (`rt64_render_context.cpp`, weak + `/alternatename` en MSVC). Para activarla:
   `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; quitarla:

@@ -26,7 +26,8 @@ Identidad por nodos (huesos del PJ), **sesgado de cámara RESUELTO** (`46b3f0d`)
 ON 2.0, **commit del fork RT64 `7c46232`**) y **#8** (puertas), minas/láseres; **A2.2d CERRADA** (`C768`
 materializa; capturas = transitorios; cobertura **98.6%**); **partículas del heal = no-bug**; bug
 **latente** de walkers de DL corregido (`a8212b3`). **Pendiente: A1 (estabilizar tick lógico) + A3
-(validar 120/240)**. `lib/rt64` en `main` pinea `7c46232` (fix 2D + gate escala); la instrumentación
+(validar 120/240)**. `lib/rt64` en `main` pinea `234151a` (fix 2D + gate escala; sobre `7c46232`, que ya
+volvió a plume upstream para que CI compile); la instrumentación
 vive en `patches/rt64/hh-interpolation-tagging.patch`. Detalle:
 `RETOMAR.md` §"Rama fps-interpolacion-tagging",
 `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
