@@ -60,6 +60,26 @@ objeto no visible**. Por tanto:
 - Código: `src/hooks/hud_rewrite.cpp` — `class_of()` (`:847`), `right_panel_box`/`right_panel_scissor`
   (`:161`/`:171`), `case kFillRect` (`:660`), y los `if (cls == kAuto && right_panel_scissor())`.
 
+### Punto EXACTO del falso positivo (localizado en código)
+
+En el `case kFillRect` (`:674-691`): si el fill es **negro** (`fill_colour == 0`) y **no** hay panel
+capturado y su caja pasa `right_panel_box()`, se marca como **fondo del mapa** (`kRight`), fijando
+incluso `map_panel_w0/w1` con ese fill. Es "el fondo negro del mapa" por heurística (issue #13). La
+caja negra del inventario cae aquí. Además, hay rutas que **propagan `kRight` a todo** lo dibujado bajo
+un scissor que pase `right_panel_scissor()` (`:527`, `:544`) y se **reconstruye** el rect negro
+(`:695-756`). El fix probable es **restringir esta detección estructural al minimapa real** (identidad
+/ caja/ escena), **no** introducir un ancla nueva (la caja **no debe moverse**).
+
+## 4b. Cómo capturar la identidad (run del mantenedor)
+
+Desde `main` (con el fix MSVC ya incluido), con la **traza 2D** activa:
+```powershell
+hybrid-heaven-recomp\build_windows.local.bat
+$env:HH_HUD_TRACE='1'; hybrid-heaven-recomp\run_windows.bat release
+```
+Ir al **inventario** y abrir la info de un item; luego pasar `hybrid-heaven-recomp\build\windows\bin\Release\hh_hud.log`.
+Buscar el `fill:` de esa caja (probable `fill:00000000@<ulx>,<uly>,<lrx>,<lry>`), su `cls` y su `sc=..`.
+
 ## 5. Direcciones de fix (a decidir con datos)
 
 - **Acotar la heurística del panel**: exigir rasgos del minimapa (aspecto/caja/posición concretos, o
