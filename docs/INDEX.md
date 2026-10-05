@@ -8,7 +8,7 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 118 | 2026-10-05 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 297 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
 | [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 456 | 2026-10-05 |
@@ -283,6 +283,7 @@
 | [PROYECTO — Hybrid Heaven: Recompiled (Contexto maestro)](../notes/archive/2026-09-11-proyecto-legacy.md) | **ARCHIVO HISTÓRICO — NO es fuente de verdad operativa.** | 381 | 2026-09-11 |
 | [SESIÓN — Hybrid Heaven (N64) → PC: mano de obra y contexto completo para retomar](../notes/archive/2026-09-11-sesion-legacy.md) | **ARCHIVO HISTÓRICO — NO es fuente de verdad operativa.** | 790 | 2026-09-11 |
 | [Hybrid Heaven: Recompiled — Plan Maestro (documentación detallada)](../notes/archive/2026-09-18-plan-maestro-legacy.md) | ARCHIVO HISTÓRICO (congelado 2026-09-18). No editar. Contenido del antiguo `docs/README.md` | 240 | 2026-09-18 |
+| [RETOMAR — handoff (2026-10-05)](../notes/archive/2026-10-05-retomar-legacy.md) | ARCHIVO HISTÓRICO — RETOMAR consolidado el 2026-10-05 (handoff detallado de las sesiones de input/FPS). No se edita; la verdad actual está en `RETOMAR | 223 | 2026-10-05 |
 
 ## Datos generados (`notes/reference/`)
 
