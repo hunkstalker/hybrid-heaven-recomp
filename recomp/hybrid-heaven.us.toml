@@ -14,9 +14,11 @@ recomp_include = """#include "recomp.h"
 #include "reimplemented_decls.h""""
 
 [patches]
-# Reset de TLB en bucle (cop0 Index/EntryHi/EntryLo/PageMask + tlbwi). Solo lo llama osInitialize,
-# que es del runtime; el port no tiene MMU. N64Recomp no traduce cop0 reg 10.
-stubs = [ "func_800304A0_310A0" ]
+# Reset de TLB (cop0 Index/EntryHi/EntryLo/PageMask + tlbwi). Antes se stubeaba como
+# `func_800304A0_310A0` porque solo lo llama osInitialize y N64Recomp no traduce cop0 reg 10; ahora
+# esta nombrado `osUnmapTLBAll` y reconocido por N64Recomp (ignored/reimplemented), asi que se delega
+# al runtime y ya no hace falta stub.
+stubs = []
 ignored = []
 
 # Frame limiter del bucle principal (0x80001A88-0x80001B18): cede para no ahogar los demas hilos.

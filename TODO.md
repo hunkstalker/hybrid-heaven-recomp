@@ -48,6 +48,28 @@
     limpieza cosmética a cambio de regenerar y revalidar); se documenta como candidato. Detalle:
     `notes/2026-10-05-verificacion-base-jumptables.md`.
 
+- [•] **Fase A — cobertura libultra (recompilar vs delegar al runtime) — rama `fase-a-libultra`
+  (2026-10-05)**: N64Recomp conoce 361 nombres (ignored/reimplemented) y nuestro ELF solo reconocía 47;
+  si no se nombra una libultra, N64Recomp recompila y **ejecuta la copia del juego** (riesgo en
+  cop0/cache/TLB). Auditoría + fingerprint conservador vs mnsg (`tools/verify/audit_libultra.py`,
+  `fingerprint_libultra.py`): de 129 "seguras" (runtime provee `_recomp`), 11 **alcanzables nuevas** de
+  la clase peligrosa.
+  - [x] **Fix**: añadidos los 11 nombres a `recomp/symbol_addrs.txt`; retirado el stub del TOML
+    (`func_800304A0` → `osUnmapTLBAll`). Regen **gate byte-a-byte OK**, build Linux **OK**,
+    `verify_roundtrip` fases 1–3 **OK**, jump tables **0**. `_recomp` registradas 58 (47+11).
+  - [ ] **Validar en Windows** (arranque/menú/guardado/combate): confirmar que delegar no regresa.
+  - Residual documentado: 76 `_recomp` sin dirección (nombres que HH no contiene), 232 sin `_recomp`
+    (no nombrar), `renamed_funcs` 83/0. Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+
+- [•] **Fase B — interpolación: taggear TODOS los sitios de dibujo (método estándar) — NO perder**:
+  hoy lo hacemos parcial (hook de traversal + `stable_slot`; LOD=0; sin 2D-ignore). Método documentado
+  en `danielgomesvieira2000/pilotwings-64-recomp` (`patches/interpolation.c`):
+  `gEXMatrixGroup(id=FNV(kind,objeto,modelo,LOD,gen_cámara))` en cada draw 3D; 2D con `G_EX_ID_IGNORE`;
+  `LINEAR`/`AUTO`; proyecciones “near”. Pasos: (1) enumerar los sitios 3D de HH y taggear por `kind`;
+  (2) localizar el **campo LOD** y meterlo en el id (A2.4); (3) 2D `ID_IGNORE` en la proyección
+  ortográfica (cuidado widescreen); (4) `ORDER AUTO` por tipo de efecto; (5) validar con `HH_PAIRING` +
+  `paircap`. Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md` §Fase B.
+
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
   de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life Charger S) sin síntoma
