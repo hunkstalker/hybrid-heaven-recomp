@@ -58,6 +58,11 @@
     (`func_800304A0` → `osUnmapTLBAll`). Regen **gate byte-a-byte OK**, build Linux **OK**,
     `verify_roundtrip` fases 1–3 **OK**, jump tables **0**. `_recomp` registradas 58 (47+11).
   - [ ] **Validar en Windows** (arranque/menú/guardado/combate): confirmar que delegar no regresa.
+    **Test de VELOCIDAD/AUDIO (clave)**: el fix subió mucho los fps; hay que asegurar que la lógica
+    **no se acelera** (no basta con "más fluido"): velocidad del PJ/puertas/animaciones y tempo de
+    **música**; `HH_FPS=1`/`hh_tick.log` (2 VI/tick, `d2` dominante); un combate (veneno) y un guardado.
+    `[MEDIDO]` el mantenedor reporta subida fuerte de fps tras el fix (de ~80 de media a 144, bajadas
+    ~80); pendiente confirmar velocidad correcta. Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
   - Residual documentado: 76 `_recomp` sin dirección (nombres que HH no contiene), 232 sin `_recomp`
     (no nombrar), `renamed_funcs` 83/0. Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 

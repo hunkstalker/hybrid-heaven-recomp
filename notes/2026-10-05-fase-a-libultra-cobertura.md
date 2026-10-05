@@ -42,6 +42,18 @@ en el ELF, N64Recomp la trata como código de juego y **recompila la copia del R
   (`reimplemented_decls.h`). `gen_runtime_func_table.py`: `_recomp` registradas **58** (47+11).
 - **Pendiente**: run Windows (arranque/menú/guardado/combate) para confirmar que delegar no regresa.
 
+### Efecto medido en Windows (2026-10-05, mantenedor)
+
+- `[MEDIDO]` Tras el fix, el port **sube mucho los fps**: alcanza con facilidad **144** y las bajadas
+  apenas llegan a **80**, cuando antes la media era ~80.
+- `[INFERIDO]` Causa: las 11 libultra estaban **recompiladas y ejecutándose como código del juego** en
+  caminos calientes (`__ull_to_d` con **173** call sites, `osGetCount`, cache `osInval*`/
+  `osWriteback*`, `__ull_div`/`__ll_mul`, `osSetIntMask`, `__osSetFpcCsr`). Al delegarlas al runtime
+  nativo baja el coste por frame.
+- **Pendiente crítico**: confirmar que la **velocidad de juego/audio NO se acelera** (velocidad del PJ,
+  puertas, animaciones, tempo de música) y que el tick lógico sigue a 30 Hz (`HH_FPS`/`hh_tick.log`, 2
+  VI/tick). Si es así, es un win directo y toca la épica A1/A3.
+
 ## Residual (documentado, no bloqueante)
 
 - **76** nombres `_recomp` sin dirección en el ELF: N64Recomp los conoce pero **HH no los contiene**
