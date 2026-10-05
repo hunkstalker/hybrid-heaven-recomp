@@ -80,6 +80,29 @@ $env:HH_HUD_TRACE='1'; hybrid-heaven-recomp\run_windows.bat release
 Ir al **inventario** y abrir la info de un item; luego pasar `hybrid-heaven-recomp\build\windows\bin\Release\hh_hud.log`.
 Buscar el `fill:` de esa caja (probable `fill:00000000@<ulx>,<uly>,<lrx>,<lry>`), su `cls` y su `sc=..`.
 
+## 4c. Cómo distinguirlo del mapa (dato de la nota #13)
+
+La nota del fix estructural del minimapa (`notes/2026-10-02-fix-minimapa-estructural-issue13.md`,
+commit `7068f5b`, **ADR 0015**) documenta las identidades **medidas** del mapa:
+
+| Elemento | Identidad / caja | Scissor | Clase |
+|---|---|---|---|
+| **Fondo negro del mapa** | `fill:0x00000000@197,143,277,223` (≈80×80, panel) | `0,0..320,240` (full) | `kRight` |
+| Contenido del mapa | `dl:…#1427da33` / `#bbb8c0ba` (+2 más) | panel `197,143..277,223` | `kRight` |
+
+Antes del #13 el fondo se anclaba por esa **caja** (`197,143,277,223`); el fix estructural **quitó esa
+identidad** y lo sustituyó por la heurística "cualquier fill **negro** que pase `right_panel_box`"
+(`hud_rewrite.cpp:685`). Esa generalización es la que ahora atrapa la caja del inventario.
+
+**Conclusión de trabajo (INFERIDO, a confirmar con la traza):**
+- El **mapa real** usa la caja **`197,143..277,223`**; si la caja del inventario **no** coincide con esa
+  caja (tus capturas muestran otra posición/tamaño), el fix **quirúrgico** es reconocer el fondo del
+  mapa por su **relación con el canon** (coincidir con el `panel` capturado, o estar en la caja
+  `197,143,277,223`) en lugar de "cualquier fill negro a la derecha". Eso deja la caja del inventario
+  en `kAuto` (**quieta**, que es lo correcto: **no debe moverse**).
+- **Antes de tocar**: capturar la identidad exacta del inventario (4b) y **compararla** con la del mapa.
+  Si coincidieran (misma caja), haría falta un criterio extra (escena/viewport/orden), no solo la caja.
+
 ## 5. Direcciones de fix (a decidir con datos)
 
 - **Acotar la heurística del panel**: exigir rasgos del minimapa (aspecto/caja/posición concretos, o
