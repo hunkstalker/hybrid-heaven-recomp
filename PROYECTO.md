@@ -33,12 +33,15 @@ vive en `patches/rt64/hh-interpolation-tagging.patch`. Detalle:
 `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
 `notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
 
-**Release v0.7.0 preparada (2026-10-05)**: `include/hh.h` → `0.7.0` (MINOR) y
-`docs/releases/v0.7.0.md`. Incluye el fix del **recuadro negro del inventario desplazado en widescreen**
-(anclaje 2D del HUD: la caja que establece el panel del mapa exige ahora la caja canónica
-`197,143..277,223`), **validado en Windows (2026-10-05)**. **Pendiente**: push de `main` + tag `v0.7.0`.
-Detalle: `notes/2026-10-05-fps-integracion-en-main-y-release.md`,
-`notes/2026-10-05-fix-inventario-caja-negra-ancla.md`.
+**Release v0.7.0 publicada (2026-10-05)**: `0.7.0` (MINOR) con la interpolación de frames fiel + fix de
+input + fix del recuadro negro del inventario (anclaje 2D del HUD).
+
+**Release v0.7.1 preparada (2026-10-05)**: `include/hh.h` → `0.7.1` (PATCH) y `docs/releases/v0.7.1.md`.
+**Rendimiento**: 11 funciones de **libultra** (cop0/caché/math) que se recompilaban y ejecutaban como
+código del juego ahora se **delegan al runtime** nativo → subida fuerte de FPS (de ~80 a 144) con la
+**lógica intacta a 30 Hz**; **validado en Windows (2026-10-05)**. Requiere el `RecompiledFuncs`
+regenerado (secrets, ya pusheado). **Pendiente**: push de `main` + tag `v0.7.1`. Detalle:
+`notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
 ## 1. Objetivo
 

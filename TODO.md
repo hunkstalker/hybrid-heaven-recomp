@@ -23,6 +23,12 @@
   teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
+- [•] **Release v0.7.1 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.1`
+  (PATCH) + `docs/releases/v0.7.1.md`. **Rendimiento**: 11 libultra (cop0/caché/math) delegadas al
+  runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado Windows). Requiere el
+  `RecompiledFuncs` regenerado (secrets, **ya pusheado**). **Falta**: push de `main` y tag `v0.7.1`
+  (o Actions → Release). Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+
 - [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
   `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca
   tuvimos, y usar el cruce con las syms legacy para cazar bugs latentes de la **clase #14/veneno**

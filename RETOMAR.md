@@ -1,10 +1,11 @@
 # RETOMAR — handoff (2026-10-05)
 
-> Handoff corto. **`main`** = **`v0.6.2` + fix de input + épica de interpolación INTEGRADA** (merge
-> fast-forward, **ON por defecto**). Versión subida a **v0.7.0** (pendiente de push/tag). **Pendiente
-> de la épica**: **A1 (tick lógico) + A3 (validar 120/240)**. Detalle de la integración:
-> `notes/2026-10-05-fps-integracion-en-main-y-release.md`.
-> Reglas: `AGENTS.md` y `docs/documentation.md`.
+> Handoff corto. **`main`** = **`v0.7.0` publicada** + **red de seguridad + Fase A (libultra)** en local
+> (7 commits por delante de `origin/main`, **pendiente push**). **Release `v0.7.1` preparada** (`0.7.1`
+> PATCH: libultra delegada al runtime → más FPS, lógica a 30 Hz; **pendiente push de `main` + tag**).
+> **Fase B pendiente** (interpolación: regresión de cámara + LOD). Detalle:
+> `notes/2026-10-05-fps-integracion-en-main-y-release.md` y
+> `notes/2026-10-05-fase-a-libultra-cobertura.md`. Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea de la sesión (2026-10-05): BUG inventario — caja negra anclada a la derecha — HECHA
 

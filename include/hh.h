@@ -20,7 +20,7 @@ namespace hh {
     // derivan el string del log (get_version_string) y el recomp::Version del runtime.
     inline constexpr int kVersionMajor = 0;
     inline constexpr int kVersionMinor = 7;
-    inline constexpr int kVersionPatch = 0;
+    inline constexpr int kVersionPatch = 1;
 
     const char* get_version_string();
 
