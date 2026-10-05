@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 288 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 408 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 431 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -42,7 +42,7 @@
 | [v0.7.0 - Interpolación de frames fiel (artefactos resueltos)](releases/v0.7.0.md) | La **interpolación de frames** ya estaba activa por defecto desde v0.4.0, pero producía | 29 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
-| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 322 | 2026-10-04 |
+| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 322 | 2026-10-05 |
 
 ## Decisiones (ADR, inmutables)
 
@@ -69,6 +69,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [2026-10-05 — Verificación de base: jump tables cross-function (clase #14/veneno)](../notes/2026-10-05-verificacion-base-jumptables.md) | Sesión de verificación (rama `verificacion-byte-match`). Herramientas nuevas en `tools/verify/`. | 46 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |
 | [2026-10-05 — inventario: caja negra anclada a la derecha — ARREGLADO y VALIDADO](../notes/2026-10-05-fix-inventario-caja-negra-ancla.md) | Estado: **validado por el mantenedor en Windows (2026-10-05)**. Continúa el handoff | 51 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |

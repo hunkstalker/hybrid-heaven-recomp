@@ -38,10 +38,13 @@
   - [ ] **BLOQUEADO — Fase 4 (recompresión a retail)**: `tools/lzkn64/lzkn64.py` solo implementa
     `decompress`; `compress` es un *stub*. Falta un **compresor LZKN64 propio** para el round-trip
     `decompress → compress == SHA1 retail` (equivalente a su `make COMPRESSED=yes`). No toca el port.
-  - [ ] **Detección autoritativa de la clase veneno** (no vía Ghidra): localizar en
-    `build/recomp/RecompiledFuncs/` las jump tables que cruzan a otra función (lo que nuestro parche
-    N64Recomp resuelve con tail call) y decidir restaurar `size:` en la base **solo para los casos
-    confirmados**, en esta rama, con `tools/regenerate.py` + revalidar. No mergear si hay regresión.
+  - [x] **Detección autoritativa de la clase veneno** (no vía Ghidra):
+    `tools/verify/find_cross_jumptables.py` + `find_latent_jumptable_crashes.py` sobre el C generado →
+    **73 casos cross-function en 11 funciones, 0 crashes latentes** (69 son over-read inalcanzable por
+    el bound `sltiu`; los 4 alcanzables son las 2 funciones del veneno y sus targets sí están
+    registrados → el parche funciona). **Decisión: no tocar la base** (restaurar `size:` solo sería
+    limpieza cosmética a cambio de regenerar y revalidar); se documenta como candidato. Detalle:
+    `notes/2026-10-05-verificacion-base-jumptables.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
