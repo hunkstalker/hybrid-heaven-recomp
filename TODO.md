@@ -8,26 +8,23 @@
 
 - [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
   `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
-  y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Release `v0.6.2`
-  publicada. Detalle: `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
+  y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Detalle:
+  `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
-- [x] **Fix de input "mantener pulsado" + X del mando en CARGAR/GUARDAR — HECHO y VALIDADO en Windows
-  (2026-10-04)**: acciones por **flanco estricto con rearme** y lectura **unificada**
-  (`hh_input_action_edges`: teclado+ratón+mando+inyección); auto-repeat solo en direcciones; retirados
-  los bloqueos por ms. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`; resumen en
-  `docs/TAREAS-HECHAS.md`.
+- [x] **Fix de input + remapeo de teclado (#17) — HECHO y VALIDADO (2026-10-04)**: acciones por flanco
+  estricto con rearme y lectura unificada; `[keys]` autoritativo, nombres `sc_<n>`; solo teclas
+  dibujables. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`,
+  `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
 
-- [x] **Fix de remapeo de teclado en CONTROLES (#17) — HECHO (2026-10-04)**: asignar teclas no
-  persistía (defaults reinyectados), teclas con nombre que rompe el INI (`; = #`) se perdían y la
-  fuente no dibuja `[ ] \ '`. Fix: `[keys]` autoritativo, nombres seguros `sc_<n>`, solo se mapean
-  teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
-  `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
+- [x] **Release v0.7.1 (2026-10-05) — PUBLICADA**: `0.7.1` (PATCH). **Rendimiento**: 11 libultra
+  (cop0/caché/math) delegadas al runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado
+  Windows). Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
-- [•] **Release v0.7.1 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.1`
-  (PATCH) + `docs/releases/v0.7.1.md`. **Rendimiento**: 11 libultra (cop0/caché/math) delegadas al
-  runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado Windows). Requiere el
-  `RecompiledFuncs` regenerado (secrets, **ya pusheado**). **Falta**: push de `main` y tag `v0.7.1`
-  (o Actions → Release). Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+- [•] **Release v0.7.2 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.2`
+  (PATCH) + `docs/releases/v0.7.2.md`. Corrige **2 artefactos de la interpolación**: **cámara al apuntar**
+  (grupo de proyección duplicaba la cámara horneada en el modelview → eliminado) y **objeto 3D del menú
+  de título** (`C768` fuera de la ruta del cursor → acotado). Validado Windows. **Falta**: push de `main`
+  y tag `v0.7.2` (o Actions → Release). Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
 - [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
   `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca

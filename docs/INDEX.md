@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 291 | 2026-10-05 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 288 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 463 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 460 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -40,7 +40,8 @@
 | [v0.6.1 - Patch: minimap, ranged-attack crash, saved text, area number & dialogue glyphs](releases/v0.6.1.md) | Parche de correcciones sobre **v0.6.0** (todo validado en Windows). No cambia la jugabilidad ni añade | 56 | 2026-10-02 |
 | [v0.6.2 - Fix Release with assets & regenerated C](releases/v0.6.2.md) | Re-release de **v0.6.1**: no cambia el código del port. La v0.6.1 publicada en GitHub estaba **rota** | 40 | 2026-10-03 |
 | [v0.7.0 - Interpolación de frames fiel (artefactos resueltos)](releases/v0.7.0.md) | La **interpolación de frames** ya estaba activa por defecto desde v0.4.0, pero producía | 29 | 2026-10-05 |
-| [v0.7.1 - Rendimiento: libultra delegada al runtime (más FPS)](releases/v0.7.1.md) | Parche de **rendimiento** sobre v0.7.0. El port **recompilaba y ejecutaba como código del juego** | 23 | 2026-10-05 |
+| [v0.7.1 - Rendimiento: libultra delegada al runtime (más FPS)](releases/v0.7.1.md) | Parche de **rendimiento** sobre v0.7.0. El port **recompilaba y ejecutaba como código del juego** | 17 | 2026-10-05 |
+| [v0.7.2 - Interpolación: fixes de cámara y del objeto del menú de título](releases/v0.7.2.md) | Parche sobre v0.7.1 que corrige **dos artefactos visuales** de la **interpolación de frames** (emparejado | 15 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 322 | 2026-10-05 |

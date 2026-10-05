@@ -20,28 +20,25 @@ teclas cuyo nombre rompe el INI (`; = #`) se perdían; la fuente no dibuja `[ ] 
 (`glyph_value`+`menu_char`) y el rótulo se muestra **según la layout del SO** (`¡` en ES), guardando
 por scancode. Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
 
-**Interpolación FPS (MERGEADA en `main`, 2026-10-04)**: la épica de interpolación de alta tasa ya está
-**en `main`** (merge FF), **activa por defecto** (tagging ON; se apaga con `HH_MTXGROUP=0`/`HH_EMIT_TAG=0`).
-Identidad por nodos (huesos del PJ), **sesgado de cámara RESUELTO** (`46b3f0d`), **#6** (gate de escala
-ON 2.0, **commit del fork RT64 `7c46232`**) y **#8** (puertas), minas/láseres; **A2.2d CERRADA** (`C768`
-materializa; capturas = transitorios; cobertura **98.6%**); **partículas del heal = no-bug**; bug
-**latente** de walkers de DL corregido (`a8212b3`). **Pendiente: A1 (estabilizar tick lógico) + A3
-(validar 120/240)**. `lib/rt64` en `main` pinea `234151a` (fix 2D + gate escala; sobre `7c46232`, que ya
-volvió a plume upstream para que CI compile); la instrumentación
-vive en `patches/rt64/hh-interpolation-tagging.patch`. Detalle:
-`RETOMAR.md` §"Rama fps-interpolacion-tagging",
-`notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
-`notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
+**Interpolación FPS (en `main`, 2026-10-04)**: interpolación de alta tasa **activa por defecto** (tagging
+ON; se apaga con `HH_MTXGROUP=0`/`HH_EMIT_TAG=0`). Identidad por nodos (huesos del PJ), **sesgado de
+cámara** (`46b3f0d`), **#6** (gate de escala, fork RT64 `7c46232`) y **#8** (puertas), minas/láseres;
+**A2.2d CERRADA** (cobertura **98.6%**); **partículas del heal = no-bug**. **Pendiente: A1 (tick lógico)
++ A3 (120/240)**. `lib/rt64` pinea `234151a`. Detalle: `RETOMAR.md`, `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
 
 **Release v0.7.0 publicada (2026-10-05)**: `0.7.0` (MINOR) con la interpolación de frames fiel + fix de
 input + fix del recuadro negro del inventario (anclaje 2D del HUD).
 
-**Release v0.7.1 preparada (2026-10-05)**: `include/hh.h` → `0.7.1` (PATCH) y `docs/releases/v0.7.1.md`.
-**Rendimiento**: 11 funciones de **libultra** (cop0/caché/math) que se recompilaban y ejecutaban como
-código del juego ahora se **delegan al runtime** nativo → subida fuerte de FPS (de ~80 a 144) con la
-**lógica intacta a 30 Hz**; **validado en Windows (2026-10-05)**. Requiere el `RecompiledFuncs`
-regenerado (secrets, ya pusheado). **Pendiente**: push de `main` + tag `v0.7.1`. Detalle:
-`notes/2026-10-05-fase-a-libultra-cobertura.md`.
+**Release v0.7.1 publicada (2026-10-05)**: `0.7.1` (PATCH). **Rendimiento**: 11 funciones de **libultra**
+(cop0/caché/math) que se recompilaban y ejecutaban como código del juego ahora se **delegan al runtime**
+nativo → subida fuerte de FPS con la **lógica intacta a 30 Hz**; **validado en Windows (2026-10-05)**.
+Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+
+**Release v0.7.2 preparada (2026-10-05)**: `include/hh.h` → `0.7.2` (PATCH) y `docs/releases/v0.7.2.md`.
+Corrige **dos artefactos de la interpolación** (emparejado de ids): **cámara al apuntar** (el grupo de
+proyección duplicaba la cámara, que va horneada en el modelview → se elimina) y **objeto 3D del menú de
+título** (`C768` fuera de la ruta del cursor → se acota). **Validado en Windows (2026-10-05)**.
+**Pendiente**: push de `main` + tag `v0.7.2`. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
 ## 1. Objetivo
 

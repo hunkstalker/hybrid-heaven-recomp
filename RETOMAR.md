@@ -1,11 +1,11 @@
 # RETOMAR — handoff (2026-10-05)
 
-> Handoff corto. **`main`** = `v0.7.0` publicada + **`v0.7.1` preparada y pusheada** (`origin/main` =
-> `776745e`; PATCH: libultra delegada al runtime → más FPS, lógica a 30 Hz). **Falta el tag `v0.7.1`.**
-> **Rama `fase-b-interpolacion`** (NO mergeada): fix **validado** de **cámara + objeto del título**
-> (Fase B (0)). **Pendiente de Fase B**: (0b) discontinuidad de posición (enemigo en primer plano),
-> (1) enumerar sitios de dibujo, (2) campo **LOD**, (3) 2D `ID_IGNORE`, (5) validar con `HH_PAIRING`.
-> Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`, `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+> Handoff corto. **`main`** = **`v0.7.0` + `v0.7.1` publicadas** + **`v0.7.2` preparada** (rama
+> `fase-b-interpolacion` **mergeada**; PATCH: fixes de **cámara** y del **objeto del menú de título** de
+> la interpolación). **Falta: push de `main` + tag `v0.7.2`.** **Pendiente de Fase B**: (0b)
+> discontinuidad de posición (enemigo en primer plano), (1) enumerar sitios de dibujo, (2) campo **LOD**,
+> (3) 2D `ID_IGNORE`, (5) validar con `HH_PAIRING`. Detalle:
+> `notes/2026-10-05-fase-b-camara-y-titulo.md`, `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea de la sesión (2026-10-05): BUG inventario — caja negra anclada a la derecha — HECHA
@@ -38,14 +38,14 @@ y retirado el stub del TOML (`osUnmapTLBAll`). **Validado en Windows**: lógica 
 verify 1–3 OK, jump tables 0. `_recomp` registradas 58 (47+11). **Mergeada en `main`.** Detalle:
 `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
-### Fase B — interpolación: emparejamiento de ids (rama `fase-b-interpolacion`, NO mergeada)
+### Fase B — interpolación: emparejamiento de ids (rama `fase-b-interpolacion`, MERGEADA en `main`)
 
 **Hecho y VALIDADO en Windows (2026-10-05) — (0) cámara + objeto del título.** Diagnóstico por A/B
 (`HH_EMIT_TAG`/`HH_EMIT_PROJ`/`HH_EMIT_MV`/`HH_EMIT_MV_SKIP`): la **cámara** la rompía cualquier grupo de
 **PROYECCIÓN** (en HH la cámara va **horneada** en el modelview → se duplicaba) → **proyección OFF por
 defecto**; el **objeto del título** lo rompía **C768** (id 15) llamado con `a1 != kGfxCursor` → su
 modelview se gatea a la **ruta del cursor** (`ctx->r5 == kGfxCursor`). También se añadió la **generación
-de cámara** a los ids de los emisores (antes `0xEE…`). Detalle:
+de cámara** a los ids de los emisores (antes `0xEE…`). Entra en **`v0.7.2`**. Detalle:
 `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
 **Pendiente**:
@@ -54,9 +54,6 @@ de cámara** a los ids de los emisores (antes `0xEE…`). Detalle:
   Candidato: detectar el salto y **bumpear su id** (como la generación de cámara).
 - (1) Enumerar sitios de dibujo 3D y taggear por `kind`; (2) **LOD** en el id (A2.4); (3) 2D
   `G_EX_ID_IGNORE`; (4) `ORDER AUTO`; (5) validar con `HH_PAIRING` + `paircap`.
-
-**Decisión pendiente**: ¿mergear `fase-b-interpolacion` a `main` (entra en `v0.7.1`, que aún no está
-taggeado, o en el siguiente patch) o dejarla aparte?
 
 ## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
 
