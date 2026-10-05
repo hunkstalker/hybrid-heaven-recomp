@@ -79,7 +79,7 @@ Consecuencia: **Linux compilaba rt64 upstream**, sin el fix 2D ni el gate de esc
 - **Pendiente de la épica**: **A1 (tick lógico)** y **A3 (validar 120/240)** (ver `RETOMAR.md`).
 - **Emparejamiento**: cubierto en la práctica (**~98.6 %** de transforms con id); el **~1.4 %** restante
   son **grupos huérfanos** por la **frontera de workload** (sub-DL `G_DL`), **sin artefactos visibles**
-  → **robustez opcional** (cerrarlo exigiría rewrite en `send_dl`).
+  → **robustez opcional**.
 
 ## Contexto: cobertura del tagging en otros ports
 
