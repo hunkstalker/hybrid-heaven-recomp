@@ -77,3 +77,16 @@ Consecuencia: **Linux compilaba rt64 upstream**, sin el fix 2D ni el gate de esc
 
 - **Push** de `main` (mantenedor) + tag/release.
 - **Pendiente de la épica**: **A1 (tick lógico)** y **A3 (validar 120/240)** (ver `RETOMAR.md`).
+- **Emparejamiento**: cubierto en la práctica (**~98.6 %** de transforms con id); el **~1.4 %** restante
+  son **grupos huérfanos** por la **frontera de workload** (sub-DL `G_DL`), **sin artefactos visibles**
+  → **robustez opcional** (cerrarlo exigiría rewrite en `send_dl`).
+
+## Contexto: cobertura del tagging en otros ports
+
+**No es raro** que un port no llegue al 100 %. El **transform tagging** de RT64 (el mecanismo que usan
+**Zelda64Recomp** y **Pilotwings64Recomp**) etiqueta lo que el juego puede marcar en su **display
+list**; la geometría fuera de ese alcance se deja al **matching automático** de RT64, que el propio
+RT64 describe como **heurístico / experimental**, no como un tagging exhaustivo. Además, Zelda64 y
+PW64 lo hacen **sobre el código fuente**; HH lo hace **sin código** (por **reescritura de DL**), lo que
+limita aún más qué se puede identificar. Conclusión: el **~1.4 %** residual es esperable y no un
+defecto.
