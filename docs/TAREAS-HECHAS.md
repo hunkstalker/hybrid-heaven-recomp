@@ -18,6 +18,18 @@
   `[hh-mapbg]` para dejar la identidad de cada caja. `notes/2026-10-05-fix-inventario-caja-negra-ancla.md`
   (síntoma: `notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`). Incluido en **v0.7.0**.
 
+- **Fase A — cobertura libultra (recompilar vs delegar al runtime) — HECHO y VALIDADO en Windows
+  (2026-10-05).** N64Recomp conoce 361 nombres en `ignored_funcs`/`reimplemented_funcs` y el ELF solo
+  reconocía 47; una libultra **sin nombrar** se recompila y **ejecuta la copia del juego** (riesgo en
+  cop0/cache/TLB). Auditoría + fingerprint conservador vs mnsg (`tools/verify/audit_libultra.py`,
+  `fingerprint_libultra.py`): de 129 "seguras" (el runtime provee `_recomp`), **11 alcanzables nuevas**
+  de la clase peligrosa. Fix: +11 nombres en `recomp/symbol_addrs.txt` y retirado el stub del TOML
+  (`func_800304A0` → `osUnmapTLBAll`). **Efecto medido**: subida fuerte de fps (de ~80 de media a 144,
+  bajadas ~80) con la **lógica intacta a 30 Hz** (`hh_tick.log`: 30,09 ticks/s, `d2` dominante; sin
+  errores de lookup). Regen gate byte-a-byte OK, build Linux OK, verify fases 1–3 OK, jump tables 0.
+  `_recomp` registradas 58 (47+11). Incluido en `main`. Detalle:
+  `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+
 ## 2026-10-04
 
 - **Fix de input: "mantener pulsado" repetía la acción + X del mando no borraba (CARGAR/GUARDAR) —

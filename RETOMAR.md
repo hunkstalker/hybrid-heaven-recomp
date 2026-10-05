@@ -25,18 +25,21 @@ El push de `main` destapó que el pin de RT64 (`7c46232`, vía `5b11988`) arrast
 **Push (orden)**: `git -C lib/rt64 push fork hybrid-heaven` y luego `git push origin main`; **tag**
 `v0.7.0` a petición del mantenedor. El pin `234151a` no estará en el fork hasta el primer push.
 
-### Fase A — cobertura libultra (2026-10-05, rama `fase-a-libultra`)
+### Fase A — cobertura libultra (2026-10-05, rama `fase-a-libultra`) — HECHA y VALIDADA
 
 N64Recomp conocía 361 nombres (ignored/reimplemented) y el ELF solo reconocía 47; una libultra sin
 nombrar se **recompila y ejecuta** (copia del juego). Auditoría + fingerprint conservador vs mnsg:
 11 nuevas **alcanzables** de la clase peligrosa (cop0/cache/TLB) → añadidas a `recomp/symbol_addrs.txt`
-y retirado el stub del TOML (`osUnmapTLBAll`). Regen **gate byte-a-byte OK**, build Linux OK,
-`verify_roundtrip` 1–3 OK, jump tables 0. `_recomp` registradas 58 (47+11). **Pendiente: run Windows.**
-Residual documentado (76 `_recomp` sin dirección, 232 sin `_recomp`, `renamed_funcs` 83/0).
-Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+y retirado el stub del TOML (`osUnmapTLBAll`). **Validado en Windows**: lógica a **30 Hz**
+(`hh_tick.log` 30,09 ticks/s, `d2` dominante), velocidad/audio normales, sin errores de lookup, y
+**subida fuerte de fps** (~80 media → 144 con bajadas ~80). Regen gate byte-a-byte OK, build Linux OK,
+verify 1–3 OK, jump tables 0. `_recomp` registradas 58 (47+11). **Mergeada en `main`.** Detalle:
+`notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
-**Fase B (siguiente, no perder)**: taggear TODOS los sitios de dibujo 3D con `gEXMatrixGroup`
-(método PW64), LOD en el id, 2D `G_EX_ID_IGNORE`, validar con `HH_PAIRING`. Ver la misma nota §Fase B.
+**Fase B (siguiente, no perder)**: emparejamiento de ids de interpolación. **(0)** hay una **regresión
+de cámara** introducida por las modificaciones de emparejamiento (reportada 2026-10-05) a arreglar;
+luego (1) enumerar los sitios de dibujo 3D y taggear por `kind`, (2) LOD en el id, (3) 2D `G_EX_ID_IGNORE`,
+(4) order AUTO, (5) validar con `HH_PAIRING`. Ver la nota §Fase B.
 
 ## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
 

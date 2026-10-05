@@ -1,7 +1,9 @@
 # 2026-10-05 — Fase A: cobertura libultra (recompilar vs delegar al runtime)
 
-> Rama `fase-a-libultra`. Auditoría + fix. **MEDIDO** salvo lo marcado. **Pendiente validar en
-> Windows** (el cambio delega funciones al runtime; el build Linux compila y enlaza).
+> Rama `fase-a-libultra`, **mergeada en `main`** (ff). Auditoría + fix. **MEDIDO** salvo lo marcado.
+> **VALIDADO en Windows (2026-10-05, mantenedor)**: lógica a 30 Hz (`hh_tick.log` 30,09 ticks/s, `d2`
+> dominante), sin errores de lookup; velocidad/música normales. Excepción: una **regresión de cámara**
+> **previa** (de las modificaciones de emparejamiento de ids), no de esta tarea → ver §Fase B (0).
 >
 > Continúa la línea de verificación de base iniciada en `2026-10-05-verificacion-base-jumptables.md`
 > y `2026-10-05-lzkn64-compresor.md`. **Ver también Fase B al final** (interpolación; no se pierde).
@@ -50,9 +52,9 @@ en el ELF, N64Recomp la trata como código de juego y **recompila la copia del R
   caminos calientes (`__ull_to_d` con **173** call sites, `osGetCount`, cache `osInval*`/
   `osWriteback*`, `__ull_div`/`__ll_mul`, `osSetIntMask`, `__osSetFpcCsr`). Al delegarlas al runtime
   nativo baja el coste por frame.
-- **Pendiente crítico**: confirmar que la **velocidad de juego/audio NO se acelera** (velocidad del PJ,
-  puertas, animaciones, tempo de música) y que el tick lógico sigue a 30 Hz (`HH_FPS`/`hh_tick.log`, 2
-  VI/tick). Si es así, es un win directo y toca la épica A1/A3.
+- **Validado en Windows (mantenedor, 2026-10-05)**: velocidad de juego/audio **normales**; `hh_tick.log`
+  **30,09 ticks/s**, `d2` dominante (2 VI/tick) → **lógica a 30 Hz, sin acelerar**; `hh.log` sin
+  `Failed to find function` ni crash. La subida de fps es de render/present, no de lógica.
 
 ## Residual (documentado, no bloqueante)
 
