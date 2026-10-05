@@ -149,6 +149,17 @@ const bool g_emit_tag = [] {
     return !(off || off_alias);   // por defecto ON; `0` (cualquiera de los dos) lo apaga
 }();
 
+// A/B fino del tagging de emisores: separa el grupo de PROYECCION (camara) del de MODELVIEW (geometria
+// del emisor). Sirve para aislar cual de los dos causa un artefacto. Por defecto ambos ON.
+const bool g_emit_proj = [] {
+    const char* v = std::getenv("HH_EMIT_PROJ");
+    return !(v != nullptr && *v != '\0' && *v == '0');
+}();
+const bool g_emit_mv = [] {
+    const char* v = std::getenv("HH_EMIT_MV");
+    return !(v != nullptr && *v != '\0' && *v == '0');
+}();
+
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
 uint32_t sGeneration = 1;
@@ -645,11 +656,15 @@ void emitter_trace(uint8_t* rdram, const char* name, int id, uint32_t node, bool
 // nodo (`interp_id(2, 0, slot, 0)`) y `G_EX_ID_IGNORE` para los efectos (§A2.2d.3).
 void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool can_tag, bool is2d,
                   void (*orig)(uint8_t*, recomp_context*), recomp_context* ctx) {
-    const bool tag = g_emit_tag && g_enabled && can_tag && valid_ram(node) && node != 0;
-    if (tag) {
+    const bool base = g_emit_tag && g_enabled && can_tag && valid_ram(node) && node != 0;
+    const bool tag_proj = base && g_emit_proj;           // grupo de PROYECCION (camara)
+    const bool tag_mv = base && g_emit_mv && !is2d;       // grupo de MODELVIEW de la geometria
+    if (tag_proj || tag_mv) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
         }
+    }
+    if (tag_proj) {
         // Id de CÁMARA: misma generacion para todos los nodos del frame; cambia en cada corte.
         const uint32_t camId = interp_id(/*INTERP_KIND_CAM=*/4u, 0u, 0u, 0u);
         if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
@@ -660,33 +675,33 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
                                      G_EX_ORDER_AUTO, G_EX_EDIT_NONE,
                                      G_EX_COMPONENT_SKIP, G_EX_COMPONENT_AUTO);
         }
+    }
+    if (tag_mv) {
         // Grupo de MODELVIEW de la geometria que dibuja este emisor. Solo 3D (nunca 2D de menu).
-        if (!is2d) {
-            const uint32_t model = rd_u32(rdram, node + 0x2C);
-            const uint32_t slot = stable_slot(node, model);
-            // FIX: id por EMISOR+NODO **con generacion de camara**. Antes era `0xEE000000|(id<<16)|
-            // (slot&0xFFFF)` (id de diagnostico, SIN generacion): como la camara de HH va horneada en
-            // estas matrices, en un corte el id no cambiaba -> RT64 interpolaba la geometria del emisor
-            // a traves del corte -> la escena barria. Con `interp_id` (que mezcla `sGeneration`) el id
-            // cambia en cada corte y RT64 no empareja (snap), igual que los grupos por nodo.
-            const uint32_t mvId = interp_id(/*INTERP_KIND_FX=*/3u, (uint32_t)id, slot, 0u);
-            if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
-                gEXMatrixGroupDecomposed(cmd, mvId, G_EX_PUSH, /*proj=*/0,
-                                         G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
-                                         G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
-                                         G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
-                                         G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
-                                         G_EX_COMPONENT_AUTO);
-            }
+        const uint32_t model = rd_u32(rdram, node + 0x2C);
+        const uint32_t slot = stable_slot(node, model);
+        // FIX: id por EMISOR+NODO **con generacion de camara**. Antes era `0xEE000000|(id<<16)|
+        // (slot&0xFFFF)` (id de diagnostico, SIN generacion): como la camara de HH va horneada en
+        // estas matrices, en un corte el id no cambiaba -> RT64 interpolaba la geometria del emisor
+        // a traves del corte -> la escena barria. Con `interp_id` (que mezcla `sGeneration`) el id
+        // cambia en cada corte y RT64 no empareja (snap), igual que los grupos por nodo.
+        const uint32_t mvId = interp_id(/*INTERP_KIND_FX=*/3u, (uint32_t)id, slot, 0u);
+        if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
+            gEXMatrixGroupDecomposed(cmd, mvId, G_EX_PUSH, /*proj=*/0,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
+                                     G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP,
+                                     G_EX_ORDER_AUTO, G_EX_EDIT_NONE, G_EX_COMPONENT_SKIP,
+                                     G_EX_COMPONENT_AUTO);
         }
     }
     emitter_trace(rdram, name, id, node, can_tag, is2d, orig, ctx);
-    if (tag) {
-        if (!is2d) {
-            if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
-                gEXPopMatrixGroup(cmd, /*proj=*/0);
-            }
+    if (tag_mv) {
+        if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
+            gEXPopMatrixGroup(cmd, /*proj=*/0);
         }
+    }
+    if (tag_proj) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXPopMatrixGroup(cmd, /*proj=*/1);
         }
@@ -700,7 +715,7 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 // diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    const bool emit = g_emit_tag && g_enabled && valid_ram(node) && node != 0;
+    const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0;
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
