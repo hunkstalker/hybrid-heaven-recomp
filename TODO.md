@@ -23,6 +23,26 @@
   teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
+- [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
+  `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca
+  tuvimos, y usar el cruce con las syms legacy para cazar bugs latentes de la **clase #14/veneno**
+  (jump table truncada por frontera de función mal puesta). Herramientas (nuevas, sin tocar el port):
+  `tools/verify/verify_roundtrip.py`, `tools/verify/cross_legacy_sizes.py`,
+  `tools/verify/triage_legacy_sizes.py`.
+  - [x] **Fase 1 (ya existía)**: gate ELF↔imagen expandida byte a byte (`recomp/tools/build_elf.sh`).
+  - [x] **Fase 2**: descompresión+tabla propias vs manifiesto de referencia → **91/91 OK**.
+  - [x] **Fase 3**: expansión (`hh.expanded.z64`) vs manifiesto → **91/91 OK**.
+  - [x] **Triaje de `size` legacy (Ghidra) vs ELF**: 1.007 discrepancias (37 "split", 970 otros).
+    **Ghidra NO es oráculo** (mezcla merges erróneos como `0x80026E58` con la clase veneno
+    `0x8035A3D8`/`0x8035A938`), así que NO se aplica en bloque.
+  - [ ] **BLOQUEADO — Fase 4 (recompresión a retail)**: `tools/lzkn64/lzkn64.py` solo implementa
+    `decompress`; `compress` es un *stub*. Falta un **compresor LZKN64 propio** para el round-trip
+    `decompress → compress == SHA1 retail` (equivalente a su `make COMPRESSED=yes`). No toca el port.
+  - [ ] **Detección autoritativa de la clase veneno** (no vía Ghidra): localizar en
+    `build/recomp/RecompiledFuncs/` las jump tables que cruzan a otra función (lo que nuestro parche
+    N64Recomp resuelve con tail call) y decidir restaurar `size:` en la base **solo para los casos
+    confirmados**, en esta rama, con `tools/regenerate.py` + revalidar. No mergear si hay regresión.
+
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
   de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life Charger S) sin síntoma
