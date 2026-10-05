@@ -698,6 +698,25 @@ static LONG WINAPI hh_win_exc_handler(EXCEPTION_POINTERS* ep) {
 #endif
 
 int main(int argc, char** argv) {
+    // A1 — tick determinista (2 VI/frame, sin slips a 3 VI): fija los defaults del reloj del runtime
+    // si el usuario no los puso. Medido 2026-10-05: `d3=0`, present=120 clavado; sin ellos hay slips
+    // a 3 VI (~1-2/s) que se notan como microparones interpolando a alta tasa.
+    // `HH_DET_CLOCK=0` (o `quant`) y `HH_DET_CLOCK_BIAS=<v>` siguen siendo overrideables.
+    // OJO: usar el entorno del CRT (`_putenv_s`/`setenv`), no `SDL_setenv` (en Windows SDL usa la API
+    // de entorno, que el `getenv` del runtime no ve).
+    auto hh_env_default = [](const char* name, const char* value) {
+#if defined(_WIN32)
+        if (getenv(name) == nullptr) _putenv_s(name, value);
+#else
+        if (getenv(name) == nullptr) setenv(name, value, 1);
+#endif
+    };
+    hh_env_default("HH_DET_CLOCK", "1");
+    hh_env_default("HH_DET_CLOCK_BIAS", "15625");
+    hh::log("[hh-env] tick: HH_DET_CLOCK=%s HH_DET_CLOCK_BIAS=%s\n",
+            getenv("HH_DET_CLOCK") != nullptr ? getenv("HH_DET_CLOCK") : "-",
+            getenv("HH_DET_CLOCK_BIAS") != nullptr ? getenv("HH_DET_CLOCK_BIAS") : "-");
+
     // Volcados de crash (hh_crash.log + RDRAM/DMEM): opt-in con HH_CRASH_LOG=1. Por defecto el
     // .exe release no instala el handler (no deja ficheros). Ver install_crash_handlers().
 #if !defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)

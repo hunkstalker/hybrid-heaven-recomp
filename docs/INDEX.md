@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 294 | 2026-10-05 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 296 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 450 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 454 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -20,7 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 257 | 2026-10-05 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 264 | 2026-10-05 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
@@ -83,6 +83,7 @@
 | [2026-10-05 — Fase A: cobertura libultra (recompilar vs delegar al runtime)](../notes/2026-10-05-fase-a-libultra-cobertura.md) | Rama `fase-a-libultra`, **mergeada en `main`** (ff). Auditoría + fix. **MEDIDO** salvo lo marcado. | 86 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |
 | [BUG abierto — inventario: recuadro negro detrás de la info de items, desplazado en widescreen (2026-10-05)](../notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md) | Estado: **abierto**. Reportado por el mantenedor (2026-10-05). Ámbito: port, **anclaje 2D del HUD** | 119 | 2026-10-05 |
+| [2026-10-05 — A1: tick lógico determinista (2 VI/frame) — RESUELTO y VALIDADO](../notes/2026-10-05-a1-tick-determinista.md) | Cierra A1 de la épica FPS (`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §A1). | 45 | 2026-10-05 |
 | [FPS/interpolación — bug LATENTE de los walkers de display list con comandos extendidos (2026-10-04)](../notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md) | Hallazgo **lateral** de la sesión de las partículas del heal (que cerró como **no-bug**). Aquí se | 77 | 2026-10-04 |
 | [FPS/interpolación — pass 1 no materializa y sesgado de cámara (2026-10-04)](../notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md) | Rama `fps-interpolacion-tagging`. Sesión de **diagnóstico**: se atacó el **sesgado de cámara** y se | 110 | 2026-10-04 |
 | [FPS/interpolación — Partículas del heal: NO es bug (asset original) + herramientas de volcado (2026-10-04)](../notes/2026-10-04-fps-particulas-heal-asset-no-bug.md) | Cierre de la investigación de las **partículas de sprites al curarse** (los "cuadrados con degradado"). | 49 | 2026-10-04 |

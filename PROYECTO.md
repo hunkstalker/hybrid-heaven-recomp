@@ -23,8 +23,10 @@ por scancode. Detalle: `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
 **Interpolación FPS (en `main`, 2026-10-04)**: interpolación de alta tasa **activa por defecto** (tagging
 ON; se apaga con `HH_MTXGROUP=0`/`HH_EMIT_TAG=0`). Identidad por nodos (huesos del PJ), **sesgado de
 cámara** (`46b3f0d`), **#6** (gate de escala, fork RT64 `7c46232`) y **#8** (puertas), minas/láseres;
-**A2.2d CERRADA** (cobertura **98.6%**); **partículas del heal = no-bug**. **Pendiente: A1 (tick lógico)
-+ A3 (120/240)**. `lib/rt64` pinea `234151a`. Detalle: `RETOMAR.md`, `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`.
+**A2.2d CERRADA** (cobertura **98.6%**); **partículas del heal = no-bug**. **A1 (tick) RESUELTO y
+validado (2026-10-05)**: `HH_DET_CLOCK=1`+`BIAS=15625` por defecto → `d3=0`, 120 fps sin parones.
+**Siguiente: A3 (validar 120/240)**. `lib/rt64` pinea `234151a`. Detalle: `RETOMAR.md`,
+`notes/2026-10-05-a1-tick-determinista.md`.
 
 **Release v0.7.0 publicada (2026-10-05)**: `0.7.0` (MINOR) con la interpolación de frames fiel + fix de
 input + fix del recuadro negro del inventario (anclaje 2D del HUD).

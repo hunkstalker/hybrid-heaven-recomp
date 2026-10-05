@@ -1,12 +1,11 @@
 # RETOMAR — handoff (2026-10-05)
 
-> Handoff corto. **`main`** = **`v0.7.0` + `v0.7.1` publicadas** + **`v0.7.2` preparada** (+ el **fix
-> (0b)** ya en `main`, `fcd7f07`: incluirlo en las notas de `v0.7.2` o subir a `v0.7.3`). **Fase B
-> CERRADA y MEDIDA (2026-10-05)**: la causa era que el tagging no llegaba a RT64 en gameplay (gate de
-> C768 por `a1` basura → gate por escena). Medido con el **oráculo** `HH_PAIRING_LOG` (área 1: 99.99% por
-> id). **SIGUIENTE: A1 (tick lógico)** — los microparones restantes son slips a 3 VI (~1-2/s), no
-> emparejamiento. Detalle: `notes/2026-10-05-fase-b-cobertura-sesiones.md`,
-> `docs/interpolacion-pairing.md`, `notes/2026-10-05-fase-b-materializacion-c768.md`.
+> Handoff corto. **`main`** = **`v0.7.2` publicada** + pendiente para **v0.7.3**: fix **(0b)** (`fcd7f07`),
+> **2D `ID_IGNORE`** (`f91f67a`), **oráculo** (`94763dc`) y **A1** (tick). **Fase B CERRADA y MEDIDA
+> (2026-10-05)** (oráculo `HH_PAIRING_LOG`; área 1 99.99% por id). **A1 (tick) RESUELTO y VALIDADO
+> (2026-10-05)**: `HH_DET_CLOCK=1`+`BIAS=15625` por defecto → `d3=0`, 120 fps **sin parones**.
+> **SIGUIENTE: A3 (validar 120/240)**. Detalle: `notes/2026-10-05-a1-tick-determinista.md`,
+> `notes/2026-10-05-fase-b-cobertura-sesiones.md`, `docs/interpolacion-pairing.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea de la sesión (2026-10-05): BUG inventario — caja negra anclada a la derecha — HECHA

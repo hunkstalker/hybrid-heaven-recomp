@@ -117,8 +117,12 @@
     HH. Doc + fix: `notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md`.
   - [ ] **A2.4 LOD**: incluir el nivel de detalle en el hash si se localiza el campo. **Sin caso
     observado** (sin popping; `unpaired_moved` normal) → localizar el campo o cerrar como "no aplica".
-  - [•] **A1 (SIGUIENTE)**: estabilizar tick lógico (2 VI/frame; `HH_DET_CLOCK` + precarga/stalls).
-  - [•] **A3 (SIGUIENTE)**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica. **OJO**:
+  - [x] **A1 — tick lógico determinista — RESUELTO y VALIDADO (Windows 2026-10-05)**: los slips a 3 VI
+    (el limiter del juego cierra en el presupuesto de 2 VI con <1 ms de margen) se eliminan con
+    `HH_DET_CLOCK=1` + `HH_DET_CLOCK_BIAS=15625` **por defecto en el port** (`src/platform/main.cpp`,
+    vía el entorno del CRT). `hh_tick.log` `d3=0`, `present=120`; sin parones. Nota:
+    `notes/2026-10-05-a1-tick-determinista.md`.
+  - [•] **A3 (SIGUIENTE, tras A1)**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica. **OJO**:
     el mantenedor **rara vez ve 120 fps y nunca 240** → medir con `HH_FPS=1`/`hh_tick.log`/`hh_slow.log`
     si el cuello es lógica/tick, present/GPU o VSync.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.

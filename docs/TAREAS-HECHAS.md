@@ -6,6 +6,13 @@
 
 ## 2026-10-05
 
+- **A1 — tick lógico determinista (2 VI/frame): RESUELTO y VALIDADO en Windows (2026-10-05).** Los
+  micro-parones a alta tasa eran **slips a 3 VI** (`hh_tick.log` `d3=1-2/s`): el frame limiter del juego
+  cierra en el presupuesto de 2 VI con <1 ms de margen y trunca a ms. Fix: `HH_DET_CLOCK=1` +
+  `HH_DET_CLOCK_BIAS=15625` **por defecto en el port** (`src/platform/main.cpp`, vía el entorno del CRT,
+  no `SDL_setenv`) → `d3=0`, `present=120`. Validado: 120 fps estables sin parones. Nota:
+  `notes/2026-10-05-a1-tick-determinista.md`.
+
 - **Fase B — emparejamiento de ids: CERRADA y MEDIDA (2026-10-05).** Método estándar aplicado
   (enumeración 3D sin caminos fuera del traversal; LOD = `node+0x2C`; 2D `ID_IGNORE` tipos 9/13;
   `ORDER_AUTO` de efectos) y, sobre todo, **medido sin jugar a mirar** con el **oráculo de
