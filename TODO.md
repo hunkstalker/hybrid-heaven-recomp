@@ -23,10 +23,12 @@
   teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
-- [ ] **BUG (2026-10-05) — inventario: recuadro negro de la info de items desplazado a la derecha en
-  widescreen**: falso positivo del anclaje 2D del HUD (`src/hooks/hud_rewrite.cpp`): probablemente
-  `right_panel_box`/`right_panel_scissor` clasifican ese `fill` negro como minimapa (`kRight`) y lo
-  anclan a la derecha. **Arreglar y meter en la release `v0.7.0` antes del push.** Doc/handoff:
+- [ ] **BUG (2026-10-05) — inventario: caja negra de la info de items desplazada/anclada a la derecha
+  en widescreen**: problema de **ancla 2D** (no de tamaño); probablemente `right_panel_box`/
+  `right_panel_scissor` la clasifican como minimapa (`kRight`). Evidencia en
+  `work/gameplay screenshots/items/` (varios ratios). **Arreglar y meter en `v0.7.0` antes del push.**
+  ⚠️ **Al iterar, cuidado**: se puede estar moviendo otro objeto no visible → validar qué cambia de
+  clase (`HH_HUD_TRACE=1`) tras cada iteración. Doc/handoff:
   `notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
