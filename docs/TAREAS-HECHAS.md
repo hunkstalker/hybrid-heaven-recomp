@@ -4,6 +4,20 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## 2026-10-05
+
+- **BUG inventario: caja negra de la info de items anclada a la derecha en widescreen — ARREGLADO y
+  VALIDADO en Windows (2026-10-05).** La caja negra detrás del nombre/`x N`/`USABLE` se anclaba a la
+  derecha y se movía con el aspecto (era un problema de **ancla 2D**, no de tamaño). Causa: en
+  `case kFillRect` de `src/hooks/hud_rewrite.cpp`, un fill negro sin panel previo que pasaba
+  `right_panel_box()` se tomaba por **fondo del minimapa** (`kRight`) y fijaba `map_panel` — la
+  generalización del fix del **#13** (`7068f5b`) atrapaba también el recuadro del inventario. Fix
+  quirúrgico: la caja que **establece** el panel pasa a exigir la **caja canónica** del fondo del
+  minimapa (`is_map_bg_box` = `197,143..277,223` en 320x240); el recuadro del inventario queda `kAuto`
+  (**quieto**). No se añade ancla nueva; sin regresión en minimapa ni barras de combate. Traza
+  `[hh-mapbg]` para dejar la identidad de cada caja. `notes/2026-10-05-fix-inventario-caja-negra-ancla.md`
+  (síntoma: `notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`). Incluido en **v0.7.0**.
+
 ## 2026-10-04
 
 - **Fix de input: "mantener pulsado" repetía la acción + X del mando no borraba (CARGAR/GUARDAR) —

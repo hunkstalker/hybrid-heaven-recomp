@@ -33,10 +33,11 @@ vive en `patches/rt64/hh-interpolation-tagging.patch`. Detalle:
 `notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
 
 **Release v0.7.0 preparada (2026-10-05)**: `include/hh.h` → `0.7.0` (MINOR) y
-`docs/releases/v0.7.0.md`. **Pendiente antes del push/tag**: arreglar el **recuadro negro del
-inventario desplazado en widescreen** (anclaje 2D del HUD) e incluirlo en la release; luego push de
-`main` + tag. Detalle: `notes/2026-10-05-fps-integracion-en-main-y-release.md`,
-`notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`.
+`docs/releases/v0.7.0.md`. Incluye el fix del **recuadro negro del inventario desplazado en widescreen**
+(anclaje 2D del HUD: la caja que establece el panel del mapa exige ahora la caja canónica
+`197,143..277,223`), **validado en Windows (2026-10-05)**. **Pendiente**: push de `main` + tag `v0.7.0`.
+Detalle: `notes/2026-10-05-fps-integracion-en-main-y-release.md`,
+`notes/2026-10-05-fix-inventario-caja-negra-ancla.md`.
 
 ## 1. Objetivo
 

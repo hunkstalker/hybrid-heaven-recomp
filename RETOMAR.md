@@ -6,6 +6,20 @@
 > `notes/2026-10-05-fps-integracion-en-main-y-release.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
+## Tarea de la sesión (2026-10-05): BUG inventario — caja negra anclada a la derecha — HECHA
+
+**Validado por el mantenedor en Windows (2026-10-05)**; entra en **`v0.7.0`** (falta push/tag). Fix en
+`src/hooks/hud_rewrite.cpp` (`case kFillRect`): solo la **caja canónica** del fondo del minimapa
+(`197,143..277,223`) puede **establecer** el panel; antes valía "cualquier fill negro a la derecha"
+(`right_panel_box`), lo que atrapaba el recuadro del inventario → `kRight` → anclado a la derecha. Traza
+`[hh-mapbg]`. Detalle: `notes/2026-10-05-fix-inventario-caja-negra-ancla.md` (síntoma:
+`notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`).
+
+### Siguiente: push/tag de `v0.7.0`
+
+Con el fix validado, queda **push de `main`** (forks `lib/` primero si toca; aquí **no** se tocaron) y
+**tag de `v0.7.0`**, a petición del mantenedor.
+
 ## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
 
 **Hecho y VALIDADO en Windows (2026-10-04):**

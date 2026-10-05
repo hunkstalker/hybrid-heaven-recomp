@@ -176,6 +176,19 @@ struct Writer {
                                static_cast<int>(scissor_w1 & 0xFFF));
     }
 
+    // Caja CANONICA del fondo negro del minimapa en 320x240 (medida; issue #13 y su nota). El
+    // fondo del mapa se dibuja SIEMPRE aqui. Exigir esta caja (y no "cualquier fill negro a la
+    // derecha") evita que otras cajas negras con forma de panel —p. ej. el recuadro de informacion
+    // de un item en el INVENTARIO— se tomen por el fondo del mapa y se anclen a la derecha. Es un
+    // criterio discriminante por CAJA, no una identidad de recurso/color. Tolerancia de 1 px por
+    // el redondeo de `to_320` a anchos de framebuffer distintos de 320.
+    bool is_map_bg_box(int ulx, int uly, int lrx, int lry) const {
+        static constexpr int kUlx = 197, kUly = 143, kLrx = 277, kLry = 223;
+        auto close_enough = [](int a, int b) { return a - b >= -1 && a - b <= 1; };
+        return close_enough(ulx, kUlx) && close_enough(uly, kUly) && close_enough(lrx, kLrx) &&
+               close_enough(lry, kLry);
+    }
+
     GfxCommand* reserve(uint32_t count) {
         if (used + 8 * count > limit()) {
             overflow = true;
@@ -670,19 +683,47 @@ struct Writer {
                     // ESTRUCTURAL (issue #13): el fondo negro del mapa. Si ya hay panel capturado,
                     // el fill que coincide con el es el fondo del mapa; si aun no hay panel y este
                     // es un rectangulo negro de panel a la derecha, lo establece (el fondo puede
-                    // preceder al contenido). No depende de la identidad exacta del fill.
+                    // preceder al contenido).
+                    //
+                    // FIX quirurgico (issue abierto 2026-10-05): la caja que ESTABLECE el panel ya
+                    // NO es "cualquier fill negro a la derecha" (`right_panel_box`), sino la caja
+                    // canonica del fondo del minimapa (`is_map_bg_box`). Otras cajas negras con
+                    // forma de panel —el recuadro de informacion de un item en el inventario— ya
+                    // no se toman por el fondo del mapa: quedan `kAuto` (quietas, junto a su panel).
                     if (cls == kAuto && fill_colour == 0) {
                         const int q_ulx = static_cast<int>((w1 >> 12) & 0xFFF);
                         const int q_uly = static_cast<int>(w1 & 0xFFF);
                         const int q_lrx = static_cast<int>((w0 >> 12) & 0xFFF);
                         const int q_lry = static_cast<int>(w0 & 0xFFF);
+                        const bool panel_shaped = right_panel_box(q_ulx, q_uly, q_lrx, q_lry);
+                        const bool canonical = is_map_bg_box(f_ulx, f_uly, f_lrx, f_lry);
+                        // Identidad de las cajas negras con forma de panel (una vez por caja): para
+                        // la run de validacion, distingue el fondo del mapa (197,143..277,223) del
+                        // recuadro del inventario. Bajo HH_HUD_TRACE=1 / F7.
+                        if (panel_shaped && rewrite_trace_on()) {
+                            char key[96];
+                            std::snprintf(key, sizeof key, "%d,%d,%d,%d/%d,%d,%d,%d", f_ulx, f_uly, f_lrx,
+                                          f_lry, q_ulx, q_uly, q_lrx, q_lry);
+                            static std::vector<std::string> seen_bg;
+                            if (seen_bg.size() < 2000 &&
+                                std::find(seen_bg.begin(), seen_bg.end(), std::string(key)) == seen_bg.end()) {
+                                seen_bg.push_back(key);
+                                const int su = have_scissor ? static_cast<int>((scissor_w0 >> 12) & 0xFFF) : -1;
+                                const int sv = have_scissor ? static_cast<int>(scissor_w0 & 0xFFF) : -1;
+                                const int sl = have_scissor ? static_cast<int>((scissor_w1 >> 12) & 0xFFF) : -1;
+                                const int sm = have_scissor ? static_cast<int>(scissor_w1 & 0xFFF) : -1;
+                                hh::log("[hh-mapbg] fill negro box=%d,%d..%d,%d sc=%d,%d..%d,%d have_panel=%d canon=%d\n",
+                                        f_ulx, f_uly, f_lrx, f_lry, su / 4, sv / 4, sl / 4, sm / 4,
+                                        have_map_panel ? 1 : 0, canonical ? 1 : 0);
+                            }
+                        }
                         if (have_map_panel &&
                             q_ulx == static_cast<int>((map_panel_w0 >> 12) & 0xFFF) &&
                             q_uly == static_cast<int>(map_panel_w0 & 0xFFF) &&
                             q_lrx == static_cast<int>((map_panel_w1 >> 12) & 0xFFF) &&
                             q_lry == static_cast<int>(map_panel_w1 & 0xFFF)) {
                             cls = kRight;   // coincide con el panel canonico: es el fondo del mapa
-                        } else if (!have_map_panel && right_panel_box(q_ulx, q_uly, q_lrx, q_lry)) {
+                        } else if (!have_map_panel && canonical) {
                             have_map_panel = true;
                             panel_done = 1;
                             map_panel_w0 = w1 & 0x00FFFFFF;
