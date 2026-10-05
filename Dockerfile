@@ -3,7 +3,7 @@
 # Hybrid Heaven Recomp — imagen Linux (Debian bookworm, glibc).
 #
 #   deps    : dependencias de compilacion (la usa tambien el devcontainer).
-#   build   : usa los submodulos (rt64 upstream + runtime del FORK propio, fijados en
+#   build   : usa los submodulos (fork de rt64 (fix 2D + gate de escala/rotacion) + runtime del FORK propio, fijados en
 #             runtime.lock como fallback) y compila el port. El C recompilado
 #             (build/recomp/RecompiledFuncs/) NO se versiona (ADR 0009): el contexto Docker
 #             debe traerlo ya generado (tools/regenerate.py) o montarlo.
@@ -29,7 +29,7 @@ RUN git config --global --add safe.directory '*'
 WORKDIR /src
 
 FROM deps AS build
-# Capa cacheable: reproduce las dependencias (rt64 upstream + runtime del fork,
+# Capa cacheable: reproduce las dependencias (fork de rt64 + runtime del fork,
 # commits fijados en runtime.lock) sin depender del codigo del port.
 COPY tools/build_linux.sh /src/tools/build_linux.sh
 COPY runtime.lock /src/runtime.lock

@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 280 | 2026-10-04 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 286 | 2026-10-04 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 133 | 2026-10-02 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 408 | 2026-10-04 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 414 | 2026-10-04 |
 
 ## Técnico y guías (vivos)
 
@@ -39,6 +39,7 @@
 | [v0.6.0 - Save system: 45-slot menu, save editor & extras](releases/v0.6.0.md) | This release turns saving/loading and the in-game tooling into a full PC experience, unifies all | 59 | 2026-10-02 |
 | [v0.6.1 - Patch: minimap, ranged-attack crash, saved text, area number & dialogue glyphs](releases/v0.6.1.md) | Parche de correcciones sobre **v0.6.0** (todo validado en Windows). No cambia la jugabilidad ni añade | 56 | 2026-10-02 |
 | [v0.6.2 - Fix Release with assets & regenerated C](releases/v0.6.2.md) | Re-release de **v0.6.1**: no cambia el código del port. La v0.6.1 publicada en GitHub estaba **rota** | 40 | 2026-10-03 |
+| [v0.7.0 - Interpolación de frames fiel activada por defecto](releases/v0.7.0.md) | Primera release que **activa por defecto** la **interpolación de frames** del port (RT64 presentando | 39 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 321 | 2026-10-04 |
@@ -68,6 +69,8 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 79 | 2026-10-05 |
+| [BUG abierto — inventario: recuadro negro detrás de la info de items, desplazado en widescreen (2026-10-05)](../notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md) | Estado: **abierto**. Reportado por el mantenedor (2026-10-05). Ámbito: port, **anclaje 2D del HUD** | 50 | 2026-10-05 |
 | [FPS/interpolación — bug LATENTE de los walkers de display list con comandos extendidos (2026-10-04)](../notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md) | Hallazgo **lateral** de la sesión de las partículas del heal (que cerró como **no-bug**). Aquí se | 77 | 2026-10-04 |
 | [FPS/interpolación — pass 1 no materializa y sesgado de cámara (2026-10-04)](../notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md) | Rama `fps-interpolacion-tagging`. Sesión de **diagnóstico**: se atacó el **sesgado de cámara** y se | 110 | 2026-10-04 |
 | [FPS/interpolación — Partículas del heal: NO es bug (asset original) + herramientas de volcado (2026-10-04)](../notes/2026-10-04-fps-particulas-heal-asset-no-bug.md) | Cierre de la investigación de las **partículas de sprites al curarse** (los "cuadrados con degradado"). | 49 | 2026-10-04 |

@@ -23,6 +23,12 @@
   teclas dibujables y el rótulo se muestra según la layout del SO. Detalle:
   `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`; resumen en `docs/TAREAS-HECHAS.md`.
 
+- [ ] **BUG (2026-10-05) — inventario: recuadro negro de la info de items desplazado a la derecha en
+  widescreen**: falso positivo del anclaje 2D del HUD (`src/hooks/hud_rewrite.cpp`): probablemente
+  `right_panel_box`/`right_panel_scissor` clasifican ese `fill` negro como minimapa (`kRight`) y lo
+  anclan a la derecha. **Arreglar y meter en la release `v0.7.0` antes del push.** Doc/handoff:
+  `notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`.
+
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
   de escala), **#8** (puertas, tagging). **#10/#12** (curar enemigos / Life Charger S) sin síntoma

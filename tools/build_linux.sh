@@ -2,12 +2,13 @@
 # build_linux.sh — receta canonica de build del port en Linux (espejo de build_windows.bat).
 # Reproduce las dependencias que no viven en este repo (gitignored):
 #
-#   1) lib/rt64: clon de upstream en un commit fijo (sin modificar)
+#   1) lib/rt64: FORK propio (rama hybrid-heaven) en un commit fijo (fix 2D + gate de escala/rotacion)
 #   2) lib/N64ModernRuntime: clon del FORK propio (rama hybrid-heaven) en un commit fijo,
 #      con sus submodulos recursivos (N64Recomp sale del fork propio; thirdparty de upstream)
 #   3) configura y compila con CMake
 #
-# URL/SHA del runtime: runtime.lock (env NMR_URL / NMR_COMMIT los sobreescriben).
+# URL/SHA de rt64 y del runtime: runtime.lock (env RT64_URL/RT64_COMMIT y NMR_URL/NMR_COMMIT los
+# sobreescriben).
 # Antes de compilar hay que regenerar el C recompilado desde TU ROM (no se versiona; ADR 0009):
 #   python3 tools/regenerate.py        (una vez; requiere JDK 21 + Ghidra + N64Recomp)
 # La ROM tambien hace falta para EJECUTAR: ponla en la carpeta rom/ junto al binario
@@ -22,8 +23,8 @@
 #   libsdl2-dev libvulkan-dev libx11-dev libxext-dev libxrandr-dev libxtst-dev libgtk-3-dev
 set -eu
 
-RT64_URL="${RT64_URL:-https://github.com/rt64/rt64.git}"
-RT64_COMMIT="${RT64_COMMIT:-43373749dac9bbc1b653e6a02aed40a9e1783bed}"
+RT64_URL="${RT64_URL:-}"
+RT64_COMMIT="${RT64_COMMIT:-}"
 
 FORCE_LIBS=0
 BUILD_TYPE=Release
@@ -61,13 +62,18 @@ if [ "$LIBS_ONLY" = 0 ] && [ ! -d "$PORT" ]; then
 fi
 mkdir -p "$PORT/lib"
 
-# --- URL/SHA del runtime: env > runtime.lock ---
+# --- URL/SHA de rt64 y del runtime: env > runtime.lock ---
 NMR_URL="${NMR_URL:-}"
 NMR_COMMIT="${NMR_COMMIT:-}"
 if [ -f "$LOCK" ]; then
     [ -n "$NMR_URL" ]    || NMR_URL=$(grep -E '^NMR_URL=' "$LOCK" | head -1 | cut -d= -f2-)
     [ -n "$NMR_COMMIT" ] || NMR_COMMIT=$(grep -E '^NMR_COMMIT=' "$LOCK" | head -1 | cut -d= -f2-)
+    [ -n "$RT64_URL" ]    || RT64_URL=$(grep -E '^RT64_URL=' "$LOCK" | head -1 | cut -d= -f2-)
+    [ -n "$RT64_COMMIT" ] || RT64_COMMIT=$(grep -E '^RT64_COMMIT=' "$LOCK" | head -1 | cut -d= -f2-)
 fi
+# rt64: fallback a upstream si el lock no lo define (HH usa el FORK; ver runtime.lock).
+[ -n "$RT64_URL" ]    || RT64_URL="https://github.com/rt64/rt64.git"
+[ -n "$RT64_COMMIT" ] || RT64_COMMIT="43373749dac9bbc1b653e6a02aed40a9e1783bed"
 [ -n "$NMR_URL" ] || { echo "ERROR: falta NMR_URL (en $LOCK o por entorno)." >&2; exit 1; }
 [ -n "$NMR_COMMIT" ] || { echo "ERROR: falta NMR_COMMIT (en $LOCK o por entorno)." >&2; exit 1; }
 

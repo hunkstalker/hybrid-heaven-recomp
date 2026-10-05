@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-04**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-05**.
 
 **Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
 **validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
@@ -31,6 +31,12 @@ vive en `patches/rt64/hh-interpolation-tagging.patch`. Detalle:
 `RETOMAR.md` §"Rama fps-interpolacion-tagging",
 `notes/2026-10-04-fps-a2-2d-emisores-y-capturas-transitorias.md`,
 `notes/2026-10-04-fps-particulas-heal-asset-no-bug.md`.
+
+**Release v0.7.0 preparada (2026-10-05)**: `include/hh.h` → `0.7.0` (MINOR) y
+`docs/releases/v0.7.0.md`. **Pendiente antes del push/tag**: arreglar el **recuadro negro del
+inventario desplazado en widescreen** (anclaje 2D del HUD) e incluirlo en la release; luego push de
+`main` + tag. Detalle: `notes/2026-10-05-fps-integracion-en-main-y-release.md`,
+`notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md`.
 
 ## 1. Objetivo
 

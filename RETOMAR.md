@@ -1,8 +1,9 @@
-# RETOMAR — handoff (2026-10-04)
+# RETOMAR — handoff (2026-10-05)
 
-> Handoff corto. **`main` = `v0.6.2`** (release publicada) + **fix de input** (remapo de acciones y
-> teclado, validados en Windows). **Rama `fps-interpolacion-tagging`**: interpolación cerrada (cámara,
-> identidad, #6/#8, A2.2d); pendiente **A1 (tick lógico) + A3 (validar 120/240)** e **integrar en `main`**.
+> Handoff corto. **`main`** = **`v0.6.2` + fix de input + épica de interpolación INTEGRADA** (merge
+> fast-forward, **ON por defecto**). Versión subida a **v0.7.0** (pendiente de push/tag). **Pendiente
+> de la épica**: **A1 (tick lógico) + A3 (validar 120/240)**. Detalle de la integración:
+> `notes/2026-10-05-fps-integracion-en-main-y-release.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea actual (`main`) — fix de input (acciones por flanco + lectura unificada)
@@ -136,8 +137,9 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
 
 ## Árbol y pistas
 
-- `main` = `v0.6.2` + fix de input, **submódulos limpios** en sus pins. La rama `fps-interpolacion-tagging`
-  = `main` sincronizado + épica de interpolación.
+- `main` = `v0.7.0` (v0.6.2 + fix de input + épica de interpolación integrada; **ON por defecto**),
+  **submódulos limpios**: `lib/rt64` en **`7c46232`** (fix 2D + gate de escala/rotación). La rama
+  `fps-interpolacion-tagging` = `main` (idéntica).
 - Tick/lógica: `src/subsystems/input.cpp` (`get_input`, `HH_DIAG`, `hh_tick.log`/`hh_slow.log`),
   `src/platform/main.cpp` (`HH_STATE_SECS`), runtime `N64ModernRuntime` (`events.cpp`, `timer.cpp`).
 - Present/GPU: `src/platform/rt64_render_context.cpp` (`[hh-fps]`, send_dl/update_screen),
@@ -146,9 +148,10 @@ Logs en `build\windows\bin\Release\` (`hh.log`, `hh_tick.log`, `hh_slow.log`, `h
   `notes/2026-09-17-ralentizaciones-puertas-y-30hz-logicos.md`,
   `notes/2026-09-19-causa-raiz-cadencia-frames.md` (1 vs 2 VI/tick),
   `notes/2026-09-22-fps-y-present-early.md`.
-- **`lib/rt64`**: `main` pinea `a8f0a70` (fix 2D); esta rama pinea **`7c46232`** (fix 2D + **gate de
-  discontinuidad de escala/rotación**, commit permanente del fork `hybrid-heaven`). La instrumentación
-  (contadores/sondas) va en el **patch**, no commiteada. Para activarla aquí:
+- **`lib/rt64`**: `main` pinea **`7c46232`** (fix 2D + **gate de discontinuidad de escala/rotación**,
+  commit permanente del fork `hybrid-heaven`). La instrumentación (contadores/sondas) va en el
+  **patch** `patches/rt64/hh-interpolation-tagging.patch`, no commiteada; el port enlaza sin ella por
+  los **stubs** (`rt64_render_context.cpp`, weak + `/alternatename` en MSVC). Para activarla:
   `git -C lib/rt64 apply patches/rt64/hh-interpolation-tagging.patch`; quitarla:
   `git -C lib/rt64 checkout -- .`. Detalle: `docs/workflows.md §1.2`.
 
