@@ -664,7 +664,12 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
         if (!is2d) {
             const uint32_t model = rd_u32(rdram, node + 0x2C);
             const uint32_t slot = stable_slot(node, model);
-            const uint32_t mvId = 0xEE000000u | (uint32_t(id) << 16) | (slot & 0xFFFFu);
+            // FIX: id por EMISOR+NODO **con generacion de camara**. Antes era `0xEE000000|(id<<16)|
+            // (slot&0xFFFF)` (id de diagnostico, SIN generacion): como la camara de HH va horneada en
+            // estas matrices, en un corte el id no cambiaba -> RT64 interpolaba la geometria del emisor
+            // a traves del corte -> la escena barria. Con `interp_id` (que mezcla `sGeneration`) el id
+            // cambia en cada corte y RT64 no empareja (snap), igual que los grupos por nodo.
+            const uint32_t mvId = interp_id(/*INTERP_KIND_FX=*/3u, (uint32_t)id, slot, 0u);
             if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
                 gEXMatrixGroupDecomposed(cmd, mvId, G_EX_PUSH, /*proj=*/0,
                                          G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
@@ -702,7 +707,9 @@ extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
         }
         const uint32_t model = rd_u32(rdram, node + 0x2C);
         const uint32_t slot = stable_slot(node, model);
-        const uint32_t iid = 0xEE000000u | (15u << 16) | (slot & 0xFFFFu);
+        // FIX: id con generacion de camara (antes `0xEEF0xxxx`, diagnostico sin `sGeneration` -> la
+        // geometria del emisor se interpolaba a traves de los cortes de camara).
+        const uint32_t iid = interp_id(/*INTERP_KIND_FX=*/3u, 15u, slot, 0u);
         if (GfxCommand* cmd = gfx_emit(rdram, 2)) {
             gEXMatrixGroupDecomposed(cmd, iid, G_EX_PUSH, /*proj=*/0,
                                      G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE,
