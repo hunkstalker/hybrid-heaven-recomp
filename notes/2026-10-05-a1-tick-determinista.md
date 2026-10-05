@@ -75,6 +75,11 @@ números**, no por sensación. `HH_DET_CLOCK_BIAS` es override por entorno (no r
   ya resuelto, no relacionado con el reloj.)
 - **Incógnita del mínimo**: por qué `256` no basta (ver arriba). Si se resuelve, se baja el bias a ~16
   y la deriva pasa a ~0.
+- **Bajadas al cruzar puertas/transiciones** (`guest_busy` de 200-500 ms al **cargar/descomprimir
+  módulos `trans`**; **no** es el tick): `[MEDIDO]` `hh_slow.log` las marca (`t=10.6` → 492 ms,
+  `t=21.2` → 84/67/50/46 ms, …) y coinciden con los segundos de `present<115`. El gameplay va a 120;
+  solo caen las transiciones. **Mitigación pendiente** (optimización, no bloqueante): **precarga/caché
+  de módulos** — la otra mitad del work order A1 ("compensación de stalls"). Retomar si se quiere.
 
 ## Investigación abierta (para retomar)
 
