@@ -132,6 +132,13 @@ const bool g_fx_auto = [] {
     return v != nullptr && *v != '\0' && *v != '0';
 }();
 
+// 2D reales del dispatch (tipos 9/13: `919C`/`11958`, texrect) -> `G_EX_ID_IGNORE` (no interpolar).
+// ON por defecto; `HH_FX_2D_IGNORE=0` lo apaga (A/B). Inerte mientras 9/13 no se dibujen.
+const bool g_fx_2d_ignore = [] {
+    const char* v = std::getenv("HH_FX_2D_IGNORE");
+    return !(v != nullptr && *v != '\0' && *v == '0');
+}();
+
 // [Opción 2] Tagging en el EMISOR de geometría (no en el traversal de pass 1). Medido 2026-10-04:
 // los grupos de pass 1 y la geometría viven en workloads RSP distintos (un `G_RDPFULLSYNC` los
 // separa) y `rsp->reset()` borra el estado extendido en la frontera, así que materializar en
@@ -515,6 +522,9 @@ extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx) {
         func_800069A8_75A8(rdram, ctx);
         return;
     }
+    // jtbl de `func_800069A8`: 9 (`919C`) y 13 (`11958`) son los 2D/texrect reales -> `G_EX_ID_IGNORE`.
+    // 1..4 son sprites/efectos 3D. El resto (5..8,10,11) mallas/huesos.
+    const bool is_2d = (ntype == 9 || ntype == 13);
     const bool is_fx = (ntype >= 1 && ntype <= 4);   // sprites/efectos (2D/flat) del dispatch
 
     // Diagnostico: histograma de tipos de nodo dibujados (cada ~2 s). Para identificar que tipo es
@@ -543,7 +553,7 @@ extern "C" void hh_node_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
         gEXEnable(cmd);
     }
-    if (is_fx && !g_fx_auto) {
+    if ((is_2d && g_fx_2d_ignore) || (is_fx && !g_fx_auto)) {
         // 2D/sprite: nunca interpolar (evita el "estirado" al nacer/renacer). §3d.5.
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXMatrixGroupNoInterpolate(cmd, G_EX_PUSH, /*proj=*/0, G_EX_EDIT_NONE);
