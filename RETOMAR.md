@@ -1,10 +1,10 @@
 # RETOMAR — handoff (2026-10-05)
 
-> Handoff corto. **`main`** = **`v0.7.2` publicada** + pendiente para **v0.7.3**: fix **(0b)** (`fcd7f07`),
-> **2D `ID_IGNORE`** (`f91f67a`), **oráculo** (`94763dc`) y **A1** (tick). **Fase B CERRADA y MEDIDA
-> (2026-10-05)** (oráculo `HH_PAIRING_LOG`; área 1 99.99% por id). **A1 (tick) RESUELTO y VALIDADO
-> (2026-10-05)**: `HH_DET_CLOCK=1`+`BIAS=15625` por defecto → `d3=0`, 120 fps **sin parones**.
-> **SIGUIENTE: A3 (validar 120/240)**. Detalle: `notes/2026-10-05-a1-tick-determinista.md`,
+> Handoff corto. **`main`** = **`v0.7.2` publicada** + **`v0.7.3` preparada** (`0.7.3` en `include/hh.h`
+> + `docs/releases/v0.7.3.md`); **falta push de `main` + tag**. Contiene: **A1 tick determinista**
+> (2 VI/frame; 120 fps sin parones), **fix (0b)** del tagging de `C768` en gameplay, **2D `ID_IGNORE`** y
+> el **oráculo de emparejamiento**. **Fase B CERRADA y MEDIDA** (área 1 99.99% por id). **SIGUIENTE: A3
+> (validar 120/240 + Deck)**. Detalle: `notes/2026-10-05-a1-tick-determinista.md`,
 > `notes/2026-10-05-fase-b-cobertura-sesiones.md`, `docs/interpolacion-pairing.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 

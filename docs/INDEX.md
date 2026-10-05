@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 296 | 2026-10-05 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 297 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 454 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 456 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -43,6 +43,7 @@
 | [v0.7.0 - Interpolación de frames fiel (artefactos resueltos)](releases/v0.7.0.md) | La **interpolación de frames** ya estaba activa por defecto desde v0.4.0, pero producía | 29 | 2026-10-05 |
 | [v0.7.1 - Rendimiento: libultra delegada al runtime (más FPS)](releases/v0.7.1.md) | Parche de **rendimiento** sobre v0.7.0. El port **recompilaba y ejecutaba como código del juego** | 17 | 2026-10-05 |
 | [v0.7.2 - Interpolación: fixes de cámara y del objeto del menú de título](releases/v0.7.2.md) | Parche sobre v0.7.1 que corrige **dos artefactos visuales** de la **interpolación de frames** (emparejado | 15 | 2026-10-05 |
+| [v0.7.3 - Interpolación: tick determinista (120 fps sin parones) y tagging de C768 en gameplay](releases/v0.7.3.md) | Parche sobre v0.7.2 que **estabiliza la tasa de refresco** y **arregla la regresión de emparejado** que | 24 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 322 | 2026-10-05 |
@@ -83,7 +84,7 @@
 | [2026-10-05 — Fase A: cobertura libultra (recompilar vs delegar al runtime)](../notes/2026-10-05-fase-a-libultra-cobertura.md) | Rama `fase-a-libultra`, **mergeada en `main`** (ff). Auditoría + fix. **MEDIDO** salvo lo marcado. | 86 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |
 | [BUG abierto — inventario: recuadro negro detrás de la info de items, desplazado en widescreen (2026-10-05)](../notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md) | Estado: **abierto**. Reportado por el mantenedor (2026-10-05). Ámbito: port, **anclaje 2D del HUD** | 119 | 2026-10-05 |
-| [2026-10-05 — A1: tick lógico determinista (2 VI/frame) — RESUELTO y VALIDADO](../notes/2026-10-05-a1-tick-determinista.md) | Cierra A1 de la épica FPS (`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §A1). | 45 | 2026-10-05 |
+| [2026-10-05 — A1: tick lógico determinista (2 VI/frame) — RESUELTO y VALIDADO](../notes/2026-10-05-a1-tick-determinista.md) | Cierra A1 de la épica FPS (`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md` §A1). | 91 | 2026-10-05 |
 | [FPS/interpolación — bug LATENTE de los walkers de display list con comandos extendidos (2026-10-04)](../notes/2026-10-04-fps-walker-dl-comandos-extendidos-latente.md) | Hallazgo **lateral** de la sesión de las partículas del heal (que cerró como **no-bug**). Aquí se | 77 | 2026-10-04 |
 | [FPS/interpolación — pass 1 no materializa y sesgado de cámara (2026-10-04)](../notes/2026-10-04-fps-tagging-pass1-materializacion-y-sesgado-camara.md) | Rama `fps-interpolacion-tagging`. Sesión de **diagnóstico**: se atacó el **sesgado de cámara** y se | 110 | 2026-10-04 |
 | [FPS/interpolación — Partículas del heal: NO es bug (asset original) + herramientas de volcado (2026-10-04)](../notes/2026-10-04-fps-particulas-heal-asset-no-bug.md) | Cierre de la investigación de las **partículas de sprites al curarse** (los "cuadrados con degradado"). | 49 | 2026-10-04 |

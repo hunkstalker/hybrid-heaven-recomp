@@ -36,11 +36,12 @@ input + fix del recuadro negro del inventario (anclaje 2D del HUD).
 nativo → subida fuerte de FPS con la **lógica intacta a 30 Hz**; **validado en Windows (2026-10-05)**.
 Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
-**Release v0.7.2 preparada (2026-10-05)**: `include/hh.h` → `0.7.2` (PATCH) y `docs/releases/v0.7.2.md`.
-Corrige **dos artefactos de la interpolación** (emparejado de ids): **cámara al apuntar** (el grupo de
-proyección duplicaba la cámara, que va horneada en el modelview → se elimina) y **objeto 3D del menú de
-título** (`C768` fuera de la ruta del cursor → se acota). **Validado en Windows (2026-10-05)**.
-**Pendiente**: push de `main` + tag `v0.7.2`. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+**Release v0.7.2 publicada (2026-10-05)**: `0.7.2` (PATCH). Fixes de **cámara al apuntar** y del
+**objeto 3D del menú de título**. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+
+**Release v0.7.3 preparada (2026-10-05)**: `include/hh.h` → `0.7.3` (PATCH) y `docs/releases/v0.7.3.md`.
+**A1 tick determinista** (2 VI/frame; 120 fps sin parones) + **fix (0b)** del tagging de `C768` en
+gameplay (regresión de v0.7.2) + 2D `ID_IGNORE` + oráculo. **Pendiente**: push de `main` + tag `v0.7.3`.
 
 **Fase B — emparejamiento: CERRADA (2026-10-05)**: la causa real era que **el tagging no llegaba a
 RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **escena**. Medido con el

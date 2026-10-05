@@ -754,11 +754,32 @@ void hh::RT64Context::update_screen() {
             const uint32_t vi_rate = (app->sharedQueueResources != nullptr)
                                          ? app->sharedQueueResources->viOriginalRate : 0;
             const int vsync_real = (app->swapChain != nullptr && app->swapChain->isVsyncEnabled()) ? 1 : 0;
+            const double present = (pr - pr_last) / secs;
             hh::log("[hh-fps] update=%.1f present=%.1f (target=%u vi=%u swapChain=%u refresh=%d"
                     " vsync=%d) | %llu display lists (%.2fs)\n",
-                    us_last / secs, (pr - pr_last) / secs, target, vi_rate, get_display_framerate(),
+                    us_last / secs, present, target, vi_rate, get_display_framerate(),
                     static_cast<int>(app->userConfig.refreshRate), vsync_real,
                     static_cast<unsigned long long>(dl - dl_last), secs);
+            // Acumulado para comparar configuraciones (p. ej. biases del reloj A1): media/min/max y
+            // % de segundos al target. Se imprime cada ~10 s; `HH_FPS_SUM=<n>` ajusta el periodo.
+            static uint64_t fs_n = 0, fs_at = 0;
+            static double fs_sum = 0.0, fs_min = 1e9, fs_max = 0.0;
+            static const uint64_t fs_every = [] {
+                const char* e = std::getenv("HH_FPS_SUM");
+                const long long v = (e != nullptr && *e != '\0') ? std::atoll(e) : 0;
+                return (v > 0) ? (uint64_t)v : 10ull;
+            }();
+            fs_n++;
+            fs_sum += present;
+            if (present < fs_min) fs_min = present;
+            if (present > fs_max) fs_max = present;
+            if ((target != 0) && (present >= double(target) - 0.5)) fs_at++;
+            if ((fs_every != 0) && (fs_n % fs_every == 0)) {
+                hh::log("[hh-fps-sum] n=%llu mean=%.1f min=%.1f max=%.1f at_target=%llu/%llu (%.0f%%)\n",
+                        (unsigned long long)fs_n, fs_sum / double(fs_n), fs_min, fs_max,
+                        (unsigned long long)fs_at, (unsigned long long)fs_n,
+                        100.0 * double(fs_at) / double(fs_n));
+            }
             us_last = 0;
             pr_last = pr;
             dl_last = dl;

@@ -20,13 +20,15 @@
   (cop0/caché/math) delegadas al runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado
   Windows). Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
-- [•] **Release v0.7.2 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.2`
-  (PATCH) + `docs/releases/v0.7.2.md`. Corrige **2 artefactos de la interpolación**: **cámara al apuntar**
-  (grupo de proyección duplicaba la cámara horneada en el modelview → eliminado) y **objeto 3D del menú
-  de título** (`C768` fuera de la ruta del cursor → acotado). Validado Windows. **Falta**: push de `main`
-  y tag `v0.7.2` (o Actions → Release). **`main` va por delante**: incluye ya el **fix (0b)** de Fase B
-  (commit `fcd7f07`) → incluirlo en las notas de `v0.7.2` o subir a **`v0.7.3`**. Detalle:
-  `notes/2026-10-05-fase-b-camara-y-titulo.md`, `notes/2026-10-05-fase-b-materializacion-c768.md`.
+- [x] **Release v0.7.2 (2026-10-05) — PUBLICADA**: `0.7.2` (PATCH). Fixes de **cámara al apuntar** y del
+  **objeto 3D del menú de título**. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+
+- [•] **Release v0.7.3 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.3` (PATCH)
+  + `docs/releases/v0.7.3.md`. Incluye: **A1 tick determinista** (2 VI/frame; 120 fps sin parones),
+  **fix (0b)** del tagging de `C768` en gameplay (regresión de v0.7.2), **2D `ID_IGNORE`** tipos 9/13 y
+  el **oráculo de emparejamiento**. **Falta**: push de `main` y tag `v0.7.3` (o Actions → Release).
+  Detalle: `notes/2026-10-05-a1-tick-determinista.md`,
+  `notes/2026-10-05-fase-b-materializacion-c768.md`.
 
 - [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
   `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca
