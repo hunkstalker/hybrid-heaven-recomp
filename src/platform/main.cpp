@@ -712,6 +712,9 @@ int main(int argc, char** argv) {
 #endif
     };
     hh_env_default("HH_DET_CLOCK", "1");
+    // Bias para que el limiter (trunca µs y compara con el objetivo = 2 VI) cruce SIEMPRE en 2 VI.
+    // `[MEDIDO]` 256 NO basta en Windows (vuelven slips a 3 VI); 15625 sí (d3=0). La aritmética simple
+    // daba ~16, pero el sub-VI/fase real exige más. Deriva = bias/781250 ≈ 2% (residual a valorar).
     hh_env_default("HH_DET_CLOCK_BIAS", "15625");
     hh::log("[hh-env] tick: HH_DET_CLOCK=%s HH_DET_CLOCK_BIAS=%s\n",
             getenv("HH_DET_CLOCK") != nullptr ? getenv("HH_DET_CLOCK") : "-",
