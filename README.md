@@ -41,7 +41,7 @@ jefe) sin cuelgues ni crashes.
   todas las escenas.
 - **Alta tasa de refresco (interpolación de frames) activada por defecto**: RT64 presenta hasta el
   refresco del monitor interpolando los frames de 30 Hz del juego. Arreglados los artefactos visuales
-  conocidos (sesgado de cámara, huesos, aura del jefe [#6], puertas [#8]); apagable con
+  conocidos (sesgado de cámara, huesos, aura del jefe, puertas); apagable con
   `HH_MTXGROUP=0` / `HH_EMIT_TAG=0` o `Refresh Rate = Original`.
 - **Acciones por flanco** (mantener pulsado no repite) y lectura unificada de teclado/ratón/mando;
   remapeo de teclado persistente.
