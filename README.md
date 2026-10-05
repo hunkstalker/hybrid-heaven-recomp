@@ -42,8 +42,6 @@ jefe) sin cuelgues ni crashes.
 - **Alta tasa de refresco (interpolación de frames)** activada por defecto, con los artefactos
   visuales conocidos resueltos; apagable con `HH_MTXGROUP=0` / `HH_EMIT_TAG=0` o `Refresh Rate = Original`.
 - Teardown limpio (sin SEGV al salir).
-- **Bug conocido**: en el **inventario**, el recuadro tras la info de items sale desplazado en
-  **widescreen** (en curso; ver `TODO.md`).
 
 Limitaciones y pendientes (detalle en `TODO.md`): **`MODO VS` (2 jugadores) deshabilitado** (gris; ver
 `Controles y atajos`), audio atado al tick de 30 Hz, extracción/traducción de textos (JA por cotejar)
