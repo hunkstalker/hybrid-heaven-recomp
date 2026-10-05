@@ -4,8 +4,10 @@
 > `fase-b-interpolacion` **mergeada**; PATCH: fixes de **cámara** y del **objeto del menú de título** de
 > la interpolación). **Falta: push de `main` + tag `v0.7.2`.** **Pendiente de Fase B**: (0b)
 > discontinuidad de posición (enemigo en primer plano), (1) enumerar sitios de dibujo, (2) campo **LOD**,
-> (3) 2D `ID_IGNORE`, (5) validar con `HH_PAIRING`. Detalle:
-> `notes/2026-10-05-fase-b-camara-y-titulo.md`, `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+> (3) 2D `ID_IGNORE`, (5) validar con `HH_PAIRING`. **Fase B (0b) VALIDADA (2026-10-05)**: el tagging
+> de C768 no llegaba a RT64 en gameplay (gate por `a1` basura) → gate por **escena**. Investigación en
+> rama **`fase-b-investigacion`**. Detalle:
+> `notes/2026-10-05-fase-b-materializacion-c768.md`, `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 > Reglas: `AGENTS.md` y `docs/documentation.md`.
 
 ## Tarea de la sesión (2026-10-05): BUG inventario — caja negra anclada a la derecha — HECHA

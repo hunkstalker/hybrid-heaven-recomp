@@ -6,6 +6,14 @@
 
 ## 2026-10-05
 
+- **Interpolación: el tagging de C768 no llegaba a RT64 en gameplay (Fase B 0b) — ARREGLADO y VALIDADO
+  en Windows (2026-10-05).** El gate del fix del objeto del título comparaba `ctx->r5 == kGfxCursor`,
+  pero `a1` **no es argumento** de `func_8000C768` (solo lo llama el dispatch) → registro basura →
+  apagaba C768 en gameplay → sin ids explícitos (`explicit_ids=0`) → artefactos de 1 frame en objetos
+  en movimiento. Fix **port-only**: gate por **escena** (`hh::menu::native_title_active()`, ON en
+  partida, OFF en título) + A/B `HH_C768_ALL`. Validado: gameplay sin artefacto y objeto del título
+  correcto. `notes/2026-10-05-fase-b-materializacion-c768.md`.
+
 - **BUG inventario: caja negra de la info de items anclada a la derecha en widescreen — ARREGLADO y
   VALIDADO en Windows (2026-10-05).** La caja negra detrás del nombre/`x N`/`USABLE` se anclaba a la
   derecha y se movía con el aspecto (era un problema de **ancla 2D**, no de tamaño). Causa: en

@@ -40,6 +40,11 @@ proyección duplicaba la cámara, que va horneada en el modelview → se elimina
 título** (`C768` fuera de la ruta del cursor → se acota). **Validado en Windows (2026-10-05)**.
 **Pendiente**: push de `main` + tag `v0.7.2`. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
+**Fase B — (0b) VALIDADA (2026-10-05)**: el tagging de C768 **no llegaba a RT64 en gameplay** (el gate
+del título comparaba `ctx->r5`, basura; C768 no tiene `a1`) → sin ids explícitos → artefactos de 1 frame.
+Gate por **escena**. Investigación continúa en rama **`fase-b-investigacion`**.
+Detalle: `notes/2026-10-05-fase-b-materializacion-c768.md`.
+
 ## 1. Objetivo
 
 Port nativo a PC de **Hybrid Heaven** (N64, Konami/KCEO, 1999, proyecto interno **RZ011**) por

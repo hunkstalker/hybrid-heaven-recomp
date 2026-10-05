@@ -42,6 +42,7 @@
 #include "librecomp/overlays.hpp"
 #include "recomp.h"
 #include "hh.h"
+#include "hh/menu.h"
 
 // HH usa F3DEX2: el opcode del hook extendido (gEXEnable) es G_SPNOOP 0xE0, no 0x00. Sin esto,
 // `RT64_HOOK_OPCODE` vale 0x00 y el GBI extendido NUNCA se habilita -> RT64 descarta los
@@ -179,6 +180,12 @@ const uint32_t g_emit_mv_skip = [] {
     return m;
 }();
 inline bool emit_mv_skip(int id) { return id >= 0 && id < 32 && (g_emit_mv_skip & (1u << id)) != 0; }
+
+// `HH_C768_ALL=1`: A/B del gate de escena de C768 (emite tambien en el titulo). Por defecto OFF.
+const bool g_c768_all = [] {
+    const char* v = std::getenv("HH_C768_ALL");
+    return v != nullptr && *v != '\0' && *v != '0';
+}();
 
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
@@ -740,13 +747,13 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 // diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    // Solo la ruta del EMISOR de efectos real: recibe el cursor de gfx `kGfxCursor` en a1. En el menu
-    // de titulo, C768 se llama con otro `a1` (p. ej. `FF868DA5`) y envolverlo como modelview hacia
-    // que el objeto 3D del titulo "se moviera en coordenadas" (medido 2026-10-05). Gatear por cursor
-    // arregla el titulo sin perder el tagging de efectos en gameplay.
-    const bool cursor_path = (static_cast<uint32_t>(ctx->r5) == kGfxCursor);
+    // Gate por ESCENA, no por `a1`: C768 solo lo llama el dispatch `func_800069A8`, asi que `ctx->r5`
+    // es un registro basura; el gate anterior (`ctx->r5 == kGfxCursor`) apagaba el tagging de C768 en
+    // gameplay (medido 2026-10-05: explicit_ids=0 -> artefactos). En titulo no se emite (el objeto del
+    // titulo se movia); en partida si. `HH_C768_ALL=1` emite siempre (A/B).
+    const bool in_title = hh::menu::native_title_active();
     const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0 &&
-                      !emit_mv_skip(15) && cursor_path;
+                      !emit_mv_skip(15) && (!in_title || g_c768_all);
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);

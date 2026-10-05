@@ -1514,6 +1514,9 @@ std::string describe_tree() {
 
 // --- ELEGIR NIVEL: estado de partida cargada ---------------------------------------------------------
 static std::atomic<bool> g_game_loaded{ false };
+static std::atomic<bool> g_native_title_active{ false };
+bool native_title_active() { return g_native_title_active.load(); }
+void set_native_title_active(bool on) { g_native_title_active.store(on); }
 bool game_loaded() { return g_game_loaded.load(); }
 void set_game_loaded(bool on) {
     if (g_game_loaded.exchange(on) != on) {
