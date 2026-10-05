@@ -11,7 +11,7 @@
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
 | [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 291 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 455 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 463 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -74,6 +74,7 @@
 | [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 47 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |
 | [2026-10-05 — inventario: caja negra anclada a la derecha — ARREGLADO y VALIDADO](../notes/2026-10-05-fix-inventario-caja-negra-ancla.md) | Estado: **validado por el mantenedor en Windows (2026-10-05)**. Continúa el handoff | 51 | 2026-10-05 |
+| [2026-10-05 — Fase B (0): regresión de cámara + objeto del título — RESUELTA](../notes/2026-10-05-fase-b-camara-y-titulo.md) | Rama `fase-b-interpolacion`. Diagnóstico por A/B + fix quirúrgico; **validado por el mantenedor | 52 | 2026-10-05 |
 | [2026-10-05 — Fase A: cobertura libultra (recompilar vs delegar al runtime)](../notes/2026-10-05-fase-a-libultra-cobertura.md) | Rama `fase-a-libultra`, **mergeada en `main`** (ff). Auditoría + fix. **MEDIDO** salvo lo marcado. | 86 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |
 | [BUG abierto — inventario: recuadro negro detrás de la info de items, desplazado en widescreen (2026-10-05)](../notes/2026-10-05-bug-inventario-recuerdo-negro-desplazado.md) | Estado: **abierto**. Reportado por el mantenedor (2026-10-05). Ámbito: port, **anclaje 2D del HUD** | 119 | 2026-10-05 |

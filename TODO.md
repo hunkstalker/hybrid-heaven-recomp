@@ -59,16 +59,24 @@
   de nodo). Método documentado en `danielgomesvieira2000/pilotwings-64-recomp`
   (`patches/interpolation.c`): `gEXMatrixGroup(id=FNV(kind,objeto,modelo,LOD,gen_cámara))` en cada draw
   3D; 2D con `G_EX_ID_IGNORE`; `LINEAR`/`AUTO`; proyecciones “near”.
-  - [ ] **(0) REGRESIÓN A ARREGLAR — cámara**: el mantenedor reporta **problemas de cámara**
-    introducidos por las últimas modificaciones de **emparejamiento de ids** (2026-10-05); A va mejor
-    que la base v0.7.0 salvo esto. Localizar con `HH_PAIRING` + `paircap`.
+  - [x] **(0) Regresión de cámara + objeto del título — RESUELTA y VALIDADA (Windows 2026-10-05)**:
+    la **cámara** la rompía cualquier grupo de **PROYECCIÓN** (en HH la cámara va horneada en el
+    modelview → se duplicaba) → **proyección OFF por defecto**; el **objeto del título** lo rompía
+    **C768** (id 15) llamado con `a1 != kGfxCursor` → modelview de C768 gateado a la ruta del cursor.
+    A/B con `HH_EMIT_PROJ`/`HH_EMIT_MV`/`HH_EMIT_MV_SKIP`. Detalle:
+    `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+  - [ ] **(0b) Discontinuidad de POSICIÓN por objeto**: un enemigo que **cambia de coordenadas**
+    (mismo root/modelo → mismo id) se interpola a través del salto y aparece "en primer plano" al
+    inicio. Candidato: detectar el salto de posición por objeto y **bumpear su id** (como la
+    generación de cámara), o gate de discontinuidad en RT64.
   - [ ] (1) Enumerar los sitios de dibujo 3D de HH y taggear cada uno por `kind` (estáticos/entorno si
     existen fuera del traversal DOBJ).
   - [ ] (2) Localizar el **campo LOD** y meterlo en el id (A2.4).
   - [ ] (3) 2D `ID_IGNORE` en la proyección ortográfica (cuidado widescreen).
   - [ ] (4) `ORDER AUTO` por tipo de efecto; proyecciones “near” si aplican.
   - [ ] (5) Validar con `HH_PAIRING` + `paircap`.
-  Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md` §Fase B.
+  Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md` y
+  `notes/2026-10-05-fase-a-libultra-cobertura.md` §Fase B.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
