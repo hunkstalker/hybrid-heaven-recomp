@@ -150,10 +150,13 @@ const bool g_emit_tag = [] {
 }();
 
 // A/B fino del tagging de emisores: separa el grupo de PROYECCION (camara) del de MODELVIEW (geometria
-// del emisor). Sirve para aislar cual de los dos causa un artefacto. Por defecto ambos ON.
+// del emisor). Medido (2026-10-05): el grupo de **proyeccion por emisor** rompe la **camara al apuntar**
+// (con N grupos de proyeccion por frame, RT64 empareja el viewProj por indice y se desalinea); el
+// modelview por emisor (con generacion) ya hace snap en los cortes. Por eso **proyeccion OFF por
+// defecto**; `HH_EMIT_PROJ=1` la reactiva (A/B). El modelview sigue ON (`HH_EMIT_MV=0` lo apaga).
 const bool g_emit_proj = [] {
     const char* v = std::getenv("HH_EMIT_PROJ");
-    return !(v != nullptr && *v != '\0' && *v == '0');
+    return v != nullptr && *v != '\0' && *v != '0';   // por defecto OFF; `1` la enciende
 }();
 const bool g_emit_mv = [] {
     const char* v = std::getenv("HH_EMIT_MV");
