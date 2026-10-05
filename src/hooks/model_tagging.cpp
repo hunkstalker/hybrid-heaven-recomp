@@ -262,7 +262,7 @@ uint32_t g_obj_slot = 0;
 
 // ---- generacion de camara ---------------------------------------------------------------------
 
-bool camera_read(uint8_t* rdram, float pos[3], float fwd[3]) {
+bool camera_read(uint8_t* rdram, float pos[3], float fwd[3], float target[3]) {
     const uint32_t entity = rd_u32(rdram, kCamBase + kCamEntityOff);
     if (!valid_ram(entity) || entity == 0) {
         return false;
@@ -277,6 +277,11 @@ bool camera_read(uint8_t* rdram, float pos[3], float fwd[3]) {
     const float tx = rd_f32(rdram, xform + kCamTargetOff + 0u);
     const float ty = rd_f32(rdram, xform + kCamTargetOff + 4u);
     const float tz = rd_f32(rdram, xform + kCamTargetOff + 8u);
+    if (target != nullptr) {
+        target[0] = tx;
+        target[1] = ty;
+        target[2] = tz;
+    }
 
     float dx = tx - pos[0];
     float dy = ty - pos[1];
@@ -295,7 +300,16 @@ bool camera_read(uint8_t* rdram, float pos[3], float fwd[3]) {
 bool g_cam_prev_valid = false;
 float g_cam_prev_pos[3] = {0.0f, 0.0f, 0.0f};
 float g_cam_prev_fwd[3] = {0.0f, 0.0f, 0.0f};
+float g_cam_prev_vel[3] = {0.0f, 0.0f, 0.0f};   // velocidad de eye del frame previo (log/prediccion)
 uint64_t g_gen_count = 0;
+
+// Oráculo de cámara: `HH_CAM_LOG=<fichero>` escribe una linea por frame con eye/target, velocidad,
+// aceleracion y si se detecto corte. Lector: `tools/analysis/camera_log.py`. Sirve para disenar/validar
+// la deteccion de cortes por datos (corte real = discontinuidad; movimiento sostenido NO).
+FILE* g_cam_log_file = []() -> FILE* {
+    const char* p = std::getenv("HH_CAM_LOG");
+    return (p != nullptr && *p != '\0') ? std::fopen(p, "w") : nullptr;
+}();
 uint64_t g_object_group_count = 0;
 
 // Pasada 2 (efectos/2D ordenados): cuantas veces se invocan los wrappers. Sirve para saber si esa
@@ -314,35 +328,58 @@ void request_gen_capture() {
 }
 
 void camera_generation_step(uint8_t* rdram) {
-    float pos[3], fwd[3];
-    const bool ok = camera_read(rdram, pos, fwd);
+    float pos[3], fwd[3], target[3] = {0.0f, 0.0f, 0.0f};
+    const bool ok = camera_read(rdram, pos, fwd, target);
+
+    float vx = 0.0f, vy = 0.0f, vz = 0.0f;      // velocidad de eye
+    float ax = 0.0f, ay = 0.0f, az = 0.0f;      // aceleracion (cambio de velocidad)
+    float dist = 0.0f, dot = 1.0f;
+    bool cut = false;
 
     if (ok && g_cam_prev_valid) {
-        const float dx = pos[0] - g_cam_prev_pos[0];
-        const float dy = pos[1] - g_cam_prev_pos[1];
-        const float dz = pos[2] - g_cam_prev_pos[2];
-        const float dist2 = dx * dx + dy * dy + dz * dz;
-        const float dot = fwd[0] * g_cam_prev_fwd[0] + fwd[1] * g_cam_prev_fwd[1] +
-                          fwd[2] * g_cam_prev_fwd[2];
+        vx = pos[0] - g_cam_prev_pos[0];
+        vy = pos[1] - g_cam_prev_pos[1];
+        vz = pos[2] - g_cam_prev_pos[2];
+        ax = vx - g_cam_prev_vel[0];
+        ay = vy - g_cam_prev_vel[1];
+        az = vz - g_cam_prev_vel[2];
+        const float dist2 = vx * vx + vy * vy + vz * vz;
+        dist = std::sqrt(dist2);
+        dot = fwd[0] * g_cam_prev_fwd[0] + fwd[1] * g_cam_prev_fwd[1] + fwd[2] * g_cam_prev_fwd[2];
         if (dist2 > (kCutDistance * kCutDistance) || dot < kCutMinForwardDot) {
+            cut = true;
             ++sGeneration;
             ++g_gen_count;
             if (g_trace) {
-                hh::log("[hh-interp] corte de camara: gen=%u dist=%.1f dot=%.3f\n", sGeneration,
-                        std::sqrt(dist2), dot);
+                hh::log("[hh-interp] corte de camara: gen=%u dist=%.1f dot=%.3f\n", sGeneration, dist, dot);
             }
             request_gen_capture();
         }
     } else if (ok && !g_cam_prev_valid) {
         // Primer frame con camara tras uno sin camara (menu/carga): cadena nueva.
+        cut = true;
         ++sGeneration;
         ++g_gen_count;
         request_gen_capture();
     }
 
+    if (g_cam_log_file != nullptr) {
+        std::fprintf(g_cam_log_file,
+                     "C frame=%llu ok=%d eye=%.2f,%.2f,%.2f at=%.2f,%.2f,%.2f fwd=%.3f,%.3f,%.3f "
+                     "v=%.1f,%.1f,%.1f |v|=%.1f a=%.1f,%.1f,%.1f |a|=%.1f dot=%.3f cut=%d gen=%u\n",
+                     (unsigned long long)hh_dl_frame_count(), ok ? 1 : 0,
+                     pos[0], pos[1], pos[2], target[0], target[1], target[2], fwd[0], fwd[1], fwd[2],
+                     vx, vy, vz, std::sqrt(vx * vx + vy * vy + vz * vz),
+                     ax, ay, az, std::sqrt(ax * ax + ay * ay + az * az), dot, cut ? 1 : 0, sGeneration);
+        std::fflush(g_cam_log_file);
+    }
+
     if (ok) {
         std::memcpy(g_cam_prev_pos, pos, sizeof(pos));
         std::memcpy(g_cam_prev_fwd, fwd, sizeof(fwd));
+        g_cam_prev_vel[0] = vx;
+        g_cam_prev_vel[1] = vy;
+        g_cam_prev_vel[2] = vz;
     }
     g_cam_prev_valid = ok;
     if (sGeneration == 0) {

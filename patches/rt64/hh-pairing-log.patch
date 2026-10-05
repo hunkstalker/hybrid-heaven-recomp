@@ -1,0 +1,584 @@
+diff --git a/src/gbi/rt64_gbi_extended.cpp b/src/gbi/rt64_gbi_extended.cpp
+index 20c0d4d..853e908 100644
+--- a/src/gbi/rt64_gbi_extended.cpp
++++ b/src/gbi/rt64_gbi_extended.cpp
+@@ -6,6 +6,12 @@
+ 
+ #include "../include/rt64_extended_gbi.h"
+ 
++// HH: contadores de la sonda del GBI extendido (definidos en rt64_game_frame.cpp).
++extern "C" uint64_t hh_enable_count;
++extern "C" uint64_t hh_ext_dispatch;
++extern "C" uint64_t hh_matrixid_count;
++extern "C" uint64_t hh_ext_op_seen;
++
+ namespace RT64 {
+     namespace GBI_EXTENDED {
+         static GBIFunction Map[G_EX_MAX];
+@@ -351,6 +357,7 @@ namespace RT64 {
+                     }
+                     
+                     state->enableExtendedGBI(extendedOpCode);
++                    hh_enable_count++;
+                     break;
+                 }
+                 case RT64_HOOK_OP_DISABLE:
+@@ -377,6 +384,11 @@ namespace RT64 {
+             assert(MapInitialized);
+ 
+             uint32_t opCode = (*dl)->p0(0, 24);
++            hh_ext_dispatch++;
++            hh_ext_op_seen = opCode;
++            if (opCode == G_EX_MATRIXGROUP_V1) {
++                hh_matrixid_count++;
++            }
+             if (opCode < G_EX_MAX) {
+                 Map[opCode](state, dl);
+             }
+diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
+index 87392d0..324ee5c 100644
+--- a/src/hle/rt64_game_frame.cpp
++++ b/src/hle/rt64_game_frame.cpp
+@@ -9,6 +9,115 @@
+ 
+ #include "xxHash/xxh3.h"
+ 
++#include <atomic>
++#include <chrono>
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <ctime>
++#include <string>
++#include <unordered_set>
++
++// HH: contadores del emparejamiento de transforms (métrica objetiva de la interpolación de alta
++// tasa; ver notes/2026-10-02-fps-interpolacion-estado-y-handoff.md y el plan de transform tagging).
++// RT64 dibuja los frames intermedios emparejando cada transform con el del frame anterior; el que
++// no encuentra pareja se queda quieto y "da el salto" a 30 Hz. Estos contadores, por frame lógico:
++// total de transforms; los que el juego pidió no interpolar (matrix groups con id ignorado: 2D,
++// efectos); los que quedaron sin pareja; y de esos, los que además se movieron (los que cuestan).
++// Escritos en el hilo de workload y leídos en el del juego sin sincronización: suficiente para una
++// tasa promediada por segundo. Expuestos a través de `RT64_GetTransformPairing`.
++static uint64_t hhPairingFrames = 0;
++static uint64_t hhPairingTotal = 0;
++static uint64_t hhPairingIgnored = 0;
++static uint64_t hhPairingUnpaired = 0;
++static uint64_t hhPairingUnpairedMoved = 0;
++// HH: cuantos transformGroups llevan un matrixId EXPLICITO (ni AUTO ni IGNORE). Prueba directa de
++// que los `gEXMatrixGroup` del port llegan a RT64 (si es 0, el tagging no entra).
++static uint64_t hhPairingExplicitIds = 0;
++// HH: no-emparejados que SI llevan matrixId explicito (su ID no caso entre frames), frente a los
++// que no llevan tag. Distingue "falta tag" de "el tag cambio/cambio de nodo".
++static uint64_t hhPairingUnpairedTagged = 0;
++
++// HH: contador global de transformGroups materializados con matrixId explicito. Lo incrementa
++// RSP::setVertexCommon (rt64_rsp.cpp) cuando un gEXMatrixGroup del port llega a RT64. Prueba
++// directa del tagging, independiente de que haya emparejamiento de frames. C linkage para que
++// rt64_rsp.cpp (namespace RT64) lo toque sin ambiguedad de namespaces.
++extern "C" uint64_t hh_group_seen_count = 0;
++
++// HH: sonda del GBI extendido (HH_GBI_PROBE=1). Sirve para localizar POR QUE el tagging no
++// materializa en pass 1 aunque el port emita `gEXEnable`:
++//   - hh_enable_count: hooks `gEXEnable` (RT64_HOOK_OP_ENABLE) recibidos y aceptados.
++//   - hh_ext_dispatch: veces que el interprete entra en `extendedOp` con el GBI extendido activo.
++//   - hh_matrixid_count: `matrixId` (gEXMatrixGroup) procesados dentro de extendedOp.
++//   - hh_ext_op_seen: ultimo opcode extendido leido en extendedOp (G_EX_MATRIXGROUP_V1=0x0C...).
++extern "C" uint64_t hh_enable_count = 0;
++extern "C" uint64_t hh_ext_dispatch = 0;
++extern "C" uint64_t hh_matrixid_count = 0;
++extern "C" uint64_t hh_ext_op_seen = 0;
++// setVertexCommon invocado (donde se materializaria el grupo). Cuenta si `G_VTX` con
++// `modelMatrixIdStackChanged` no se esta llamando durante el dibujo de los objetos taggeados.
++extern "C" uint64_t hh_vertcommon_count = 0;
++
++extern "C" unsigned long long RT64_GetGroupSeenCount() {
++    return hh_group_seen_count;
++}
++
++extern "C" void RT64_GetGbiProbeCounters(unsigned long long *enable, unsigned long long *dispatch,
++                                         unsigned long long *matrixId, unsigned long long *opSeen,
++                                         unsigned long long *vertCommon) {
++    *enable = hh_enable_count;
++    *dispatch = hh_ext_dispatch;
++    *matrixId = hh_matrixid_count;
++    *opSeen = hh_ext_op_seen;
++    if (vertCommon != nullptr) {
++        *vertCommon = hh_vertcommon_count;
++    }
++}
++
++extern "C" void RT64_GetTransformPairing(unsigned long long *frames, unsigned long long *total,
++                                         unsigned long long *ignored, unsigned long long *unpaired,
++                                         unsigned long long *unpairedMoved, unsigned long long *explicitIds,
++                                         unsigned long long *unpairedTagged) {
++    *frames = hhPairingFrames;
++    *total = hhPairingTotal;
++    *ignored = hhPairingIgnored;
++    *unpaired = hhPairingUnpaired;
++    *unpairedMoved = hhPairingUnpairedMoved;
++    *explicitIds = hhPairingExplicitIds;
++    *unpairedTagged = hhPairingUnpairedTagged;
++}
++
++// HH: auto-captura de frames con transforms no emparejados y MOVidos (artefactos de 1 frame que no
++// se pueden atribuir a ojo). El bloque de metricas marca la peticion; `update_screen` (mismo hilo de
++// render) la consume y guarda la imagen + una linea de log. `HH_PAIRCAP=<min moved>` la activa.
++static std::atomic<int> hhPairCaptureRequested{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureMoved{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureTagged{ 0 };
++static std::atomic<unsigned long long> hhPairCaptureUnpaired{ 0 };
++
++// Devuelve 1 y rellena los contadores si hubo una peticion desde la ultima llamada.
++extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long long *tagged,
++                                    unsigned long long *unpaired) {
++    if (hhPairCaptureRequested.exchange(0) == 0) {
++        return 0;
++    }
++    *moved = hhPairCaptureMoved.load();
++    *tagged = hhPairCaptureTagged.load();
++    *unpaired = hhPairCaptureUnpaired.load();
++    return 1;
++}
++
++// HH (A2.2d): histograma de TransformGroups MATERIALIZADOS por emisor del tagging del port. El id
++// del grupo es `0xEE000000 | (code << 16) | slot`; [code] = 4..14 emitter_wrap, 15 = C768. Sirve
++// para medir si la materializacion en el push (plan 1) hace llegar por fin los grupos de cada
++// emisor (si un code no aparece, su geometria sigue huerfana).
++extern "C" uint64_t hh_mat_emit_hist[16] = { 0 };
++extern "C" void RT64_GetEmitterMatHist(unsigned long long *out16) {
++    for (int i = 0; i < 16; i++) {
++        out16[i] = hh_mat_emit_hist[i];
++    }
++}
++
+ namespace RT64 {
+     // GameFrame
+     
+@@ -375,6 +484,226 @@ namespace RT64 {
+         matchScenes(perspectiveScenes, prevFrame.perspectiveScenes);
+         matchScenes(orthographicScenes, prevFrame.orthographicScenes);
+ 
++        // HH: mide cuántos transforms se quedaron sin pareja (HH_PAIRING=1). Se ejecuta tras el
++        // emparejamiento de la escena, con todas las workloads ya marcadas.
++        {
++            thread_local std::unordered_set<uint64_t> hhPrevMatrices;
++            hhPrevMatrices.clear();
++            for (uint32_t w : workloads) {
++                const GameFrameMap::WorkloadMap &map = frameMap.workloads[w];
++                if (!map.mapped) {
++                    continue;
++                }
++
++                const Workload &prevWorkload = workloadQueue.workloads[map.prevWorkloadIndex];
++                for (const interop::float4x4 &m : prevWorkload.drawData.worldTransforms) {
++                    hhPrevMatrices.insert(XXH3_64bits(&m, sizeof(m)));
++                }
++            }
++
++            uint32_t total = 0, ignored = 0, unpaired = 0, unpairedMoved = 0, explicitIds = 0, unpairedTagged = 0;
++
++            // HH: volcado de identidad (fase 2a). Cuando el contador de transforms no emparejados y
++            // movidos es alto, interesa saber CUÁL es (no solo cuántos): por worklaod/índice, la
++            // dirección física/segmentada del model matrix y su posición en mundo. Solo se volca
++            // en picos y con un tope, para no inundar. `HH_PAIRING_DUMP=<min unpaired_moved>` (sin
++            // número -> 20). Los datos orientan la identidad estable del tagging.
++            static const int hh_pairing_dump_min = []() {
++                const char *e = std::getenv("HH_PAIRING_DUMP");
++                if (e == nullptr || *e == '\0') return -1;
++                const int v = atoi(e);
++                return (v > 0) ? v : 20;
++            }();
++            static int hh_pairing_dump_left = 2000;
++
++            for (uint32_t w : workloads) {
++                const GameFrameMap::WorkloadMap &map = frameMap.workloads[w];
++                const Workload &curWorkload = workloadQueue.workloads[w];
++                for (size_t t = 0; t < map.transforms.size(); t++) {
++                    total++;
++                    if (t < curWorkload.drawData.worldTransformGroups.size()) {
++                        const uint32_t gi = curWorkload.drawData.worldTransformGroups[t];
++                        if (gi < curWorkload.drawData.transformGroups.size()) {
++                            const uint32_t mid = curWorkload.drawData.transformGroups[gi].matrixId;
++                            if ((mid != G_EX_ID_AUTO) && (mid != G_EX_ID_IGNORE)) {
++                                explicitIds++;
++                            }
++                        }
++                    }
++                    if (map.transforms[t].mapped) {
++                        continue;
++                    }
++
++                    const uint32_t groupIndex = curWorkload.drawData.worldTransformGroups[t];
++                    if (curWorkload.drawData.transformGroups[groupIndex].matrixId == G_EX_ID_IGNORE) {
++                        ignored++;
++                        continue;
++                    }
++
++                    unpaired++;
++                    // Desglose: ¿el no-emparejado tiene tag explicito (su ID no caso) o no tiene tag?
++                    if (t < curWorkload.drawData.worldTransformGroups.size()) {
++                        const uint32_t gi2 = curWorkload.drawData.worldTransformGroups[t];
++                        if (gi2 < curWorkload.drawData.transformGroups.size()) {
++                            const uint32_t mid2 = curWorkload.drawData.transformGroups[gi2].matrixId;
++                            if ((mid2 != G_EX_ID_AUTO) && (mid2 != G_EX_ID_IGNORE)) {
++                                unpairedTagged++;
++                            }
++                        }
++                    }
++                    const interop::float4x4 &m = curWorkload.drawData.worldTransforms[t];
++                    if (hhPrevMatrices.find(XXH3_64bits(&m, sizeof(m))) != hhPrevMatrices.end()) {
++                        continue;
++                    }
++
++                    unpairedMoved++;
++
++                    if ((hh_pairing_dump_min > 0) && (hh_pairing_dump_left > 0) && (unpairedMoved >= uint32_t(hh_pairing_dump_min))) {
++                        hh_pairing_dump_left--;
++                        const uint32_t segmented = (t < curWorkload.drawData.worldTransformSegmentedAddresses.size())
++                                                       ? curWorkload.drawData.worldTransformSegmentedAddresses[t] : 0;
++                        const uint32_t physical = (t < curWorkload.drawData.worldTransformPhysicalAddresses.size())
++                                                      ? curWorkload.drawData.worldTransformPhysicalAddresses[t] : 0;
++                        const uint32_t group = (t < curWorkload.drawData.worldTransformGroups.size())
++                                                   ? curWorkload.drawData.worldTransformGroups[t] : 0;
++                        const uint32_t mid = (group < curWorkload.drawData.transformGroups.size())
++                                                 ? curWorkload.drawData.transformGroups[group].matrixId : 0;
++                        const float *m3 = m[3];
++                        std::fprintf(stderr, "[HH_PAIR_DUMP] w=%u t=%zu grp=%u id=%08X seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
++                                     w, t, group, mid, segmented, physical, m3[0], m3[1], m3[2]);
++                        // La app GUI no captura stderr: se vuelca tambien a `hh_pairdump.log`.
++                        if (FILE *hf = std::fopen("hh_pairdump.log", "a")) {
++                            std::fprintf(hf, "[HH_PAIR_DUMP] f=%llu w=%u t=%zu grp=%u id=%08X seg=%08X phys=%08X pos=(%.1f,%.1f,%.1f)\n",
++                                         (unsigned long long)hhPairingFrames, w, t, group, mid,
++                                         segmented, physical, m3[0], m3[1], m3[2]);
++                            std::fclose(hf);
++                        }
++                    }
++                }
++            }
++
++            // HH: pide una captura de pantalla si el frame tiene transforms no emparejados movidos.
++            static const int hh_paircap_min = []() {
++                const char *e = std::getenv("HH_PAIRCAP");
++                if (e == nullptr || *e == '\0') return -1;
++                const int v = atoi(e);
++                return (v > 0) ? v : 3;
++            }();
++            static int hh_paircap_left = 80;
++            if ((hh_paircap_min > 0) && (hh_paircap_left > 0) &&
++                (unpairedMoved >= uint32_t(hh_paircap_min))) {
++                hh_paircap_left--;
++                hhPairCaptureMoved = unpairedMoved;
++                hhPairCaptureTagged = unpairedTagged;
++                hhPairCaptureUnpaired = unpaired;
++                hhPairCaptureRequested = 1;
++            }
++
++            hhPairingFrames++;
++            hhPairingTotal += total;
++            hhPairingIgnored += ignored;
++            hhPairingUnpaired += unpaired;
++            hhPairingUnpairedMoved += unpairedMoved;
++            hhPairingExplicitIds += explicitIds;
++            hhPairingUnpairedTagged += unpairedTagged;
++        }
++
++        // HH: ORACULO — pairing log. `HH_PAIRING_LOG=<fichero>` escribe una linea por transform y
++        // frame (formato del lector de referencia `tools/analysis/pairing_log.py`, adaptado de
++        // wr3/tools/pairing_log.py). Sirve para clasificar artefactos por DATOS (id explicito vs
++        // AUTO, salto, lerp, velocidad previa) sin mirar el juego. Se flush-ea por frame para
++        // conservar el final si se cierra. Cap de lineas `HH_PAIRING_LOG_MAX` (def. 10M).
++        static FILE *hhPairingLogFile = []() -> FILE * {
++            const char *p = std::getenv("HH_PAIRING_LOG");
++            if (p == nullptr || *p == '\0') {
++                return nullptr;
++            }
++            // `%t` -> fecha-hora local (YYYYmmdd_HHMMSS): cada sesion escribe un fichero distinto.
++            std::string path(p);
++            const size_t tok = path.find("%t");
++            if (tok != std::string::npos) {
++                std::time_t t = std::time(nullptr);
++                std::tm tm{};
++#if defined(_WIN32)
++                localtime_s(&tm, &t);
++#else
++                localtime_r(&t, &tm);
++#endif
++                char buf[32];
++                std::strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm);
++                path.replace(tok, 2, buf);
++            }
++            return std::fopen(path.c_str(), "w");
++        }();
++        if (hhPairingLogFile != nullptr) {
++            static uint64_t hhLogFrame = 0;
++            static const uint64_t hhLogMax = []() -> uint64_t {
++                const char *e = std::getenv("HH_PAIRING_LOG_MAX");
++                const long long v = (e != nullptr && *e != '\0') ? std::atoll(e) : 0;
++                return (v > 0) ? (uint64_t)v : 10000000ull;
++            }();
++            const uint64_t wall = (uint64_t)std::chrono::duration_cast<std::chrono::milliseconds>(
++                                      std::chrono::system_clock::now().time_since_epoch())
++                                      .count();
++            hhLogFrame++;
++            std::fprintf(hhPairingLogFile, "F %llu wall=%llu\n", (unsigned long long)hhLogFrame,
++                         (unsigned long long)wall);
++            uint32_t s_total = 0, s_paired = 0, s_j50 = 0, s_j100 = 0, s_j200 = 0;
++            float s_max = 0.0f;
++            uint64_t lines = 0;
++            for (uint32_t w : workloads) {
++                const GameFrameMap::WorkloadMap &map = frameMap.workloads[w];
++                if (!map.mapped) {
++                    continue;
++                }
++                const Workload &curWorkload = workloadQueue.workloads[w];
++                const Workload &prevWorkload = workloadQueue.workloads[map.prevWorkloadIndex];
++                for (size_t t = 0; t < map.transforms.size(); t++) {
++                    s_total++;
++                    uint32_t id = G_EX_ID_AUTO;
++                    if (t < curWorkload.drawData.worldTransformGroups.size()) {
++                        const uint32_t gi = curWorkload.drawData.worldTransformGroups[t];
++                        if (gi < curWorkload.drawData.transformGroups.size()) {
++                            id = curWorkload.drawData.transformGroups[gi].matrixId;
++                        }
++                    }
++                    const float *cp = curWorkload.drawData.worldTransforms[t][3];
++                    const GameFrameMap::TransformMap &tm = map.transforms[t];
++                    float px = 0.0f, py = 0.0f, pz = 0.0f;
++                    if (tm.mapped && tm.prevTransformIndex < prevWorkload.drawData.worldTransforms.size()) {
++                        const float *pp = prevWorkload.drawData.worldTransforms[tm.prevTransformIndex][3];
++                        px = pp[0]; py = pp[1]; pz = pp[2];
++                    }
++                    const float dx = cp[0] - px, dy = cp[1] - py, dz = cp[2] - pz;
++                    const float jump = std::sqrt(dx * dx + dy * dy + dz * dz);
++                    if (tm.mapped) {
++                        const bool lerp = tm.rigidBody.lerpTranslation;
++                        const float pvel = hlslpp::length(tm.rigidBody.linearVelocity);
++                        s_paired++;
++                        if (jump > s_max) s_max = jump;
++                        if (jump > 50.0f) s_j50++;
++                        if (jump > 100.0f) s_j100++;
++                        if (jump > 200.0f) s_j200++;
++                        if (lines < hhLogMax) {
++                            lines++;
++                            std::fprintf(hhPairingLogFile,
++                                         "T %zu %u %s id=%08X call=0 range=0-0 cur=%.1f,%.1f,%.1f prev=%.1f,%.1f,%.1f jump=%.1f lerp=%d pvel=%.1f\n",
++                                         t, tm.prevTransformIndex,
++                                         ((id != G_EX_ID_AUTO) && (id != G_EX_ID_IGNORE)) ? "id" : "auto",
++                                         id, cp[0], cp[1], cp[2], px, py, pz, jump, lerp ? 1 : 0, pvel);
++                        }
++                    } else if (lines < hhLogMax) {
++                        lines++;
++                        std::fprintf(hhPairingLogFile, "U %zu id=%08X call=0 range=0-0 cur=%.1f,%.1f,%.1f\n",
++                                     t, id, cp[0], cp[1], cp[2]);
++                    }
++                }
++            }
++            std::fprintf(hhPairingLogFile, "S frame=%llu total=%u paired=%u j50=%u j100=%u j200=%u max=%.1f refused=0\n",
++                         (unsigned long long)hhLogFrame, s_total, s_paired, s_j50, s_j100, s_j200, s_max);
++            std::fflush(hhPairingLogFile);
++        }
++
+         if (!workloadsModified.empty()) {
+             thread_local std::vector<BufferUploader::Upload> uploads;
+             uploads.clear();
+@@ -709,6 +1038,20 @@ namespace RT64 {
+         }
+     }
+ 
++    // HH: sonda de materializacion de `gEXMatrixGroup` (por que el tagging no llega a la geometria).
++    //  - pushed: pushes de matrixId con id explicito (gEXMatrixGroup del port).
++    //  - orphan: un pop de matrixId con la pila AUN cambiada -> el grupo no fue consumido por ningun
++    //    vertice (la geometria va por otro camino / diferida) -> id perdido (queda el padre, AUTO).
++    //  - clear_lost: `clearExtended()` con pila cambiada (fin de DL) -> grupo perdido por reset.
++    extern "C" uint64_t hh_mat_pushed = 0;
++    extern "C" uint64_t hh_mat_orphan = 0;
++    extern "C" uint64_t hh_mat_clear_lost = 0;
++    extern "C" void RT64_GetMatProbeCounters(unsigned long long *pushed, unsigned long long *orphan, unsigned long long *clearLost) {
++        if (pushed != nullptr) *pushed = hh_mat_pushed;
++        if (orphan != nullptr) *orphan = hh_mat_orphan;
++        if (clearLost != nullptr) *clearLost = hh_mat_clear_lost;
++    }
++
+     void GameFrame::matchTransform(Workload &curWorkload, const Workload &prevWorkload, GameFrameMap::WorkloadMap &curWorkloadMap, const GameFrameMap::WorkloadMap *prevWorkloadMap, uint32_t curTransformIndex, uint32_t prevTransformIndex, ModifiedBuffers &modifiedBuffers) {
+         GameFrameMap::TransformMap &curTransformMap = curWorkloadMap.transforms[curTransformIndex];
+         if (prevWorkloadMap != nullptr) {
+@@ -727,6 +1070,49 @@ namespace RT64 {
+         curTransformMap.mapped = true;
+         curWorkloadMap.prevTransformsMapped[prevTransformIndex] = true;
+ 
++        // HH: traza NUMERICA de picos (diagnostico objetivo del artefacto de 1 frame; no requiere
++        // captura). `HH_SPIKE_LOG=1` -> `hh_spike.log`. Escribe solo cuando el salto de posicion o el
++        // cambio de escala entre el frame previo y el actual supera un umbral, con la `matrixId`
++        // explicita (para mapearla al objeto con el log del port). Tope 4000 lineas.
++        static const bool hh_spike_on = std::getenv("HH_SPIKE_LOG") != nullptr;
++        if (hh_spike_on) {
++            static int hh_spike_left = 4000;
++            static unsigned long long hh_spike_seq = 0;
++            const hlslpp::float3 pp = prevTransform[3].xyz;
++            const hlslpp::float3 cp = curTransform[3].xyz;
++            const float dpos = hlslpp::length(cp - pp);
++            constexpr float kEps = 1e-6f;
++            const float s0p = hlslpp::length(prevTransform[0].xyz), s0c = hlslpp::length(curTransform[0].xyz);
++            const float s1p = hlslpp::length(prevTransform[1].xyz), s1c = hlslpp::length(curTransform[1].xyz);
++            const float s2p = hlslpp::length(prevTransform[2].xyz), s2c = hlslpp::length(curTransform[2].xyz);
++            const float r0 = (s0c / (s0p > kEps ? s0p : kEps));
++            const float r1 = (s1c / (s1p > kEps ? s1p : kEps));
++            const float r2 = (s2c / (s2p > kEps ? s2p : kEps));
++            float dr = 1.0f;
++            if (r0 > dr) dr = r0; if ((1.0f / r0) > dr) dr = 1.0f / r0;
++            if (r1 > dr) dr = r1; if ((1.0f / r1) > dr) dr = 1.0f / r1;
++            if (r2 > dr) dr = r2; if ((1.0f / r2) > dr) dr = 1.0f / r2;
++            if (((dpos > 30.0f) || (dr > 1.3f)) && (hh_spike_left > 0)) {
++                hh_spike_left--;
++                // `HH_SPIKE_FILE=<name>` para separar runs A/B (por defecto hh_spike.log).
++                static const char *hh_spike_name = []() {
++                    const char *e = std::getenv("HH_SPIKE_FILE");
++                    return (e != nullptr && *e != '\0') ? e : "hh_spike.log";
++                }();
++                if (FILE *hf = std::fopen(hh_spike_name, "a")) {
++                    std::fprintf(hf, "[HH_SPIKE] n=%llu id=%08X dpos=%.1f dr=%.2f pos=(%.1f,%.1f,%.1f)->(%.1f,%.1f,%.1f) s=(%.2f,%.2f,%.2f)->(%.2f,%.2f,%.2f) t=%u\n",
++                                 hh_spike_seq, curGroup.matrixId, (double)dpos, (double)dr,
++                                 (double)pp.x, (double)pp.y, (double)pp.z,
++                                 (double)cp.x, (double)cp.y, (double)cp.z,
++                                 (double)s0p, (double)s1p, (double)s2p,
++                                 (double)s0c, (double)s1c, (double)s2c,
++                                 (unsigned)curTransformIndex);
++                    std::fclose(hf);
++                }
++            }
++            hh_spike_seq++;
++        }
++
+         uint64_t curVertexHash = 0;
+         uint64_t prevVertexHash = 0;
+         uint32_t curVertexIndex = curWorkload.drawData.worldTransformVertexIndices[curTransformIndex];
+diff --git a/src/hle/rt64_interpreter.cpp b/src/hle/rt64_interpreter.cpp
+index dccaa87..c97193b 100644
+--- a/src/hle/rt64_interpreter.cpp
++++ b/src/hle/rt64_interpreter.cpp
+@@ -173,6 +173,9 @@ namespace RT64 {
+             opCode = (dl->w0 >> 24);
+ 
+             if ((extendedOpCode != 0) && (opCode == extendedOpCode)) {
++                // Los handlers de `Map[opCode]` ya avanzan `*dl` al ultimo word de su comando; el
++                // `dl++` de abajo cierra el avance. NO anadir la longitud aqui (duplicaba el salto
++                // y desalineaba la DL: rompia el HUD/widescreen).
+                 extendedFunction(state, &dl);
+             }
+             else {
+diff --git a/src/hle/rt64_rigid_body.cpp b/src/hle/rt64_rigid_body.cpp
+index da9c9f7..6afc518 100644
+--- a/src/hle/rt64_rigid_body.cpp
++++ b/src/hle/rt64_rigid_body.cpp
+@@ -39,6 +39,33 @@ namespace RT64 {
+             lerpTranslation = (componentInterpolation == G_EX_COMPONENT_INTERPOLATE);
+             linearVelocity = 0.0f;
+         }
++
++        // HH: gate de discontinuidad de POSICION. Efectos (C768) que se reubican desde el origen
++        // (0,0,0) conservan su id y RT64 interpola el salto -> el efecto barre desde el origen
++        // (medido 2026-10-05: dpos 596-729 u; p. ej. el laser). Si el salto de traslacion supera
++        // `HH_POS_GATE` (por defecto 200; `0` lo apaga), se hace *snap*. `HH_POS_GATE_LOG=1` traza.
++        static const float hh_pos_gate = []() {
++            const char *e = std::getenv("HH_POS_GATE");
++            if (e == nullptr || *e == '\0') return -1.0f;   // experimental: OFF por defecto
++            const float v = static_cast<float>(atof(e));
++            return (v > 0.0f) ? v : -1.0f;
++        }();
++        if ((hh_pos_gate > 0.0f) && lerpTranslation) {
++            const hlslpp::float3 pp = prevTransform[3].xyz;
++            const hlslpp::float3 cp = curTransform[3].xyz;
++            const float jump = hlslpp::length(cp - pp);
++            if (jump > hh_pos_gate) {
++                lerpTranslation = false;
++                static int hh_pos_logged = 0;
++                if ((hh_pos_logged < 200) && (std::getenv("HH_POS_GATE_LOG") != nullptr)) {
++                    hh_pos_logged++;
++                    if (FILE *hf = std::fopen("hh_pos.log", "a")) {
++                        std::fprintf(hf, "[HH_POS_GATE] snap jump=%.1f gate=%.1f\n", jump, hh_pos_gate);
++                        std::fclose(hf);
++                    }
++                }
++            }
++        }
+     }
+ 
+     void RigidBody::updateAngular(const hlslpp::float4x4 &prevTransform, const hlslpp::float4x4 &curTransform, uint8_t rotInterpolation, uint8_t scaleInterpolation, uint8_t skewInterpolation) {
+diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
+index 1da2550..c26b87b 100644
+--- a/src/hle/rt64_rsp.cpp
++++ b/src/hle/rt64_rsp.cpp
+@@ -6,6 +6,19 @@
+ 
+ #include <cassert>
+ 
++// HH: contador de gEXMatrixGroup materializados (definido en rt64_game_frame.cpp).
++extern "C" uint64_t hh_group_seen_count;
++// HH (A2.2d): histograma de materializaciones por emisor del tagging del port (id 0xEE code).
++extern "C" uint64_t hh_mat_emit_hist[16];
++// HH: sonda del GBI extendido (definida en rt64_game_frame.cpp).
++extern "C" uint64_t hh_ext_dispatch;
++extern "C" uint64_t hh_matrixid_count;
++extern "C" uint64_t hh_vertcommon_count;
++// HH: sonda de materializacion (definida en rt64_game_frame.cpp).
++extern "C" uint64_t hh_mat_pushed;
++extern "C" uint64_t hh_mat_orphan;
++extern "C" uint64_t hh_mat_clear_lost;
++
+ #include "../include/rt64_extended_gbi.h"
+ #include "common/rt64_common.h"
+ #include "common/rt64_math.h"
+@@ -506,11 +519,22 @@ namespace RT64 {
+         const int workloadCursor = state->ext.workloadQueue->writeCursor;
+         Workload &workload = state->ext.workloadQueue->workloads[workloadCursor];
+ 
++        ::hh_vertcommon_count++;
+         if (extended.modelMatrixIdStackChanged) {
+             const int stackIndex = extended.modelMatrixIdStackSize - 1;
+             extended.curModelMatrixIdGroupIndex = int(workload.drawData.transformGroups.size());
+             workload.drawData.transformGroups.emplace_back(extended.modelMatrixIdStack[stackIndex]);
+             extended.modelMatrixIdStackChanged = false;
++            // HH: prueba directa de que un gEXMatrixGroup del port materializa un TransformGroup.
++            const uint32_t hhMid = extended.modelMatrixIdStack[stackIndex].matrixId;
++            if ((hhMid != G_EX_ID_AUTO) && (hhMid != G_EX_ID_IGNORE)) {
++                ::hh_group_seen_count++;
++                // HH (A2.2d): histograma por emisor del tagging (id `0xEE` code) para saber que
++                // emisores materializan de verdad (medido: solo C768, code 15).
++                if ((hhMid >> 24) == 0xEEu) {
++                    ::hh_mat_emit_hist[(hhMid >> 16) & 0xFu]++;
++                }
++            }
+         }
+         
+         // ModelViewProj is only updated when a vertex is processed and the flag is enabled.
+@@ -1249,12 +1273,18 @@ namespace RT64 {
+             dstGroup->matrixId = id;
+             setGroupProperties(dstGroup, true);
+             stackChanged = true;
++            ::hh_mat_pushed++;
+         }
+     }
+ 
+     void RSP::popMatrixId(uint8_t count, bool proj) {
+         int &stackSize = proj ? extended.viewProjMatrixIdStackSize : extended.modelMatrixIdStackSize;
+         bool &stackChanged = proj ? extended.viewProjMatrixIdStackChanged : extended.modelMatrixIdStackChanged;
++        // HH: si al hacer pop la pila sigue "changed", el grupo empujado no fue consumido por ningun
++        // vertice (geometria ausente en ese tramo) -> id perdido.
++        if (stackChanged) {
++            ::hh_mat_orphan++;
++        }
+         assert((count <= stackSize) && "Pop has requested a larger amount of matrices than the ones present in the stack.");
+         while ((count > 0) && (stackSize > 1)) {
+             count--;
+@@ -1268,6 +1298,10 @@ namespace RT64 {
+     }
+ 
+     void RSP::clearExtended() {
++        // HH: si se limpia la pila con un grupo pendiente, ese id se pierde (fin de DL/reset).
++        if (extended.modelMatrixIdStackChanged || extended.viewProjMatrixIdStackChanged) {
++            ::hh_mat_clear_lost++;
++        }
+         extended.drawExtendedType = DrawExtendedType::None;
+         extended.drawExtendedData = {};
+         extended.viewportOriginStack[0] = G_EX_ORIGIN_NONE;

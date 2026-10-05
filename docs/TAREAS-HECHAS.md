@@ -6,6 +6,15 @@
 
 ## 2026-10-05
 
+- **Fase B — emparejamiento de ids: CERRADA y MEDIDA (2026-10-05).** Método estándar aplicado
+  (enumeración 3D sin caminos fuera del traversal; LOD = `node+0x2C`; 2D `ID_IGNORE` tipos 9/13;
+  `ORDER_AUTO` de efectos) y, sobre todo, **medido sin jugar a mirar** con el **oráculo de
+  emparejamiento** (`HH_PAIRING_LOG` + `tools/analysis/pairing_log.py`; cámara con `HH_CAM_LOG` +
+  `camera_log.py`): área 1 completa **99.99% de parejas por id**, `auto`=195/3.47M, sin pares erróneos.
+  Guía reusable: `docs/interpolacion-pairing.md`. El **parón restante es A1 (tick lógico)**, no
+  emparejamiento. Detalle: `notes/2026-10-05-fase-b-cobertura-sesiones.md`,
+  `notes/2026-10-05-fase-b-materializacion-c768.md`.
+
 - **Interpolación: el tagging de C768 no llegaba a RT64 en gameplay (Fase B 0b) — ARREGLADO y VALIDADO
   en Windows (2026-10-05).** El gate del fix del objeto del título comparaba `ctx->r5 == kGfxCursor`,
   pero `a1` **no es argumento** de `func_8000C768` (solo lo llama el dispatch) → registro basura →

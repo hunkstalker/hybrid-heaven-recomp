@@ -24,7 +24,9 @@
   (PATCH) + `docs/releases/v0.7.2.md`. Corrige **2 artefactos de la interpolación**: **cámara al apuntar**
   (grupo de proyección duplicaba la cámara horneada en el modelview → eliminado) y **objeto 3D del menú
   de título** (`C768` fuera de la ruta del cursor → acotado). Validado Windows. **Falta**: push de `main`
-  y tag `v0.7.2` (o Actions → Release). Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+  y tag `v0.7.2` (o Actions → Release). **`main` va por delante**: incluye ya el **fix (0b)** de Fase B
+  (commit `fcd7f07`) → incluirlo en las notas de `v0.7.2` o subir a **`v0.7.3`**. Detalle:
+  `notes/2026-10-05-fase-b-camara-y-titulo.md`, `notes/2026-10-05-fase-b-materializacion-c768.md`.
 
 - [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
   `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca
@@ -51,29 +53,13 @@
     limpieza cosmética a cambio de regenerar y revalidar); se documenta como candidato. Detalle:
     `notes/2026-10-05-verificacion-base-jumptables.md`.
 
-- [•] **Fase B — interpolación: emparejamiento de ids (método estándar) — NO perder (abierta
-  2026-10-05)**: hoy lo hacemos parcial (hook de traversal + `stable_slot`; LOD=0; 2D-ignore por tipo
-  de nodo). Método documentado en `danielgomesvieira2000/pilotwings-64-recomp`
-  (`patches/interpolation.c`): `gEXMatrixGroup(id=FNV(kind,objeto,modelo,LOD,gen_cámara))` en cada draw
-  3D; 2D con `G_EX_ID_IGNORE`; `LINEAR`/`AUTO`; proyecciones “near”.
-  - [x] **(0) Regresión de cámara + objeto del título — RESUELTA y VALIDADA (Windows 2026-10-05)**:
-    la **cámara** la rompía cualquier grupo de **PROYECCIÓN** (en HH la cámara va horneada en el
-    modelview → se duplicaba) → **proyección OFF por defecto**; el **objeto del título** lo rompía
-    **C768** (id 15) llamado con `a1 != kGfxCursor` → modelview de C768 gateado a la ruta del cursor.
-    A/B con `HH_EMIT_PROJ`/`HH_EMIT_MV`/`HH_EMIT_MV_SKIP`. Detalle:
-    `notes/2026-10-05-fase-b-camara-y-titulo.md`.
-  - [ ] **(0b) Discontinuidad de POSICIÓN por objeto**: un enemigo que **cambia de coordenadas**
-    (mismo root/modelo → mismo id) se interpola a través del salto y aparece "en primer plano" al
-    inicio. Candidato: detectar el salto de posición por objeto y **bumpear su id** (como la
-    generación de cámara), o gate de discontinuidad en RT64.
-  - [ ] (1) Enumerar los sitios de dibujo 3D de HH y taggear cada uno por `kind` (estáticos/entorno si
-    existen fuera del traversal DOBJ).
-  - [ ] (2) Localizar el **campo LOD** y meterlo en el id (A2.4).
-  - [ ] (3) 2D `ID_IGNORE` en la proyección ortográfica (cuidado widescreen).
-  - [ ] (4) `ORDER AUTO` por tipo de efecto; proyecciones “near” si aplican.
-  - [ ] (5) Validar con `HH_PAIRING` + `paircap`.
-  Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md` y
-  `notes/2026-10-05-fase-a-libultra-cobertura.md` §Fase B.
+- [x] **Fase B — emparejamiento de ids (método estándar) — CERRADA y MEDIDA (2026-10-05)**: la causa
+  real era que **el tagging no llegaba a RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura)
+  → gate por **escena** → C768 materializa. Además (1) enumeración 3D sin caminos fuera del traversal,
+  (2) LOD cerrado (`node+0x2C`), (3) 2D `ID_IGNORE` tipos 9/13, (4) `ORDER_AUTO` de efectos. **Oráculo**
+  `HH_PAIRING_LOG` + `docs/interpolacion-pairing.md`: área 1 completa **99.99% por id**, `auto`=195/3.47M,
+  cámara validada (cortes reales). Detalle: `notes/2026-10-05-fase-b-materializacion-c768.md`,
+  `notes/2026-10-05-fase-b-emparejamiento-metodo.md`, `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
@@ -83,6 +69,10 @@
   Plan/handoff: `RETOMAR.md` §"Rama fps-interpolacion-tagging". Work order:
   **`notes/2026-10-02-workorder-desbloquear-fps-interpolacion.md`**.
   - [x] **A0**: métrica objetiva `HH_PAIRING` (contador en `lib/rt64` + dump); la **vista no valida**.
+  - [x] **A0b oráculo de emparejamiento (2026-10-05)**: `HH_PAIRING_LOG`/`HH_CAM_LOG` (+ lectores
+    `tools/analysis/pairing_log.py`/`camera_log.py`); cobertura medida (área 1 **99.99% por id**).
+    Doc reusable `docs/interpolacion-pairing.md`. Determinó que el **parón restante es A1 (tick)**, no
+    el emparejamiento. Detalle: `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
   - [x] **A2.1**: tagging por hook del port (`func_800069A8`); llega a RT64 y baja picos. Resueltos
     de paso **widescreen** y **recuadro negro**; **#8** estable.
   - [x] **A2.2 identidad rehecha y VALIDADA (2026-10-03 s2)**: `stable_slot()` generacional (no

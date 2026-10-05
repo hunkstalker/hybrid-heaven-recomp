@@ -40,10 +40,11 @@ proyección duplicaba la cámara, que va horneada en el modelview → se elimina
 título** (`C768` fuera de la ruta del cursor → se acota). **Validado en Windows (2026-10-05)**.
 **Pendiente**: push de `main` + tag `v0.7.2`. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
-**Fase B — (0b) VALIDADA (2026-10-05)**: el tagging de C768 **no llegaba a RT64 en gameplay** (el gate
-del título comparaba `ctx->r5`, basura; C768 no tiene `a1`) → sin ids explícitos → artefactos de 1 frame.
-Gate por **escena**. Investigación continúa en rama **`fase-b-investigacion`**.
-Detalle: `notes/2026-10-05-fase-b-materializacion-c768.md`.
+**Fase B — emparejamiento: CERRADA (2026-10-05)**: la causa real era que **el tagging no llegaba a
+RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **escena**. Medido con el
+**oráculo** `HH_PAIRING_LOG`: área 1 completa **99.99% por id**, `auto`≈0; cámara validada. El
+**parón restante es A1 (tick lógico)** (slips a 3 VI ~1-2/s), visible solo interpolado. Doc reusable
+`docs/interpolacion-pairing.md`; detalle `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
 
 ## 1. Objetivo
 

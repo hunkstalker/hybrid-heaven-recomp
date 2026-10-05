@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 116 | 2026-10-02 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 288 | 2026-10-05 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 294 | 2026-10-05 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 460 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 450 | 2026-10-05 |
 
 ## Técnico y guías (vivos)
 
@@ -20,11 +20,12 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 240 | 2026-10-05 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 257 | 2026-10-05 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 145 | 2026-10-01 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
+| [Interpolación: emparejamiento de transforms (método y oráculo)](interpolacion-pairing.md) | **Doc vivo.** Cómo RT64 interpola los frames que el juego no dibuja, cómo se le dice qué es cada | 136 | 2026-10-05 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 359 | 2026-10-04 |
 | [Notas de release](releases/README.md) | Un fichero por tag: `docs/releases/<tag>.md` (p. ej. `v0.3.0.md` para el tag `v0.3.0`). | 14 | 2026-09-22 |
 | [v0.2.0 - Graphical improvements](releases/v0.2.0.md) | - **Ajustes gráficos `[video]`** en `config.ini`: ventana (borderless/windowed), resolución | 7 | 2026-09-22 |
@@ -75,6 +76,9 @@
 | [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 47 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |
 | [2026-10-05 — inventario: caja negra anclada a la derecha — ARREGLADO y VALIDADO](../notes/2026-10-05-fix-inventario-caja-negra-ancla.md) | Estado: **validado por el mantenedor en Windows (2026-10-05)**. Continúa el handoff | 51 | 2026-10-05 |
+| [2026-10-05 — Fase B: materialización del tagging (regresión del gate de C768) — RESUELTA](../notes/2026-10-05-fase-b-materializacion-c768.md) | Continuación de `notes/2026-10-05-fase-b-emparejamiento-metodo.md`. **Validado por el mantenedor | 62 | 2026-10-05 |
+| [2026-10-05 — Fase B: emparejamiento de ids (método estándar) — análisis y cierre de código](../notes/2026-10-05-fase-b-emparejamiento-metodo.md) | El gate de posición de (0b) se **descartó** (ver §(0b)). Referencia del método: | 84 | 2026-10-05 |
+| [Fase B — cobertura de emparejamiento por sesión (oráculo `HH_PAIRING_LOG`)](../notes/2026-10-05-fase-b-cobertura-sesiones.md) | Registro acumulado. Cada sesión de juego deja un log con **nombre fijo** (`hh_pair.log`); el | 35 | 2026-10-05 |
 | [2026-10-05 — Fase B (0): regresión de cámara + objeto del título — RESUELTA](../notes/2026-10-05-fase-b-camara-y-titulo.md) | Rama `fase-b-interpolacion`. Diagnóstico por A/B + fix quirúrgico; **validado por el mantenedor | 52 | 2026-10-05 |
 | [2026-10-05 — Fase A: cobertura libultra (recompilar vs delegar al runtime)](../notes/2026-10-05-fase-a-libultra-cobertura.md) | Rama `fase-a-libultra`, **mergeada en `main`** (ff). Auditoría + fix. **MEDIDO** salvo lo marcado. | 86 | 2026-10-05 |
 | [2026-10-05 — CI roto por pin de plume no publicado (release v0.7.0) — ARREGLADO](../notes/2026-10-05-ci-fix-plume-pin.md) | Estado: **arreglado** (pendiente push: primero el fork RT64, luego `main`). Ámbito: **dependencias/CI**, | 44 | 2026-10-05 |
