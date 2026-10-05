@@ -74,9 +74,29 @@ extern "C" int RT64_TakePairCapture(unsigned long long *moved, unsigned long lon
 extern "C" int hh_interp_take_capture(unsigned long long *gen);   // model_tagging.cpp
 
 // La instrumentación de pairing/sondas vive en el fork de RT64 como parte del PATCH de diagnóstico
-// (no en el commit permanente). Para que `main` (RT64 limpio, sin patch) compile/enlace, se definen
-// aquí **stubs débiles**; si el patch está aplicado, el fork define las versiones FUERTES y ganan.
-#if defined(__GNUC__) || defined(__clang__)
+// (no en el commit permanente 7c46232). Para que el port (RT64 limpio, sin patch) compile y enlace,
+// se definen aquí **stubs débiles**; si el patch está aplicado, el fork define las versiones FUERTES
+// y ganan. Sin el patch, devuelven 0/vacío (instrumentación inactiva).
+//
+// MSVC no soporta `__attribute__((weak))`: se usa `/alternatename` (x64, símbolos C sin decorar) que
+// mapea el símbolo no resuelto a un stub con otro nombre. GCC/Clang usan weak de verdad.
+#if defined(_MSC_VER)
+extern "C" {
+void hh_stub_RT64_GetTransformPairing(unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*) {}
+unsigned long long hh_stub_RT64_GetGroupSeenCount() { return 0; }
+void hh_stub_RT64_GetEmitterMatHist(unsigned long long* out16) { if (out16) for (int i = 0; i < 16; ++i) out16[i] = 0; }
+void hh_stub_RT64_GetGbiProbeCounters(unsigned long long*, unsigned long long*, unsigned long long*,
+                                      unsigned long long*, unsigned long long*) {}
+int hh_stub_RT64_TakePairCapture(unsigned long long*, unsigned long long*, unsigned long long*) { return 0; }
+}
+#pragma comment(linker, "/alternatename:RT64_GetTransformPairing=hh_stub_RT64_GetTransformPairing")
+#pragma comment(linker, "/alternatename:RT64_GetGroupSeenCount=hh_stub_RT64_GetGroupSeenCount")
+#pragma comment(linker, "/alternatename:RT64_GetEmitterMatHist=hh_stub_RT64_GetEmitterMatHist")
+#pragma comment(linker, "/alternatename:RT64_GetGbiProbeCounters=hh_stub_RT64_GetGbiProbeCounters")
+#pragma comment(linker, "/alternatename:RT64_TakePairCapture=hh_stub_RT64_TakePairCapture")
+#elif defined(__GNUC__) || defined(__clang__)
 #define HH_WEAK __attribute__((weak))
 extern "C" {
 HH_WEAK void RT64_GetTransformPairing(unsigned long long*, unsigned long long*, unsigned long long*,
