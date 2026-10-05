@@ -39,11 +39,15 @@ jefe) sin cuelgues ni crashes.
 
 - **Guardado/carga** (cápsula) y **mando** validados; **widescreen** con HUD/minimapa anclados en
   todas las escenas.
-- **Alta tasa de refresco**: presenta hasta el refresco del monitor mediante **interpolación de frames**.
+- **Alta tasa de refresco (interpolación de frames) activada por defecto**: RT64 presenta hasta el
+  refresco del monitor interpolando los frames de 30 Hz del juego. Arreglados los artefactos visuales
+  conocidos (sesgado de cámara, huesos, aura del jefe [#6], puertas [#8]); apagable con
+  `HH_MTXGROUP=0` / `HH_EMIT_TAG=0` o `Refresh Rate = Original`.
+- **Acciones por flanco** (mantener pulsado no repite) y lectura unificada de teclado/ratón/mando;
+  remapeo de teclado persistente.
 - Teardown limpio (sin SEGV al salir).
-- **Único problema conocido**: fallos **visuales** por la **interpolación de frames** (p. ej. una
-  puerta y el primer jefe del nivel 1); con `Refresh Rate = Original` desaparecen. El arreglo de
-  fondo implica desacoplar la lógica del juego del render (ver `TODO.md`).
+- **Bug conocido**: en el **inventario**, el recuadro negro tras la información de items aparece
+  desplazado a la derecha en **widescreen** (anclaje 2D del HUD; en curso, ver `TODO.md`).
 
 Limitaciones y pendientes (detalle en `TODO.md`): **`MODO VS` (2 jugadores) deshabilitado** (gris; ver
 `Controles y atajos`), audio atado al tick de 30 Hz, extracción/traducción de textos (JA por cotejar)
