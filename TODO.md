@@ -35,9 +35,13 @@
   - [x] **Triaje de `size` legacy (Ghidra) vs ELF**: 1.007 discrepancias (37 "split", 970 otros).
     **Ghidra NO es oráculo** (mezcla merges erróneos como `0x80026E58` con la clase veneno
     `0x8035A3D8`/`0x8035A938`), así que NO se aplica en bloque.
-  - [ ] **BLOQUEADO — Fase 4 (recompresión a retail)**: `tools/lzkn64/lzkn64.py` solo implementa
-    `decompress`; `compress` es un *stub*. Falta un **compresor LZKN64 propio** para el round-trip
-    `decompress → compress == SHA1 retail` (equivalente a su `make COMPRESSED=yes`). No toca el port.
+  - [x] **Fase 4 (recompresión a retail) — compresor LZKN64 reimplementado (clean-room)**:
+    `tools/lzkn64/lzkn64.py` ya tiene `compress`. Round-trip **semántico 482/482**; **byte-exacto vs
+    retail 477/482**. Quedan 5 outliers de troceado de runs de ceros (idx 0, 54, 21, 24, 7). No toca el
+    port. Verificador: `tools/verify/verify_lzkn64_roundtrip.py`; nota
+    `notes/2026-10-05-lzkn64-compresor.md`.
+  - [ ] **LZKN64: clonar el troceado exacto de runs de ceros** (5 outliers) para lograr SHA1 retail
+    completo. Cosmético para el port (no comprime); solo cierra el 100 % de la verificación.
   - [x] **Detección autoritativa de la clase veneno** (no vía Ghidra):
     `tools/verify/find_cross_jumptables.py` + `find_latent_jumptable_crashes.py` sobre el C generado →
     **73 casos cross-function en 11 funciones, 0 crashes latentes** (69 son over-read inalcanzable por

@@ -1,5 +1,18 @@
 import struct
 
+# LZKN64 (Konami / Nisitenma-Ichigo). Formato:
+#   u32 BE: longitud total del stream comprimido (incluye la cabecera).
+#   tokens hasta esa longitud:
+#     0x00-0x7F  backref: len = ((cmd>>2)&0x1F)+2 (2..33); off = ((cmd&3)<<8)|byte (0..1023)
+#     0x80-0x9F  copia literal: len = cmd&0x1F (1..31)
+#     0xA0-0xDF  RLE de un valor: len = (cmd&0x1F)+2 (2..33); byte siguiente = valor
+#     0xE0-0xFE  RLE de ceros: len = (cmd&0x1F)+2 (2..33)
+#     0xFF       RLE de ceros largo: len = byte+2 (2..257)
+# El descompresor original del repo solo implementaba `decompress`; `compress` es una
+# reimplementacion limpia (reverse-engineered) que reproduce el tokenizado del compresor
+# original salvo 5 casos exoticos de troceado de runs de ceros (ver tools/verify).
+
+
 def decompress(data):
     if isinstance(data, memoryview):
         data = data.tobytes()
@@ -43,7 +56,102 @@ def decompress(data):
             out += b'\x00' * ln
     return bytes(out)
 
+
+class _Matcher:
+    def __init__(self, data):
+        self.d = data
+        self.n = len(data)
+        self.idx = {}
+        for i in range(self.n - 3):
+            self.idx.setdefault(data[i:i+4], []).append(i)
+
+    def longest(self, p, window=991, maxlen=33):
+        d = self.d; n = self.n
+        if p + 4 > n:
+            return 0, 0
+        best = 0; bo = 0
+        for q in reversed(self.idx.get(d[p:p+4], [])):
+            if q >= p:
+                continue
+            off = p - q
+            if off > window:
+                break
+            l = 4
+            while l < maxlen and p + l < n and d[q+l] == d[p+l]:
+                l += 1
+            if l > best:
+                best = l; bo = off
+                if best == maxlen:
+                    break
+        return best, bo
+
+
 def compress(data):
-    raise NotImplementedError(
-        "compress shim not implemented; only decompress is needed for extraction"
-    )
+    """Comprime `data` a un stream LZKN64 (cabecera + tokens)."""
+    if isinstance(data, memoryview):
+        data = data.tobytes()
+    n = len(data)
+    m = _Matcher(data)
+
+    def zero_at(p):
+        z = 0
+        while p + z < n and data[p+z] == 0:
+            z += 1
+        return z
+
+    def rep_at(p):
+        if data[p] == 0:
+            return 0
+        r = 1
+        while p + r < n and data[p+r] == data[p]:
+            r += 1
+        return r
+
+    body = bytearray()
+    pos = 0
+    while pos < n:
+        M, mo = m.longest(pos)
+        zr = zero_at(pos)
+        rr = rep_at(pos)
+        cands = []
+        if zr >= 2:
+            cands.append(('zero', zr, 0))
+        if rr >= 3:
+            cands.append(('rlev', min(rr, 32), data[pos]))
+        if M >= 4:
+            cands.append(('back', M, mo))
+        kind = None; best = 0
+        for c in cands:  # empate: RLE antes que back (orden zero, rlev, back)
+            if c[1] > best:
+                kind, best = c, c[1]
+        if kind is None:
+            start = pos
+            run = 1; pos += 1
+            while pos < n and run < 31:
+                if zero_at(pos) >= 2: break
+                if rep_at(pos) >= 3: break
+                if m.longest(pos)[0] >= 4: break
+                run += 1; pos += 1
+            body.append(0x80 | run)
+            body += data[start:start+run]
+            continue
+        k, ln, val = kind
+        if k == 'zero':
+            if zr > 32:
+                c = min(257, zr)
+                body.append(0xFF); body.append(c - 2)
+                pos += c
+            else:
+                body.append(0xE0 | (zr - 2))
+                pos += zr
+        elif k == 'rlev':
+            c = min(32, rr)
+            body.append(0xC0 | (c - 2)); body.append(data[pos])
+            pos += c
+        else:  # back
+            body.append(((ln - 2) << 2) | ((val >> 8) & 0x03))
+            body.append(val & 0xFF)
+            pos += ln
+
+    total = 4 + len(body)
+    return struct.pack('>I', total) + bytes(body)
