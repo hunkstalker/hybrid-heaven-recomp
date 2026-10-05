@@ -740,7 +740,13 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 // diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0 && !emit_mv_skip(15);
+    // Solo la ruta del EMISOR de efectos real: recibe el cursor de gfx `kGfxCursor` en a1. En el menu
+    // de titulo, C768 se llama con otro `a1` (p. ej. `FF868DA5`) y envolverlo como modelview hacia
+    // que el objeto 3D del titulo "se moviera en coordenadas" (medido 2026-10-05). Gatear por cursor
+    // arregla el titulo sin perder el tagging de efectos en gameplay.
+    const bool cursor_path = (static_cast<uint32_t>(ctx->r5) == kGfxCursor);
+    const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0 &&
+                      !emit_mv_skip(15) && cursor_path;
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
