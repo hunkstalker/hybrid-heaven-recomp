@@ -149,18 +149,36 @@ const bool g_emit_tag = [] {
     return !(off || off_alias);   // por defecto ON; `0` (cualquiera de los dos) lo apaga
 }();
 
-// A/B fino del tagging de emisores. El grupo de PROYECCION (camara) se emite SOLO en el emisor de
-// camara (`7DE4` = func_80007DE4, que hace guPerspective+guLookAt), UNA vez por frame; antes se
-// emitia en TODOS los emisores y RT64 emparejaba mal el viewProj (camara al apuntar rota). El
-// MODELVIEW va en el resto de emisores 3D. `HH_EMIT_PROJ=0` / `HH_EMIT_MV=0` los apagan (A/B).
+// A/B del tagging de emisores. El grupo de PROYECCION (camara) queda **OFF por defecto**: en HH la
+// camara va HORNEADA en cada modelview, asi que un grupo de proyeccion la DUPLICA y RT64 la empareja
+// mal (camara al apuntar rota). El modelview (con generacion) ya hace snap en los cortes.
+// `HH_EMIT_PROJ=1` lo reactiva (A/B). El MODELVIEW va en los emisores 3D (`HH_EMIT_MV=0` lo apaga;
+// `HH_EMIT_MV_SKIP=<ids>` salta emisores concretos, p. ej. `8` para `8F30`).
 const bool g_emit_proj = [] {
     const char* v = std::getenv("HH_EMIT_PROJ");
-    return !(v != nullptr && *v != '\0' && *v == '0');   // por defecto ON (solo emisor de camara)
+    return v != nullptr && *v != '\0' && *v != '0';   // por defecto OFF; `1` la enciende
 }();
 const bool g_emit_mv = [] {
     const char* v = std::getenv("HH_EMIT_MV");
     return !(v != nullptr && *v != '\0' && *v == '0');
 }();
+// `HH_EMIT_MV_SKIP=<ids>` (coma): salta el grupo de modelview en esos emisores (A/B para aislar).
+const uint32_t g_emit_mv_skip = [] {
+    const char* v = std::getenv("HH_EMIT_MV_SKIP");
+    uint32_t m = 0;
+    if (v != nullptr) {
+        for (const char* p = v; *p != '\0';) {
+            char* end = nullptr;
+            long id = std::strtol(p, &end, 10);
+            if (end == p) break;
+            if (id >= 0 && id < 32) m |= (1u << id);
+            p = end;
+            while (*p == ',' || *p == ' ') ++p;
+        }
+    }
+    return m;
+}();
+inline bool emit_mv_skip(int id) { return id >= 0 && id < 32 && (g_emit_mv_skip & (1u << id)) != 0; }
 
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
@@ -665,7 +683,7 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
     // menu de titulo "se moviera en coordenadas".
     const bool is_camera = (id == 4);
     const bool tag_proj = base && is_camera && g_emit_proj;       // grupo de PROYECCION (camara)
-    const bool tag_mv = base && !is_camera && g_emit_mv && !is2d; // grupo de MODELVIEW de la geometria
+    const bool tag_mv = base && !is_camera && g_emit_mv && !is2d && !emit_mv_skip(id); // MODELVIEW
     if (tag_proj || tag_mv) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
@@ -722,7 +740,7 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 // diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0;
+    const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0 && !emit_mv_skip(15);
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);
