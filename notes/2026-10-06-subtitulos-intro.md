@@ -2,8 +2,8 @@
 
 > Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo**
 > (tras `NUEVA PARTIDA` → `EMPEZAR PARTIDA`) en **en/es/ca/fr/de**, con el **estilo del diálogo
-> in-game**. Estado: motor + datos + ancla + **adaptación a 4:3 HECHOS y validados headless**;
-> **pendiente validar en Windows**. Sigue el plan acordado (capas de overlay + i18n). Referencia de
+> in-game**. Estado: motor + datos + ancla + **4:3 + re-troceo (F2) + huérfanas HECHOS y validados
+> (headless y Windows, 2026-10-06)**. Sigue el plan acordado (capas de overlay + i18n). Referencia de
 > guion: `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt`.
 
 ## 1. Motor de subtítulos (overlay)
@@ -110,15 +110,15 @@
   Holly (`id 2`) pasa de reparto `[2,3,2]` con 2 páginas que acababan en `...OK? Well,` / `...Eve? I`
   a `[1,3,3]` con 0 (página 1 de 1 línea limpia `...you're out again`, capturada). En 4:3 el reparto no
   cambia (el caso de `id 2` allí es estructuralmente inevitable).
-- **Pendiente Windows** (el mantenedor): líneas fijas, balanceo, skip, cortes `---`, ancla nueva,
-  **4:3, F2 y huérfanas** (sync visual).
+- **Validado en Windows** (mantenedor, 2026-10-06): líneas fijas, balanceo, skip, cortes `---`, ancla,
+  **4:3, F2 y huérfanas** (sync visual) `OK`.
 
 ## 8. Pendiente
 
 - **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - Revisión de traducciones **es/ca** (mantenedor).
-- Validación en **Windows**.
+- El **final** reutilizará la misma arquitectura.
 
 ## 9. Referencias
 

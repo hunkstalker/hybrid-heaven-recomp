@@ -191,14 +191,14 @@ Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-c
 (`assets/lang/*.txt`, clave inglés) con `hh::text::translate()` como único punto y `menu::localized`
 delegando; borrados `kMenuTr`/`kEsDefaults`; el jugador edita un `.txt` sin recompilar. **ADR 0014**;
 estado + validación: `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
-**Subtítulos de la intro/prólogo (EN CURSO, 2026-10-06; rama `subtitulos-intro`; headless OK)**: capa de
+**Subtítulos de la intro/prólogo (HECHO, 2026-10-06; rama `subtitulos-intro`; validado headless + Windows)**: capa de
 subtítulos en el **overlay** (`hh::overlay::set_subtitle`; **`Face::Color4`** = tipografía del diálogo
 in-game) + subsystem **`hh::subtitles`** (tiempos + textos por idioma, reloj por **VI**, **líneas fijas**
 `[N]`, paginado **balanceado**, cortes `---`, skip). **Ancla robusta** al inicio de la cinemática (fin de
 la 2ª oleada de cargas; la campanada es BGM). **4:3** (troceo al área del juego, margen 40), **re-troceo
 en caliente** (F2) y **control de huérfanas de frase** (la página no cierra con `punto + 1-2 palabras`),
-todo **validado headless**. 5 idiomas. Nota: `notes/2026-10-06-subtitulos-intro.md`.
-**Pendiente**: validar en Windows + toggle por menú + fr `œ/Œ/Ÿ`.
+todo **validado (headless + Windows)**. 5 idiomas. Nota: `notes/2026-10-06-subtitulos-intro.md`;
+commit `6b579ac`. **Pendiente**: toggle por menú + fr `œ/Œ/Ÿ` + revisión es/ca.
 **Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
 seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo
 del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y

@@ -1,10 +1,11 @@
 # RETOMAR — handoff (2026-10-06)
 
 > Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
-> Motor + datos + i18n + ancla + **adaptación a 4:3 HECHOS y validados headless**; **siguiente:
-> validar en Windows** (4:3 y F2). Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas:
-> `AGENTS.md`, `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea
-> de esta rama.)
+> Motor + datos + i18n + ancla + **4:3 + re-troceo (F2) + huérfanas de frase HECHOS y validados**
+> (headless **y Windows**, 2026-10-06); **commit `6b579ac`**. **Siguiente**: toggle por menú, fr
+> `œ/Œ/Ÿ`, revisión es/ca. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
+> `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta
+> rama.)
 
 ## Estado (2026-10-06)
 
@@ -16,19 +17,20 @@
 - **Datos**: referencia editable `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt` (formato
   `[N][IN] [OUT]` + texto) → `tools/text/build_subtitles.py` → `assets/subtitles/*.timing.txt` +
   `assets/lang/subtitles_<code>.txt` (en/es/ca/fr/de). Preview: `tools/text/preview_subtitles.py`.
-- **4:3 HECHO (headless)**: `subtitle_max_width()` en `src/subsystems/subtitles.cpp` trocea por el
-  área del **juego**: `original`/`4:3` manual → 320 con margen **40** (`max_w=280`; la caja no toca el
-  borde, deja «aire»); manuales → `240×ratio-24`; **`auto`/`expand` SIN CAMBIOS** (`visible_width()-24`).
-  El re-troceo/re-publicado se fuerza al cambiar `max_w` (F2).
+- **4:3 HECHO y validado (headless + Windows)**: `subtitle_max_width()` en
+  `src/subsystems/subtitles.cpp` trocea por el área del **juego**: `original`/`4:3` manual → 320 con
+  margen **40** (`max_w=280`; la caja no toca el borde, deja «aire»); manuales → `240×ratio-24`;
+  **`auto`/`expand` SIN CAMBIOS** (`visible_width()-24`). El re-troceo/re-publicado se fuerza al
+  cambiar `max_w` (F2).
 - **Huérfanas de frase (paginado)**: la página no cierra con `fin de frase + 1-2 palabras` (`. . .` de
-  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. Todo **sin commitear**.
+  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. **Commiteado** (`6b579ac`).
 
-## TAREA SIGUIENTE — validar en Windows
+## TAREA SIGUIENTE — pendientes menores de subtítulos
 
-Validar en el port Windows (mantenedor): intro **4:3** (pillarbox; panel dentro del área, con «aire»),
-**toggle F2 en caliente** (los subtítulos ya publicados se re-trocean) y **huérfanas de frase** (que
-ninguna página cierre con `punto + 1-2 palabras`). Si sale OK, **commit** (1 tema = 1 commit) o lo que
-pida el mantenedor. Detalles y evidencia headless en `notes/2026-10-06-subtitulos-intro.md` §1/§4/§7.
+- **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
+- **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
+- Revisión de traducciones **es/ca** (mantenedor).
+- El **final** reutilizará la misma arquitectura (referencia ya preparada).
 
 ## Instrumentación
 
