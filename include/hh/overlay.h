@@ -113,6 +113,12 @@ void flash_white(int ms);
 // logos (file 055); se retira al terminar la intro. Auto-off de seguridad a los 30 s.
 void set_screen_blackout(bool enabled);
 
+// Subtítulos (intro/final): capa independiente del frame del menú, con la tipografía del diálogo
+// in-game (`Face::Color4`, 8x12) y un panel negro semitransparente, centrada abajo. El hilo del
+// juego publica las líneas ya troceadas; el render hook las dibuja sobre el swapchain. `lines`
+// vacío = ocultar. Ver src/subsystems/subtitles.cpp.
+void set_subtitle(bool visible, const std::vector<std::string>& lines);
+
 // Indicador de FPS (menú DEBUG -> MOSTRAR FPS): texto de SOLO NÚMEROS en la esquina superior
 // izquierda. Es una capa independiente del frame del menú (lo dibuja el render hook siempre que
 // esté activo, también en gameplay). Se llama por frame desde el hilo de render.

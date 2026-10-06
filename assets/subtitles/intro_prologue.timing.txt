@@ -1,0 +1,18 @@
+# Generado por tools/text/build_subtitles.py — NO editar a mano.
+# Secuencia: intro_prologue. Tiempos en ms: id in_ms out_ms.
+# IN = aparición; OUT = margen de salida (tiempo máximo visible).
+# line: 0 = normal (bloque paginado); 1/2 = línea fija (arriba/abajo).
+#
+0 11000 47000 0
+1 72000 111000 0
+2 119000 147000 0
+3 186000 188000 0
+4 201000 209000 0
+5 215000 219000 0
+6 221000 224000 0
+7 243000 247000 1
+8 243000 247000 2
+9 247000 249000 1
+10 248000 251000 2
+11 332000 336000 0
+12 336000 339000 0

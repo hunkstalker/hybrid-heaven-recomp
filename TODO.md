@@ -6,6 +6,17 @@
 
 ## Ahora (priorizado)
 
+- [•] **Subtítulos de la intro/prólogo — rama `subtitulos-intro` (abierta 2026-10-06)**: motor de
+  subtítulos en el **overlay** (`hh::overlay::set_subtitle`; fuente **`Face::Color4`** = la del diálogo
+  in-game) + subsystem **`hh::subtitles`** (tiempos + textos por idioma, reloj por **VI**, **líneas
+  fijas** `[N]`, paginado **balanceado por ancho**, cortes `---`, skip con A). **Ancla robusta** al
+  inicio de la cinemática (**fin de la 2ª oleada de cargas**, +12.15 s; la campanada es **BGM**).
+  **5 idiomas** (en/es/ca/fr/de) en `assets/lang/subtitles_<code>.txt` (planos, editables). Herramientas
+  `tools/text/build_subtitles.py` + `preview_subtitles.py`. **HECHO y validado headless**; nota
+  `notes/2026-10-06-subtitulos-intro.md`. **Pendiente**: validar en Windows; **4:3** (pillarbox);
+  **toggle por menú** (hoy `HH_SUBTITLES`); **fr `œ/Œ/Ÿ`** (>U+00FF); revisión **es/ca**; el **final**
+  reutilizará la misma arquitectura.
+
 - [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
   `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
   y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Detalle:
@@ -124,9 +135,24 @@
     `HH_DET_CLOCK=1` + `HH_DET_CLOCK_BIAS=15625` **por defecto en el port** (`src/platform/main.cpp`,
     vía el entorno del CRT). `hh_tick.log` `d3=0`, `present=120`; sin parones. Nota:
     `notes/2026-10-05-a1-tick-determinista.md`.
-  - [•] **A3 (SIGUIENTE, tras A1)**: validar a 120 y 240 Hz sin artefactos (Windows + Deck), por métrica. **OJO**:
-    el mantenedor **rara vez ve 120 fps y nunca 240** → medir con `HH_FPS=1`/`hh_tick.log`/`hh_slow.log`
-    si el cuello es lógica/tick, present/GPU o VSync.
+  - [•] **A3 — FPS dinámicos (cap del jugador) — tras A1**:
+    **Objetivo**: que el jugador **elija el límite de FPS**.
+    **Opciones (menú)**:
+    - `Límite de FPS`: presets (30/60/120/144/240/…) + `Sin límite` (0).
+    - `VSync`: On (techo = panel, sin tearing) / Off (suelta).
+    **Reglas**:
+    - El cap es del jugador e **INDEPENDIENTE del monitor**; VSync es lo único que limita al panel.
+      Efectivo = `VSync On ? panel : cap`. Default: **VSync On + Sin límite** (= refresco del panel).
+    - El cap sirve para (1) elegir la tasa y (2) **frametimes estables (pacing)**, también por encima
+      del panel (240 estables en 165 con VSync Off, frente a los picos de `Sin límite`). **Sin tocar la
+      lógica** (1:1).
+    **Trabajo**:
+    - Quitar/parametrizar el clamp `targetRate ≤ swapChainRate` (`rt64_workload_queue.cpp:225-226`).
+    - Present uncapped (mailbox/immediate) cuando cap > panel.
+    - Añadir `Límite de FPS` + `VSync` a config y menú.
+    - **MSAA default x2** (el hardware moderno da de sobras).
+    **Validación**: a la tasa del panel (120/144 ya estables) y con cap > panel (VSync Off; p. ej. 240 en
+    165); medir `present` vs el cap elegido.
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
   - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
 

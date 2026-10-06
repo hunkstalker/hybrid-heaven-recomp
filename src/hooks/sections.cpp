@@ -31,6 +31,7 @@
 #include "hh/menu.h"
 #include "hh/overlay.h"
 #include "hh/save_edit.h"
+#include "hh/subtitles.h"
 
 extern "C" void func_8000469C_529C(uint8_t* rdram, recomp_context* ctx);
 extern "C" void func_80004838_5438(uint8_t* rdram, recomp_context* ctx);
@@ -908,6 +909,15 @@ static void run_cycle_step(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void hh_battle_frame_hook(uint8_t* rdram, recomp_context* ctx) {
     func_800021B4_2DB4(rdram, ctx);
+    // Subtítulos (intro/final): informa de la escena actual (ancla al inicio de la cinemática, escena
+    // 0x104) y avanza el reloj (no-op si no está activo).
+    {
+        const uint16_t scene = static_cast<uint16_t>(
+            (static_cast<uint16_t>(rdram[(0x801BBBF4u - 0x80000000u) ^ 3u]) << 8) |
+            rdram[(0x801BBBF5u - 0x80000000u) ^ 3u]);
+        hh::subtitles::notify_scene(scene);
+    }
+    hh::subtitles::tick();
     // DIAGNOSTICO de TIME (HH_SAVE_TIME_TRACE=1): 1 muestra cada ~0.5 s (a ~60 Hz) durante la run.
     if (env_set("HH_SAVE_TIME_TRACE")) {
         static uint32_t tt = 0;
@@ -1607,6 +1617,9 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
             u.r4 = obj;
             u.r5 = 0x801C3BA4u;             // siguiente callback: GAME START nativo
             func_800058DC_64DC(rdram, &u);
+            // Subtítulos del prólogo: ancla el reloj a EMPEZAR PARTIDA (desarrollo). El ancla
+            // definitiva será el inicio real de escena (`hh::subtitles::anchor_now()`).
+            hh::subtitles::begin("intro_prologue");
             if (env_set("HH_MENU_TRACE")) {
                 hh::log("[menu] EMPEZAR PARTIDA: difficulty=%d -> GAME START nativo\n", difficulty);
             }

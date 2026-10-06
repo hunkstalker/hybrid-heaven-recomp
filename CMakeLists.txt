@@ -154,6 +154,7 @@ add_executable(HybridHeavenRecomp
     src/subsystems/ttf.cpp
     src/subsystems/menu.cpp
     src/subsystems/save_edit.cpp
+    src/subsystems/subtitles.cpp
     src/subsystems/firmware.c
 
     # Recompiled functions.
@@ -217,6 +218,27 @@ add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets/lang"
         "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/lang")
+
+# Subtítulos de las secuencias sin texto (intro/final): timing (independiente del idioma) en
+# assets/subtitles/. Los textos van con las tablas de idioma (assets/lang/subtitles_<code>.txt).
+# Ver src/subsystems/subtitles.cpp.
+add_custom_command(TARGET HybridHeavenRecomp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/assets/subtitles"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/subtitles")
+
+# Copia SIEMPRE los datos editables (lang + subtitles) junto al ejecutable. El POST_BUILD de arriba
+# solo se dispara cuando el target se relinkea; si únicamente cambias un .txt (p. ej. una traducción)
+# y recompilas sin cambios de código, no se copiaba. Este target se ejecuta en cada build.
+add_custom_target(hh_copy_assets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/assets/lang"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/lang"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/assets/subtitles"
+        "$<TARGET_FILE_DIR:HybridHeavenRecomp>/assets/subtitles"
+    COMMENT "Copiando assets/lang + assets/subtitles junto al ejecutable")
+add_dependencies(hh_copy_assets HybridHeavenRecomp)
 
 # Licencias de terceros junto al ejecutable (licences/). La fuente Work Sans va INCRUSTADA; la OFL
 # exige acompañar la licencia/copyright (licences/OFL.txt). Aquí irán las futuras.

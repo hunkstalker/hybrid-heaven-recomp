@@ -1133,7 +1133,12 @@ void hh::queue_samples(int16_t* audio_data, size_t sample_count) {
                 df = fopen(dpath, "wb");
                 if (df != nullptr) fprintf(stderr, "[AUD] dump en %s\n", dpath);
             }
-            if (df != nullptr && dtotal < (4u << 20)) {
+            static size_t dmax = [] {
+                const char* m = getenv("HH_AUDIODUMP_MB");
+                const long mb = (m != nullptr && *m != '\0') ? atol(m) : 4;
+                return static_cast<size_t>(mb > 0 ? mb : 4) << 20;
+            }();
+            if (df != nullptr && dtotal < dmax) {
                 fwrite(hh_pcm, 1, byte_len, df);
                 fflush(df);
                 dtotal += byte_len;

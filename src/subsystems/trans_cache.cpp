@@ -42,6 +42,7 @@
 #include "librecomp/game.hpp"
 
 #include "hh.h"
+#include "hh/subtitles.h"
 
 namespace {
 
@@ -360,6 +361,7 @@ extern "C" void hh_trans_load(uint8_t* rdram, recomp_context* ctx, recomp_func_t
     const uint32_t src = static_cast<uint32_t>(ctx->r4);
     const uint32_t dst = static_cast<uint32_t>(ctx->r5);
     const uint32_t size = static_cast<uint32_t>(ctx->r6);
+    hh::subtitles::notify_load();   // ancla de subtítulos: detecta la 2.ª oleada de cargas
     const Config& cfg = config();
     const auto t0 = std::chrono::steady_clock::now();
     auto us_since = [&t0] {

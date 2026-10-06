@@ -102,6 +102,11 @@ struct PushConstants {
 bool g_enabled = true;
 std::mutex g_frame_mutex;
 Frame g_frame;
+// Subtítulos (intro/final): capa independiente del frame del menú. La publica el hilo del juego
+// (texto ya troceado en líneas) y la dibuja el render hook con el atlas `Face::Color4`.
+std::mutex g_sub_mutex;
+bool g_sub_visible = false;
+std::vector<std::string> g_sub_lines;
 // Indicador de FPS (capa independiente del frame del menú). Lo publica el hilo de render.
 std::atomic<bool> g_fps_on{ false };
 std::atomic<int> g_fps_value{ 0 };
@@ -353,6 +358,66 @@ void draw_range(RenderCommandList* list, RenderDescriptorSet* texture_set, uint3
     list->drawIndexedInstanced(index_count, 1, start_index, 0, 0);
 }
 
+// Ancho (unidades virtuales) de `text` con la tipografía `f`, usando los avances del motor
+// (`face_glyph_advance`). Para Color4 aplica espacio=4 y f/i/j/l/r/t=6.
+float face_text_width(hh::font::game::Face f, const std::string& text) {
+    float w = 0.0f;
+    size_t i = 0;
+    while (i < text.size()) {
+        const unsigned cp = utf8_next_cp(text, i);
+        w += (cp < 0x80)
+                 ? static_cast<float>(hh::font::game::face_glyph_advance(f, static_cast<unsigned char>(cp)))
+                 : static_cast<float>(hh::font::game::face_cell_w(f));
+    }
+    return w;
+}
+
+// Dibuja una tira de texto con una tipografía != Color0 (Color4/Color3/Color1): ASCII + acentos
+// (Color4 latin-1) + kana (Color1). Es el mismo camino que usa el frame del menú; factorizado para
+// reutilizarlo en la capa de subtítulos.
+void append_face_text(std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, const Text& t,
+                      float atlas_w, float atlas_h) {
+    const float cw = static_cast<float>(hh::font::game::face_cell_w(t.face));
+    const float ch = static_cast<float>(hh::font::game::face_cell_h(t.face));
+    float pen_x = t.x;
+    size_t i = 0;
+    while (i < t.text.size()) {
+        const unsigned cp = utf8_next_cp(t.text, i);
+        unsigned gx = 0, gy = 0;
+        bool have = false;
+        float yoff = 0.0f;
+        if (cp < 0x80) {
+            have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy);
+        } else if (t.face == hh::font::game::Face::Color1) {
+            unsigned v = 0;
+            if (hh::font::game::jp_kana_value(cp, v)) {
+                have = hh::font::game::face_value_uv(t.face, v, gx, gy);
+            }
+        } else if (cp < 0x100 && t.face == hh::font::game::Face::Color4) {
+            have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy);
+        }
+        // Apóstrofo: la fuente del juego no lo trae. Se compone con la COMA de color4 subida a la
+        // altura del apóstrofo (la coma comparte trazo). Cubre `'` y el tipográfico `’`.
+        if (!have && (cp == '\'' || cp == 0x2019) && t.face == hh::font::game::Face::Color4) {
+            have = hh::font::game::face_glyph_uv(t.face, ',', gx, gy);
+            yoff = -5.0f * t.scale_y;
+        }
+        if (have) {
+            const float u0 = static_cast<float>(gx) / atlas_w;
+            const float v0 = static_cast<float>(gy) / atlas_h;
+            const float u1 = u0 + cw / atlas_w;
+            const float v1 = v0 + ch / atlas_h;
+            append_quad(vertices, indices, pen_x, t.y + yoff, cw * t.scale_x, ch * t.scale_y, t.color,
+                        u0, v0, u1, v1);
+        }
+        const unsigned adv =
+            (cp < 0x80)
+                ? hh::font::game::face_glyph_advance(t.face, static_cast<unsigned char>(cp))
+                : hh::font::game::face_cell_w(t.face);
+        pen_x += static_cast<float>(adv) * t.scale_x;
+    }
+}
+
 void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffer) {
     if (!g_enabled || g_pipeline == nullptr) {
         return;
@@ -473,7 +538,14 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // Telon negro: auto-off de seguridad a los 30 s (por si la intro no llega a arrancar).
     const bool blackout_on = g_blackout.load(std::memory_order_relaxed) &&
                              (now_ms() - g_blackout_start.load(std::memory_order_relaxed) < 30000);
-    if (!frame.visible && !fps_on && !image_on && !blackout_on) {
+    // Subtítulos: capa independiente (intro/final), sin menú ni imagen. Hay que consultarla ANTES del
+    // early-return, o durante la intro (sin frame de menú) no se dibujaría nada.
+    bool sub_visible_now = false;
+    {
+        const std::lock_guard<std::mutex> lock(g_sub_mutex);
+        sub_visible_now = g_sub_visible && !g_sub_lines.empty();
+    }
+    if (!frame.visible && !fps_on && !image_on && !blackout_on && !sub_visible_now) {
         return;
     }
 
@@ -606,39 +678,7 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
             size_t i = 0;
             // color3 (titulo) / color4 (mensaje): dibujo simple, sin marcas ni kana (solo ASCII).
             if (t.face != hh::font::game::Face::Color0) {
-                while (i < t.text.size()) {
-                    const unsigned cp = utf8_next_cp(t.text, i);
-                    unsigned gx = 0, gy = 0;
-                    bool have = false;
-                    // Puntuacion/simbolos ASCII (<128) via `face_glyph_uv`. Los >=128 los resuelve la
-                    // fuente segun el tipo de letra: kana en color0, acentos/`¿`/`¡` en color4.
-                    if (cp < 0x80) {
-                        have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp),
-                                                             gx, gy);
-                    } else if (t.face == hh::font::game::Face::Color1) {
-                        unsigned v = 0;
-                        if (hh::font::game::jp_kana_value(cp, v)) {
-                            have = hh::font::game::face_value_uv(t.face, v, gx, gy);
-                        }
-                    } else if (cp < 0x100 && t.face == hh::font::game::Face::Color4) {
-                        // color4 (mensaje): acentos/¿/¡ latin-1 (celdas cocinadas en el atlas).
-                        have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp),
-                                                             gx, gy);
-                    }
-                    if (have) {
-                        const float u0 = static_cast<float>(gx) / g_atlas_w;
-                        const float v0 = static_cast<float>(gy) / g_atlas_h;
-                        const float u1 = u0 + cw / g_atlas_w;
-                        const float v1 = v0 + ch / g_atlas_h;
-                        append_quad(vertices, indices, pen_x, t.y, cw * t.scale_x, ch * t.scale_y,
-                                    t.color, u0, v0, u1, v1);
-                    }
-                    const unsigned adv =
-                        (cp < 0x80)
-                            ? hh::font::game::face_glyph_advance(t.face, static_cast<unsigned char>(cp))
-                            : hh::font::game::face_cell_w(t.face);
-                    pen_x += static_cast<float>(adv) * t.scale_x;
-                }
+                append_face_text(vertices, indices, t, g_atlas_w, g_atlas_h);
                 continue;
             }
             while (i < t.text.size()) {
@@ -791,6 +831,58 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         ttf_index_count = static_cast<uint32_t>(indices.size()) - ttf_begin;
     }
 
+    // Capa de SUBTÍTULOS (intro/final): panel negro semitransparente + texto con la tipografía del
+    // diálogo in-game (`Face::Color4`), centrado abajo. Independiente del frame del menú. La
+    // geometría se añade al final y se dibuja con su propio rango (blanco + atlas) tras el TTF.
+    uint32_t sub_panel_begin = 0, sub_panel_count = 0, sub_text_begin = 0, sub_text_count = 0;
+    {
+        std::vector<std::string> sub_lines;
+        bool sub_on = false;
+        {
+            const std::lock_guard<std::mutex> lock(g_sub_mutex);
+            sub_on = g_sub_visible && !g_sub_lines.empty();
+            if (sub_on) sub_lines = g_sub_lines;
+        }
+        if (sub_on && g_atlas_set != nullptr && g_atlas_w > 0.0f) {
+            const hh::font::game::Face face = hh::font::game::Face::Color4;
+            const float cell_h = static_cast<float>(hh::font::game::face_cell_h(face));
+            const float scale = 1.0f;
+            const float line_h = cell_h * scale + 2.0f;   // +2 de interlineado
+            const float pad_x = 4.0f, pad_y = 3.0f;
+            float max_w = 0.0f;
+            for (const std::string& l : sub_lines) {
+                max_w = std::max(max_w, face_text_width(face, l) * scale);
+            }
+            const float panel_w = max_w + 2.0f * pad_x;
+            const float panel_h =
+                static_cast<float>(sub_lines.size()) * line_h - 2.0f + 2.0f * pad_y;
+            // El centro de pantalla es la mitad del área virtual 320 (la proyección ortográfica
+            // centra esa área), NO `visible_width/2`: eso solo coincide en 4:3 y en 16:9 desplazaba
+            // el panel a la derecha.
+            const float panel_x = (kVirtualWidth - panel_w) * 0.5f;
+            const float panel_y = kVirtualHeight - 12.0f - panel_h;   // 12 de margen inferior
+            sub_panel_begin = static_cast<uint32_t>(indices.size());
+            append_quad(vertices, indices, panel_x, panel_y, panel_w, panel_h, rgba(0, 0, 0, 176),
+                        0.5f, 0.5f, 0.5f, 0.5f);
+            sub_panel_count = static_cast<uint32_t>(indices.size()) - sub_panel_begin;
+            sub_text_begin = static_cast<uint32_t>(indices.size());
+            for (size_t li = 0; li < sub_lines.size(); ++li) {
+                const std::string& line = sub_lines[li];
+                const float lw = face_text_width(face, line) * scale;
+                Text t;
+                t.x = (kVirtualWidth - lw) * 0.5f;
+                t.y = panel_y + pad_y + static_cast<float>(li) * line_h;
+                t.scale_x = scale;
+                t.scale_y = scale;
+                t.color = rgba(255, 255, 255, 255);
+                t.text = line;
+                t.face = face;
+                append_face_text(vertices, indices, t, g_atlas_w, g_atlas_h);
+            }
+            sub_text_count = static_cast<uint32_t>(indices.size()) - sub_text_begin;
+        }
+    }
+
     // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
     // logos nativos del boot). Solo mientras la intro no retire la bandera.
     uint32_t blackout_begin = 0;
@@ -873,6 +965,14 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // Texto Work Sans (título del Área) con la proyección VIRTUAL que sigue activa (pc).
     if (ttf_index_count > 0 && g_ttf_set != nullptr) {
         draw_range(list, g_ttf_set.get(), ttf_begin, ttf_index_count);
+    }
+
+    // Subtítulos (panel + texto Color4), misma proyección VIRTUAL.
+    if (sub_panel_count > 0) {
+        draw_range(list, g_white_set.get(), sub_panel_begin, sub_panel_count);
+    }
+    if (sub_text_count > 0) {
+        draw_range(list, g_atlas_set.get(), sub_text_begin, sub_text_count);
     }
 
     // Indicador de FPS con proyeccion en PIXELES (1 unidad = 1 px, origen arriba-izquierda).
@@ -1015,6 +1115,12 @@ void set_screen_blackout(bool enabled) {
     if (enabled && !was) {
         g_blackout_start.store(now_ms(), std::memory_order_relaxed);
     }
+}
+
+void set_subtitle(bool visible, const std::vector<std::string>& lines) {
+    const std::lock_guard<std::mutex> lock(g_sub_mutex);
+    g_sub_visible = visible && !lines.empty();
+    g_sub_lines = lines;
 }
 
 void set_fps_indicator(bool enabled, int fps) {

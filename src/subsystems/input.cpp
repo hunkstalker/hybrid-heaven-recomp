@@ -1936,6 +1936,11 @@ extern "C" n64_button hh_input_action_edges() {
     hh_action_prev = now;   // rearme
     return edges;
 }
+// Mascara de botones de accion ACTUAL (sin flanco), para consumidores que no deben tocar el estado
+// de flancos del menu (p. ej. el skip de los subtitulos de la intro; ver src/subsystems/subtitles.cpp).
+extern "C" n64_button hh_input_buttons_now() {
+    return hh_action_input_now();
+}
 extern "C" void hh_input_action_seed() {
     hh_action_prev = hh_action_input_now();
 }

@@ -1,0 +1,87 @@
+# Hybrid Heaven — Subtítulos de la intro/prólogo (texto INGLÉS de referencia).
+#
+# FORMATO (una entrada por bloque de subtítulo):
+#   [N][IN mm:ss] [OUT mm:ss]
+#   texto del bloque (varias líneas se unen con espacio; una línea en blanco = salto de párrafo)
+#
+#   IN  = momento en que el texto debe APARECER.
+#   OUT = MARGEN DE SALIDA: tiempo MÁXIMO hasta el que el texto debe estar visible. Puede ser
+#         posterior al fin del audio del diálogo; da margen para que el jugador termine de leer.
+#   [N] = LÍNEA FIJA (opcional): 1 = arriba, 2 = abajo. Sin [N], el texto se pagina normal.
+#
+# LOS TIEMPOS SON RELATIVOS AL INICIO DE LA CINEMÁTICA (la campanada), no a EMPEZAR PARTIDA: el port
+# ancla el reloj automáticamente al terminar la 2.ª oleada de cargas de la escena (que coincide con la
+# campanada), así que la sincronía no depende de la velocidad de carga de cada PC.
+#
+# Se puede usar `mm:ss`, `hh:mm:ss` o segundos. El conversor:
+#   python3 tools/text/build_subtitles.py notes/reference/Hybrid-Heaven-Intro-Dialogues.txt
+#
+# name: intro_prologue
+
+[IN 00:11] [OUT 00:47]
+The US and Russian Presidents revealed today that they are all but ready to
+conclude talks on the reduction of existing nuclear arsenals, and they're
+preparing to ratify the historic agreement that promises to be a giant leap
+towards world peace in New York City on the 24th.
+President Weller is scheduled to arrive in New York City tomorrow and attend the
+ratification after some last-minute discussions with the Russian President, who
+is scheduled to fly in on the same day.
+In a press conference yesterday, a confident President Weller stated to the
+media that on the coming 24th the United States and Russia should be delivering
+a Merry Christmas present to the world.
+In other news...
+
+[IN 01:12] [OUT 01:51]
+We shouldn't be seen talking so I'll be brief.
+Let's go over this one more time: the substitution of the President will be
+executed the day after tomorrow in New York City.
+You are not to leave the President's side no matter what; everything depends on
+that moment when there's no one but our operatives around them.
+If we miss this chance it will throw up the timetable for the invasion; we can't
+afford any mistake.
+One more thing, don't forget to make contact with mister Diaz in New York. He'll
+bring the tools and weapons you need.
+That'll be all, let's make this work... but man, put some clothes on, would you?
+And don't forget to act like a human once you're overground.
+
+[IN 01:59] [OUT 02:27]
+Holly: Johnny? Are you there?
+I guess you're out again today.
+Maybe you're busy but, are you doing OK?
+Well, it's Christmas soon, the year is almost over.
+Johnny, you hadn't forgotten our pact, have you? That we'll meet again under the
+Christmas tree in DC on Christmas Eve?
+I don't care how late you show up, just meet me there, OK? I'll be waiting.
+Anyway, call me again when you get in.
+
+[IN 03:06] [OUT 03:08]
+Mr. Diaz, he is here.
+
+[IN 03:21] [OUT 03:29]
+Johnny? It is you, is it? You didn't recognize me. Is it just someone
+that looks like him?
+
+[IN 03:35] [OUT 03:39]
+Shoot... ...
+
+[IN 03:41] [OUT 03:44]
+Kill him...
+
+[1][IN 04:03] [OUT 04:07]
+Why did you shoot?
+
+[2][IN 04:03] [OUT 04:07]
+What now, there's something wrong with Mr. Diaz, we got to get
+him below ground.
+
+[1][IN 04:07] [OUT 04:09]
+There's a witness.
+
+[2][IN 04:08] [OUT 04:11]
+The clone is gone, there's no ... left.
+
+[IN 05:32] [OUT 05:36]
+Johnny?
+
+[IN 05:36] [OUT 05:39]
+Kill him...

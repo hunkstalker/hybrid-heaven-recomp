@@ -1,0 +1,30 @@
+# Subtítulos — idioma 'ca'. Editable: corrige el texto a la derecha de `=`.
+# Clave = <secuencia>.<id>. `\n` = salto de párrafo. La línea `# EN:` es el original
+# inglés (contexto); los tiempos viven en assets/subtitles/<secuencia>.timing.txt.
+# --- intro_prologue ---
+# EN: The US and Russian Presidents revealed today that they are all but ready to conclude talks on the reduction of existing nuclear arsenals, and they're preparing to ratify the historic agreement that promises to be a giant leap towards world peace in New York City on the 24th. President Weller is scheduled to arrive in New York City tomorrow and attend the ratification after some last-minute discussions with the Russian President, who is scheduled to fly in on the same day. In a press conference yesterday, a confident President Weller stated to the media that on the coming 24th the United States and Russia should be delivering a Merry Christmas present to the world. In other news...
+intro_prologue.0=Els presidents dels Estats Units i Rússia han revelat avui que estan pràcticament a punt de concloure les converses sobre la reducció dels arsenals nuclears existents, i es preparen per ratificar l'històric acord que promet ser un salt de gegant cap a la pau mundial a Nova York el dia 24. Està previst que el president Weller arribi demà a Nova York i assisteixi a la ratificació després d'unes últimes converses amb el president rus, que té previst volar el mateix dia. En una roda de premsa celebrada ahir, un confiat president Weller va declarar als mitjans que el proper dia 24 els Estats Units i Rússia haurien d'estar lliurant al món un regal de Nadal. En altres notícies...
+# EN: We shouldn't be seen talking so I'll be brief. Let's go over this one more time: the substitution of the President will be executed the day after tomorrow in New York City. You are not to leave the President's side no matter what; everything depends on that moment when there's no one but our operatives around them. If we miss this chance it will throw up the timetable for the invasion; we can't afford any mistake. One more thing, don't forget to make contact with mister Diaz in New York. He'll bring the tools and weapons you need. That'll be all, let's make this work... but man, put some clothes on, would you? And don't forget to act like a human once you're overground.
+intro_prologue.1=No haurien de veure'ns parlant, així que seré breu. Repassem-ho una vegada més: la substitució del president es durà a terme demà passat a Nova York. No t'has d'apartar del president passi el que passi; tot depèn d'aquell moment en què no hi hagi ningú més que els nostres operatius al seu voltant. Si perdem aquesta oportunitat, alterarà el calendari de la invasió; no ens podem permetre cap error. Una cosa més: no t'oblidis de posar-te en contacte amb el senyor Díaz a Nova York. Ell et portarà les eines i les armes que necessites. Això és tot, fem que això funcioni... però home, posa't una mica de roba, vols? I no t'oblidis de comportar-te com un humà quan siguis a la superfície.
+# EN: Holly: Johnny? Are you there? I guess you're out again today. Maybe you're busy but, are you doing OK? Well, it's Christmas soon, the year is almost over. Johnny, you hadn't forgotten our pact, have you? That we'll meet again under the Christmas tree in DC on Christmas Eve? I don't care how late you show up, just meet me there, OK? I'll be waiting. Anyway, call me again when you get in.
+intro_prologue.2=Holly: Johnny? Ets aquí? Suposo que avui has tornat a sortir. Potser estàs ocupat, però estàs bé? Bé, aviat serà Nadal, l'any gairebé s'ha acabat. Johnny, no t'hauràs oblidat del nostre pacte, oi? Que ens tornarem a veure sota l'arbre de Nadal a DC la Nit de Nadal. No m'importa com de tard arribis, queda amb mi allà, d'acord? Estaré esperant. En fi, truca'm una altra vegada quan arribis.
+# EN: Mr. Diaz, he is here.
+intro_prologue.3=Senyor Díaz, ha arribat.
+# EN: Johnny? It is you, is it? You didn't recognize me. Is it just someone that looks like him?
+intro_prologue.4=Johnny? Ets tu, oi? No m'has reconegut. O és només algú que se li assembla?
+# EN: Shoot... ...
+intro_prologue.5=Dispara... ...
+# EN: Kill him...
+intro_prologue.6=Mata'l...
+# EN: Why did you shoot?
+intro_prologue.7=Per què has disparat?
+# EN: What now, there's something wrong with Mr. Diaz, we got to get him below ground.
+intro_prologue.8=Espera, ara, alguna cosa va malament amb el senyor Díaz, l'hem de portar sota terra.
+# EN: There's a witness.
+intro_prologue.9=Hi ha un testimoni.
+# EN: The clone is gone, there's no ... left.
+intro_prologue.10=El clon se n'ha anat, no en queda ... cap.
+# EN: Johnny?
+intro_prologue.11=Johnny?
+# EN: Kill him...
+intro_prologue.12=Mata'l...
