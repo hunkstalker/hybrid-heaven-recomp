@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 118 | 2026-10-05 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 297 | 2026-10-05 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 305 | 2026-10-06 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 456 | 2026-10-05 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 484 | 2026-10-06 |
 
 ## Técnico y guías (vivos)
 
@@ -73,6 +73,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [Subtítulos de la intro/prólogo — motor, datos, i18n, ancla, 4:3 y paginado](../notes/2026-10-06-subtitulos-intro.md) | Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo** | 126 | 2026-10-06 |
 | [2026-10-05 — Verificación de base: jump tables cross-function (clase #14/veneno)](../notes/2026-10-05-verificacion-base-jumptables.md) | Sesión de verificación (rama `verificacion-byte-match`). Herramientas nuevas en `tools/verify/`. | 46 | 2026-10-05 |
 | [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 47 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |
@@ -289,4 +290,6 @@
 
 | Fichero | Tamaño |
 |---|---|
+| `notes/reference/Hybrid-Heaven-Ending-Dialogues .txt` | 1,785 B |
+| `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt` | 3,478 B |
 | `notes/reference/n64sym_osfuncs_us_retail.txt` | 3,640 B |

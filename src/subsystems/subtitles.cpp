@@ -115,6 +115,30 @@ float text_width(const std::string& s) {
     return w;
 }
 
+// Ancho ÚTIL del área del JUEGO (no de la ventana) en unidades virtuales, según el aspecto:
+//   - `original` (4:3 nativo): 320 (la ventana puede ir pillarboxeada; el área útil es el 4:3).
+//   - manual (`4:3`/`16:9`/`16:10`/`21:9`/float): 240 × ratio.
+//   - `auto`/`expand` (widescreen): ancho VISIBLE de la ventana (SIN CAMBIOS: `visible_width() - 24`).
+// Es el ancho al que se trocean los subtítulos; cambia con el toggle de aspecto.
+// En 4:3 el margen lateral es mayor (40): la caja no debe tocar el borde del área (deja «aire»).
+float subtitle_max_width() {
+    const hh::VideoConfig& v = hh::video_config();
+    float game_w;
+    bool is_43 = false;
+    if (v.aspect == "original") {
+        game_w = hh::overlay::kVirtualWidth;   // 4:3 nativo (ventana pillarboxeada)
+        is_43 = true;
+    } else if (v.aspect_target > 0.0) {
+        game_w = hh::overlay::kVirtualHeight * static_cast<float>(v.aspect_target);
+        is_43 = game_w >= hh::overlay::kVirtualWidth - 0.5f &&
+                game_w <= hh::overlay::kVirtualWidth + 0.5f;   // 4:3 manual
+    } else {
+        game_w = hh::overlay::visible_width();  // auto/expand: ancho de la ventana
+    }
+    const float margin = is_43 ? 40.0f : 24.0f;   // 4:3: margen mayor (caja ≤ ~288; widescreen intacto)
+    return std::max(80.0f, game_w - margin);
+}
+
 // Trocea el texto a `max_w` unidades, respetando `\n` como corte duro.
 std::vector<std::string> wrap(const std::string& text, float max_w);
 
@@ -150,6 +174,52 @@ std::vector<std::string> wrap(const std::string& text, float max_w) {
         start = nl + 1;
     }
     return out;
+}
+
+// Fin de frase: la palabra acaba en `.`/`!`/`?` (tras comillas/paréntesis de cierre). Los puntos
+// suspensivos (`...`) son una PAUSA, no fin de frase; las abreviaturas comunes tampoco cuentan.
+bool word_ends_sentence(const std::string& word) {
+    size_t e = word.size();
+    while (e > 0 && (word[e - 1] == '"' || word[e - 1] == '\'' || word[e - 1] == ')' || word[e - 1] == ']')) {
+        --e;
+    }
+    if (e == 0) return false;
+    const char c = word[e - 1];
+    if (c != '.' && c != '!' && c != '?') return false;
+    if (c == '.' && e >= 2 && word[e - 2] == '.') return false;   // "..." = pausa
+    std::string base = word.substr(0, e);
+    for (char& ch : base) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    static const char* kAbbr[] = { "mr.",  "mrs.", "ms.",  "dr.", "st.",  "jr.",
+                                   "sr.",  "prof.", "vs.", "etc.", "e.g.", "i.e." };
+    for (const char* a : kAbbr) {
+        if (base == a) return false;
+    }
+    return true;
+}
+
+// true si la línea termina con el ARRANQUE de una frase de 1-2 palabras (p. ej. "...same day. In").
+// Se usa para NO cerrar una página en una línea así (la frase continuaría sola en la página siguiente).
+bool line_ends_with_sentence_stub(const std::string& line) {
+    std::vector<std::string> words;
+    size_t i = 0;
+    while (i < line.size()) {
+        while (i < line.size() && line[i] == ' ') ++i;
+        size_t j = i;
+        while (j < line.size() && line[j] != ' ') ++j;
+        if (j > i) words.push_back(line.substr(i, j - i));
+        i = j;
+    }
+    if (words.size() < 2) return false;
+    int last = -1;
+    for (int k = static_cast<int>(words.size()) - 1; k >= 0; --k) {
+        if (word_ends_sentence(words[static_cast<size_t>(k)])) {
+            last = k;
+            break;
+        }
+    }
+    if (last < 0) return false;
+    const int after = static_cast<int>(words.size()) - 1 - last;
+    return after >= 1 && after <= 2;
 }
 
 std::vector<std::vector<std::string>> paginate(const std::string& text, float max_w, int max_lines) {
@@ -196,6 +266,13 @@ std::vector<std::vector<std::string>> paginate(const std::string& text, float ma
     const float target = total / static_cast<float>(npages);
     std::vector<float> pre(n + 1, 0.0f);
     for (size_t i = 0; i < n; ++i) pre[i + 1] = pre[i] + w[i];
+    // Huérfanas de frase: penaliza CERRAR una página en una línea que acaba con el arranque de una
+    // frase (punto + 1-2 palabras). Fuerte (> cualquier desviación de ancho) para evitarlo si existe
+    // un reparto alternativo; si es estructuralmente inevitable, se acepta. No aplica a la última
+    // línea del bloque (no hay continuación).
+    std::vector<bool> stub_end(n, false);
+    for (size_t i = 0; i + 1 < n; ++i) stub_end[i] = line_ends_with_sentence_stub(lines[i]);
+    constexpr float kStubPenalty = 1.0e6f;
     const float kInf = 1e30f;
     std::vector<std::vector<float>> dp(npages + 1, std::vector<float>(n + 1, kInf));
     std::vector<std::vector<int>> brk(npages + 1, std::vector<int>(n + 1, -1));
@@ -206,7 +283,8 @@ std::vector<std::vector<std::string>> paginate(const std::string& text, float ma
                 const size_t j = i - static_cast<size_t>(k);
                 if (dp[p - 1][j] >= kInf) continue;
                 const float pw = pre[i] - pre[j];
-                const float val = dp[p - 1][j] + (pw - target) * (pw - target);
+                const float pen = stub_end[i - 1] ? kStubPenalty : 0.0f;
+                const float val = dp[p - 1][j] + (pw - target) * (pw - target) + pen;
                 if (val < dp[p][i]) {
                     dp[p][i] = val;
                     brk[p][i] = k;
@@ -355,6 +433,7 @@ bool g_seed_skip = true;
 // Páginas de la línea activa (cache). Se recalculan al cambiar de línea o de ancho visible.
 int g_page_line_id = -1;
 float g_page_w = -1.0f;
+float g_last_max_w = -1.0f;   // último ancho usado (para detectar el cambio de aspecto en caliente)
 std::vector<std::vector<std::string>> g_pages;
 
 constexpr int kMaxSubtitleLines = 3;   // líneas por pantalla antes de paginar
@@ -527,7 +606,20 @@ void tick() {
     };
     const Line* slot1 = pick_slot(act1);
     const Line* slot2 = pick_slot(act2);
-    const float max_w = std::max(80.0f, hh::overlay::visible_width() - 24.0f);
+    const float max_w = subtitle_max_width();
+    // Cambio de ancho (p. ej. F2 cambia el aspecto): invalidar lo publicado y el paginado cacheado
+    // para re-trocear y re-publicar con el nuevo ancho en este mismo frame. Sin esto, los subtítulos
+    // ya publicados se quedan con el troceo del aspecto anterior (la clave "id/página" no cambia).
+    if (max_w != g_last_max_w) {
+        g_last_max_w = max_w;
+        g_published.clear();
+        g_page_line_id = -1;
+        g_page_w = -1.0f;
+        if (s.trace) {
+            hh::log("[subs] ancho max_w=%.1f (aspect=%s) -> re-troceo\n", max_w,
+                    hh::video_config().aspect.c_str());
+        }
+    }
 
     if (slot1 != nullptr || slot2 != nullptr) {
         const std::string key = "S:" + std::to_string(slot1 ? slot1->id : -1) + ":" +

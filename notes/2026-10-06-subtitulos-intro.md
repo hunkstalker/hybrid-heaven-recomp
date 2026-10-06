@@ -1,10 +1,10 @@
-# Subtítulos de la intro/prólogo — motor, datos, i18n y ancla
+# Subtítulos de la intro/prólogo — motor, datos, i18n, ancla, 4:3 y paginado
 
 > Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo**
 > (tras `NUEVA PARTIDA` → `EMPEZAR PARTIDA`) en **en/es/ca/fr/de**, con el **estilo del diálogo
-> in-game**. Estado: motor + datos + ancla **HECHOS y validados headless**; **pendiente validar en
-> Windows**. Sigue el plan acordado (capas de overlay + i18n). Referencia de guion:
-> `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt`.
+> in-game**. Estado: motor + datos + ancla + **adaptación a 4:3 HECHOS y validados headless**;
+> **pendiente validar en Windows**. Sigue el plan acordado (capas de overlay + i18n). Referencia de
+> guion: `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt`.
 
 ## 1. Motor de subtítulos (overlay)
 
@@ -25,6 +25,11 @@
     `tick()` (por frame, hilo del juego) publica la línea activa.
 - **Fuente**: `Face::Color4` (8×12). **Apóstrofo** compuesto con la **coma subida** (la color4 no lo
   trae); `…`→`...`, comillas curvas → rectas (normalización en el cargador).
+- **Ancho de troceo por aspecto** (`subtitle_max_width()`): en `auto`/`expand` (widescreen) se mantiene
+  **exactamente** `visible_width() - 24` (sin cambios); en `original` (4:3 nativo) y `4:3` manual se
+  trocea al área del **juego** (320), con margen **40** (`max_w = 280`, pedido por el mantenedor: la
+  caja no debe tocar los bordes, hace falta «aire»); en ratios manuales, `240 × ratio - 24`. El panel
+  del overlay ya estaba centrado en el área virtual 320 (evidencia 4:3/F2 en §7).
 
 ## 2. Ancla robusta (independiente de la carga entre PCs)
 
@@ -61,6 +66,11 @@
   tiempo se **secuencian** dentro de la ventana común (fracción del tiempo).
 - Sin `[N]`: paginado automático **balanceado por ANCHO** (programación dinámica) en páginas de ≤3
   líneas → evita la página "huérfana" (p. ej. `3/3/1` → `3/2/2/3`).
+- **Control de huérfanas de frase** (a nivel de **página**, en todos los aspectos): la DP penaliza
+  cerrar una página en una línea que termina con el **arranque de una frase** (fin de frase `.`/`!`/`?`
+  + 1-2 palabras, p. ej. `...same day. In`). Así el arranque no queda solo en la página anterior. Los
+  `...` (pausa) y las abreviaturas (`Mr.`, `Dr.`, …) **no** cuentan como fin de frase. No cambia los
+  saltos de línea normales, solo el reparto de líneas por página.
 - `---` fuerza un corte exacto.
 
 ## 5. i18n
@@ -86,11 +96,25 @@
 - Ancla a **+12.15 s** de EMPEZAR PARTIDA; `linea 0` a `t=11 s` tras el ancla (adelanto de 1 s pedido
   por el mantenedor) ≈ mismo instante absoluto que con el ancla anterior.
 - Render con **color4** + panel centrado; **tildes** (es), apóstrofo y `…` correctos; skip con A.
-- **Pendiente Windows** (el mantenedor): líneas fijas, balanceo, skip, cortes `---`, ancla nueva.
+- **4:3 (captura pareada, `import -window root`, 1920×1080, Xvfb :110)**:
+  - `[video] aspect = auto` → `max_w = 402.7` (= `visible_width()-24`); el troceo renderizado es
+    **idéntico** al de antes del cambio (misma página de 2 líneas).
+  - `[video] aspect = original` → `max_w = 280.0` (margen 40). El panel mide `max_w + 8` (padding) de
+    tope, así que el ancho máximo real de la caja baja de ~294 (con 288) a ~286 (−1 glifo): deja «aire»
+    respecto al borde del área 4:3 (320). Si el límite vuelve a quedarse pegado al borde, bajar otro
+    glifo (p. ej. margen 48 → `max_w=272`).
+  - **Toggle en caliente (F2)**: estando en `original` con una página publicada, se inyecta una tecla
+    F2 real (XTest) → `aspect=expand`; el log muestra `ancho max_w=402.7 (...) -> re-troceo` y re-publica
+    la página re-troceada (`pag x/5`) en el mismo frame. Corrección #2 validada headless.
+- **Huérfanas de frase (headless, `auto`)**: el bloque 1 no cambia (2 líneas, captura idéntica); el de
+  Holly (`id 2`) pasa de reparto `[2,3,2]` con 2 páginas que acababan en `...OK? Well,` / `...Eve? I`
+  a `[1,3,3]` con 0 (página 1 de 1 línea limpia `...you're out again`, capturada). En 4:3 el reparto no
+  cambia (el caso de `id 2` allí es estructuralmente inevitable).
+- **Pendiente Windows** (el mantenedor): líneas fijas, balanceo, skip, cortes `---`, ancla nueva,
+  **4:3, F2 y huérfanas** (sync visual).
 
 ## 8. Pendiente
 
-- **4:3** (pillarbox): posición/tamaño de subtítulos y líneas fijas.
 - **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - Revisión de traducciones **es/ca** (mantenedor).

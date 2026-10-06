@@ -1,9 +1,10 @@
 # RETOMAR — handoff (2026-10-06)
 
 > Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
-> Motor + datos + i18n + ancla **HECHOS y validados headless**; **siguiente: adaptarlos a 4:3**.
-> Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`, `docs/documentation.md`.
-> (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta rama.)
+> Motor + datos + i18n + ancla + **adaptación a 4:3 HECHOS y validados headless**; **siguiente:
+> validar en Windows** (4:3 y F2). Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas:
+> `AGENTS.md`, `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea
+> de esta rama.)
 
 ## Estado (2026-10-06)
 
@@ -15,19 +16,19 @@
 - **Datos**: referencia editable `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt` (formato
   `[N][IN] [OUT]` + texto) → `tools/text/build_subtitles.py` → `assets/subtitles/*.timing.txt` +
   `assets/lang/subtitles_<code>.txt` (en/es/ca/fr/de). Preview: `tools/text/preview_subtitles.py`.
-- **Pendiente inmediato**: validar en Windows; luego **4:3**.
+- **4:3 HECHO (headless)**: `subtitle_max_width()` en `src/subsystems/subtitles.cpp` trocea por el
+  área del **juego**: `original`/`4:3` manual → 320 con margen **40** (`max_w=280`; la caja no toca el
+  borde, deja «aire»); manuales → `240×ratio-24`; **`auto`/`expand` SIN CAMBIOS** (`visible_width()-24`).
+  El re-troceo/re-publicado se fuerza al cambiar `max_w` (F2).
+- **Huérfanas de frase (paginado)**: la página no cierra con `fin de frase + 1-2 palabras` (`. . .` de
+  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. Todo **sin commitear**.
 
-## TAREA SIGUIENTE — adaptar los subtítulos a 4:3
+## TAREA SIGUIENTE — validar en Windows
 
-En 4:3 el juego va **pillarboxeado**; hay que comprobar que la capa de subtítulos (posición, ancho de
-línea, panel, **líneas fijas**) sigue 1:1. Pistas:
-- La proyección del overlay es **uniforme y centrada** (mitad del área virtual **320**); el wrap usa
-  `hh::overlay::visible_width()` (320 en 4:3, ~427 en 16:9). Repasar `src/platform/overlay.cpp`
-  (bloque de subtítulos) y `src/subsystems/subtitles.cpp` (`max_w`).
-- Probar headless forzando `[video] aspect = 4:3` (o el atajo F1) y capturar la intro.
-- **Vías a analizar**: (a) confiar en `visible_width` + centrado en 160 (probablemente ya vale);
-  (b) usar el **área 4:3 real** del framebuffer (letterbox/pillarbox) en vez del ancho visible;
-  (c) ajustar el **ancho máximo de línea** por aspecto. Decidir con captura pareada.
+Validar en el port Windows (mantenedor): intro **4:3** (pillarbox; panel dentro del área, con «aire»),
+**toggle F2 en caliente** (los subtítulos ya publicados se re-trocean) y **huérfanas de frase** (que
+ninguna página cierre con `punto + 1-2 palabras`). Si sale OK, **commit** (1 tema = 1 commit) o lo que
+pida el mantenedor. Detalles y evidencia headless en `notes/2026-10-06-subtitulos-intro.md` §1/§4/§7.
 
 ## Instrumentación
 

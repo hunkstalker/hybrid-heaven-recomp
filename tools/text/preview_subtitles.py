@@ -51,8 +51,41 @@ def wrap(text, max_w=MAX_W):
     return out
 
 
+ABBR = {"mr.", "mrs.", "ms.", "dr.", "st.", "jr.", "sr.", "prof.", "vs.", "etc.", "e.g.", "i.e."}
+
+
+def ends_sentence(word):
+    """`. ! ?` al final (tras comillas/paréntesis); `...` es pausa y las abreviaturas no cuentan."""
+    e = len(word)
+    while e > 0 and word[e - 1] in "\"')]":
+        e -= 1
+    if e == 0:
+        return False
+    c = word[e - 1]
+    if c not in ".!?":
+        return False
+    if c == "." and e >= 2 and word[e - 2] == ".":
+        return False
+    return word[:e].lower() not in ABBR
+
+
+def sentence_stub(line):
+    """true si la línea acaba con el arranque de una frase (fin de frase + 1-2 palabras)."""
+    words = line.split()
+    if len(words) < 2:
+        return False
+    last = -1
+    for k in range(len(words) - 1, -1, -1):
+        if ends_sentence(words[k]):
+            last = k
+            break
+    if last < 0:
+        return False
+    return 1 <= (len(words) - 1 - last) <= 2
+
+
 def paginate(lines, per=MAX_LINES):
-    """Reparto balanceado por ancho (mismo algoritmo que el runtime)."""
+    """Reparto balanceado por ancho + control de huérfanas de frase (mismo algoritmo que el runtime)."""
     n = len(lines)
     if n == 0:
         return [[]]
@@ -65,6 +98,10 @@ def paginate(lines, per=MAX_LINES):
     pre = [0] * (n + 1)
     for i in range(n):
         pre[i + 1] = pre[i] + w[i]
+    stub = [False] * n
+    for i in range(n - 1):
+        stub[i] = sentence_stub(lines[i])
+    STUB_PENALTY = 1.0e6
     dp = [[INF] * (n + 1) for _ in range(npages + 1)]
     brk = [[-1] * (n + 1) for _ in range(npages + 1)]
     dp[0][0] = 0
@@ -77,7 +114,8 @@ def paginate(lines, per=MAX_LINES):
                 if dp[p - 1][j] >= INF:
                     continue
                 pw = pre[i] - pre[j]
-                val = dp[p - 1][j] + (pw - target) ** 2
+                pen = STUB_PENALTY if stub[i - 1] else 0
+                val = dp[p - 1][j] + (pw - target) ** 2 + pen
                 if val < dp[p][i]:
                     dp[p][i] = val
                     brk[p][i] = k

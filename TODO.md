@@ -12,10 +12,12 @@
   fijas** `[N]`, paginado **balanceado por ancho**, cortes `---`, skip con A). **Ancla robusta** al
   inicio de la cinemática (**fin de la 2ª oleada de cargas**, +12.15 s; la campanada es **BGM**).
   **5 idiomas** (en/es/ca/fr/de) en `assets/lang/subtitles_<code>.txt` (planos, editables). Herramientas
-  `tools/text/build_subtitles.py` + `preview_subtitles.py`. **HECHO y validado headless**; nota
-  `notes/2026-10-06-subtitulos-intro.md`. **Pendiente**: validar en Windows; **4:3** (pillarbox);
-  **toggle por menú** (hoy `HH_SUBTITLES`); **fr `œ/Œ/Ÿ`** (>U+00FF); revisión **es/ca**; el **final**
-  reutilizará la misma arquitectura.
+  `tools/text/build_subtitles.py` + `preview_subtitles.py`. **HECHO y validado headless**, incluido
+  **4:3** (troceo al área del juego, margen 40 → «aire»), **re-troceo en caliente** al cambiar aspecto
+  (F2) y **control de huérfanas de frase** (ninguna página cierra con `punto + 1-2 palabras`); nota
+  `notes/2026-10-06-subtitulos-intro.md`. **Pendiente**: validar en Windows; **toggle por menú** (hoy
+  `HH_SUBTITLES`); **fr `œ/Œ/Ÿ`** (>U+00FF); revisión **es/ca**; el **final** reutilizará la misma
+  arquitectura.
 
 - [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
   `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
