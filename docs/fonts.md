@@ -75,9 +75,13 @@ frame.texts.push_back({ x, y, scale_x, scale_y, hh::overlay::rgba(255,255,255,25
                         "DATA LOAD", hh::font::game::Face::Color3 });
 ```
 
-- El **atlas** es **uno** y se sube como textura en `overlay.cpp`: **128×227** =
-  `color0` letras `128×128` + marcas `128×12` + `color4` `128×48` (16×4 celdas 8×12) + `color3`
-  `128×39` (10×3 celdas 12×13). Se construye desde la ROM en `font::game::init()`.
+- El **atlas** es **uno** y se sube como textura en `overlay.cpp`: **128×591**, con las bandas
+  apiladas en serie (offsets `k*Top` acumulativos, todos derivados de `kFullHeight`):
+  `color0` `128×128` + marcas menú `128×12` + `color4` `128×72` (6×16 celdas 8×12) + **acentos Latin‑1**
+  `128×96` (8 filas) + `color3` `128×39` (10×3 celdas 12×13) + **kana `color1`** `128×220` (12×22 celdas
+  10×10) + **extras >U+00FF** `128×24` (2 filas reservadas, 8×12). Se construye desde la ROM en
+  `font::game::init()`. **Para añadir glifos, usar una banda NUEVA al final** (no crecer una existente:
+  desplazaría todas las posteriores).
 - La rama `face != Color0` del bucle de texto dibuja **simple** (solo ASCII, sin marcas ni kana). La
   rama `Color0` mantiene **marcas de acento + kana + `glyph_left_bearing`** (no tocar).
 - Las **marcas de acento** y la **kana** solo existen para `Color0` (fuente 8×8); ver §7.
@@ -129,6 +133,11 @@ no cambian. Evidencia y medidas: `../notes/2026-09-30-data-load-maqueta-1a1.md`.
   (`include/hh/game_font_color4.h`): glifos **reales de color4 EU** + **compuestos letra-base color4 +
   marca** (`tools/text/build_font.py --style color4`), cocidos en la franja de acentos del atlas
   (`font.cpp`, `kAccentTop`). Pendiente: cablearlo también en el **texto in-game**.
+- **Extras > U+00FF** (FR `œ/Œ/Ÿ`, PL `ł/Ł/ś/Ś`…): también en `hh::kGameGlyphs`, pero **no** caben en la
+  franja Latin‑1 (que se direcciona por `cp-0x80`). Se cuecen en una **banda aparte al FINAL** del atlas
+  (`kExtraTop`; `kExtraCells` = 32 celdas **reservadas**, hay hueco real para glifos futuros) y se sirven
+  por **codepoint** con `face_glyph_cp_uv` (el overlay la consulta para `cp > 0xFF`). No desplaza ninguna
+  banda existente.
 - **Kana (JA)**: vive en los valores ≥64 de `color0`; mapeo en `include/hh/jp_kana.h`
   (`jp_kana_value`). Solo la rama `Color0` la resuelve.
 - **Añadir una fuente nueva a la UI propia**: (1) entrada en `Face`; (2) offset/size/celda/stride en

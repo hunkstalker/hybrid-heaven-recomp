@@ -200,7 +200,8 @@ en caliente** (F2) y **control de huérfanas de frase** (la página no cierra co
 todo **validado (headless + Windows)**. 5 idiomas. Nota: `notes/2026-10-06-subtitulos-intro.md`;
 commits `6b579ac`/`254e135`/`e699d92`/`f194953`; traducciones **es/ca revisadas** (mantenedor);
 **toggle en GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ, defecto SÍ, persiste `[video].subtitles`), **validado
-en Windows**. **Pendiente**: fr `œ/Œ/Ÿ`.
+en Windows**; **extras >U+00FF (`œ/Œ/Ÿ`, `ł/Ł/ś/Ś`)** en banda aparte del atlas + lookup por codepoint
+(headless OK; validación visual diferida a traducciones que los usen). **Pendiente**: el **final**.
 **Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
 seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo
 del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y

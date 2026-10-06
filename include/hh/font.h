@@ -53,6 +53,9 @@ unsigned face_glyph_advance(Face f, unsigned char c);
 // UV del glifo de `c` en la tipografia `f` (ASCII). false si no hay glifo.
 bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y);
 
+// UV de un glifo Color4 por CODEPOINT > U+00FF (banda de extras: œ/Œ/Ÿ, ł/Ł/ś/Ś…). false si no hay.
+bool face_glyph_cp_uv(unsigned cp, unsigned& x, unsigned& y);
+
 // UV del glifo por su VALOR de motor en la tipografia `f` (Color1/Color0; kana incluida). false si no.
 bool face_value_uv(Face f, unsigned value, unsigned& x, unsigned& y);
 

@@ -3,7 +3,8 @@
 > Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
 > Motor + datos + i18n + ancla + **4:3 + re-troceo (F2) + huérfanas de frase HECHOS y validados**
 > (headless **y Windows**, 2026-10-06); **commits `6b579ac`/`254e135`/`e699d92`/`f194953`**.
-> **Siguiente**: fr `œ/Œ/Ÿ`. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
+> **Siguiente**: validar en Windows los extras `œ/Œ/Ÿ` y empezar el **final**. Detalle:
+> **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
 > `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta
 > rama.)
 
@@ -27,11 +28,16 @@
 - **Toggle en el menú**: GRÁFICOS → `SUBTÍTULOS INTRO` (NO/SÍ, defecto **SÍ**); persiste en
   `config.ini [video].subtitles` y aplica en caliente. `HH_SUBTITLES` (env) tiene prioridad. **Validado
   headless y en Windows** (mantenedor, 2026-10-06). Commit `f194953`.
+- **Extras > U+00FF (`œ/Œ/Ÿ` FR, `ł/Ł/ś/Ś` PL)**: horneados en una **banda aparte al final** del atlas
+  (`font.cpp`, `kExtraTop`; 32 celdas reservadas) y servidos por codepoint (`face_glyph_cp_uv`); el
+  overlay los consulta para `cp > 0xFF`. **Sin desplazar ninguna banda existente**. **Validado headless**
+  (texto `cœur Œdipe aiguë Ÿ œuf` renderizado). **Validación visual diferida**: se verá cuando se
+  traduzcan diálogos (gameplay/intro) que usen `œ/Œ/Ÿ` (hoy ninguna traducción los usa). **Sin commitear.**
 
 ## TAREA SIGUIENTE — pendientes menores de subtítulos
 
-- **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - El **final** reutilizará la misma arquitectura (referencia ya preparada).
+- *Extras `œ/Œ/Ÿ`: implementados y headless OK; validación visual diferida a traducciones que los usen.*
 - *Revisión es/ca: **validada** por el mantenedor (2026-10-06).*
 
 ## Instrumentación

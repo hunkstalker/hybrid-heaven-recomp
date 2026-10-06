@@ -393,8 +393,13 @@ void append_face_text(std::vector<Vertex>& vertices, std::vector<uint32_t>& indi
             if (hh::font::game::jp_kana_value(cp, v)) {
                 have = hh::font::game::face_value_uv(t.face, v, gx, gy);
             }
-        } else if (cp < 0x100 && t.face == hh::font::game::Face::Color4) {
-            have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy);
+        } else if (t.face == hh::font::game::Face::Color4) {
+            if (cp < 0x100) {
+                have = hh::font::game::face_glyph_uv(t.face, static_cast<unsigned char>(cp), gx, gy);
+            } else {
+                // >U+00FF (œ/Œ/Ÿ, ł/Ł/ś/Ś…): banda de extras, lookup por codepoint.
+                have = hh::font::game::face_glyph_cp_uv(cp, gx, gy);
+            }
         }
         // Apóstrofo: la fuente del juego no lo trae. Se compone con la COMA de color4 subida a la
         // altura del apóstrofo (la coma comparte trazo). Cubre `'` y el tipográfico `’`.

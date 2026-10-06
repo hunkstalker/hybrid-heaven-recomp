@@ -25,6 +25,10 @@
     `tick()` (por frame, hilo del juego) publica la línea activa.
 - **Fuente**: `Face::Color4` (8×12). **Apóstrofo** compuesto con la **coma subida** (la color4 no lo
   trae); `…`→`...`, comillas curvas → rectas (normalización en el cargador).
+- **Extras > U+00FF** (`œ/Œ/Ÿ` FR, `ł/Ł/ś/Ś` PL): ya generados en `hh::kGameGlyphs`; no caben en la
+  franja Latin‑1 (direccionada por `cp-0x80`), así que se cuecen en una **banda aparte al FINAL** del
+  atlas (`kExtraTop`, 32 celdas reservadas) y se sirven por **codepoint** (`face_glyph_cp_uv`). **No
+  desplazan** ninguna banda existente (color0/marcas/color4/accentos/color3/kana intactas).
 - **Toggle en el menú** GRÁFICOS → `SUBTÍTULOS INTRO` (**NO/SÍ**, defecto **SÍ**): `hh::video_set_subtitles()`
   persiste en `config.ini [video].subtitles` (como el resto de opciones de GRÁFICOS) y aplica en caliente
   vía `hh::subtitles::set_enabled()`. El selector canónico es `NO`/`YES` (se muestra **NO/SÍ** por
@@ -91,6 +95,9 @@
   `src/subsystems/trans_cache.cpp` (`notify_load`), `src/subsystems/input.cpp` (`hh_input_buttons_now`,
   para el skip sin consumir flancos del menú), `src/platform/support.cpp` (`HH_AUDIODUMP_MB`),
   `CMakeLists.txt` (fuente + copia de `assets/subtitles` + copia de assets **siempre**).
+- **Fuente/atlas (extras >U+00FF)**: `src/subsystems/font.cpp` (banda `kExtraTop` + `face_glyph_cp_uv`),
+  `include/hh/font.h` (declaración), `src/platform/overlay.cpp` (lookup en `append_face_text`); datos ya
+  presentes en `include/hh/game_font_color4.h` (`tools/text/build_font.py`).
 - **Datos**: `assets/subtitles/intro_prologue.timing.txt`,
   `assets/lang/subtitles_{en,es,ca,fr,de}.txt`.
 - **Herramientas**: `tools/text/build_subtitles.py`, `tools/text/preview_subtitles.py`.
@@ -120,12 +127,16 @@
   `SUBTÍTULOS INTRO  NO/SÍ` (defecto SÍ, capturada); al pulsar IZQ → `[VIDEO] SUBTÍTULOS INTRO -> no` y
   `config.ini` pasa a `subtitles = no` (persistencia + cambio visual a `NO` en verde). **Validado
   headless y en Windows** (mantenedor, 2026-10-06).
+- **Extras `œ/Œ/Ÿ` (headless)**: texto de prueba `cœur Œdipe aiguë Ÿ œuf` renderizado con color4
+  (captura ampliada): los 3 glifos salen (no huecos); datos verificados en ASCII desde `kGameGlyphs`.
+  Atlas pasa de `128×567` a `128×591` (+2 filas de la banda de extras). **Validación visual diferida**:
+  se verá cuando alguna traducción use `œ/Œ/Ÿ` (hoy ninguna lo hace); la banda está pensada como
+  preparación para los diálogos del gameplay.
 - **Validado en Windows** (mantenedor, 2026-10-06): líneas fijas, balanceo, skip, cortes `---`, ancla,
   **4:3, F2 y huérfanas** (sync visual) `OK`.
 
 ## 8. Pendiente
 
-- **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - El **final** reutilizará la misma arquitectura.
 
 ## 9. Referencias

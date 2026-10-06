@@ -82,7 +82,17 @@ constexpr unsigned kColor1Cols = kAtlasWidth / kColor1W;   // 12
 constexpr unsigned kColor1Rows = (kColor1Values + kColor1Cols - 1) / kColor1Cols;
 constexpr unsigned kColor1Top = kColor3Top + kColor3Rows * kColor3H;
 
-constexpr unsigned kFullHeight = kColor1Top + kColor1Rows * kColor1H;
+// --- Banda de EXTRAS (> U+00FF, color4 8x12): œ/Œ/Ÿ (FR), ł/Ł/ś/Ś (PL)… generados en `kGameGlyphs`.
+// Va al FINAL del atlas para NO desplazar ninguna banda existente (color0/marcas/color4/accentos/
+// color3/color1 quedan idénticas). Se reservan `kExtraCells` celdas (2 filas = 32) para dejar huecos
+// REALES a glifos futuros; se sirven por CODEPOINT (`face_glyph_cp_uv`), no por `cp-0x80` (no caben
+// en 1 byte). Ver §7 de docs/fonts.md.
+constexpr unsigned kExtraTop = kColor1Top + kColor1Rows * kColor1H;
+constexpr unsigned kExtraCols = kAtlasWidth / kColor4W;    // 16
+constexpr unsigned kExtraRows = 2;                         // capacidad reservada
+constexpr unsigned kExtraCells = kExtraCols * kExtraRows;  // 32
+
+constexpr unsigned kFullHeight = kExtraTop + kExtraRows * kColor4H;
 
 uint8_t g_atlas[kAtlasWidth * kFullHeight * 4];
 bool g_ready = false;
@@ -117,6 +127,24 @@ void bake_face(const uint8_t* font, uint32_t stride, unsigned w, unsigned h, con
                 g_atlas[p + 2] = 255;
                 g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
             }
+        }
+    }
+}
+
+// Hornea un glifo 8x12 de `kGameGlyphs` (color4 ya normalizado) en (gx,gy) del atlas. Mismo
+// tratamiento que los acentos Latin-1: nivel 1 = tinta; resto = sombra NEGRA (no gris; ver 2026-10-02).
+void bake_game_glyph(const hh::GameGlyph& ag, unsigned gx, unsigned gy) {
+    for (unsigned y = 0; y < kColor4H; ++y) {
+        for (unsigned x = 0; x < kColor4W; ++x) {
+            const unsigned i = y * kColor4W + x;
+            const uint8_t byte = ag.block[i >> 1];
+            const uint8_t nibble = (i & 1u) ? (byte & 0x0Fu) : ((byte >> 4) & 0x0Fu);
+            const unsigned lvl = (nibble >> 2) & 3u;   // valor PAR -> plano 0xCC (ver pack_even)
+            const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
+            g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
+            g_atlas[p + 1] = 255;
+            g_atlas[p + 2] = 255;
+            g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
         }
     }
 }
@@ -195,22 +223,20 @@ void bake_atlas(const uint8_t* font, const uint8_t* font4, const uint8_t* font3,
         const hh::GameGlyph& ag = hh::kGameGlyphs[a];
         if (ag.cp < 0x80u || ag.cp > 0xFFu) continue;   // solo latin-1 (1 byte)
         const unsigned cell = ag.cp - 0x80u;
-        const unsigned gx = (cell % kAccentCols) * kColor4W;
-        const unsigned gy = kAccentTop + (cell / kAccentCols) * kColor4H;
-        for (unsigned y = 0; y < kColor4H; ++y) {
-            for (unsigned x = 0; x < kColor4W; ++x) {
-                const unsigned i = y * kColor4W + x;
-                const uint8_t byte = ag.block[i >> 1];
-                const uint8_t nibble = (i & 1u) ? (byte & 0x0Fu) : ((byte >> 4) & 0x0Fu);
-                const unsigned lvl = (nibble >> 2) & 3u;   // valor PAR -> plano 0xCC (ver pack_even)
-                const unsigned p = ((gy + y) * kAtlasWidth + (gx + x)) * 4;
-                // Sombra NEGRA (como el nivel 3 de las letras color4 de la ROM): los acentos generados
-                // traen la sombra normalizada a nivel 2, que aqui NO debe salir gris (ver 2026-10-02).
-                g_atlas[p + 0] = (lvl == 1) ? 255u : 0u;
-                g_atlas[p + 1] = 255;
-                g_atlas[p + 2] = 255;
-                g_atlas[p + 3] = (lvl != 0) ? 255u : 0u;
-            }
+        bake_game_glyph(ag, (cell % kAccentCols) * kColor4W,
+                        kAccentTop + (cell / kAccentCols) * kColor4H);
+    }
+    // EXTRAS > U+00FF (œ/Œ/Ÿ, ł/Ł/ś/Ś…): banda APARTE al final del atlas, en el MISMO orden que
+    // `face_glyph_cp_uv` (que la sirve). No desplaza ninguna banda previa; deja libres las celdas no
+    // usadas de las `kExtraCells` reservadas.
+    {
+        unsigned cell = 0;
+        for (unsigned a = 0; a < hh::kGameGlyphCount && cell < kExtraCells; ++a) {
+            const hh::GameGlyph& ag = hh::kGameGlyphs[a];
+            if (ag.cp <= 0xFFu) continue;
+            bake_game_glyph(ag, (cell % kExtraCols) * kColor4W,
+                            kExtraTop + (cell / kExtraCols) * kColor4H);
+            ++cell;
         }
     }
     // color3 (titulo): celda 0 = espacio (valor 0), celdas 1..26 = 'A'..'Z' (valor 0x76 + idx).
@@ -431,6 +457,23 @@ bool face_glyph_uv(Face f, unsigned char c, unsigned& x, unsigned& y) {
     x = (cell % kColor3Cols) * kColor3W;
     y = kColor3Top + (cell / kColor3Cols) * kColor3H;
     return true;
+}
+
+// UV de un glifo color4 por CODEPOINT > U+00FF (banda de extras: œ/Œ/Ÿ, ł/Ł/ś/Ś…). Recorre
+// `kGameGlyphs` en el MISMO orden que el horneado (`bake_atlas`). false si el codepoint no esta.
+bool face_glyph_cp_uv(unsigned cp, unsigned& x, unsigned& y) {
+    unsigned cell = 0;
+    for (unsigned a = 0; a < hh::kGameGlyphCount && cell < kExtraCells; ++a) {
+        const hh::GameGlyph& ag = hh::kGameGlyphs[a];
+        if (ag.cp <= 0xFFu) continue;
+        if (ag.cp == cp) {
+            x = (cell % kExtraCols) * kColor4W;
+            y = kExtraTop + (cell / kExtraCols) * kColor4H;
+            return true;
+        }
+        ++cell;
+    }
+    return false;
 }
 
 bool menu_char(unsigned cp, unsigned& value, int& mark) {
