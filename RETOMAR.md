@@ -2,8 +2,8 @@
 
 > Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
 > Motor + datos + i18n + ancla + **4:3 + re-troceo (F2) + huérfanas de frase HECHOS y validados**
-> (headless **y Windows**, 2026-10-06); **commit `6b579ac`**. **Siguiente**: toggle por menú, fr
-> `œ/Œ/Ÿ`, revisión es/ca. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
+> (headless **y Windows**, 2026-10-06); **commit `6b579ac`**. **Siguiente**: toggle por menú y fr
+> `œ/Œ/Ÿ`. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
 > `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta
 > rama.)
 
@@ -29,8 +29,8 @@
 
 - **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
-- Revisión de traducciones **es/ca** (mantenedor).
 - El **final** reutilizará la misma arquitectura (referencia ya preparada).
+- *Revisión es/ca: **validada** por el mantenedor (2026-10-06).*
 
 ## Instrumentación
 

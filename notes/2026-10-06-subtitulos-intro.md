@@ -76,7 +76,8 @@
 ## 5. i18n
 
 - 5 idiomas: **en/es/ca/fr/de** (`assets/lang/subtitles_<code>.txt`, plano y editable, con `# EN:` de
-  contexto). Fallback a inglés si falta una clave. `check_translations: OK`.
+  contexto). Fallback a inglés si falta una clave. `check_translations: OK`. Revisión **es/ca validada**
+  por el mantenedor (2026-10-06).
 - Idioma activo = el del juego/menú (`hh::text_current_language()`).
 
 ## 6. Ficheros tocados
@@ -117,7 +118,6 @@
 
 - **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
-- Revisión de traducciones **es/ca** (mantenedor).
 - El **final** reutilizará la misma arquitectura.
 
 ## 9. Referencias
