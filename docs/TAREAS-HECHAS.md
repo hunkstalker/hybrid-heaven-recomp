@@ -19,7 +19,58 @@
   **final** (no validable sin llegar al final del juego) y diálogos del **gameplay** (validarán
   visualmente `œ/Œ/Ÿ`).
 
+- **Menú propio de CARGAR/GUARDAR (N slots, un `.pak`) — CERRADA (validada en Windows, 2026-10-06).**
+  Sustituye los menús nativos por un menú propio (overlay) con N slots en un único `.pak` (`HHPK`
+  ampliado; `func_801423C8(slot)` para cualquier índice), 1:1 (Área-Level, nivel, tiempo). Fases 0–3
+  hechas (file-select; `.pak` de N slots con `kSlots=74` + trailer de metadatos; UI `LoadGame` 1:1;
+  enganche a CONTINUAR + ocultado del DATA LOAD nativo). ADR `0013`. Dependencia NMR resuelta
+  (`PAK_SIZE`/`reload`; gitlink `a11fbf2`). Notas:
+  `notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md`,
+  `notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md`,
+  `notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`, `notes/2026-09-30-continuar-enganche-y-ocultado.md`.
+
+- **Tipografías del DATA LOAD (color0/color3/color4) — CERRADA (validada en Windows, 2026-10-06).**
+  Mapeo resuelto (título = color3, mensaje = color4, `CONTROLLER PAK`/filas = color0) y cableado en la
+  UI propia (`Face{Color0,Color4,Color3}`, atlas con franjas color4/color3, `overlay::Text.face`),
+  maqueta 1:1 y colores. Notas: `notes/2026-09-30-tipografias-data-load-hallazgos.md`,
+  `notes/2026-09-30-data-load-maqueta-1a1.md`, `notes/2026-09-29-tipografias-data-load-tarea.md`.
+
+- **Sistema de guardado en PC (rediseño) — HECHO y validado.** `.pak` de **N slots** (`HHPK` ampliado,
+  `kSlots=74`), slots «infinitos», UI moderna de partidas (lista + `NUEVO`), `CLONAR SLOT`,
+  `hh::save::save_live()`. Sustituye el `DATA EDITOR` nativo. Cubierto por "Menú propio de
+  CARGAR/GUARDAR" (arriba) + ADR `0013`; ideas `docs/ideas-edicion-partida.md`, lógica
+  `notes/2026-09-30-save-capsule-logica.md`.
+
+- **Menú nativo de inicio — funcional y pulido (validado en Windows).** Bug de `IDIOMA` al entrar,
+  `CONFIGURACIÓN`/`SETTINGS`, `CONTINUAR`, `EMPEZAR PARTIDA`, `DIFICULTAD`, sombras de cursor/tildes,
+  logos HD KONAMI/KCEO + código Konami, attract/demos al ritmo original, `CONTROLES` (remapeo),
+  `MODO COMBATE`, JA (kana). Detalle: `docs/menu.md` + notas `2026-09-24…2026-09-27`.
+
 ## 2026-10-05
+
+- **Release v0.7.3 — PUBLICADA (2026-10-05).** `include/hh.h` → `0.7.3` (PATCH) + `docs/releases/v0.7.3.md`.
+  **A1 tick determinista** (2 VI/frame; 120 fps sin parones) + **fix (0b)** del tagging de `C768` en
+  gameplay (regresión de v0.7.2) + 2D `ID_IGNORE` tipos 9/13 + oráculo de emparejamiento. `main`
+  pusheado y tag `v0.7.3` en remoto (`0a3bd9f`).
+
+- **Release v0.7.1 — PUBLICADA (2026-10-05).** **Rendimiento**: **11 libultra** (cop0/caché/math)
+  delegadas al runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado en Windows). Nota:
+  `notes/2026-10-05-fase-a-libultra-cobertura.md`.
+
+- **Release v0.7.2 — PUBLICADA (2026-10-05).** Fixes de **cámara al apuntar** y del **objeto 3D del menú
+  de título**. Nota: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
+
+- **Repaso de FPS — HECHO y validado (2026-10-05).** El mantenedor veía 70–110 fps; tras el **match
+  byte a byte** (compresor/verificación) y las **funciones libultra recuperadas** (delegadas al runtime)
+  los FPS suben **hasta 144**. Notas: `notes/2026-10-05-fase-a-libultra-cobertura.md`,
+  `notes/2026-10-05-verificacion-base-jumptables.md`, `notes/2026-10-05-lzkn64-compresor.md`.
+
+- **Verificación de base (byte-match) + deuda de `size`/jump tables — CERRADA (2026-10-05; rama
+  `verificacion-byte-match` mergeada en `main`).** Ida y vuelta byte a byte (fases 1–4: gate ELF,
+  descompresión/tabla **91/91**, expansión **91/91**, compresor LZKN64 clean-room **byte-exacto 482/482**)
+  y detección autoritativa de la "clase veneno" (**73 cross-function, 0 crashes latentes**) →
+  **decisión: no tocar la base**. Herramientas en `tools/verify/`; nota
+  `notes/2026-10-05-verificacion-base-jumptables.md`.
 
 - **A1 — tick lógico determinista (2 VI/frame): RESUELTO y VALIDADO en Windows (2026-10-05).** Los
   micro-parones a alta tasa eran **slips a 3 VI** (`hh_tick.log` `d3=1-2/s`): el frame limiter del juego
@@ -70,6 +121,11 @@
   `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 
 ## 2026-10-04
+
+- **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04).** `.zip` con `assets/`/`saves/templates`/
+  `licences`; causa raíz = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado y
+  pusheado); CI verde y **validado en Windows** (guardado `.pak`). Nota:
+  `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
 
 - **Fix de input: "mantener pulsado" repetía la acción + X del mando no borraba (CARGAR/GUARDAR) —
   HECHO y VALIDADO en Windows.** Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se
@@ -223,7 +279,7 @@
 - **MODO COMBATE recreado con menú propio (2026-09-27).** `MODO VS` / `COMBATE DE CRIATURAS` /
   `EDITAR DATOS`; despacho nativo cableado. Validado en Windows. `notes/2026-09-27-battle-mode-recon.md`.
 - **Traducción del MENÚ al JAPONÉS (kana) (2026-09-27).** `color0` JP byte-idéntico al US; mapping
-  `include/hh/jp_kana.h`. Validado en Windows.
+  `include/hh/jp_kana.h`. Validado en Windows (hoy el JA del menú está **deshabilitado** en el selector).
 - **Tildes a +0.5 px (2026-09-27)** y **sombra de flecha de cursor** (`append_native_cursor`).
 - **Logos de intro HD KONAMI/KCEO + código Konami (2026-09-26).** `EXTRAS` con toggles persistidos.
 - **Demos de inactividad / attract al ritmo original (2026-09-26).**

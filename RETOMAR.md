@@ -1,54 +1,63 @@
 # RETOMAR — handoff (2026-10-06)
 
-> Rama **`subtitulos-intro`** **MERGEADA a `main`** (2026-10-06). Tarea de la sesión: **subtítulos de la
-> intro/prólogo** — **HECHA y validada (headless + Windows)**. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**
+> **Última sesión**: **subtítulos de la intro/prólogo** — **HECHOS y validados** (headless + Windows) y
+> rama `subtitulos-intro` **MERGEADA a `main`**. Detalle: `notes/2026-10-06-subtitulos-intro.md`
 > (resumen en `docs/TAREAS-HECHAS.md`). Reglas: `AGENTS.md`, `docs/documentation.md`.
-> **Siguiente**: lo que marque `TODO.md` "Ahora" (p. ej. **v0.7.3 push/tag**, **verificación byte-match**,
-> épica **FPS/transiciones**).
+>
+> **TAREA SIGUIENTE**: **Traducción — JUEGO/GAMEPLAY (texto in-game)** (`TODO.md` "Ahora" #1).
 
-## Estado (2026-10-06)
+## TAREA SIGUIENTE — Traducción del texto in-game (gameplay)
 
-- **Motor**: capa de subtítulos en el overlay (`hh::overlay::set_subtitle`; `Face::Color4` = tipografía
-  del diálogo in-game) + subsystem `hh::subtitles` (timing + textos por idioma, reloj por **VI**,
-  **líneas fijas** `[N]`, paginado **balanceado por ancho**, cortes `---`, **skip** con A).
-- **Ancla robusta**: al **fin de la 2ª oleada de cargas** de la escena 0x104 (coincide con la
-  campanada; +12.15 s desde `EMPEZAR PARTIDA`). Independiente de la carga entre PCs y del audio.
-- **Datos**: referencia editable `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt` (formato
-  `[N][IN] [OUT]` + texto) → `tools/text/build_subtitles.py` → `assets/subtitles/*.timing.txt` +
-  `assets/lang/subtitles_<code>.txt` (en/es/ca/fr/de). Preview: `tools/text/preview_subtitles.py`.
-- **4:3 HECHO y validado (headless + Windows)**: `subtitle_max_width()` en
-  `src/subsystems/subtitles.cpp` trocea por el área del **juego**: `original`/`4:3` manual → 320 con
-  margen **40** (`max_w=280`; la caja no toca el borde, deja «aire»); manuales → `240×ratio-24`;
-  **`auto`/`expand` SIN CAMBIOS** (`visible_width()-24`). El re-troceo/re-publicado se fuerza al
-  cambiar `max_w` (F2).
-- **Huérfanas de frase (paginado)**: la página no cierra con `fin de frase + 1-2 palabras` (`. . .` de
-  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. **Commiteado** (`2795669`).
-- **Toggle en el menú**: GRÁFICOS → `SUBTÍTULOS INTRO` (NO/SÍ, defecto **SÍ**); persiste en
-  `config.ini [video].subtitles` y aplica en caliente. `HH_SUBTITLES` (env) tiene prioridad. **Validado
-  headless y en Windows** (mantenedor, 2026-10-06). Commit `ed49215`.
-- **Extras > U+00FF (`œ/Œ/Ÿ` FR, `ł/Ł/ś/Ś` PL)**: horneados en una **banda aparte al final** del atlas
-  (`font.cpp`, `kExtraTop`; 32 celdas reservadas) y servidos por codepoint (`face_glyph_cp_uv`); el
-  overlay los consulta para `cp > 0xFF`. **Sin desplazar ninguna banda existente**. **Validado headless**
-  (texto `cœur Œdipe aiguë Ÿ œuf` renderizado). **Validación visual diferida**: se verá cuando se
-  traduzcan diálogos (gameplay/intro) que usen `œ/Œ/Ÿ` (hoy ninguna traducción los usa). Commit `8edcd8d`.
+**Objetivo**: localizar las **cadenas del juego** (diálogos de gameplay; y cuando toque, intro/final) en
+**en/es/ca/fr/de** (JA pospuesto, ver abajo). El texto in-game lo dibuja **el propio juego** (no el
+overlay): se **sustituye en runtime** al cargar los módulos por el motor `trans`
+(`src/subsystems/trans_cache.cpp` + `src/subsystems/text.cpp`).
 
-## TAREA SIGUIENTE
+**Hecho (2026-09-23)**:
+- Charset USA derivado (ASCII en campos de ancho fijo + NUL; el "encoding custom" era LZKN64).
+- **Sustitución en runtime** (`src/subsystems/text.cpp`; `HH_LANG=es`); extractor
+  `tools/text/extract_strings.py`.
+- **Sistema A1**: lista `en/es/ca/fr/de/ja` + mods, **cambio en vivo** (F5) con re-aplicación a módulos
+  cargados y persistencia `[lang]`.
+- i18n del port **unificado** en `assets/lang/*.txt` (ADR `0014`); idioma de menú e in-game comparten
+  `hh::text_current_language()`.
 
-La subtitulación de la **intro** está **cerrada** (rama mergeada). **Diferidos** de la misma familia:
+**Pendiente (checklist)**:
+1. **Longitud variable**: la sustitución no debe romper los campos de **ancho fijo** (ES/DE suelen ser
+   más largos que EN). Definir política (truncar / expandir / rellenar) y probarla.
+2. **Validar A1 en Windows** (build del mantenedor): cambio de idioma en vivo (F5) + persistencia.
+3. **Cablear la fuente in-game 8×12 `color4`** en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8
+   propio). Usar `tools/text/build_font.py` → `include/hh/game_font_color4.h` (ES/CA/FR/DE). Es la MISMA
+   tipografía que los subtítulos, que ya tiene **banda de extras >U+00FF** (`face_glyph_cp_uv`, p. ej.
+   `œ/Œ/Ÿ`). `HH_ACCENTS=0` desactiva la inyección (para comparar).
+4. **Extraer DE/FR** de la ROM **EU** emparejando por **módulo** → `assets/lang/*.txt` (la **PAL FR/DE
+   es la referencia**). El **JA** (ROM JP) va con la tarea pospuesta.
+5. **Redactar ES/CA** (revisión del mantenedor).
+6. **Medir cobertura** (nº de strings/zonas) y decidir el formato de datos.
 
-- **FINAL**: reutiliza la arquitectura; referencia preparada en `notes/reference/Hybrid-Heaven-Ending-Dialogues .txt`
-  (sin trackear). **Diferido** hasta que el mantenedor pueda llegar/validar el final del juego.
-- **Diálogos del gameplay**: trabajo mayor futuro (donde se validará visualmente `œ/Œ/Ÿ`).
-- **fr/de** de los subtítulos: **sin revisar** (el mantenedor no domina esos idiomas).
+**Código a tocar**: `src/subsystems/text.cpp` (sustitución), `src/hooks/text_glyphs.cpp` (fuente
+`color4`), `tools/text/extract_strings.py`, `tools/text/build_font.py`, `assets/lang/*.txt`.
 
-Siguiente foco: `TODO.md` "Ahora" (**v0.7.3 push/tag**, verificación byte-match, épica FPS/transiciones).
+**Referencias**: `PROYECTO.md §4`; notas `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
+`notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
+`notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
+`notes/2026-09-25-e-fix-reapply-idioma.md`, `notes/2026-09-05_asset-map.md`.
 
-## Instrumentación
+**Instrumentación (traducción)**:
+- `HH_LANG=<code>` activa un idioma; **F5** lo cambia en vivo; `HH_LANG_CYCLE_AT=<s>` lo cicla a los
+  `<s>` s.
+- `HH_LANG_FILE=<ruta>` usa un `assets/lang/<code>.txt` **alternativo** (probar traducciones sin tocar
+  los assets del repo).
+- `HH_ACCENTS=0` desactiva la inyección de glifos acentuados `color4` (comparar con/sin).
 
-- `HH_SUBTITLES=0` desactiva; `HH_SUB_TRACE=1` traza líneas/páginas/ancla; **`HH_SUB_OFFSET_MS=<ms>`**
-  (positivo = subtítulos **antes**).
-- `HH_AUDIODUMP=<f>` (+ `HH_AUDIODUMP_MB=<n>`) vuelca PCM; `HH_AUDIOLOG=1` log de buffers.
-- `HH_MENU_TRACE=1` (EMPEZAR PARTIDA, `goto pantalla`), `HH_SCENE_TRACE=1`, `HH_SAVE_TIME_TRACE=1`.
+## Diferidos de la familia subtítulos (intro cerrada)
+
+- **FINAL**: reutiliza la misma arquitectura; referencia preparada en
+  `notes/reference/Hybrid-Heaven-Ending-Dialogues .txt` (sin trackear). **Diferido** hasta que el
+  mantenedor pueda llegar/validar el final del juego.
+- **fr/de** de los subtítulos de la intro: **sin revisar** (el mantenedor no domina esos idiomas).
+- **JA (juego + intro + final) — POSPUESTO**: requiere procesar la ROM japonesa. El **menú de título JA**
+  ya está traducido (kana) pero **deshabilitado**.
 
 ## Run (mantenedor)
 
@@ -59,8 +68,8 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Pitfalls (NO repetir)
 
-- **No** concluir sync/visual solo desde headless; validar en Windows.
-- La campanada es **BGM** (no hay disparador de SE); **no** usar onset de audio como ancla (depende de
-  volumen/driver/música).
-- Los tiempos del `.txt` son **relativos al inicio de la cinemática** (no a `EMPEZAR PARTIDA`).
-- Un tema = un commit; no editar el C generado; no tocar ROMs/forks/push sin pedir.
+- **No** concluir sync/visual solo desde headless; validar en Windows (el mantenedor).
+- El texto in-game lo dibuja **el juego** (loader `trans`), no el overlay: no confundir con los
+  subtítulos (capa propia `hh::overlay::set_subtitle`).
+- **No** editar el C generado (se regenera; ADR `0009`); no tocar ROMs/forks/push sin pedir.
+- Un tema = un commit.

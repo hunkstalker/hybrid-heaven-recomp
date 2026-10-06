@@ -39,9 +39,9 @@ Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
 **Release v0.7.2 publicada (2026-10-05)**: `0.7.2` (PATCH). Fixes de **cámara al apuntar** y del
 **objeto 3D del menú de título**. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
 
-**Release v0.7.3 preparada (2026-10-05)**: `include/hh.h` → `0.7.3` (PATCH) y `docs/releases/v0.7.3.md`.
+**Release v0.7.3 — PUBLICADA (2026-10-05)**: `include/hh.h` → `0.7.3` (PATCH) y `docs/releases/v0.7.3.md`.
 **A1 tick determinista** (2 VI/frame; 120 fps sin parones) + **fix (0b)** del tagging de `C768` en
-gameplay (regresión de v0.7.2) + 2D `ID_IGNORE` + oráculo. **Pendiente**: push de `main` + tag `v0.7.3`.
+gameplay (regresión de v0.7.2) + 2D `ID_IGNORE` + oráculo. **`main` pusheado y tag `v0.7.3` en remoto.**
 
 **Fase B — emparejamiento: CERRADA (2026-10-05)**: la causa real era que **el tagging no llegaba a
 RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **escena**. Medido con el
@@ -155,10 +155,10 @@ campo (robots) anulado; **stepper `< valor >`** para ANTIALIASING; GRÁFICOS/CON
 DEBUG NIVELES`** (ciclo de escenas F5/F6 + indicador `idx=` + `skip_indices.txt` editable) y **`EXTRAS >
 IR A ÁREA`** (teletransporte a `N-0` con plantilla). Documento maestro:
 **`notes/2026-09-29-editor-area-parte-plan.md`**.
-**Menú propio de cargar/guardar (Fases 0 y 1, 2026-09-29, rama `menu-carga-guardado-partida`)**: PFS
+**Menú propio de cargar/guardar (CERRADO, validado en Windows 2026-10-06; rama `menu-carga-guardado-partida`)**: PFS
 virtual ampliado (`PAK_SIZE=0x40000`, fork NMR) y `.pak` de **74 slots** (`hh::save`) con reparto **45
 partidas + 29 plantillas** y **trailer de metadatos**; `func_801423C8` carga slots altos; migración de
-`.pak` de 4 slots verificada offline. **Pendiente validar en Windows**. Decisión: **ADR 0013**; notas
+`.pak` de 4 slots verificada offline. **Validado en Windows**. Decisión: **ADR 0013**; notas
 `notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md` y `...-fase1-formato-pak.md`.
 **UI propia del `DATA SAVE` en la cápsula (2026-09-30)**: vía de guardado enganchada (`0x803771A4` /
 `0x80377140`), copia de la UI de cargar con prompt `Save play data? Yes/No`, lista `NEW GAME` + slots con
@@ -166,8 +166,8 @@ datos, valores alineados a la derecha, puntuación desde la ROM, SFX y **ocultad
 (fix del vaciado `func_80142570`). **Lógica de guardado HECHA y VALIDADA en Windows (2026-09-30)**:
 fases `hh::menu::SavePhase`, confirmación `Saving current play data here.` → `hh::save::save_live()`
 (serializa los globals vivos con `func_80141F28` y persiste con `hh::save`), `Save completed.` + flecha
-↓, salida nativa, **AREA 1-1** y **TIME** correctos, y reinicio del flujo al reentrar. **Próximo**:
-terminar el ciclo de CARGA desde `CONTINUAR` (handoff en `notes/2026-09-30-save-capsule-logica.md` §9).
+↓, salida nativa, **AREA 1-1** y **TIME** correctos, y reinicio del flujo al reentrar. Ciclo de CARGA
+desde `CONTINUAR` completo (**validado en Windows**).
 Notas: `notes/2026-09-30-save-capsule-logica.md` y `notes/2026-09-30-save-data-ui-retoques.md`.
 **Higiene/correcciones de `menu.cpp` en guardado + editor (2026-10-01, VALIDADO en Windows)**:
 `g_save_target_slot`/`g_save_delete_slot` unificadas; "slot libre" del editor alineado con la cápsula

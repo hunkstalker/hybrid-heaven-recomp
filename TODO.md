@@ -6,67 +6,27 @@
 
 ## Ahora (priorizado)
 
+- [•] **Traducción — JUEGO/GAMEPLAY (texto in-game) — SIGUIENTE TAREA**. Alcance: **cadenas del juego**
+  vía el motor de texto (loader `trans`). **Hecho (2026-09-23)**: charset USA derivado (ASCII en campos
+  de ancho fijo + NUL; el "encoding custom" era LZKN64) y **sustitución en runtime**
+  (`src/subsystems/text.cpp`; `HH_LANG=es`); extractor `tools/text/extract_strings.py`; **sistema A1**
+  (lista `en/es/ca/fr/de/ja` + mods, **cambio en vivo** F5 con re-aplicación a módulos cargados,
+  persistencia `[lang]`).
+  **Pendiente**: control de **longitud variable** y validar A1 en Windows; **cablear** la fuente
+  in-game **8×12 `color4`** (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE)
+  en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8 propio; `HH_ACCENTS=0` la desactiva);
+  **extraer DE/FR** (ROM EU) emparejando por módulo → `assets/lang/*.txt` (el **JA** va con la tarea
+  pospuesta de traducción JA), y redactar **ES/CA**; **medir cobertura** (nº de strings/zonas) y decidir
+  formato (La PAL FR/DE = referencia).
+  Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
+  `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
+  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
+  `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
+
 - [ ] **Subtítulos — pendientes futuros (intro HECHA, 2026-10-06; `docs/TAREAS-HECHAS.md`)**: el
   **final** (misma arquitectura; **diferido**: el mantenedor no puede validar sin llegar al final del
   juego) y los **diálogos del gameplay** (trabajo mayor; validarán visualmente `œ/Œ/Ÿ`). Arquitectura y
   herramientas: `notes/2026-10-06-subtitulos-intro.md`.
-
-- [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
-  `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
-  y pusheado, `3993e72`); CI verde y **validado en Windows** (guardado `.pak`, #14). Detalle:
-  `notes/2026-10-03-release-v0.6.2-empaquetado-y-secrets.md`.
-
-- [x] **Fix de input + remapeo de teclado (#17) — HECHO y VALIDADO (2026-10-04)**: acciones por flanco
-  estricto con rearme y lectura unificada; `[keys]` autoritativo, nombres `sc_<n>`; solo teclas
-  dibujables. Detalle: `notes/2026-10-04-fix-input-flanco-botones-accion.md`,
-  `notes/2026-10-04-fix-remapeo-teclado-persistencia.md`.
-
-- [x] **Release v0.7.1 (2026-10-05) — PUBLICADA**: `0.7.1` (PATCH). **Rendimiento**: 11 libultra
-  (cop0/caché/math) delegadas al runtime → subida fuerte de FPS con la lógica intacta a 30 Hz (validado
-  Windows). Detalle: `notes/2026-10-05-fase-a-libultra-cobertura.md`.
-
-- [x] **Release v0.7.2 (2026-10-05) — PUBLICADA**: `0.7.2` (PATCH). Fixes de **cámara al apuntar** y del
-  **objeto 3D del menú de título**. Detalle: `notes/2026-10-05-fase-b-camara-y-titulo.md`.
-
-- [•] **Release v0.7.3 (2026-10-05) — preparada; pendiente push/tag**: `include/hh.h` → `0.7.3` (PATCH)
-  + `docs/releases/v0.7.3.md`. Incluye: **A1 tick determinista** (2 VI/frame; 120 fps sin parones),
-  **fix (0b)** del tagging de `C768` en gameplay (regresión de v0.7.2), **2D `ID_IGNORE`** tipos 9/13 y
-  el **oráculo de emparejamiento**. **Falta**: push de `main` y tag `v0.7.3` (o Actions → Release).
-  Detalle: `notes/2026-10-05-a1-tick-determinista.md`,
-  `notes/2026-10-05-fase-b-materializacion-c768.md`.
-
-- [•] **[PRIORIDAD] Verificación de base (byte-match) + deuda de `size`/jump tables — rama
-  `verificacion-byte-match` (abierta 2026-10-05)**: cablear la verificación de ida y vuelta que nunca
-  tuvimos, y usar el cruce con las syms legacy para cazar bugs latentes de la **clase #14/veneno**
-  (jump table truncada por frontera de función mal puesta). Herramientas (nuevas, sin tocar el port):
-  `tools/verify/verify_roundtrip.py`, `tools/verify/cross_legacy_sizes.py`,
-  `tools/verify/triage_legacy_sizes.py`.
-  - [x] **Fase 1 (ya existía)**: gate ELF↔imagen expandida byte a byte (`recomp/tools/build_elf.sh`).
-  - [x] **Fase 2**: descompresión+tabla propias vs manifiesto de referencia → **91/91 OK**.
-  - [x] **Fase 3**: expansión (`hh.expanded.z64`) vs manifiesto → **91/91 OK**.
-  - [x] **Triaje de `size` legacy (Ghidra) vs ELF**: 1.007 discrepancias (37 "split", 970 otros).
-    **Ghidra NO es oráculo** (mezcla merges erróneos como `0x80026E58` con la clase veneno
-    `0x8035A3D8`/`0x8035A938`), así que NO se aplica en bloque.
-  - [x] **Fase 4 (recompresión a retail) — compresor LZKN64 reimplementado (clean-room) al 100 %**:
-    `tools/lzkn64/lzkn64.py` ya tiene `compress`. **Byte-exacto vs retail 482/482** (`rec == raw`,
-    incluido padding) y **semántico 482/482**. Incluye el quirk del original (corte de runs de ceros en
-    `pos ≡ 0x21 (mod 0x400)`) y el padding a par. No toca el port. Verificador:
-    `tools/verify/verify_lzkn64_roundtrip.py`; nota `notes/2026-10-05-lzkn64-compresor.md`.
-  - [x] **Detección autoritativa de la clase veneno** (no vía Ghidra):
-    `tools/verify/find_cross_jumptables.py` + `find_latent_jumptable_crashes.py` sobre el C generado →
-    **73 casos cross-function en 11 funciones, 0 crashes latentes** (69 son over-read inalcanzable por
-    el bound `sltiu`; los 4 alcanzables son las 2 funciones del veneno y sus targets sí están
-    registrados → el parche funciona). **Decisión: no tocar la base** (restaurar `size:` solo sería
-    limpieza cosmética a cambio de regenerar y revalidar); se documenta como candidato. Detalle:
-    `notes/2026-10-05-verificacion-base-jumptables.md`.
-
-- [x] **Fase B — emparejamiento de ids (método estándar) — CERRADA y MEDIDA (2026-10-05)**: la causa
-  real era que **el tagging no llegaba a RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura)
-  → gate por **escena** → C768 materializa. Además (1) enumeración 3D sin caminos fuera del traversal,
-  (2) LOD cerrado (`node+0x2C`), (3) 2D `ID_IGNORE` tipos 9/13, (4) `ORDER_AUTO` de efectos. **Oráculo**
-  `HH_PAIRING_LOG` + `docs/interpolacion-pairing.md`: área 1 completa **99.99% por id**, `auto`=195/3.47M,
-  cámara validada (cortes reales). Detalle: `notes/2026-10-05-fase-b-materializacion-c768.md`,
-  `notes/2026-10-05-fase-b-emparejamiento-metodo.md`, `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate
@@ -150,11 +110,6 @@
   - [ ] **B**: spike 60 Hz real (limitador + reescalado) + ADR. · **C**: desacoplar audio del tick 30 Hz.
   - Aparcado: gates `HH_ROT_GATE`/`HH_SCALE_GATE` y F9 (sonda, no arreglo).
 
-- [ ] **Repaso de FPS (apuntado 2026-10-03)**: el mantenedor tiene 70–110 fps en gameplay y cree que
-  debería dar más (RTX 4080 / i7-14700K). `[MEDIDO]` `target=swapChain=120, vsync=1` → **techo 120**
-  (monitor 120 Hz + Vsync). Medir con `HH_FPS=1` (`present` vs `target`) si hay cuello/margen.
-  **Después** de cerrar la interpolación.
-
 - [ ] **Acentos in-game POR COLOR (color4/color3) — follow-up del fix del ordenador (2026-10-02)**:
   hoy la inyección sólo sirve el bloque **color0 (8×8, stride 32)**; en **color4 (8×12, stride 48)** o
   **color3 (12×13, stride 78)** `func_8001BFE4` cae al original (sin corromper, pero sin acento).
@@ -165,70 +120,6 @@
   (`HH_TITLE_FADE_MS` 2000), fade-out real por hilo de render (`HH_TITLE_FADEOUT_MS` 1000), hold
   `HH_TITLE_TRANS_MS` 400; telón opaco. Detalle: `notes/2026-10-02-transicion-titulo-fade.md`.
 
-- [•] **Menú propio de CARGAR/GUARDAR partida (slots "infinitos", un `.pak` con N slots) — FASE 0 y 1
-  HECHAS (2026-09-29)**: sustituir los menús nativos (CARGAR al `CONTINUAR`; GUARDAR en cápsula; y, al
-  final, `EDICIÓN DE PARTIDA`) por un **menú propio (overlay)** con **N slots** en un **único `.pak`**
-  (contenedor `HHPK` ampliado; `func_801423C8(slot)` sirve para cualquier índice), diseño **1:1**
-  (Área-Level, nivel, tiempo; nombre `savegame_slot<N>`), estrategia **A**.
-  - **Fase 0 `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase0-hallazgos.md`): file-select
-    trazado (estado `D_801BEBCC` 0..5, cursor `D_801BEC05`, top `D_801BEC04`; confirmar = inyectar A /
-    `func_801423C8`; salida `ret=1` éxito, `ret=2` cancelar); captura 1:1 en
-    `work/gameplay screenshots/CONTINUAR/`; `.pak` a N probado → **el PFS del runtime recortaba a
-    `PAK_SIZE=0x8000`** y la cabecera `0x100` solo da para **30 registros**.
-  - **Fase 1 = opción "b" HECHA `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase1-formato-pak.md`;
-    ADR **`docs/adr/0013-pfs-virtual-ampliado-y-pak-de-n-slots.md`**): fork NMR `PAK_SIZE` → **`0x40000`**
-    (commit local, **sin push**); `hh::save` con **`kSlots=74`** y reparto **45 partidas (0..44) + 29
-    plantillas (45..73)**; **trailer de metadatos** de 74×8 B y `size` del contenedor a `0x3C550`;
-    `load()` migra `.pak` de 4 slots. Verificado: `func_801423C8` carga slots altos (p. ej. **slot 63**
-    → escena `glob[+4]=0x13F`), fuera de rango falla; migración verificada **offline**.
-    **Pendiente**: validar en Windows (migración real + flujo de guardado).
-  - **DEPENDENCIA DE FORK**: la rama necesita **2 commits de NMR (no pusheados)** — `9b14604`
-    `hh_pak_reload_from_disk` y el de `PAK_SIZE` (pendiente de commit) — y **bumpear el gitlink de
-    `lib/N64ModernRuntime` tras push** (`AGENTS.md`).
-  - **Fase 2 (UI 1:1) HECHA `[MEDIDO]`** (`notes/2026-09-29-menu-cargar-guardar-fase2-ui.md`): pantalla
-    `LoadGame` (45 partidas del rango de juego, metadatos del trailer) + render 1:1 en overlay
-    (`DATA LOAD`, caja de 3 líneas por partida, scroll/mensaje nativos). Validado headless con captura.
-    **MAQUETA 1:1 (geometría) HECHA (2026-09-30, 3.ª sesión)**: título (y=28), `CONTROLLER PAK`
-    (x=38,y=53), cajas (x=37,w=112,h=37,paso 46; texto +5/+4, línea 12), mensaje (x=29,y=171,w=262,
-    h=51) y **sin flecha de cursor** (el nativo marca con el borde verde). Medido **pareado** contra el
-    render nativo del port (`work/.../LOAD DATA Continuar.png`), **Δ<1 px**. Evidencia:
-    `notes/2026-09-30-data-load-maqueta-1a1.md`. **Pendiente**: validar en Windows (F7) + ocultar el
-    fondo del título.
-  - **Fase 3 (enganche a CONTINUAR) HECHA `[MEDIDO]` (2026-09-29; 2ª sesión 2026-09-30)**: al dar
-    CONTINUAR sale `LoadGame` y el **DATA LOAD nativo queda oculto** (texto + cajas); **F8** muestra/
-    oculta la UI nativa. Ocultado por CATEGORÍAS en `menu_overlay.cpp`; hooks
-    `func_801C3D84`/`func_8001A804`. **NO** enganchar `func_801C3D50` (cuelga). **Fix 2026-09-30**:
-    F8 pintaba el `BATTLE DATA LOAD` porque el recompositor llamaba a `func_80142840` (tabla
-    `ＢＡＴＴＬＥ　ＤＡＴＡ　ＬＯＡＤ` + `1P/2P CONTROLLER`); ahora solo llama a `func_801426B0`
-    (setup real del `DATA LOAD`). El enganche de CONTINUAR en sí era correcto. Evidencia:
-    `notes/2026-09-30-continuar-enganche-y-ocultado.md`. **Pendiente**: (a) validar en Windows
-    CONTINUAR→F8→A; (b) el ocultado sin F8 aún se cuela el prompt `Please connect Controller Pak…`;
-    (c) commit.
-  - **BLOQUEANTE del 1:1 → TAREA APARTE**: las **tipografías del DATA LOAD** (3 fuentes distintas;
-    `func_8001B204` elige estilo por `a0` → tabla `D_8008EF70`). Documento:
-    **`notes/2026-09-29-tipografias-data-load-tarea.md`**. **Es la tarea principal ahora.**
-- [•] **Extracción/mapeo de las TIPOGRAFÍAS del DATA LOAD (2026-09-29/30, desvío deliberado)**: MAPEO
-  **RESUELTO `[MEDIDO]`** (traza `HH_FONT_TRACE`+`HH_FONT_DUMP_GLYPH` en headless). **Corrige** la
-  premisa: `a0` de `func_8001B204` es el **contexto/slot** (no la fuente); la fuente la elige el código
-  `%m <n>` **dentro** de la cadena (→ `colorN`). Reparto del DATA LOAD: título `DATA LOAD` = **color3**
-  (idx 106, 12×13, stride 78) `[MEDIDO]`; mensaje `Select play data to be loaded.` = **color4** (idx 108,
-  8×12, ya extraída); `CONTROLLER PAK` + cabeceras/filas `AREA/LEVEL/TIME` = **color0** (atlas actual).
-  Valores de glifo medidos del título: `A=0x76` (`valor = 0x76 + (c-'A')`). **CABLEADO HECHO** en la UI
-  propia (`LoadGame`): `Face{Color0,Color4,Color3}` en `font.h/cpp` (atlas 128×214 con franjas color4 y
-  color3), `overlay::Text.face` y uso en `menu_overlay.cpp` (título→color3, mensaje→color4,
-  filas→color0). Validado headless con captura (coincide con el nativo). Evidencia y detalle:
-  **`notes/2026-09-30-tipografias-data-load-hallazgos.md`** (doc. tarea:
-    `notes/2026-09-29-tipografias-data-load-tarea.md`).     **Pendiente**: validar 1:1 en Windows (F7).
-    **Maqueta/geometría HECHA (2026-09-30)**: ver `notes/2026-09-30-data-load-maqueta-1a1.md`.
-    **Avance color4 del mensaje HECHO**: `face_glyph_advance` (espacio=4, `f i j l r t`=6) → el mensaje
-    **calca el nativo glifo a glifo**; **punto final `.` rehecho** (1x1 en el baseline, antes 2x2).
-    **Subtítulo `CONTROLLER PAK` → `MEMORY SLOTS`** (traducido), por decisión del mantenedor. **Colores
-    1:1** (borde del mensaje gris ~170, bordes de slot gris ~90, verde `19,255,13`) y **marco exterior
-    que agrupa los slots** (x=31,y=65,w=124,h=94; del setup nativo +1 px por lado), con las cajas de
-    slot por encima. Slot vacío = **`NO DATA` centrado y en blanco** (`SIN DATOS/SENSE DADES/…`).
-    **Sombra de glifo nivel 2 = gris** (antes negro; corregía el gancho de la `l` del mensaje).
-    Queda **pendiente de decisión**: el **contenido/alineado de las filas**
-    (`AREA/LEVEL/TIME` nativo con valor a la derecha vs `ÁREA/NIVEL/TIEMPO` del overlay).
 - [ ] **`EDICIÓN DE PARTIDA`: "mover mi partida a una Área-Parte" (2026-09-29, DISEÑADO)**: cargar la
   partida del jugador en el editor, elegir Área-Parte, y **GUARDAR** = plantilla de esa Área-Parte +
   sobrescribir **atributos/estado/items/habilidades** del jugador (lo demás, de la plantilla). Requiere
@@ -242,10 +133,6 @@
   el 1.er combate** y solo se rellena desde el 2.º (parece un gateo de estado al terminar/vaciar el
   PODER en el 1.er combate). **No** localizado el contador (0..4) en las zonas vigiladas. Plan: traza
   que cruce el fin del 1.er combate con el 2.º para hallar el flag y forzarlo. Detalle: `RETOMAR.md`.
-- [ ] **Sistema de guardado en PC: rediseño (ideas apuntadas 2026-09-27)** — sin planificar aún;
-  detalle en `docs/ideas-edicion-partida.md`: `DATA EDITOR` no tiene sentido en PC; **slots "infinitos"**
-  (o N con scroll); UI moderna de partidas (**lista + `NUEVO` arriba**); **`CLONAR SLOT`** sin interfaz
-  (copia al último slot); **`EDITAR DATOS` → ordenar slots** (no copiar entre paks).
 - [•] **`EDICIÓN DE PARTIDA` (editor de save) — v3 sobre el `.pak`, rama `menu-edicion-partida`,
   commit `77d2ad6` (2026-09-27)**: menú en `EXTRAS` con `CARGAR PARTIDA < PARTIDA N >`,
   `GUARDAR PARTIDA < NUEVA PARTIDA / PARTIDA N >`, `PROGRESO < N-P >`, `NIVEL`, `HABILIDADES`
@@ -294,101 +181,6 @@
     `func_80232A80` incrementa el nivel defensivo de una parte (`entidad+0x8E+part*2`). **Pendiente**:
     fórmula exacta del incremento de nivel de parte y si afecta al nº de golpes/combo; y el
     **nivel de maestría** de técnicas (¿desbloquea niveles superiores?).
-- [ ] **Menú nativo — funcionales y pulido (2026-09-26, orden recomendado)**:
-  1. [x] **Bug del submenú `IDIOMA` — RESUELTO y validado en Windows (2026-09-26)**: al entrar con A
-     en `IDIOMA` se aplicaba el idioma del cursor (el `Accept` de entrar ejecutaba acciones de la
-     pantalla hija). Fix: aplicar acciones por `Accept` solo si no cambió la pantalla.
-     `notes/2026-09-26-b-menu-idioma-configuracion-y-sombras.md`.
-  2. [x] **`AJUSTES` → `CONFIGURACIÓN` — HECHO y validado (2026-09-26)**: ES `CONFIGURACIÓN` · EN
-     `SETTINGS` · CA `CONFIGURACIÓ` · FR `CONFIGURATION` · DE `KONFIGURATION` (`kMenuTr`).
-  3. [x] **`CONTINUAR` — VALIDADO en Windows (2026-09-26)**: reenvía la acción al **dispatch nativo**
-     del menú de título (`sel 0x801CC8C4 = 1` = CONTINUE + A inyectada una vez,
-     `src/hooks/sections.cpp`), reutilizando la carga real (`func_801C3CDC`). Con overlay activo; con
-     `HH_OVERLAY=0` manda el nativo. `notes/2026-09-26-d-continuar-y-bugs-visuales.md`.
-  4. [x] **`EMPEZAR PARTIDA` — VALIDADO en Windows (2026-09-26)**: dispara la rama **GAME START** del
-     submenú nativo `NUEVA PARTIDA` (`func_801C3A40` idx 0): `func_80005670(obj, 0x80044090)` +
-     `func_800058DC(obj, 0x801C3BA4)`; la cadena nativa crea la partida. No pasa por `func_801C3940`
-     (solo resetea dificultad/registra etiquetas). `src/hooks/sections.cpp`. Método en `docs/menu.md`
-     §Acciones nativas; nota `notes/2026-09-26-g-empezar-partida-y-dificultad.md`.
-  5. [x] **`DIFICULTAD` — HECHO (2026-09-26)**: `EMPEZAR PARTIDA` escribe la dificultad elegida en el
-     global `0x801BBC0D` (`0=NORMAL`/`1=DIFÍCIL`/`2=DEFINITIVO`) leyendo la opción marcada del modelo
-     (`hh::menu::screen(ScreenId::Difficulty)`). **Pendiente de comprobar jugando** el efecto real
-     (daño que hacen los enemigos); el mantenedor confía en la implementación (2026-09-26).
-   6. [x] **Logos de intro HD (KONAMI/KCEO) + código Konami → `EXTRAS` — VALIDADO en Windows
-     (2026-09-26)**: **Causa raíz**: los logos de arranque los pinta el **módulo file 055**
-     (`func_80383AD4`), NO el de título. Composicion **negro base + tarjeta opaca (blanca clásicos /
-     negra modernos) + logo (`mode 2` clave de blanco) + velo de fundido (grupo) + flash**. Alfas
-     copiadas del nativo (`0x8038DBC0`/`0x8038DBD4`). **Preload** del PNG. Código `↑↑↓↓←→←→BA` →
-     `unlock_extras()` **de sesión** + **flash blanco**. Entrada `EXTRAS` en la raíz; toggles
-     persistidos en `config.ini [extras]`: **`MANTENER EXTRAS <NO/SÍ>`** y **`LOGOS ORIGINALES
-     <NO/SÍ>`**, con **layout propio** (desplazado a la izquierda + columna de valores dinámica).
-     **Skip con START** (1 por logo). **Ventana** borderless al crear (sin transición). Fixes del
-     **attract** (ya no re-muestra logos HD; timer de inactividad nativo) y **"Press Start" centrado**
-     al traducir. **Falta**: ampliar el contenido de `EXTRAS` (nivel/habilidades).
-     `notes/2026-09-26-i-logos-intro-hd-y-konami-impl.md`.
-   7. [x] **Demos de inactividad — RESUELTO/VALIDADO (2026-09-26)**: el menú moderno forzaba el timer
-     de inactividad (`obj+0x3C`) **cada frame**, falseando el timeout del attract; ahora se **reinicia
-     solo con input real**. Intro/demos salen al ritmo del original.
-  8. [x] **Sombra de la flecha de cursor — VALIDADO en Windows (2026-09-26)**:
-     `append_native_cursor` (`src/hooks/menu_overlay.cpp`) la dibujaba con rectángulos sólidos; ahora
-     lleva **copia negra `kShadow` desplazada +1,+1** detrás (como el texto).
-  9. [x] **Sombra de las tildes/marcas + z-order — VALIDADO en Windows (2026-09-26)**:
-     `tools/text/menu_marks.py` aplica `add_shadow_cell` (**nivel 2, +1,+1**) a **todas** las marcas
-     (tildes + `· Æ Œ`, con `Æ`/`Œ` desplazados 1 px); `include/hh/menu_marks.h` regenerado desde
-     `assets/fonts/menu_marks_ed.png` (formas del mantenedor verificadas; máx. 8×9). Las marcas se
-     dibujan **debajo de la letra** (`src/platform/overlay.cpp`) para que la sombra no pise la tinta.
-     Nombres `Set A`: `_base` (plantilla), `_ed` (diseño), `_blank` (lienzo de `--template`).
-     Detalle: `notes/2026-09-26-c-sombras-y-set-a.md`.
-  10. [x] **`CONTROLES` (remapeo + ejes + D-PAD + `RESET`) — VALIDADO en Windows (2026-09-26) y
-     commiteado (`74dd5a8`)**: submenú con tabla de **acciones** y 2 columnas (**MANDO/TECLADO**),
-     **scroll de 5 filas + flechas ↑/↓**, menús del port centrados. Reasignación a **cualquier botón
-     (incl. D-PAD) y/o tecla** (**1 botón + 1 tecla**), con bloqueo A/B 0.25 s al asignar; **movimiento**
-     (4 ejes: stick izq/der + tecla), **D-PAD** como botones (`MENÚ ...`) y **`RESET`**. Persiste en
-     `[game]/[menu]` + `[keys]`. `notes/2026-09-26-j-controles-remapeo-y-vibracion.md`.
-     **La `VIBRACIÓN` ya es validable** (desacoplada del guardado; ver item 11, validado en Windows).
-    11. [x] **VIBRACIÓN ↔ guardado (Rumble/Controller Pak) — HECHO y VALIDADO en Windows (2026-10-02)**:
-      `func_80002BE0` daba prioridad al Rumble Pak (`osMotorInit==0 → ret 7`) y el juego creía que no
-      había Controller Pak. **Hecho**: hook que ejecuta el original y fuerza 7→0; PFS de un solo `.pak`
-      (canal 0..3); vibración global. Detalle:
-      **`notes/2026-10-02-desacoplo-vibracion-controller-pak.md`**. Relacionado: item 10 y fork NMR.
-   12. [x] **`MODO COMBATE` (BATTLE MODE) — RECREADO CON NUESTRO MENÚ Y VALIDADO EN WINDOWS
-      (2026-09-27)**:
-      el nativo la tiene como `sel=2` (`func_801C1DB8`, `0x801CC8C4`). **Hecho (2026-09-27)**:
-      (1) mapa completo de la secuencia nativa (todo en `file_024`: setup `0x801C40F8` → update
-      `0x801C4200`; `VS MODE`→stub `0x801C43B0`, `CREATURE BATTLE`→`0x801C43BC/44C4/…`, `DATA EDIT`→
-      `0x801C47D0/…`, `EXIT`→`0x801C56B8` vuelve a la raíz; `DEMO SELECT` está en `file_025`);
-      (2) **SEGV `FUN_80026f58` NO reproducido** en la build Linux actual por ninguna de las ramas
-      (harness headless); pendiente validar en Windows;
-      (3) **`MODO COMBATE` habilitado** y **recreado** (`MODO VS` / `COMBATE DE CRIATURAS` /
-      `EDITAR DATOS`, traducido en/ca/fr/de; navegación propia; sin `SALIR`, se sale con `B`);
-      (4) **despacho nativo cableado** (`hh_battle_menu_hook` envuelve `func_801C4200`): cursor
-      `0x801CC8C8` + A inyectada (patrón `sel`+A), etiquetas/flecha nativas suprimidas,
-      resincronización al volver a la raíz;
-      (5) **pantalla interna `COMBATE DE CRIATURAS` recreada** (`5 COMBATES` / `SUPERVIVENCIA`;
-      `hh_battle_creature_hook` envuelve `func_801C44C4`; `B` vuelve a la raíz).
-      Verificado headless sin SEGV (`801C4200` y `801C44C4`); **validado en Windows (2026-09-27)**.
-      **No validado**: `MODO VS` — el port **solo reporta el puerto 0** de mando
-      (`src/subsystems/input.cpp`: `return controller_num == 0`), así que el juego no detecta un
-      **2.º mando** (¿o un 2.º **Controller Pak**?); imposible probar 2P hasta resolverlo (ver backlog).
-      `EDITAR DATOS` no tiene pantalla de opciones propia (flujo nativo); si se quiere, se recrea tras
-      inspeccionarlo. Detalle/receta: `notes/2026-09-27-battle-mode-recon.md`; `docs/menu.md` §MODO COMBATE.
-   13. [x] **`CÁMARA LIBRE` / `APUNTADO LIBRE` ocultos — HECHO Y VALIDADO en Windows (2026-09-27)**:
-      decisión final del mantenedor (último cambio antes de v0.5.0): **no se muestran** en `NUEVA
-      PARTIDA` (se retiraron del árbol, `build_tree`). Antes se probaron como **deshabilitados** (gris,
-      cursor sin posarse) — se conserva la maquinaria (`make_selector(..., enabled=false)` + `move_up`/
-      `move_down` saltan `!enabled` con `step_enabled`, y el overlay los pinta en gris) por si se
-      deshabilitan otras entradas. Nota: `notes/2026-09-27-c-…`.
-   14. [x] **Tildes a la derecha — HECHO Y VALIDADO en Windows (2026-09-27, `12961d4` + corrección)**:
-      el `dx` centrado de la marca en `src/platform/overlay.cpp` suma un offset (global, todas las
-      marcas). Se probó `+1.0 px` y era **demasiado**; queda en **`+0.5 px`**. No se regenera
-      `include/hh/menu_marks.h`.
-   15. [x] **Traducción del MENÚ al JAPONÉS — HECHO Y VALIDADO en Windows (2026-09-27, commit
-      `0c5f50c`)**: **hallazgo**: `color0` (idx107) del **ROM JP es byte-idéntico al US** → la kana
-      (valores 64..255) ya está en la ROM que carga el port; **no** hay que extraer nada de `jp.z64`.
-      Mapping kana→glifo desde las tablas EUC→slot del `.resident` del ELF (filas A4/A5/A1) →
-      `tools/text/extract_jp_kana.py` genera `include/hh/jp_kana.h` (165 entradas). Atlas 128×32 →
-      **128×140** (`kMaxValue` 256); `kMenuTr` con columna **`ja`** (kana) y `localized()` sin fallback
-      a inglés (`lang=5`); endónimo JA `ニホンゴ`. Nota: `notes/2026-09-27-c-…`.
 - [ ] **Smoke de arranque** (opcional, requiere ROM): ROM en `rom\` junto al `.exe` (o `HH_HEADLESS=1` +
   `rom/` en Docker): la encuentra y sin `Failed to find function`.
 - [ ] **Definir ADR 0009** (cobertura nativa / clean-room) cuando se adopte la visión de
@@ -396,10 +188,12 @@
 
 ## Backlog (priorizado)
 
-- [ ] **Verificar los textos JA del menú contra la ROM japonesa** (2026-09-27): el menú ya sale en
-  kana (entradas **JA** de `assets/lang/ja.txt`, `include/hh/jp_kana.h`) pero el mantenedor **no lee japonés**; una
-  tarea futura debe **cotejar** los rótulos con los originales de `work/roms/jp.z64` (menús nativos,
-  EUC-JP) y corregir la redacción/terminología. La infraestructura (kana + mapping) ya está.
+- [ ] **Traducción JA (juego + intro + final) — POSPUESTA (2026-09-27)**: requiere **procesar la ROM
+  japonesa** (extracción/mapping de cadenas y glifos), tarea mayor. El **menú de título JA ya está
+  traducido** (kana; `include/hh/jp_kana.h` + entradas JA de `assets/lang/ja.txt`), pero hoy está
+  **deshabilitado**; al habilitarlo, cotejar los rótulos con los originales de la ROM JP (EUC-JP).
+  La infraestructura kana ya existe. Ideas de extracción en
+  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`; `docs/menu.md`.
 - [ ] **Fallos visuales detectados por el mantenedor (2026-09-26; capturas en
   `work/gameplay screenshots/CONTINUAR/`)**: `work/` está gitignored; si hace falta conservar las
   capturas, copiar las relevantes al repo.
@@ -410,28 +204,6 @@
      y `HH_FULL_FRAME=0` para acotar.
   2. **Combate (golpes)**: los ataques salen como **cajas verdes/rojas con recuadro negro (solo el
      borde)**; en el original **no** llevan ese borde. El mantenedor irá añadiendo capturas a esa carpeta.
-- [•] **Traducción — MENÚ (overlay del port)**. Alcance: **etiquetas del menú moderno** (no usa el
-  motor de texto del juego). **Hecho (2026-09-25/26)**: localización **en/es/ca/fr/de**
-  (`hh::menu::localized`, lista en **endónimos**); acentos = **letra base `color0` + marca**
-  (`tools/text/menu_marks.py` → `include/hh/menu_marks.h`; `¿ ¡` = `? !` girados); **`IDIOMA` en
-  `AJUSTES`** funcional (menú + texto in-game), con **idioma del sistema** (fallback inglés) y
-  persistencia `[lang]`; **validado en Windows (2026-09-26)**.
-  **Pendiente**: **JA del menú** (embeber la **kana** del `color0` JP — tiene kana, no kanji).
-  Detalle: `notes/2026-09-25-d-menu-multilingue-acentos-e-idiomas.md`, **ADR 0012**, `docs/menu.md`.
-- [•] **Traducción — JUEGO/GAMEPLAY (texto in-game)**. Alcance: **cadenas del juego** vía el motor de
-  texto (loader `trans`). **Hecho (2026-09-23)**: charset USA derivado (ASCII en campos de ancho fijo +
-  NUL; el "encoding custom" era LZKN64) y **sustitución en runtime** (`src/subsystems/text.cpp`;
-  `HH_LANG=es`); extractor `tools/text/extract_strings.py`; **sistema A1** (lista `en/es/ca/fr/de/ja` +
-  mods, **cambio en vivo** F5 con re-aplicación a módulos cargados, persistencia `[lang]`).
-  **Pendiente**: control de **longitud variable** y validar A1 en Windows; **cablear** la fuente
-  in-game **8×12 `color4`** (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE)
-  en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8 propio; `HH_ACCENTS=0` la desactiva);
-  **extraer DE/FR** (ROM EU) y **JA** (ROM JP) emparejando por módulo → `assets/lang/*.txt`, y redactar
-  **ES/CA**; **medir cobertura** (nº de strings/zonas) y decidir formato (La PAL FR/DE = referencia).
-  Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
-  `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
-  `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
-  `notes/2026-09-25-e-fix-reapply-idioma.md`. Ver `PROYECTO.md §4`, `notes/2026-09-05_asset-map.md`.
 - [ ] **2.º mando / 2.º Controller Pak — `MODO VS` no validable (2026-09-27)**: `MODO COMBATE →
   MODO VS` no se pudo validar; el port **solo reporta el puerto 0** de mando
   (`src/subsystems/input.cpp`: `return controller_num == 0` por el arranque del juego), así que no se
