@@ -2,7 +2,7 @@
 
 > Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
 > Motor + datos + i18n + ancla + **4:3 + re-troceo (F2) + huérfanas de frase HECHOS y validados**
-> (headless **y Windows**, 2026-10-06); **commit `6b579ac`**. **Siguiente**: toggle por menú y fr
+> (headless **y Windows**, 2026-10-06); **commits `6b579ac`/`254e135`/`e699d92`**. **Siguiente**: fr
 > `œ/Œ/Ÿ`. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
 > `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta
 > rama.)
@@ -24,10 +24,12 @@
   cambiar `max_w` (F2).
 - **Huérfanas de frase (paginado)**: la página no cierra con `fin de frase + 1-2 palabras` (`. . .` de
   pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. **Commiteado** (`6b579ac`).
+- **Toggle en el menú**: GRÁFICOS → `SUBTÍTULOS INTRO` (NO/SÍ, defecto **SÍ**); persiste en
+  `config.ini [video].subtitles` y aplica en caliente. `HH_SUBTITLES` (env) tiene prioridad. **Validado
+  headless** (fila + toggle + persistencia); **pendiente validación visual en Windows** (mantenedor).
 
 ## TAREA SIGUIENTE — pendientes menores de subtítulos
 
-- **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - El **final** reutilizará la misma arquitectura (referencia ya preparada).
 - *Revisión es/ca: **validada** por el mantenedor (2026-10-06).*

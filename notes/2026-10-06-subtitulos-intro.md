@@ -25,6 +25,10 @@
     `tick()` (por frame, hilo del juego) publica la línea activa.
 - **Fuente**: `Face::Color4` (8×12). **Apóstrofo** compuesto con la **coma subida** (la color4 no lo
   trae); `…`→`...`, comillas curvas → rectas (normalización en el cargador).
+- **Toggle en el menú** GRÁFICOS → `SUBTÍTULOS INTRO` (**NO/SÍ**, defecto **SÍ**): `hh::video_set_subtitles()`
+  persiste en `config.ini [video].subtitles` (como el resto de opciones de GRÁFICOS) y aplica en caliente
+  vía `hh::subtitles::set_enabled()`. El selector canónico es `NO`/`YES` (se muestra **NO/SÍ** por
+  `assets/lang`). `HH_SUBTITLES` (env) tiene **prioridad** sobre la config (testing).
 - **Ancho de troceo por aspecto** (`subtitle_max_width()`): en `auto`/`expand` (widescreen) se mantiene
   **exactamente** `visible_width() - 24` (sin cambios); en `original` (4:3 nativo) y `4:3` manual se
   trocea al área del **juego** (320), con margen **40** (`max_w = 280`, pedido por el mantenedor: la
@@ -111,12 +115,16 @@
   Holly (`id 2`) pasa de reparto `[2,3,2]` con 2 páginas que acababan en `...OK? Well,` / `...Eve? I`
   a `[1,3,3]` con 0 (página 1 de 1 línea limpia `...you're out again`, capturada). En 4:3 el reparto no
   cambia (el caso de `id 2` allí es estructuralmente inevitable).
+- **Toggle (config + menú, headless)**: `[video] subtitles = no` → `[subs] init (activados=0)` y **sin
+  panel** (captura en el 1er bloque); `= si` (defecto) los muestra. En el menú, GRÁFICOS muestra la fila
+  `SUBTÍTULOS INTRO  NO/SÍ` (defecto SÍ, capturada); al pulsar IZQ → `[VIDEO] SUBTÍTULOS INTRO -> no` y
+  `config.ini` pasa a `subtitles = no` (persistencia + cambio visual a `NO` en verde). Validación visual
+  final en Windows: mantenedor.
 - **Validado en Windows** (mantenedor, 2026-10-06): líneas fijas, balanceo, skip, cortes `---`, ancla,
   **4:3, F2 y huérfanas** (sync visual) `OK`.
 
 ## 8. Pendiente
 
-- **Toggle por menú** (hoy `HH_SUBTITLES`, por defecto activado).
 - **fr `œ/Œ/Ÿ`** (>U+00FF): cocer y consultar por codepoint en el overlay.
 - El **final** reutilizará la misma arquitectura.
 

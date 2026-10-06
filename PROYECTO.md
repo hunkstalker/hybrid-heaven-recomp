@@ -198,7 +198,8 @@ in-game) + subsystem **`hh::subtitles`** (tiempos + textos por idioma, reloj por
 la 2ª oleada de cargas; la campanada es BGM). **4:3** (troceo al área del juego, margen 40), **re-troceo
 en caliente** (F2) y **control de huérfanas de frase** (la página no cierra con `punto + 1-2 palabras`),
 todo **validado (headless + Windows)**. 5 idiomas. Nota: `notes/2026-10-06-subtitulos-intro.md`;
-commit `6b579ac`; traducciones **es/ca revisadas** (mantenedor). **Pendiente**: toggle por menú + fr
+commits `6b579ac`/`254e135`/`e699d92`; traducciones **es/ca revisadas** (mantenedor); **toggle en
+GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ, defecto SÍ, persiste `[video].subtitles`). **Pendiente**: fr
 `œ/Œ/Ÿ`.
 **Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
 seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo

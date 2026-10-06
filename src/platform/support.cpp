@@ -33,6 +33,7 @@
 
 #include "hh.h"
 #include "hh/config_ini.h"
+#include "hh/subtitles.h"
 
 static FILE* g_log_file = nullptr;
 static std::filesystem::path g_log_path;
@@ -305,6 +306,7 @@ hh::VideoConfig& hh::video_config_mutable() {
             else if (k == "vsync") c.vsync = v;
             else if (k == "fps") c.fps = v;
             else if (k == "showfps") c.showfps = v;
+            else if (k == "subtitles") c.subtitles = v;
             else if (k == "developer") c.developer = v;
             else if (k == "win_w") c.win_w = std::atoi(v.c_str());
             else if (k == "win_h") c.win_h = std::atoi(v.c_str());
@@ -492,7 +494,7 @@ void hh::video_config_save() {
     hh::config_ini_set("video",
                        {{"wm", v.wm}, {"res", v.res}, {"aspect", v.aspect}, {"msaa", v.msaa},
                         {"vsync", v.vsync}, {"fps", v.fps}, {"showfps", v.showfps},
-                        {"developer", v.developer},
+                        {"subtitles", v.subtitles}, {"developer", v.developer},
                         {"win_w", std::to_string(v.win_w)}, {"win_h", std::to_string(v.win_h)},
                         {"win_x", std::to_string(v.win_x)}, {"win_y", std::to_string(v.win_y)}});
 }
@@ -752,6 +754,15 @@ void hh::video_set_show_fps(bool enabled) {
     hh::video_config_mutable().showfps = enabled ? "si" : "no";
     hh::video_config_save();
     fprintf(stderr, "[VIDEO] MOSTRAR FPS -> %s\n", hh::video_config().showfps.c_str());
+}
+
+// Menu GRÁFICOS -> SUBTÍTULOS INTRO: activa/desactiva la capa de subtítulos (intro/prólogo) y
+// persiste en config.ini [video].subtitles. El efecto en caliente lo aplica `hh::subtitles`.
+void hh::video_set_subtitles(bool enabled) {
+    hh::video_config_mutable().subtitles = enabled ? "si" : "no";
+    hh::subtitles::set_enabled(enabled);
+    hh::video_config_save();
+    fprintf(stderr, "[VIDEO] SUBTÍTULOS INTRO -> %s\n", hh::video_config().subtitles.c_str());
 }
 
 // Menu GRÁFICOS -> P. COMPLETA: fija el modo de ventana (borderless/windowed). El cambio se aplica

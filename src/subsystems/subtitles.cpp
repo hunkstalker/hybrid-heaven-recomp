@@ -452,7 +452,13 @@ void init() {
     State& s = state();
     if (s.loaded) return;
     s.loaded = true;
-    s.enabled = env_flag("HH_SUBTITLES", true);
+    // Precedencia: `HH_SUBTITLES` (env, testing) > `[video].subtitles` (menú GRÁFICOS; defecto SÍ).
+    const char* env = std::getenv("HH_SUBTITLES");
+    if (env != nullptr && *env != '\0') {
+        s.enabled = !(env[0] == '0' && env[1] == '\0');
+    } else {
+        s.enabled = hh::video_config().subtitles != "no";
+    }
     s.trace = env_flag("HH_SUB_TRACE", false);
     if (const char* off = std::getenv("HH_SUB_OFFSET_MS"); off != nullptr && *off != '\0') {
         s.offset_ms = std::atol(off);
@@ -463,6 +469,14 @@ void init() {
 bool enabled() {
     init();
     return state().enabled;
+}
+
+void set_enabled(bool on) {
+    init();
+    State& s = state();
+    if (s.enabled == on) return;
+    s.enabled = on;
+    if (!on) hide();   // desactivar en caliente: ocultar lo publicado (el tick deja de publicar)
 }
 
 void begin(const std::string& name) {

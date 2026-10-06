@@ -111,6 +111,7 @@ namespace hh {
         std::string vsync = "si";        // si | no
         std::string fps = "nativo";      // nativo | 30 | 60 | 120 | 144 | 160
         std::string showfps = "no";      // si | no (indicador de FPS del overlay)
+        std::string subtitles = "si";    // si | no (subtítulos de intro/prólogo; defecto SÍ)
         std::string developer = "no";    // si | no (VENTANA DEBUG: Inspector de RT64 con F1)
         // Geometria de la ventana en modo `windowed` (recordada al cerrar). 0/-1 = sin definir.
         int win_w = 0, win_h = 0;
@@ -128,6 +129,7 @@ namespace hh {
     void video_set_vsync(bool enabled);       // menu GRÁFICOS -> VSYNC
     void video_set_fps_limit(int hz);         // menu GRÁFICOS -> LÍMITE DE FPS (<=0 = nativo)
     void video_set_show_fps(bool enabled);    // menu DEBUG -> MOSTRAR FPS (indicador del overlay)
+    void video_set_subtitles(bool enabled);   // menu GRÁFICOS -> SUBTÍTULOS INTRO (capa de subtítulos)
     void video_set_developer_mode(bool enabled);  // menu DEBUG -> VENTANA DEBUG (Inspector F1)
     void video_set_resolution(const std::string& res);          // menu GRÁFICOS -> RESOLUCIÓN
     void video_set_aspect(const std::string& aspect, double target);  // menu GRÁFICOS -> RATIO

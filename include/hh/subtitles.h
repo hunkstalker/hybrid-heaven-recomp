@@ -17,7 +17,7 @@
 // Formato `subtitles_<lang>.txt` (líneas `clave=valor`, escapes `\n`/`\t`/`\\`):
 //     <name>.<id>=texto
 //
-// Knobs: HH_SUBTITLES=0 desactiva; HH_SUB_TRACE=1 traza líneas y ancla.
+// Knobs: HH_SUBTITLES=0 desactiva (override del menú); HH_SUB_TRACE=1 traza líneas y ancla.
 
 #include <string>
 
@@ -27,6 +27,10 @@ namespace hh::subtitles {
 void init();
 
 bool enabled();
+
+// Activa/desactiva la capa en caliente (menú GRÁFICOS -> SUBTÍTULOS INTRO). Al desactivar, oculta lo
+// publicado; si se reactiva durante una secuencia, vuelve a publicar en el siguiente `tick()`.
+void set_enabled(bool on);
 
 // Empieza la secuencia `name`: carga sus datos y ARMA el ancla (aún no visible). El reloj se ancla
 // cuando `notify_scene()` ve la escena objetivo (el inicio real de la cinemática, una vez cargada).

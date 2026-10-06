@@ -108,6 +108,7 @@ enum class Action {
     ToggleVsync,     // VSYNC: NO/ SÍ; aplica la sincronía de presentación de RT64
     FpsLimit,        // LÍMITE DE FPS: NATIVO o una tasa fija (RT64 refreshRate)
     ToggleShowFps,   // MOSTRAR FPS: indicador de FPS del overlay (solo números, arriba-izquierda)
+    ToggleSubtitles, // SUBTÍTULOS INTRO: capa de subtítulos de intro/prólogo (NO/SÍ)
     MsaaSelect,      // ANTIALIASING: MSAA de RT64 (x0/x2/x4/x8)
     VolumeSelect,    // VOLUMEN: volumen general (0-100 %)
     OutputSelect,    // SALIDA: MONO / ESTÉREO / AURICULARES (crossfeed)

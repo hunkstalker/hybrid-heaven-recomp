@@ -1357,6 +1357,8 @@ static void feed_menu_navigation(uint8_t* rdram, recomp_context* ctx) {
                 hh::video_set_fps_limit(hz);
             } else if (cur.action == hh::menu::Action::ToggleShowFps) {
                 hh::video_set_show_fps(cur.value != 0);
+            } else if (cur.action == hh::menu::Action::ToggleSubtitles) {
+                hh::video_set_subtitles(cur.value != 0);
             } else if (cur.action == hh::menu::Action::MsaaSelect) {
                 static const char* kMsaa[] = { "off", "2x", "4x", "8x" };
                 const int n = static_cast<int>(sizeof(kMsaa) / sizeof(kMsaa[0]));

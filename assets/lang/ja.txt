@@ -74,6 +74,7 @@ DEBUG LEVELS=レベルデバッグ
 GO TO AREA=エリアイキ
 AREA=エリア
 SHOW FPS=FPSヒョウジ
+INTRO SUBTITLES=イントロジマク
 VOLUME=オンリョウ
 OUTPUT=シュツリョク
 MENU SFX=メニューオンセイ

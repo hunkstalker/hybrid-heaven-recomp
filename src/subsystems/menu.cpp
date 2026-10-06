@@ -99,6 +99,8 @@ int fps_limit_default() {
     }
 }
 int show_fps_default() { return hh::video_config().showfps == "si" ? 1 : 0; }
+// SUBTÍTULOS INTRO: subtítulos de la intro/prólogo (defecto SÍ). Persiste en config.ini [video].
+int subtitles_default() { return hh::video_config().subtitles == "si" ? 1 : 0; }
 int developer_default() { return hh::video_config().developer == "si" ? 1 : 0; }
 // VOLUMEN: indice 0..10 (pasos de 10 %) según `[audio].volumen`.
 int volume_default() { return std::clamp((hh::audio_config().volume + 5) / 10, 0, 10); }
@@ -422,6 +424,10 @@ void build_tree() {
         // Indicador de FPS del overlay; persiste en config.ini [video].showfps.
         make_selector_with_action("SHOW FPS", {"NO", "YES"}, Action::ToggleShowFps,
                                   show_fps_default()),
+        // Subtítulos de la intro/prólogo (capa del overlay); persiste en config.ini [video].subtitles.
+        // Defecto SÍ. El selector NO/YES se muestra como NO/SÍ en español (assets/lang).
+        make_selector_with_action("INTRO SUBTITLES", {"NO", "YES"}, Action::ToggleSubtitles,
+                                  subtitles_default()),
     }));
 
     // DEBUG: vacío por ahora (VENTANA DEBUG -> EXTRAS como DEBUG PANEL; MOSTRAR FPS -> GRÁFICOS).

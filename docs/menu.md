@@ -56,6 +56,9 @@ CONFIGURACIÓN ->
             VSYNC        NO/SÍ         (por defecto SÍ)
             LÍMITE DE FPS < NATIVO / 30 / 40 / 60 / 75 / 90 / 120 / 144 / 165 / 240 >
                           (NATIVO = refresco del monitor)
+            MOSTRAR FPS  NO/SÍ         (indicador de FPS del overlay)
+            SUBTÍTULOS INTRO NO/SÍ     (subtítulos de la intro/prólogo; por defecto SÍ;
+                                        persiste en [video].subtitles)
       SONIDO ->
             VOLUMEN      < 0% … 100% > (pasos de 10; 100% = sin atenuar)
             SALIDA       < ESTÉREO >  (stepper: solo el valor activo, izq MONO / der AURICULARES;
@@ -121,8 +124,9 @@ SALIR                                      (extra del port: cierra de forma orde
   **Verificar VSYNC**: con `HH_FPS=1` la línea `[hh-fps]` incluye `vsync=<0|1>` (estado real del
   swapchain, `isVsyncEnabled`); al cambiarlo, el log muestra `[hh] vsync=... real=...`.
 - **Persistencia**: las acciones de `RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` /
-  `LÍMITE DE FPS` / `MOSTRAR FPS` / `VENTANA DEBUG` persisten en `config.ini` `[video]` (`aspect`/
-  `res`/`wm`/`msaa`/`vsync`/`fps`/`showfps`/`developer`) y el menú se inicializa con esos valores. El
+  `LÍMITE DE FPS` / `MOSTRAR FPS` / `SUBTÍTULOS INTRO` / `VENTANA DEBUG` persisten en `config.ini`
+  `[video]` (`aspect`/`res`/`wm`/`msaa`/`vsync`/`fps`/`showfps`/`subtitles`/`developer`) y el menú se
+  inicializa con esos valores. El
   escritor compartido es
   `hh::config_ini_set` (`include/hh/config_ini.h`), que preserva el resto del fichero.
 - **`MOSTRAR FPS`**: indicador de **solo números** en la **esquina superior izquierda REAL** de la
@@ -316,12 +320,12 @@ S16 / estéreo**); si el formato no encaja, se ignora y se avisa en `hh.log`. `M
 | 3. Ocultar el menú nativo | **HECHO** y **validado en Windows** (los 3 bugs del overlay). Ver `architecture.md` §7 |
 | 4. Etiquetas propias + acentos + idiomas | **HECHO (2026-09-25 / 2026-09-27) y validado en Windows (2026-09-27)**: etiquetas localizadas (en/es/ca/fr/de **/ja**) + acentos por **letra+marca** + `IDIOMA` funcional + **detección del idioma del sistema**. **JA en kana** (valores 64..255 de `color0`; `include/hh/jp_kana.h`) y atlas 128×140. Tildes a **+0.5 px**. Pendiente: verificar los textos JA contra la ROM japonesa |
 | 5. Navegación propia (A/B + selectores, control total) | **HECHO (2026-09-24) y validado en Windows**. `feed_menu_navigation` cubre arriba/abajo/izq-der/A/B (sin X) y el input del handler nativo queda **muteado** |
-| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1) y **`MOSTRAR FPS`** dibuja el indicador; **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. **`MODO COMBATE`** habilitado con subpantallas propias (`MODO VS`/`COMBATE DE CRIATURAS`→`5 COMBATES`/`SUPERVIVENCIA`/`EDITAR DATOS`; se sale con B) y **despacho nativo** por cursor; **validado en Windows (2026-09-27)** salvo `MODO VS` (solo se reporta el puerto 0 de mando). `CÁMARA LIBRE`/`APUNTADO LIBRE` **ocultos** (2026-09-27) hasta que el juego los soporte |
+| 6. Acciones (mapear cada entrada a la función del juego) | parcial: `DEBUG` engancha el modo desarrollador de RT64 (F1), **`MOSTRAR FPS`** dibuja el indicador y **`SUBTÍTULOS INTRO`** activa/desactiva la capa de subtítulos (intro/prólogo); **`RATIO` / `RESOLUCIÓN` / `P. COMPLETA` / `ANTIALIASING` / `VSYNC` / `LÍMITE DE FPS`** aplican en vivo y **persisten en `config.ini`** (`[video]`) con los valores iniciales leídos de la config (+ geometría de ventana). **`SALIR`** cierra el port de forma ordenada (extra del port). **`CONTINUAR`** retoma la partida y **`EMPEZAR PARTIDA`** arranca partida nueva (disparo nativo; ver §Acciones nativas), **`EMPEZAR PARTIDA` validado en Windows (2026-09-26)**. **`DIFICULTAD`** fija la dificultad de esa partida (global `0x801BBC0D`): implementada, pero su **efecto real** (daño enemigo) **queda por comprobar jugando**. **`MODO COMBATE`** habilitado con subpantallas propias (`MODO VS`/`COMBATE DE CRIATURAS`→`5 COMBATES`/`SUPERVIVENCIA`/`EDITAR DATOS`; se sale con B) y **despacho nativo** por cursor; **validado en Windows (2026-09-27)** salvo `MODO VS` (solo se reporta el puerto 0 de mando). `CÁMARA LIBRE`/`APUNTADO LIBRE` **ocultos** (2026-09-27) hasta que el juego los soporte |
 | 7. SFX desde eventos del modelo (retirar el puente) | **HECHO (2026-09-25) y validado en Windows**: `Move`/`Accept`/`Back` desde los eventos de `hh::menu`; puente retirado |
 | 8. Validar en Windows | **HECHO (2026-09-27)**: menú completo (navegación, idiomas/acentos, acciones, `CONTROLES`, `MODO COMBATE`, `EXTRAS`, JA) validado |
 
 **Orden seguido:** 5 → 6 → 7 → 4 → 8 (todos hechos; **JA y validación en Windows, 2026-09-27**). Los
-submenús se pueden forzar con `HH_MENU_SCREEN=6` GRÁFICOS / `=5` IDIOMA.
+submenús se pueden forzar con `HH_MENU_SCREEN=7` GRÁFICOS / `=6` IDIOMA (id de `ScreenId`).
 
 La configuración de los selectores ya **persiste** (`config.ini`) y el idioma también (`[lang]`).
 `CÁMARA LIBRE`/`APUNTADO LIBRE` **ocultos** por ahora hasta que el juego los soporte (requieren
