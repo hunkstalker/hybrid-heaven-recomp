@@ -70,6 +70,8 @@ Los gitlinks de `lib/` (y `runtime.lock`) solo valen **tras** pushear los forks 
 **Versionado / releases**: al subir versión (PATCH bugfix / MINOR feature; fuente única `include/hh.h`),
 **propón título de release** (`vX.Y.Z - <área>: <qué>`) y crea `docs/releases/vX.Y.Z.md` con él en la
 **primera línea** (`release.yml` lo usa). Propuesta: 1 recomendación + 2-3 alternativas, concisa.
+**Regla de release**: se **pushea el commit de release** (`chore(release): vX.Y.Z`) para que **CI lo
+compile**; el **tag lo añade el mantenedor a mano en GitHub** (ese commit = **HEAD**).
 
 ## Calibración crítica
 

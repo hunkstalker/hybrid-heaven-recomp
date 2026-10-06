@@ -191,17 +191,18 @@ Notas: `notes/2026-10-01-titulo-area-carga.md` y `notes/2026-10-01-titulo-area-c
 (`assets/lang/*.txt`, clave inglés) con `hh::text::translate()` como único punto y `menu::localized`
 delegando; borrados `kMenuTr`/`kEsDefaults`; el jugador edita un `.txt` sin recompilar. **ADR 0014**;
 estado + validación: `notes/2026-10-01-i18n-unificar-traducciones-plan.md` §8.
-**Subtítulos de la intro/prólogo (HECHO, 2026-10-06; rama `subtitulos-intro`; validado headless + Windows)**: capa de
+**Subtítulos de la intro/prólogo (HECHO, 2026-10-06; rama `subtitulos-intro` MERGEADA a `main`; validado headless + Windows)**: capa de
 subtítulos en el **overlay** (`hh::overlay::set_subtitle`; **`Face::Color4`** = tipografía del diálogo
 in-game) + subsystem **`hh::subtitles`** (tiempos + textos por idioma, reloj por **VI**, **líneas fijas**
 `[N]`, paginado **balanceado**, cortes `---`, skip). **Ancla robusta** al inicio de la cinemática (fin de
 la 2ª oleada de cargas; la campanada es BGM). **4:3** (troceo al área del juego, margen 40), **re-troceo
 en caliente** (F2) y **control de huérfanas de frase** (la página no cierra con `punto + 1-2 palabras`),
 todo **validado (headless + Windows)**. 5 idiomas. Nota: `notes/2026-10-06-subtitulos-intro.md`;
-commits `6b579ac`/`254e135`/`e699d92`/`f194953`; traducciones **es/ca revisadas** (mantenedor);
+commits `2795669`/`b9e09a3`/`d1a1b3b`/`ed49215`/`61c2027`/`8edcd8d`; traducciones **es/ca revisadas** (mantenedor), **fr/de sin revisar** (no domina esos idiomas);
 **toggle en GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ, defecto SÍ, persiste `[video].subtitles`), **validado
 en Windows**; **extras >U+00FF (`œ/Œ/Ÿ`, `ł/Ł/ś/Ś`)** en banda aparte del atlas + lookup por codepoint
-(headless OK; validación visual diferida a traducciones que los usen). **Pendiente**: el **final**.
+(headless OK). **Diferidos**: subtítulos del **final** (no validable sin llegar al final del juego) y
+diálogos del **gameplay**.
 **Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
 seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo
 del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y

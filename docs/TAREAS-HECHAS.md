@@ -4,6 +4,21 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## 2026-10-06
+
+- **Subtítulos de la intro/prólogo (rama `subtitulos-intro`, mergeada a `main`) — HECHO y validado
+  (headless + Windows).** Capa propia en el overlay (`hh::overlay::set_subtitle`; tipografía del diálogo
+  in-game `Face::Color4`) + subsystem `hh::subtitles` (timing + textos por idioma, reloj por **VI**,
+  líneas fijas `[N]`, paginado balanceado **con control de huérfanas de frase**, cortes `---`, skip con
+  A; **ancla robusta** al fin de la 2ª oleada de cargas, +12.15 s). **5 idiomas**: en (generado),
+  es/ca (revisados); **fr/de sin revisar** (el mantenedor no domina esos idiomas). **4:3** (troceo por
+  el área del juego, margen 40 → «aire») con **re-troceo en caliente** (F2). **Toggle en GRÁFICOS →
+  SUBTÍTULOS INTRO** (`[video].subtitles`, defecto SÍ). **Extras >U+00FF** `œ/Œ/Ÿ` (FR) y `ł/Ł/ś/Ś` (PL)
+  en banda aparte del atlas (`face_glyph_cp_uv`). Herramientas `tools/text/build_subtitles.py` +
+  `preview_subtitles.py`. Nota: `notes/2026-10-06-subtitulos-intro.md`. **Diferidos**: subtítulos del
+  **final** (no validable sin llegar al final del juego) y diálogos del **gameplay** (validarán
+  visualmente `œ/Œ/Ÿ`).
+
 ## 2026-10-05
 
 - **A1 — tick lógico determinista (2 VI/frame): RESUELTO y VALIDADO en Windows (2026-10-05).** Los

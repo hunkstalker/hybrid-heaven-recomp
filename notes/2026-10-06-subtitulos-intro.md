@@ -2,9 +2,10 @@
 
 > Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo**
 > (tras `NUEVA PARTIDA` → `EMPEZAR PARTIDA`) en **en/es/ca/fr/de**, con el **estilo del diálogo
-> in-game**. Estado: motor + datos + ancla + **4:3 + re-troceo (F2) + huérfanas + toggle de menú
-> HECHOS y validados (headless y Windows, 2026-10-06)**. Sigue el plan acordado (capas de overlay +
-> i18n). Referencia de guion: `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt`.
+> in-game**. Estado: motor + datos + ancla + **4:3 + re-troceo (F2) + huérfanas + toggle de menú + extras
+> `œ/Œ/Ÿ` HECHOS y validados (headless y Windows, 2026-10-06)**; **rama `subtitulos-intro` MERGEADA a
+> `main`**. Sigue el plan acordado (capas de overlay + i18n). Referencia de guion:
+> `notes/reference/Hybrid-Heaven-Intro-Dialogues.txt`.
 
 ## 1. Motor de subtítulos (overlay)
 
@@ -135,9 +136,12 @@
 - **Validado en Windows** (mantenedor, 2026-10-06): líneas fijas, balanceo, skip, cortes `---`, ancla,
   **4:3, F2 y huérfanas** (sync visual) `OK`.
 
-## 8. Pendiente
+## 8. Pendiente (diferidos)
 
-- El **final** reutilizará la misma arquitectura.
+- **FINAL**: reutilizará la misma arquitectura (referencia preparada, sin trackear). **Diferido**: el
+  mantenedor no puede validarlo sin llegar al final del juego.
+- **Diálogos del gameplay**: trabajo mayor futuro; ahí se validará visualmente `œ/Œ/Ÿ`.
+- **fr/de**: sin revisar (el mantenedor no domina esos idiomas).
 
 ## 9. Referencias
 

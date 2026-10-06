@@ -71,6 +71,10 @@ tools/build_linux.sh --help
   `release.yml` **no recompila**: localiza el run de CI **verde** de ese commit, descarga sus
   artefactos, crea el Release (tag `v*` o manual con `version`) y monta la imagen `ghcr.io` desde el
   binario (`docker/Dockerfile.runtime`). El CI **no** ejecuta el juego: la ROM no se sube nunca.
+  **Regla de release**: se **pushea el commit de release** (`chore(release): vX.Y.Z`, con el bump de
+  `include/hh.h` y `docs/releases/vX.Y.Z.md`) para que **CI lo compile y suba sus artefactos**; el
+  **tag lo añade el mantenedor a mano desde GitHub** (no `git push --tags`). Ese commit debe ser
+  **HEAD** para que el tag manual apunte a él; `release.yml` publica los artefactos de **ese** commit.
   **C recompilado (ADR 0009)**: no se versiona; como no cabe en un secret de Actions (límite 48 KB),
   el CI lo trae de un **repo privado de secretos** (patrón Goemon/Zelda64Recomp) clonado con un PAT:
   variable `HH_SECRETS_REPO` (por defecto `hunkstalker/hh-recomp-secrets`) + secreto `HH_SECRETS_PAT`

@@ -8,10 +8,10 @@
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
-| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 118 | 2026-10-05 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 308 | 2026-10-06 |
+| [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 118 | 2026-10-02 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 309 | 2026-10-06 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 487 | 2026-10-06 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 476 | 2026-10-06 |
 
 ## Técnico y guías (vivos)
 
@@ -20,10 +20,10 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 264 | 2026-10-05 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 279 | 2026-10-06 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
-| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 154 | 2026-10-01 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 154 | 2026-10-06 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
 | [Interpolación: emparejamiento de transforms (método y oráculo)](interpolacion-pairing.md) | **Doc vivo.** Cómo RT64 interpola los frames que el juego no dibuja, cómo se le dice qué es cada | 136 | 2026-10-05 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 363 | 2026-10-06 |
@@ -46,7 +46,7 @@
 | [v0.7.3 - Interpolación: tick determinista (120 fps sin parones) y tagging de C768 en gameplay](releases/v0.7.3.md) | Parche sobre v0.7.2 que **estabiliza la tasa de refresco** y **arregla la regresión de emparejado** que | 24 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
-| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 322 | 2026-10-05 |
+| [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 326 | 2026-10-05 |
 
 ## Decisiones (ADR, inmutables)
 
@@ -73,7 +73,7 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
-| [Subtítulos de la intro/prólogo — motor, datos, i18n, ancla, 4:3 y paginado](../notes/2026-10-06-subtitulos-intro.md) | Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo** | 145 | 2026-10-06 |
+| [Subtítulos de la intro/prólogo — motor, datos, i18n, ancla, 4:3 y paginado](../notes/2026-10-06-subtitulos-intro.md) | Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo** | 149 | 2026-10-06 |
 | [2026-10-05 — Verificación de base: jump tables cross-function (clase #14/veneno)](../notes/2026-10-05-verificacion-base-jumptables.md) | Sesión de verificación (rama `verificacion-byte-match`). Herramientas nuevas en `tools/verify/`. | 46 | 2026-10-05 |
 | [2026-10-05 — LZKN64: compresor propio (Fase 4 de verificación)](../notes/2026-10-05-lzkn64-compresor.md) | Rama `verificacion-byte-match`. Reimplementación **clean-room** del compresor LZKN64 (el | 47 | 2026-10-05 |
 | [FPS/interpolación — integración de la épica en `main` + release (2026-10-05)](../notes/2026-10-05-fps-integracion-en-main-y-release.md) | La épica de **interpolación de frames** (rama `fps-interpolacion-tagging`) queda **integrada en | 92 | 2026-10-05 |

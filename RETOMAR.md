@@ -1,12 +1,10 @@
 # RETOMAR — handoff (2026-10-06)
 
-> Rama **`subtitulos-intro`** (parte de `main`). Tarea de la sesión: **subtítulos de la intro/prólogo**.
-> Motor + datos + i18n + ancla + **4:3 + re-troceo (F2) + huérfanas de frase HECHOS y validados**
-> (headless **y Windows**, 2026-10-06); **commits `6b579ac`/`254e135`/`e699d92`/`f194953`**.
-> **Siguiente**: validar en Windows los extras `œ/Œ/Ÿ` y empezar el **final**. Detalle:
-> **`notes/2026-10-06-subtitulos-intro.md`**. Reglas: `AGENTS.md`,
-> `docs/documentation.md`. (La épica FPS / transiciones sigue en `TODO.md`; no es la tarea de esta
-> rama.)
+> Rama **`subtitulos-intro`** **MERGEADA a `main`** (2026-10-06). Tarea de la sesión: **subtítulos de la
+> intro/prólogo** — **HECHA y validada (headless + Windows)**. Detalle: **`notes/2026-10-06-subtitulos-intro.md`**
+> (resumen en `docs/TAREAS-HECHAS.md`). Reglas: `AGENTS.md`, `docs/documentation.md`.
+> **Siguiente**: lo que marque `TODO.md` "Ahora" (p. ej. **v0.7.3 push/tag**, **verificación byte-match**,
+> épica **FPS/transiciones**).
 
 ## Estado (2026-10-06)
 
@@ -24,21 +22,26 @@
   **`auto`/`expand` SIN CAMBIOS** (`visible_width()-24`). El re-troceo/re-publicado se fuerza al
   cambiar `max_w` (F2).
 - **Huérfanas de frase (paginado)**: la página no cierra con `fin de frase + 1-2 palabras` (`. . .` de
-  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. **Commiteado** (`6b579ac`).
+  pausa y abreviaturas no cuentan); aplica en **widescreen y 4:3**. **Commiteado** (`2795669`).
 - **Toggle en el menú**: GRÁFICOS → `SUBTÍTULOS INTRO` (NO/SÍ, defecto **SÍ**); persiste en
   `config.ini [video].subtitles` y aplica en caliente. `HH_SUBTITLES` (env) tiene prioridad. **Validado
-  headless y en Windows** (mantenedor, 2026-10-06). Commit `f194953`.
+  headless y en Windows** (mantenedor, 2026-10-06). Commit `ed49215`.
 - **Extras > U+00FF (`œ/Œ/Ÿ` FR, `ł/Ł/ś/Ś` PL)**: horneados en una **banda aparte al final** del atlas
   (`font.cpp`, `kExtraTop`; 32 celdas reservadas) y servidos por codepoint (`face_glyph_cp_uv`); el
   overlay los consulta para `cp > 0xFF`. **Sin desplazar ninguna banda existente**. **Validado headless**
   (texto `cœur Œdipe aiguë Ÿ œuf` renderizado). **Validación visual diferida**: se verá cuando se
-  traduzcan diálogos (gameplay/intro) que usen `œ/Œ/Ÿ` (hoy ninguna traducción los usa). **Sin commitear.**
+  traduzcan diálogos (gameplay/intro) que usen `œ/Œ/Ÿ` (hoy ninguna traducción los usa). Commit `8edcd8d`.
 
-## TAREA SIGUIENTE — pendientes menores de subtítulos
+## TAREA SIGUIENTE
 
-- El **final** reutilizará la misma arquitectura (referencia ya preparada).
-- *Extras `œ/Œ/Ÿ`: implementados y headless OK; validación visual diferida a traducciones que los usen.*
-- *Revisión es/ca: **validada** por el mantenedor (2026-10-06).*
+La subtitulación de la **intro** está **cerrada** (rama mergeada). **Diferidos** de la misma familia:
+
+- **FINAL**: reutiliza la arquitectura; referencia preparada en `notes/reference/Hybrid-Heaven-Ending-Dialogues .txt`
+  (sin trackear). **Diferido** hasta que el mantenedor pueda llegar/validar el final del juego.
+- **Diálogos del gameplay**: trabajo mayor futuro (donde se validará visualmente `œ/Œ/Ÿ`).
+- **fr/de** de los subtítulos: **sin revisar** (el mantenedor no domina esos idiomas).
+
+Siguiente foco: `TODO.md` "Ahora" (**v0.7.3 push/tag**, verificación byte-match, épica FPS/transiciones).
 
 ## Instrumentación
 

@@ -6,21 +6,10 @@
 
 ## Ahora (priorizado)
 
-- [•] **Subtítulos de la intro/prólogo — rama `subtitulos-intro` (abierta 2026-10-06)**: motor de
-  subtítulos en el **overlay** (`hh::overlay::set_subtitle`; fuente **`Face::Color4`** = la del diálogo
-  in-game) + subsystem **`hh::subtitles`** (tiempos + textos por idioma, reloj por **VI**, **líneas
-  fijas** `[N]`, paginado **balanceado por ancho**, cortes `---`, skip con A). **Ancla robusta** al
-  inicio de la cinemática (**fin de la 2ª oleada de cargas**, +12.15 s; la campanada es **BGM**).
-  **5 idiomas** (en/es/ca/fr/de) en `assets/lang/subtitles_<code>.txt` (planos, editables). Herramientas
-  `tools/text/build_subtitles.py` + `preview_subtitles.py`. **HECHO y validado (headless y Windows)**,
-  incluido **4:3** (troceo al área del juego, margen 40 → «aire»), **re-troceo en caliente** al cambiar
-  aspecto (F2) y **control de huérfanas de frase** (ninguna página cierra con `punto + 1-2 palabras`);
-  nota `notes/2026-10-06-subtitulos-intro.md`; commits `6b579ac`/`254e135`/`e699d92`/`f194953`.
-  Traducciones **es/ca revisadas** (mantenedor). **Toggle en GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ,
-  defecto SÍ; persiste `[video].subtitles`), **validado en Windows**. **Extras >U+00FF (`œ/Œ/Ÿ` FR,
-  `ł/Ł/ś/Ś` PL)**: banda aparte al final del atlas + lookup por codepoint, **validado headless**
-  (validación visual diferida a traducciones que los usen). **Pendiente**: el **final** reutilizará la
-  misma arquitectura.
+- [ ] **Subtítulos — pendientes futuros (intro HECHA, 2026-10-06; `docs/TAREAS-HECHAS.md`)**: el
+  **final** (misma arquitectura; **diferido**: el mantenedor no puede validar sin llegar al final del
+  juego) y los **diálogos del gameplay** (trabajo mayor; validarán visualmente `œ/Œ/Ÿ`). Arquitectura y
+  herramientas: `notes/2026-10-06-subtitulos-intro.md`.
 
 - [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
   `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
