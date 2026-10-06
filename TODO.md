@@ -15,10 +15,10 @@
   `tools/text/build_subtitles.py` + `preview_subtitles.py`. **HECHO y validado (headless y Windows)**,
   incluido **4:3** (troceo al área del juego, margen 40 → «aire»), **re-troceo en caliente** al cambiar
   aspecto (F2) y **control de huérfanas de frase** (ninguna página cierra con `punto + 1-2 palabras`);
-  nota `notes/2026-10-06-subtitulos-intro.md`; commits `6b579ac`/`254e135`/`e699d92`. Traducciones
-  **es/ca revisadas** (mantenedor). **Toggle en GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ, defecto SÍ;
-  persiste `[video].subtitles`). **Pendiente**: **fr `œ/Œ/Ÿ`** (>U+00FF); el **final** reutilizará la
-  misma arquitectura.
+  nota `notes/2026-10-06-subtitulos-intro.md`; commits `6b579ac`/`254e135`/`e699d92`/`f194953`.
+  Traducciones **es/ca revisadas** (mantenedor). **Toggle en GRÁFICOS → SUBTÍTULOS INTRO** (NO/SÍ,
+  defecto SÍ; persiste `[video].subtitles`), **validado en Windows**. **Pendiente**: **fr `œ/Œ/Ÿ`**
+  (>U+00FF); el **final** reutilizará la misma arquitectura.
 
 - [x] **v0.6.2 — Release de GitHub (CERRADO 2026-10-03/04)**: `.zip` con `assets/`/`saves/templates`/
   `licences/`; causa real = repo de **secretos** con `RecompiledFuncs` pre-fix jump tables (regenerado
