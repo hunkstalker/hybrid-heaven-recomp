@@ -12,12 +12,33 @@
   (`src/subsystems/text.cpp`; `HH_LANG=es`); extractor `tools/text/extract_strings.py`; **sistema A1**
   (lista `en/es/ca/fr/de/ja` + mods, **cambio en vivo** F5 con re-aplicación a módulos cargados,
   persistencia `[lang]`).
-  **Pendiente**: control de **longitud variable** y validar A1 en Windows; **cablear** la fuente
-  in-game **8×12 `color4`** (`tools/text/build_font.py` → `include/hh/game_font_color4.h`, ES/CA/FR/DE)
-  en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8 propio; `HH_ACCENTS=0` la desactiva);
-  **extraer DE/FR** (ROM EU) emparejando por módulo → `assets/lang/*.txt` (el **JA** va con la tarea
-  pospuesta de traducción JA), y redactar **ES/CA**; **medir cobertura** (nº de strings/zonas) y decidir
-  formato (La PAL FR/DE = referencia).
+  **Hallazgo (2026-10-06)**: los **diálogos del gameplay** NO son ASCII plano sino **EUC-JP de ancho
+  completo** (inglés en `A3xx`; acentos PAL gaiji `B0xx`), embebidos en un script por líneas
+  (`f3/f0 00` = salto; `fa/fe 00` entre líneas = fin de mensaje); el motor ASCII actual los ignora.
+  Nuevo extractor `tools/text/extract_dialogues.py` (USA: **2.509 líneas / 2.260 únicas / 936
+  mensajes**, ~30 módulos de diálogo). Detalle: `notes/2026-10-06-dialogos-extraccion-euc.md`.
+  **Hecho (2026-10-06, ruta A)**: **gramática del guion** (`f3 00` salto; `f8 00` espera botón;
+  `fd 00` fin) + **puntero de entrada** localizado (primer diálogo = `módulo 12` @`0x340C`) y
+  **sustitución EUC in-place** en `text.cpp` (`euc_decode`/`utf8_to_euc`/`translate_euc`, conserva
+  el nº de caracteres); primer lote es en `assets/lang/es.txt`. Detalle:
+  `notes/2026-10-06-dialogos-guion-punteros-y-ruta-a.md`.
+  **Corrección (2026-10-06, volcado RDRAM)**: el texto va **inline en "nodos"**, referenciados por
+  **tablas en otros módulos** (p. ej. `0x803884B8`); la **ruta B** (mover nodos + parchear tablas) se
+  **descarta** por coste. Vía elegida: **A+ = reparto por MENSAJE** (se agrupan líneas hasta `fa 00`/
+  `fe 00` y se reescribe el tramo moviendo saltos de línea; total ≤ original). Detalle:
+  `notes/2026-10-06-dialogos-estructura-nodos-y-a-plus.md`.
+  **Hecho y validado en Windows (2026-10-06, color4)**: la inyección de acentos sirve también
+  **color4** (8×12, diálogo); `utf8_to_euc` mapea por `include/hh/game_font_color4.h`; menú ASCII
+  sigue con color0; sombras en nivel 3 (negras) y `¿/¡` rotados del `?/!` nativo (con bisel). El
+  mantenedor confirmó el primer diálogo con `Sr.Díaz`, `¿Algún problema?`, `¿No tiene su llave?`,
+  `por ahí.` Detalle: `notes/2026-10-06-color4-acentos-dialogo.md`.
+  **Pendiente (CONTENIDO — la tarea grande)**: **traducir TODO el diálogo a es + ca**. Pipeline y
+  reglas: **`docs/traduccion.md`** (ADR `0016`). Herramientas: `tools/text/extract_dialogues.py`
+  (extraer) + `tools/text/check_dialogue_fit.py` (validar presupuesto/cobertura). Referencia DE/FR de
+  la EU: `work/dialogues/us_de_fr.tsv`. **Hechos**: módulo 12 (Mr. Diaz, 1er diálogo) y módulo 27
+  (gargatuano). **Ante dudas (nombres propios, neologismos, convenciones): PREGUNTAR al mantenedor** —
+  p. ej. **`Gargatuan`** se mantiene (línea oficial). Cobertura: 936 mensajes / 2.509 líneas / ~30
+  módulos. **Aparte (otra tarea)**: bug de subtítulos de la intro al skipear.
   Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
@@ -27,6 +48,9 @@
   **final** (misma arquitectura; **diferido**: el mantenedor no puede validar sin llegar al final del
   juego) y los **diálogos del gameplay** (trabajo mayor; validarán visualmente `œ/Œ/Ÿ`). Arquitectura y
   herramientas: `notes/2026-10-06-subtitulos-intro.md`.
+  - [ ] **BUG (2026-10-06, reportado por el mantenedor)**: al **skippear la intro** no se desactivan los
+    subtítulos; entras al gameplay y **siguen saliendo**. Revisar el detector de skip / fin de
+    cinemática en `hh::subtitles` (no desarma la capa al saltar).
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate

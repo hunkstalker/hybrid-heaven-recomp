@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-05**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-06**.
 
 **Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
 **validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
@@ -203,6 +203,13 @@ commits `2795669`/`b9e09a3`/`d1a1b3b`/`ed49215`/`61c2027`/`8edcd8d`; traduccione
 en Windows**; **extras >U+00FF (`œ/Œ/Ÿ`, `ł/Ł/ś/Ś`)** en banda aparte del atlas + lookup por codepoint
 (headless OK). **Diferidos**: subtítulos del **final** (no validable sin llegar al final del juego) y
 diálogos del **gameplay**.
+**Traducción del diálogo in-game (motor HECHO y validado en Windows, 2026-10-06)**: el texto del diálogo
+va **inline en "nodos"** EUC-JP y lo dibuja **el juego**; se sustituye en runtime
+(`src/subsystems/text.cpp`) con **A+ (reparto por mensaje)** y los acentos se inyectan por **color4**
+(`src/hooks/text_glyphs.cpp` + `include/hh/game_font_color4.h`). Referencia **DE/FR** de la EU en
+`work/dialogues/us_de_fr.tsv`. Traducidos los primeros diálogos (Mr. Diaz = 1º del juego; escena del
+gargatuano) en **es/ca**; **pendiente el resto** (~936 mensajes / 2.509 líneas). Normativa:
+**`docs/traduccion.md`**; decisión: **ADR 0016**.
 **Pulido de menú/vídeo (HECHO, 2026-10-01; validado en Windows)**: `CONTINUAR` **gris y no
 seleccionable** sin partidas en el `.pak`; `SONIDO -> SALIDA` como **stepper `< ESTÉREO >`**; **arreglo
 del paso pantalla completa ↔ ventana** (`P. COMPLETA`/F3), fijando en RT64 el rect de ventana y

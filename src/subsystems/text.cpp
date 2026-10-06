@@ -43,7 +43,8 @@
 #endif
 
 #include "hh.h"
-#include "hh/accent_glyphs.h"
+#include "hh/accent_glyphs.h"      // color0 8x8 (menus ASCII)
+#include "hh/game_font_color4.h"   // color4 8x12 (dialogos EUC)
 
 namespace {
 
@@ -63,6 +64,7 @@ struct State {
     bool enabled = false;
     size_t longest = 0;
     std::vector<Key> keys;  // ordenados por longitud descendente
+    std::unordered_map<std::string, const Key*> index;  // clave -> Key (busqueda O(1))
     bool trace = false;
     bool loaded = false;
     std::string current = "en";  // codigo de idioma activo
@@ -296,6 +298,8 @@ void apply_language(const std::string& code) {
     // Claves mas largas primero: evita que "MODE" gane a "BATTLE MODE".
     std::stable_sort(s.keys.begin(), s.keys.end(),
                      [](const Key& a, const Key& b) { return a.text.size() > b.text.size(); });
+    s.index.clear();
+    for (const Key& k : s.keys) s.index.emplace(k.text, &k);
 }
 
 // --- Deteccion del idioma del sistema ----------------------------------------------------------
@@ -425,6 +429,219 @@ bool utf8_to_game(const std::string& in, std::string& out) {
     return true;
 }
 
+// --- Dialogos: texto EUC-JP de ancho completo (ruta A) ---------------------------------------
+//
+// El texto de menus/ayuda es ASCII plano; los DIALOGOS usan el motor EUC-JP del original:
+// ingles en ASCII de ancho completo (`A3xx`), espacio `A1A1`, puntuacion JIS `A1xx` y acentos
+// como gaiji (`B0xx` en la PAL; nosotros emitimos `B1xx`). Ver
+// notes/2026-10-06-dialogos-extraccion-euc.md. Ruta A: se sustituye **en el sitio** conservando
+// el numero de caracteres (2 B cada uno), rellenando con espacio de ancho completo (`A1A1`).
+
+inline bool is_euc_pair(uint8_t a, uint8_t b) {
+    return a >= 0xA1 && a <= 0xFE && b >= 0xA1 && b <= 0xFE;
+}
+
+// Puntuacion ASCII -> codigo JIS (A1xx). 0 si no aplica (se probara el bloque A3xx).
+uint16_t euc_for_punct(unsigned char c) {
+    switch (c) {
+        case ' ': return 0xA1A1; case '.': return 0xA1A5; case ',': return 0xA1A4;
+        case '?': return 0xA1A9; case '!': return 0xA1AA; case ':': return 0xA1A7;
+        case ';': return 0xA1A8; case '-': return 0xA1BD; case '\'': return 0xA1AD;
+        case '"': return 0xA1C8; case '(': return 0xA1CA; case ')': return 0xA1CB;
+        case '/': return 0xA1BF; case '%': return 0xA1F3; case '&': return 0xA1F5;
+        case '+': return 0xA1DC; case '=': return 0xA1E1; case '<': return 0xA1E3;
+        case '>': return 0xA1E4; case '[': return 0xA1CE; case ']': return 0xA1CF;
+        case '{': return 0xA1D0; case '}': return 0xA1D1; case '\\': return 0xA1C0;
+        case '^': return 0xA1B0; case '_': return 0xA1B2; case '`': return 0xA1AE;
+        case '@': return 0xA1F7; case '#': return 0xA1F4; case '$': return 0xA1F0;
+        case '*': return 0xA1F6; case '|': return 0xA1C3;
+        default: return 0;
+    }
+}
+
+// Codigo JIS (A1xx) -> ASCII. 0 si no es puntuacion conocida.
+unsigned char punct_for_euc(uint16_t code) {
+    switch (code) {
+        case 0xA1A1: return ' ';  case 0xA1A5: return '.';  case 0xA1A4: return ',';
+        case 0xA1A9: return '?';  case 0xA1AA: return '!';  case 0xA1A7: return ':';
+        case 0xA1A8: return ';';  case 0xA1BD: return '-';  case 0xA1AD: return '\'';
+        case 0xA1C8: return '"';  case 0xA1CA: return '(';  case 0xA1CB: return ')';
+        case 0xA1BF: return '/';  case 0xA1F3: return '%';  case 0xA1F5: return '&';
+        case 0xA1DC: return '+';  case 0xA1E1: return '=';  case 0xA1E3: return '<';
+        case 0xA1E4: return '>';  case 0xA1CE: return '[';  case 0xA1CF: return ']';
+        case 0xA1D0: return '{';  case 0xA1D1: return '}';  case 0xA1C0: return '\\';
+        case 0xA1B0: return '^';  case 0xA1B2: return '_';  case 0xA1AE: return '`';
+        case 0xA1F7: return '@';  case 0xA1F4: return '#';  case 0xA1F0: return '$';
+        case 0xA1F6: return '*';  case 0xA1C3: return '|';
+        default: return 0;
+    }
+}
+
+// Decodifica una tira de pares EUC a texto latino (la CLAVE inglesa). false si no es texto
+// latino (kanji/kana/gaiji) o si la longitud es impar.
+bool euc_decode(const uint8_t* seg, size_t len, std::string& out) {
+    out.clear();
+    if (len == 0 || (len & 1u) != 0) return false;
+    for (size_t j = 0; j < len; j += 2) {
+        const uint16_t code = static_cast<uint16_t>((seg[j] << 8) | seg[j + 1]);
+        if ((code >> 8) == 0xA3) {                 // ASCII de ancho completo
+            const unsigned lo = code & 0xFFu;
+            if (lo < 0xA1 || lo > 0xFE) return false;
+            out.push_back(static_cast<char>(lo - 0x80));
+        } else if ((code >> 8) == 0xA1) {          // puntuacion JIS
+            const unsigned char ch = punct_for_euc(code);
+            if (ch == 0) return false;
+            out.push_back(static_cast<char>(ch));
+        } else {
+            return false;                          // B0xx gaiji / kanji / kana
+        }
+    }
+    return true;
+}
+
+// Codifica un valor UTF-8 a EUC (bloque A3xx + puntuacion A1xx + acentos `B1xx`). false si algun
+// caracter no es representable.
+bool utf8_to_euc(const std::string& in, std::string& out) {
+    out.clear();
+    for (size_t i = 0; i < in.size();) {
+        const unsigned char c = static_cast<unsigned char>(in[i]);
+        if (c < 0x80) {
+            uint16_t code = 0;
+            if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+                code = static_cast<uint16_t>(0xA300u | (0x80u + c));  // 'A'->A3C1
+            } else {
+                code = euc_for_punct(c);
+            }
+            if (code == 0) return false;
+            out.push_back(static_cast<char>(code >> 8));
+            out.push_back(static_cast<char>(code & 0xFF));
+            ++i;
+            continue;
+        }
+        uint32_t cp = 0;
+        size_t n = 0;
+        if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; n = 1; }
+        else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; n = 2; }
+        else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; n = 3; }
+        if (n == 0 || i + n >= in.size()) return false;
+        for (size_t k = 1; k <= n; ++k) cp = (cp << 6) | (static_cast<unsigned char>(in[i + k]) & 0x3F);
+        i += n + 1;
+        // Los dialogos se dibujan con color4 (8x12): el codigo debe corresponder al set color4.
+        uint16_t code = 0;
+        for (unsigned g = 0; g < hh::kGameGlyphCount; ++g) {
+            if (hh::kGameGlyphs[g].cp == cp) { code = hh::kGameGlyphs[g].code; break; }
+        }
+        if (code == 0) return false;
+        out.push_back(static_cast<char>(code >> 8));
+        out.push_back(static_cast<char>(code & 0xFF));
+    }
+    return !out.empty();
+}
+
+// Sustituye el texto de los mensajes EUC. A+ (reparto por mensaje): se agrupan las lineas (tiras
+// EUC) hasta el fin de mensaje (un `fa 00`/`fe 00` en el hueco hacia la siguiente linea). Si el
+// TOTAL traducido cabe en el tramo del mensaje, se reescribe repartiendo las lineas (solo cambian
+// los saltos de linea; la suma de bytes no crece). Si no, se aplica la ruta A por linea. Devuelve el
+// numero de sustituciones.
+int translate_euc(uint8_t* buf, size_t len, const State& s) {
+    int replaced = 0;
+    struct Line { size_t start, end; bool ok; std::string repl; };
+    std::vector<Line> lines;
+    size_t i = 0;
+
+    auto flush = [&]() {
+        if (lines.empty()) return;
+        bool any = false;
+        for (const Line& l : lines) {
+            if (l.ok) { any = true; break; }
+        }
+        if (any) {
+            size_t orig = 0, trans = 0;
+            for (const Line& l : lines) {
+                orig += l.end - l.start;
+                trans += l.ok ? l.repl.size() : (l.end - l.start);
+            }
+            // A+ solo si cabe el total y la ULTIMA linea es de texto (el relleno cae en su cola).
+            if (trans <= orig && lines.back().ok) {
+                const size_t base = lines.front().start;
+                const size_t cap = lines.back().end - base;
+                std::string out;
+                out.reserve(cap);
+                for (size_t k = 0; k < lines.size(); ++k) {
+                    if (k > 0) {
+                        out.append(reinterpret_cast<const char*>(buf) + lines[k - 1].end,
+                                   lines[k].start - lines[k - 1].end);  // separadores verbatim
+                    }
+                    if (lines[k].ok) {
+                        out += lines[k].repl;
+                    } else {
+                        out.append(reinterpret_cast<const char*>(buf) + lines[k].start,
+                                   lines[k].end - lines[k].start);
+                    }
+                }
+                if (out.size() <= cap) {
+                    std::memcpy(buf + base, out.data(), out.size());
+                    for (size_t j = out.size(); j < cap; j += 2) {   // relleno de ancho completo
+                        buf[base + j] = 0xA1;
+                        buf[base + j + 1] = 0xA1;
+                    }
+                    replaced++;
+                    lines.clear();
+                    return;
+                }
+            }
+            // Fallback ruta A: por linea, si cabe en su propio tramo.
+            for (const Line& l : lines) {
+                if (!l.ok) continue;
+                const size_t nb = l.end - l.start;
+                if (l.repl.size() > nb) {
+                    if (s.trace) {
+                        hh::log("[text] euc no cabe (linea): %zu B, original %zu B\n", l.repl.size(), nb);
+                    }
+                    continue;
+                }
+                std::memcpy(buf + l.start, l.repl.data(), l.repl.size());
+                for (size_t j = l.repl.size(); j < nb; j += 2) {
+                    buf[l.start + j] = 0xA1;
+                    buf[l.start + j + 1] = 0xA1;
+                }
+                replaced++;
+            }
+        }
+        lines.clear();
+    };
+
+    while (i + 1 < len) {
+        if (!is_euc_pair(buf[i], buf[i + 1])) { i++; continue; }
+        const size_t start = i;
+        while (i + 1 < len && is_euc_pair(buf[i], buf[i + 1])) i += 2;
+        Line l;
+        l.start = start;
+        l.end = i;
+        l.ok = false;
+        std::string key;
+        if (euc_decode(buf + start, i - start, key) && !key.empty()) {
+            auto it = s.index.find(key);
+            if (it != s.index.end()) {
+                std::string enc;
+                if (utf8_to_euc(it->second->repl, enc)) { l.ok = true; l.repl = std::move(enc); }
+            }
+        }
+        lines.push_back(std::move(l));
+        // ¿fin de mensaje en el hueco hacia la siguiente tira?
+        size_t j = i;
+        bool end_msg = false;
+        while (j + 1 < len && !is_euc_pair(buf[j], buf[j + 1])) {
+            if ((buf[j] == 0xFA || buf[j] == 0xFE) && buf[j + 1] == 0x00) end_msg = true;
+            j++;
+        }
+        if (end_msg) flush();
+        i = j;
+    }
+    flush();
+    return replaced;
+}
+
 bool translate_segment(uint8_t* seg, size_t content_len, size_t slot, const State& s) {
     std::string prefix, core;
     if (!core_of(seg, content_len, prefix, core) || core.empty()) return false;
@@ -497,6 +714,8 @@ extern "C" int hh_text_translate_guest(uint8_t* buf, size_t len) {
             i = start + content_len;
         }
     }
+    // Dialogos (texto EUC-JP de ancho completo): no lleva NUL entre lineas, se escanea aparte.
+    replaced += translate_euc(buf, len, s);
     if (replaced > 0 && s.trace) {
         hh::log("[text] %d cadenas traducidas (bloque de %zu bytes)\n", replaced, len);
     }

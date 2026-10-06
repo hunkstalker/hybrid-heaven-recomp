@@ -1,63 +1,49 @@
 # RETOMAR — handoff (2026-10-06)
 
-> **Última sesión**: **subtítulos de la intro/prólogo** — **HECHOS y validados** (headless + Windows) y
-> rama `subtitulos-intro` **MERGEADA a `main`**. Detalle: `notes/2026-10-06-subtitulos-intro.md`
-> (resumen en `docs/TAREAS-HECHAS.md`). Reglas: `AGENTS.md`, `docs/documentation.md`.
+> **Última sesión**: **motor de traducción del diálogo in-game** (reparto por mensaje **A+** +
+> fuente **color4**) — **HECHO y validado en Windows**. Se extrajo la referencia **DE/FR** de la EU y
+> se tradujeron los primeros diálogos (Mr. Diaz + escena del gargatuano). Detalle:
+> `notes/2026-10-06-sesion-traduccion-dialogos.md`; normativa:
+> **`docs/traduccion.md`**; decisión: **ADR 0016**. Reglas: `AGENTS.md`, `docs/documentation.md`.
 >
-> **TAREA SIGUIENTE**: **Traducción — JUEGO/GAMEPLAY (texto in-game)** (`TODO.md` "Ahora" #1).
+> **TAREA SIGUIENTE**: **traducir TODO el diálogo del gameplay a español (es) y catalán (ca)**.
 
-## TAREA SIGUIENTE — Traducción del texto in-game (gameplay)
+## TAREA SIGUIENTE — Traducir todo el diálogo (es + ca)
 
-**Objetivo**: localizar las **cadenas del juego** (diálogos de gameplay; y cuando toque, intro/final) en
-**en/es/ca/fr/de** (JA pospuesto, ver abajo). El texto in-game lo dibuja **el propio juego** (no el
-overlay): se **sustituye en runtime** al cargar los módulos por el motor `trans`
-(`src/subsystems/trans_cache.cpp` + `src/subsystems/text.cpp`).
+**Lee primero `docs/traduccion.md`** (pipeline, reglas y herramientas). Resumen operativo:
 
-**Hecho (2026-09-23)**:
-- Charset USA derivado (ASCII en campos de ancho fijo + NUL; el "encoding custom" era LZKN64).
-- **Sustitución en runtime** (`src/subsystems/text.cpp`; `HH_LANG=es`); extractor
-  `tools/text/extract_strings.py`.
-- **Sistema A1**: lista `en/es/ca/fr/de/ja` + mods, **cambio en vivo** (F5) con re-aplicación a módulos
-  cargados y persistencia `[lang]`.
-- i18n del port **unificado** en `assets/lang/*.txt` (ADR `0014`); idioma de menú e in-game comparten
-  `hh::text_current_language()`.
+1. **Extraer** las líneas/mensajes por módulo:
+   `python3 tools/text/extract_dialogues.py --rom work/roms/us_retail.z64 --module N`
+   (o `--all --tsv work/dialogues/us.tsv --unique work/dialogues/us_unique.txt`).
+2. **Traducir EN→ES** (español de España) usando como referencia
+   `work/dialogues/us_de_fr.tsv` (DE/FR oficiales de la EU) y, para párrafos completos, el **guion
+   inglés de GameFAQs** (*Hybrid Heaven - Game Script*, Pandora_aden). Luego **ES→CA**.
+3. **Escribir** en `assets/lang/es.txt` y `assets/lang/ca.txt` (clave = línea inglesa **exacta**).
+4. **Validar**: `python3 tools/text/check_dialogue_fit.py --lang es` (y `--lang ca`) — avisa de los
+   mensajes que **no caben** y da la cobertura.
 
-**Pendiente (checklist)**:
-1. **Longitud variable**: la sustitución no debe romper los campos de **ancho fijo** (ES/DE suelen ser
-   más largos que EN). Definir política (truncar / expandir / rellenar) y probarla.
-2. **Validar A1 en Windows** (build del mantenedor): cambio de idioma en vivo (F5) + persistencia.
-3. **Cablear la fuente in-game 8×12 `color4`** en `src/hooks/text_glyphs.cpp` (hoy sirve un set 8×8
-   propio). Usar `tools/text/build_font.py` → `include/hh/game_font_color4.h` (ES/CA/FR/DE). Es la MISMA
-   tipografía que los subtítulos, que ya tiene **banda de extras >U+00FF** (`face_glyph_cp_uv`, p. ej.
-   `œ/Œ/Ÿ`). `HH_ACCENTS=0` desactiva la inyección (para comparar).
-4. **Extraer DE/FR** de la ROM **EU** emparejando por **módulo** → `assets/lang/*.txt` (la **PAL FR/DE
-   es la referencia**). El **JA** (ROM JP) va con la tarea pospuesta.
-5. **Redactar ES/CA** (revisión del mantenedor).
-6. **Medir cobertura** (nº de strings/zonas) y decidir el formato de datos.
+**Reglas clave (ver `docs/traduccion.md` §5)**:
+- **Presupuesto A+ = caracteres del mensaje inglés** → redactar **conciso**; ancho de caja ~**30-32**
+  chars/línea.
+- **Nombres propios = línea oficial** (p. ej. **`Gargatuan`** se queda igual que en inglés).
+  **Ante dudas de traducción (nombres, neologismos, convenciones): PREGUNTAR al mantenedor.**
+- **No** asumir índice de módulo = área/orden del juego (son escenas).
+- Acentos son caracteres reales (el motor los dibuja por color4).
 
-**Código a tocar**: `src/subsystems/text.cpp` (sustitución), `src/hooks/text_glyphs.cpp` (fuente
-`color4`), `tools/text/extract_strings.py`, `tools/text/build_font.py`, `assets/lang/*.txt`.
+**Código/estado**: motor en `src/subsystems/text.cpp` (EUC + A+) y `src/hooks/text_glyphs.cpp`
+(inyección color0/color4); fuente `include/hh/game_font_color4.h` (`tools/text/build_font.py`). El
+texto del diálogo va **inline en “nodos”** EUC-JP; **no** se mueve memoria (ruta B descartada).
 
-**Referencias**: `PROYECTO.md §4`; notas `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
-`notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
-`notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,
-`notes/2026-09-25-e-fix-reapply-idioma.md`, `notes/2026-09-05_asset-map.md`.
+**Cobertura actual**: USA **936 mensajes / 2.509 líneas / ~30 módulos**. Traducidos: **módulo 12**
+(Mr. Diaz, 1er diálogo del juego) y **módulo 27** (gargatuano). El resto, pendiente.
 
-**Instrumentación (traducción)**:
-- `HH_LANG=<code>` activa un idioma; **F5** lo cambia en vivo; `HH_LANG_CYCLE_AT=<s>` lo cicla a los
-  `<s>` s.
-- `HH_LANG_FILE=<ruta>` usa un `assets/lang/<code>.txt` **alternativo** (probar traducciones sin tocar
-  los assets del repo).
-- `HH_ACCENTS=0` desactiva la inyección de glifos acentuados `color4` (comparar con/sin).
+## Diferidos / aparte
 
-## Diferidos de la familia subtítulos (intro cerrada)
-
-- **FINAL**: reutiliza la misma arquitectura; referencia preparada en
-  `notes/reference/Hybrid-Heaven-Ending-Dialogues .txt` (sin trackear). **Diferido** hasta que el
-  mantenedor pueda llegar/validar el final del juego.
-- **fr/de** de los subtítulos de la intro: **sin revisar** (el mantenedor no domina esos idiomas).
-- **JA (juego + intro + final) — POSPUESTO**: requiere procesar la ROM japonesa. El **menú de título JA**
-  ya está traducido (kana) pero **deshabilitado**.
+- **JA** (juego + intro + final): **POSPUESTO** (requiere procesar la ROM JP). Menú JA en kana
+  (`include/hh/jp_kana.h`), deshabilitado.
+- **fr/de** de los subtítulos de la intro: sin revisar (el mantenedor no domina esos idiomas).
+- **Subtítulos del final**: diferidos (no validables sin llegar al final).
+- **BUG aparte**: subtítulos de la **intro al skipear** (siguen saliendo al entrar al gameplay).
 
 ## Run (mantenedor)
 
@@ -68,8 +54,8 @@ hybrid-heaven-recomp\run_windows_release.bat
 
 ## Pitfalls (NO repetir)
 
-- **No** concluir sync/visual solo desde headless; validar en Windows (el mantenedor).
-- El texto in-game lo dibuja **el juego** (loader `trans`), no el overlay: no confundir con los
-  subtítulos (capa propia `hh::overlay::set_subtitle`).
+- **No** concluir visual/sync solo desde headless; validar en Windows (el mantenedor).
+- El diálogo lo dibuja **el juego** (loader `trans`), no el overlay (eso son los subtítulos de la intro).
 - **No** editar el C generado (se regenera; ADR `0009`); no tocar ROMs/forks/push sin pedir.
+- En títulos: `Gargatuan` NO se traduce (línea oficial). **Dudas → preguntar al mantenedor.**
 - Un tema = un commit.

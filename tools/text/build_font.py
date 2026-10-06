@@ -327,11 +327,13 @@ def calv(w, h):
 
 
 def auto_shadow(g, w, h):
+    # Nivel 3 = sombra NEGRA del motor (nivel 2 = gris SUAVE; ver src/subsystems/font.cpp). Las
+    # nativas usan 3; usar 2 hacia que los acentos in-game salieran con sombra gris.
     out = [row[:] for row in g]
     for y in range(h):
         for x in range(w):
             if g[y][x] == 1 and x + 1 < w and y + 1 < h and out[y + 1][x + 1] == 0:
-                out[y + 1][x + 1] = 2
+                out[y + 1][x + 1] = 3
     return out
 
 
@@ -614,9 +616,8 @@ def main():
                                 args.sheet_scale, 8 if w >= 12 else 12, args.sheet_lscale)
         print("importado:", args.from_sheet, len(acc), "glifos")
 
-    # Normaliza nivel 3 -> 2 (el motor pinta nivel>=2 igual): hace la ida/vuelta exacta.
-    acc = {cp: ([[2 if v == 3 else v for v in row] for row in g], src)
-           for cp, (g, src) in acc.items()}
+    # NO se normaliza 3->2: el nivel 3 es la sombra NEGRA del motor y el 2 el gris suave (nativas usan
+    # 3). El overlay hornea cualquier nivel>=2 como negro, asi que esto no le afecta (ver font.cpp).
 
     if args.preview:
         for cp in sorted(acc):
