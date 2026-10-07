@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-06**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-07**.
 
 **Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
 **validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
@@ -48,6 +48,10 @@ RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **
 **oráculo** `HH_PAIRING_LOG`: área 1 completa **99.99% por id**, `auto`≈0; cámara validada. El
 **parón restante es A1 (tick lógico)** (slips a 3 VI ~1-2/s), visible solo interpolado. Doc reusable
 `docs/interpolacion-pairing.md`; detalle `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
+
+**Traducción del diálogo (es/ca) — EN CURSO (2026-10-07)**: motor A+ + color4 validado; contenido
+**≈ 30 %** (módulos **12, 13, 14, 16, 17** completos; **27** parcial). Normativa:
+`docs/traduccion.md` (ADR `0016`); detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
 
 ## 1. Objetivo
 

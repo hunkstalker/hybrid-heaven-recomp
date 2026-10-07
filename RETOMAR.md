@@ -1,12 +1,14 @@
-# RETOMAR — handoff (2026-10-06)
+# RETOMAR — handoff (2026-10-07)
 
-> **Última sesión**: **motor de traducción del diálogo in-game** (reparto por mensaje **A+** +
-> fuente **color4**) — **HECHO y validado en Windows**. Se extrajo la referencia **DE/FR** de la EU y
-> se tradujeron los primeros diálogos (Mr. Diaz + escena del gargatuano). Detalle:
-> `notes/2026-10-06-sesion-traduccion-dialogos.md`; normativa:
-> **`docs/traduccion.md`**; decisión: **ADR 0016**. Reglas: `AGENTS.md`, `docs/documentation.md`.
+> **Última sesión**: **contenido de la traducción del diálogo (es + ca)**. Traducidos completos los
+> módulos **12, 13, 14, 16 y 17** y corregido un **bug de cobertura** (líneas con espacios
+> extremos). Cobertura **≈ 30 %** del diálogo (solo-diálogo). Detalle:
+> `notes/2026-10-07-dialogos-traduccion-es-ca.md`; normativa: **`docs/traduccion.md`**; decisión:
+> **ADR 0016**. Reglas: `AGENTS.md`, `docs/documentation.md`.
 >
-> **TAREA SIGUIENTE**: **traducir TODO el diálogo del gameplay a español (es) y catalán (ca)**.
+> **TAREA EN CURSO**: **traducir TODO el diálogo del gameplay a español (es) y catalán (ca)** —
+> siguiente módulo: **18** (luego 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53; y
+> **terminar el 27**).
 
 ## TAREA SIGUIENTE — Traducir todo el diálogo (es + ca)
 
@@ -34,8 +36,10 @@
 (inyección color0/color4); fuente `include/hh/game_font_color4.h` (`tools/text/build_font.py`). El
 texto del diálogo va **inline en “nodos”** EUC-JP; **no** se mueve memoria (ruta B descartada).
 
-**Cobertura actual**: USA **936 mensajes / 2.509 líneas / ~30 módulos**. Traducidos: **módulo 12**
-(Mr. Diaz, 1er diálogo del juego) y **módulo 27** (gargatuano). El resto, pendiente.
+**Cobertura actual (2026-10-07)**: alcance **solo-diálogo** = 27 escenas / **872 mensajes / 2173
+líneas únicas**. Hecho: módulos **12, 13, 14, 16, 17** (completos, es + ca) → **262/872 mensajes
+≈ 30 %**. Parcial: **27** (46/109). Pendiente: 18, 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48,
+50, 52, 53 y terminar el 27. (Los 936/2509 totales incluyen UI/menú, fuera de alcance.)
 
 ## Diferidos / aparte
 

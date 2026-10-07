@@ -68,15 +68,20 @@ def main():
             continue
         for _off, lines in ed.messages(data):
             n_msg += 1
+            # El motor (load_file) recorta los espacios de los extremos de las claves, y
+            # translate_euc() hace lo propio con la clave decodificada de la ROM: aqui se
+            # replica con strip() para casar lineas con espacio inicial/final. El presupuesto
+            # sigue contando los caracteres originales (en).
+            key = lambda ln: ln.strip()
             en = sum(len(ln) for ln in lines)          # presupuesto (caracteres del mensaje EN)
-            es = sum(len(tr[ln]) if ln in tr else len(ln) for ln in lines)
-            any_tr = any(ln in tr for ln in lines)
+            es = sum(len(tr[key(ln)]) if key(ln) in tr else len(ln) for ln in lines)
+            any_tr = any(key(ln) in tr for ln in lines)
             lines_total += len(lines)
-            lines_no_tr += sum(1 for ln in lines if ln not in tr)
+            lines_no_tr += sum(1 for ln in lines if key(ln) not in tr)
             if not any_tr:
                 continue
             translated += 1
-            if es <= en and lines[-1] in tr:
+            if es <= en and key(lines[-1]) in tr:
                 fits += 1
             else:
                 over += 1

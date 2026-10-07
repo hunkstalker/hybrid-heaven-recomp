@@ -621,6 +621,15 @@ int translate_euc(uint8_t* buf, size_t len, const State& s) {
         l.ok = false;
         std::string key;
         if (euc_decode(buf + start, i - start, key) && !key.empty()) {
+            // Recorta espacios de los extremos igual que load_file(): el texto EUC de la ROM a
+            // veces trae un espacio final (p.ej. "changers are top secret, ") que, si no se
+            // recortase, impediria casar la clave (los espacios interiores se conservan).
+            size_t a = key.find_first_not_of(" \t");
+            size_t b = key.find_last_not_of(" \t");
+            if (a == std::string::npos) key.clear();
+            else if (a != 0 || b + 1 != key.size()) key = key.substr(a, b - a + 1);
+        }
+        if (!key.empty()) {
             auto it = s.index.find(key);
             if (it != s.index.end()) {
                 std::string enc;

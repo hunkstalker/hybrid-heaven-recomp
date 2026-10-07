@@ -35,10 +35,14 @@
   **Pendiente (CONTENIDO — la tarea grande)**: **traducir TODO el diálogo a es + ca**. Pipeline y
   reglas: **`docs/traduccion.md`** (ADR `0016`). Herramientas: `tools/text/extract_dialogues.py`
   (extraer) + `tools/text/check_dialogue_fit.py` (validar presupuesto/cobertura). Referencia DE/FR de
-  la EU: `work/dialogues/us_de_fr.tsv`. **Hechos**: módulo 12 (Mr. Diaz, 1er diálogo) y módulo 27
-  (gargatuano). **Ante dudas (nombres propios, neologismos, convenciones): PREGUNTAR al mantenedor** —
-  p. ej. **`Gargatuan`** se mantiene (línea oficial). Cobertura: 936 mensajes / 2.509 líneas / ~30
-  módulos. **Aparte (otra tarea)**: bug de subtítulos de la intro al skipear.
+  la EU: `work/dialogues/us_de_fr.tsv`. **Hechos (2026-10-07)**: módulos **12, 13, 14, 16, 17**
+  completos (es + ca); **parcial 27** (46/109). **Cobertura: 262/872 mensajes ≈ 30 %** (solo-diálogo;
+  2173 líneas únicas). **Fix (2026-10-07)**: recorte de espacios extremos de la clave en
+  `translate_euc()` (`src/subsystems/text.cpp`) y en el validador (26 líneas del alcance no casaban).
+  Textos del mantenedor volcados en `/app/dialogos.txt` (fuera del repo). **Ante dudas (nombres
+  propios, neologismos, convenciones): PREGUNTAR al mantenedor** — p. ej. **`Gargatuan`** se mantiene
+  (línea oficial). Detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+  **Aparte (otra tarea)**: bug de subtítulos de la intro al skipear.
   Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,
   `notes/2026-09-23-texto-euc-jp-y-glifos-pal.md`, `notes/2026-09-23-b-fuente-formato-y-gaiji.md`,

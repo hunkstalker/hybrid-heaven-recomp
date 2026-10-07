@@ -61,13 +61,23 @@ ROM de trabajo (generada, no versionada): `work/roms/us_retail.z64` (US) y `/app
 
 ## 6. Estado y cobertura
 
-- Motor **hecho y validado en Windows** (A+ + color4). Traducidos: conversación de **Mr. Diaz**
-  (módulo 12, primer diálogo del juego) y **módulo 27** (escena del gargatuano).
-- Pendiente: **el resto** (~936 mensajes / 2.509 líneas / ~30 módulos). Medir con
-  `check_dialogue_fit.py --lang es` (`lineas_sin_traduccion`).
+- Motor **hecho y validado en Windows** (A+ + color4).
+- **Alcance solo-diálogo**: **27 escenas** = **872 mensajes / 2173 líneas únicas** (los 936/2509 totales
+  incluyen UI/menú, fuera de alcance).
+- **Hecho (2026-10-07)**: módulos **12, 13, 14, 16, 17** completos (es + ca). **Parcial**: 27 (46/109).
+- **Cobertura**: **262/872 mensajes ≈ 30 %** · **668/2173 líneas únicas ≈ 30.7 %**. Medir con
+  `check_dialogue_fit.py --lang es|ca` (`lineas_sin_traduccion`). Detalle:
+  `../notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+- **Pendiente**: módulos 18, 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27.
 
 ## 7. Validación
 
 - Compila en Linux para errores (`cmake --build build/linux -j`).
 - **Visual en Windows** (mantenedor): no se concluye solo desde headless. Reconstruir y llegar a la
   escena; comprobar tildes y que no haya inglés mezclado.
+- **Repaso in-game pendiente (espacios extremos)**: 26 líneas del alcance traen espacios al
+  inicio/final en la ROM (p.ej. la del módulo 12 `changers are top secret, `). Para poder casarlas se
+  recortan los espacios extremos de la clave en `translate_euc()` (`src/subsystems/text.cpp`) y en
+  `check_dialogue_fit.py`. **Verificar en el repaso visual** que ese caso sale traducido y sin
+  descolocar el texto (revisar representativas: `changers are top secret, ` m12, `    in the end.` m38,
+  `An intelligent, ` m14).
