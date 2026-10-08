@@ -1,7 +1,10 @@
 # RETOMAR — handoff (2026-10-07, sesión overlay del diálogo)
 
-> **Ramas**: `main` = traducción del diálogo (≈30 %, módulos 12-17) + **`experimento-overlay-dialogo`**
-> (**rama activa**). Descartada: `experimento-limites-texto` (reescribir nodos).
+> **Ramas**: **`main` ya contiene el overlay** (commit `feat(overlay): diálogo propio con texto por
+> MENSAJE…`), además de la traducción del diálogo (≈30 %, módulos 12-17). El **rastro completo del
+> experimento** (incluido el de `limites-texto`) se conserva en el **tag `exp/overlay-dialogo`**
+> (tip `1a334fd`); las ramas `experimento-overlay-dialogo`, `overlay-limpio` y `experimento-limites-texto`
+> **se eliminaron** (el tag las cubre). **Para cambios futuros: rama nueva desde `main`.**
 >
 > **PREMISA (mantenedor)**: implementación **robusta** del overlay del diálogo, **1:1 con el original**
 > en todo lo que NO cambiamos (saltos de línea, animación, flecha, cierre, salto con A). **Prohibido
@@ -18,10 +21,17 @@ Detalle completo: **`notes/2026-10-07-experimento-overlay-dialogo.md` §7-§9**.
 - **Typewriter por VI** (`HH_DLG_TYPE_VI`, def. 2 = 1 letra/tick lógico 30 Hz): exactamente 1 letra
   por periodo, sin adelantos. Al **acumular** varios mensajes en una página, solo anima el nuevo.
 - **Flecha**: diseño ▼ 5×6 del juego + pulso **medido** (fade 66 ms, hold 465 ms, off 470 ms).
-  Aparece como "un carácter más" (un periodo tras la última letra) y arranca en alpha 0.
+  Aparece como "un carácter más" (un periodo tras la última letra) y arranca en alpha 0. La flecha
+  **nativa** (`func_80019038`) se suprime con el overlay activo; con `KEEP_ORIGINAL=1` se ve la nativa.
 - **Caja**: sigue el alfa real del `'wa fa'` (fade-in/out) y la **caja nativa está suprimida**.
 - **Cierre**: al empezar el fade-out, **texto y flecha desaparecen de golpe** (solo se apaga la caja).
-- **Salto** A/J o Start/Enter, detectado por **frame de render**.
+- **Salto** A/J o Start/Enter, detectado por **frame de render**. Mientras el typewriter escribe (o
+  hasta **soltar** la tecla que lo completó) se **enmascara A/START** para el juego
+  (`overlay::dialogue_block_advance_input`): la **1ª** pulsación solo completa; la **2ª** avanza.
+  En modo comparación (`HH_DLG_KEEP_ORIGINAL=1`) **no** se enmascara, para que el original avance con
+  la **misma** pulsación.
+- Los hooks **funcionales** del overlay (`1800C` reconstrucción, `18E9C` supresión del texto nativo) se
+  registran **siempre**; `HH_DLG_PROBE` solo añade trazas.
 - **Acumulación por página** (robusta): el **corte real es el opcode `F800`** (`f0 00 f8 00`), no
   `FA/FE`. Los mensajes `FA/FE` se acumulan hasta `F800`/`F000FC00`. `[m5]` "Disculpe." + `[m6]`
   salen juntos (la caja nativa ya lo hacía). Ver nota §8.1-§8.2.
@@ -50,28 +60,42 @@ antes de cerrar). Imprescindible para que casen las claves de mensaje (`isn't it
 
 ## Cómo probar (Windows)
 
+**Ejecución normal (sin variables)** — overlay completo (texto + caja + flecha) y original oculto;
+los defaults ya son `BOX=28,169,292,223`, `ALPHA=95`, `TYPE_VI=2`:
 ```powershell
 hybrid-heaven-recomp\build_windows.local.bat
-$env:HH_DLG_PROBE=1; $env:HH_DLG_BOX="28,169,292,223"; $env:HH_DLG_ALPHA=95; $env:HH_DLG_TYPE_VI=2; $env:HH_DLG_DY=-64; $env:HH_DLG_KEEP_ORIGINAL=1; hybrid-heaven-recomp\run_windows_release.bat
+hybrid-heaven-recomp\run_windows_release.bat
 ```
 
-Log: `build\windows\bin\Release\hh.log` — trazas de la sesión (todas bajo `HH_DLG_PROBE`):
-`[dlgprobe] MSG/EXT`, `[dlgbox]`, `[dlgfade]`, `[dlgclose]`, `[dlgours]` (flecha nuestra),
-`[dlgar2]` (flecha del juego), `[dlgskip]`.
+**Comparar con el original** (nuestra caja arriba + texto y caja nativos):
+```powershell
+hybrid-heaven-recomp\build_windows.local.bat
+$env:HH_DLG_DY=-64; $env:HH_DLG_KEEP_ORIGINAL=1; hybrid-heaven-recomp\run_windows_release.bat
+```
+
+**Trazas** (solo diagnóstico): añadir `$env:HH_DLG_PROBE=1`. Log en `build\windows\bin\Release\hh.log`.
 
 Variables (tabla completa: nota `2026-10-07-experimento-overlay-dialogo.md` §9.7):
-`HH_DLG_PROBE`, `HH_DLG_BOX`, `HH_DLG_DX/DY`, `HH_DLG_ALPHA`, `HH_DLG_KEEP_ORIGINAL`, `HH_DLG_TYPE_VI`,
-`HH_DLG_ARROW`, `HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS`, `HH_OVERLAY`.
-**Clave para depurar comparando con el original**: `HH_DLG_DY=-64` (sube la nuestra) + `HH_DLG_KEEP_ORIGINAL=1`
-(conserva texto **y caja** nativos). Útil al revisar todo el texto del juego.
+`HH_DLG_PROBE` (solo trazas), `HH_DLG_BOX`, `HH_DLG_DX/DY`, `HH_DLG_ALPHA`, `HH_DLG_KEEP_ORIGINAL`,
+`HH_DLG_TYPE_VI`, `HH_DLG_ARROW`, `HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS`, `HH_OVERLAY`.
+Los hooks **funcionales** del overlay están **siempre** activos; `HH_DLG_PROBE` solo añade sondas y logs.
 
 ## La otra tarea (en `main`) — Traducir el diálogo (es + ca)
 
 **Pipeline: `docs/traduccion.md`**; detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
 Cobertura: solo-diálogo = 27 escenas / **872 mensajes / 2173 líneas**. Hecho: módulos **12, 13, 14,
 16, 17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). Pendiente: 18, 19, 20, 21, 26,
-28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27. (`main` 2 commits por delante de
-`origin/main`; sin push.)
+28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27. (`main` **4 commits** por delante de
+`origin/main`: 3 de traducción + el merge del overlay; sin push.)
+
+## Integración en `main` (squash + tag)
+
+El overlay se integró con **squash** en un único commit, **podando antes la arena** del experimento
+`limites-texto` (no la necesita el overlay). El **rastro completo del experimento** (33 commits) queda
+en el **tag `exp/overlay-dialogo`**; las ramas `experimento-overlay-dialogo`, `overlay-limpio` y
+`experimento-limites-texto` **se eliminaron**. **Cambios futuros: rama nueva desde `main`** (tras un
+squash, git no ve la rama vieja como fusionada). Detalle del proceso: nota
+`2026-10-07-experimento-overlay-dialogo.md` **§9.8**.
 
 ## Diferidos / aparte
 

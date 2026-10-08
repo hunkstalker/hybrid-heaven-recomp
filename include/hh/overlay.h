@@ -143,6 +143,12 @@ bool dialogue_active();
 // el salto con A/J o Start/Enter. Se rearma en cada mensaje nuevo.
 void dialogue_skip();
 
+// true mientras hay que COMER A/START del input del juego: el typewriter del diálogo está escribiendo
+// (esa pulsación solo debe COMPLETAR el texto, no avanzar la frase), o está mantenida la tecla que ya
+// lo completó (hasta soltarla). Lo consulta `hh::get_input` para no dejar pasar esa pulsación al
+// juego; así la primera pulsación completa y la SEGUNDA avanza (como el original).
+bool dialogue_block_advance_input();
+
 // Avisa de que el juego acaba de dibujar la CAJA del diálogo (func_8001A804, formato 'wa fa').
 // `alpha` es el alfa (a2) de ese dibujo. La caja solo se dibuja durante los FUNDIDOS: alfa creciente
 // = entrada (abre el diálogo); alfa decreciente = salida (lo cierra). Mientras está mostrada NO se

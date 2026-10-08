@@ -34,6 +34,7 @@
 #include "hh/font.h"
 #include "hh/hudrewrite.h"
 #include "hh/menu.h"
+#include "hh/overlay.h"
 
 // HH: reloj de juego esclavo del replay (runtime ultramodern/src/timer.cpp). Ver
 // notes/2026-09-17-cac-timeline-modulo24-periodo.md §5.
@@ -1878,6 +1879,11 @@ bool hh::get_input(int controller_num, uint16_t* buttons, float* x, float* y) {
         }
     }
 
+    // Overlay del diálogo: mientras el typewriter escribe (o está mantenida la tecla que lo completó),
+    // A/START NO llegan al juego -> esa pulsación solo COMPLETA el texto; la SIGUIENTE avanza la frase.
+    if (controller_num == 0 && hh::overlay::dialogue_block_advance_input()) {
+        input = static_cast<n64_button>(input & ~(A_BUTTON | START_BUTTON));
+    }
     *buttons = input;
     *x = axis_x;
     *y = axis_y;

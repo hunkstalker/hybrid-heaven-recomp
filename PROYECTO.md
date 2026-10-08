@@ -53,7 +53,7 @@ RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **
 **≈ 30 %** (módulos **12, 13, 14, 16, 17** completos; **27** parcial). Normativa:
 `docs/traduccion.md` (ADR `0016`); detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
 
-**Overlay propio del diálogo (rama `experimento-overlay-dialogo`, 2026-10-07)**: capa propia
+**Overlay propio del diálogo (en `main`, 2026-10-07)**: capa propia
 (`set_dialogue`) que sustituye al texto del juego para quitar el límite de líneas/caracteres.
 **Hecho** (validado a ojo): typewriter por VI, flecha (diseño + pulso medidos del juego), caja con el
 fade real del `'wa fa'` y **caja nativa suprimida**, cierre (texto/flecha de golpe) y **salto**

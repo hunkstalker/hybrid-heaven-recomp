@@ -6,7 +6,7 @@
 
 ## Ahora (priorizado)
 
-- [•] **Overlay propio del diálogo (rama `experimento-overlay-dialogo`; ADR 0017)** — **hecho y
+- [•] **Overlay propio del diálogo (en `main`; ADR 0017)** — **hecho y
   validado el primer diálogo (módulo 12, 2026-10-07)**: typewriter por VI (`HH_DLG_TYPE_VI`), flecha
   (diseño ▼ 5×6 + pulso medido 66/465/470 ms), caja con el fade real del `'wa fa'` y **caja nativa
   suprimida** (con `HH_DLG_KEEP_ORIGINAL=1` se conserva para comparar), cierre (texto/flecha

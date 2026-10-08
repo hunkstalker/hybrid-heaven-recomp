@@ -243,23 +243,33 @@ void dlg_probe_args(uint8_t* rdram, recomp_context* ctx, const char* name) {
 }
 }  // namespace
 
-// `func_80018E9C` compone UN carácter del diálogo (es exclusivo de la ruta 1800C, no lo usa el
-// menú). Con el overlay de diálogo activo (la caja 'wa fa' está viva) se SALTA el original para no
-// dibujar el texto del juego bajo el nuestro; en cualquier otro caso se delega. Con HH_DLG_PROBE=1
-// además loguea los argumentos.
-extern "C" void hh_dlg_18e9c(uint8_t* r, recomp_context* c) {
-    static const bool probe = [] {
-        const char* e = std::getenv("HH_DLG_PROBE");
-        return e != nullptr && *e != '\0' && *e != '0';
-    }();
-    if (probe) dlg_probe_args(r, c, "18E9C");
-    // HH_DLG_KEEP_ORIGINAL=1: NO ocultar el texto del juego (para comparar con el overlay).
-    static const bool keep_original = [] {
+namespace {
+// HH_DLG_KEEP_ORIGINAL=1: conservar el dibujo NATIVO del diálogo (texto, flecha y caja) para
+// comparar con el overlay. Off por defecto.
+bool dlg_keep_original() {
+    static const bool v = [] {
         const char* e = std::getenv("HH_DLG_KEEP_ORIGINAL");
         return e != nullptr && *e != '\0' && *e != '0';
     }();
+    return v;
+}
+bool dlg_probe_on() {
+    static const bool v = [] {
+        const char* e = std::getenv("HH_DLG_PROBE");
+        return e != nullptr && *e != '\0' && *e != '0';
+    }();
+    return v;
+}
+}  // namespace
+
+// `func_80018E9C` compone UN carácter del diálogo (exclusivo de la ruta 1800C). Con el overlay de
+// diálogo activo (la caja 'wa fa' está viva) se SALTA el original para no dibujar el texto del juego
+// bajo el nuestro; en cualquier otro caso se delega. Con HH_DLG_PROBE=1 además loguea los argumentos.
+extern "C" void hh_dlg_18e9c(uint8_t* r, recomp_context* c) {
+    const bool probe = dlg_probe_on();
+    if (probe) dlg_probe_args(r, c, "18E9C");
     const bool suppress =
-        !keep_original && hh::overlay::enabled() && hh::overlay::dialogue_active();
+        !dlg_keep_original() && hh::overlay::enabled() && hh::overlay::dialogue_active();
     if (probe) {
         static uint64_t n = 0;
         if (n < 80) {
@@ -272,7 +282,13 @@ extern "C" void hh_dlg_18e9c(uint8_t* r, recomp_context* c) {
     if (suppress) return;
     func_80018E9C_19A9C(r, c);
 }
-extern "C" void hh_p19038(uint8_t* r, recomp_context* c) { dlg_probe_args(r, c, "19038"); func_80019038_19C38(r, c); }
+// `func_80019038` dibuja la FLECHA del diálogo (sprite a7==16); su ÚNICO llamador es 1800C (opcode
+// FA00). Con el overlay activo y sin `KEEP_ORIGINAL` se SUPRIME (dibujamos la nuestra); si no, delega.
+extern "C" void hh_p19038(uint8_t* r, recomp_context* c) {
+    if (dlg_probe_on()) dlg_probe_args(r, c, "19038");
+    if (!dlg_keep_original() && hh::overlay::enabled()) return;
+    func_80019038_19C38(r, c);
+}
 extern "C" void hh_p1a01c(uint8_t* r, recomp_context* c) { dlg_probe_args(r, c, "1A01C"); func_8001A01C_1AC1C(r, c); }
 
 static void dlg_log_arrow(uint8_t* r);   // definido más abajo
@@ -353,6 +369,11 @@ extern "C" void hh_p1800c(uint8_t* r, recomp_context* c) {
     // de pagina (opcode F800). Acumulamos sus lineas para mostrarlas juntas (p. ej. "Disculpe." +
     // la frase siguiente). Se limpia al inicio de nodo (F000FC00) y en cada corte (F800).
     static std::vector<std::string> g_page;
+    // Trazas solo bajo HH_DLG_PROBE; la lógica de reconstrucción/acumulación es incondicional.
+    static const bool probe = [] {
+        const char* e = std::getenv("HH_DLG_PROBE");
+        return e != nullptr && *e != '\0' && *e != '0';
+    }();
     {
         const uint16_t h0 = static_cast<uint16_t>(a0 >> 16);
         const uint16_t h1 = static_cast<uint16_t>(a0 & 0xFFFF);
@@ -434,11 +455,15 @@ extern "C" void hh_p1800c(uint8_t* r, recomp_context* c) {
                         size_t already = 0;   // caracteres ya visibles (página previa al mensaje)
                         for (const std::string& l : g_page) already += utf8_chars(l);
                         for (const std::string& l : msg_lines) g_page.push_back(l);
-                        hh::log("[dlgprobe] MSG frame=%llu a1=%08X: '%s'\n",
-                                static_cast<unsigned long long>(hh::overlay::presented_frames()),
-                                g_a1, concise.c_str());
-                        hh::log("[dlgprobe]   EXT %s len=%zu -> %zu lineas page=%zu\n",
-                                use_ext ? "si" : "no", chosen.size(), msg_lines.size(), g_page.size());
+                        if (probe) {
+                            hh::log("[dlgprobe] MSG frame=%llu a1=%08X: '%s'\n",
+                                    static_cast<unsigned long long>(
+                                        hh::overlay::presented_frames()),
+                                    g_a1, concise.c_str());
+                            hh::log("[dlgprobe]   EXT %s len=%zu -> %zu lineas page=%zu\n",
+                                    use_ext ? "si" : "no", chosen.size(), msg_lines.size(),
+                                    g_page.size());
+                        }
                         hh::overlay::set_dialogue(true, g_page, already);
                     }
                 }
@@ -458,7 +483,7 @@ extern "C" void hh_p1800c(uint8_t* r, recomp_context* c) {
             emit_half(h1);
         }
     }
-    if (a0 == 0xF000FC00u) {
+    if (probe && a0 == 0xF000FC00u) {
         hh::log("[dlgprobe] 1800C START frame=%llu a1=%08X a2=%08X a3=%08X\n",
                 static_cast<unsigned long long>(hh::overlay::presented_frames()), a1, a2, a3);
         hh::log("[dlgprobe]   a1[0..0x30]: %s\n", hexdump(r, a1, 0x30).c_str());
@@ -537,17 +562,22 @@ extern "C" void hh_accent_register() {
     recomp::overlays::add_loaded_function(0x8001BFE4, hh_accent_bfe4);
     std::fprintf(stderr, "[hh] acentos: color0 %u + color4 %u glifos (donante+origen)\n",
                  hh::kAccentGlyphCount, hh::kGameGlyphCount);
+    // Hooks FUNCIONALES del overlay del diálogo (siempre, sin depender de HH_DLG_PROBE):
+    //   0x8001800C -> reconstruye el mensaje y publica la capa propia (`set_dialogue`).
+    //   0x80018E9C -> suprime el texto NATIVO cuando el overlay está activo.
+    //   0x80019038 -> suprime la FLECHA nativa (único llamador: 1800C, opcode FA00).
+    recomp::overlays::add_loaded_function(0x8001800C, hh_p1800c);
+    recomp::overlays::add_loaded_function(0x80018E9C, hh_dlg_18e9c);
+    recomp::overlays::add_loaded_function(0x80019038, hh_p19038);
+    // Sondas (SOLO trazas): bajo HH_DLG_PROBE.
     const char* probe = std::getenv("HH_DLG_PROBE");
     if (probe != nullptr && *probe != '\0' && *probe != '0') {
         recomp::overlays::add_loaded_function(0x8001B204, hh_dlg_b204_probe);
-        recomp::overlays::add_loaded_function(0x80018E9C, hh_dlg_18e9c);
-        recomp::overlays::add_loaded_function(0x80019038, hh_p19038);
         recomp::overlays::add_loaded_function(0x8001A01C, hh_p1a01c);
         recomp::overlays::add_loaded_function(0x8001A0A4, hh_p1a0a4);
-        recomp::overlays::add_loaded_function(0x8001800C, hh_p1800c);
         recomp::overlays::add_loaded_function(0x80017BB8, hh_p17bb8);
         recomp::overlays::add_loaded_function(0x800179B0, hh_p179b0);
-        hh::log("[dlgprobe] probes B204/18E9C/19038/1A01C/1A0A4/1800C/17BB8 activos\n");
-        std::fprintf(stderr, "[hh] probes de diálogo activos\n");
+        hh::log("[dlgprobe] sondas activas (B204/1A01C/1A0A4/17BB8/179B0)\n");
+        std::fprintf(stderr, "[hh] sondas de diálogo activas\n");
     }
 }

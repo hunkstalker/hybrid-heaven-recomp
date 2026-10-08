@@ -266,6 +266,18 @@ por **posición (módulo, índice)**, sin casar texto.
   (`rev`/`euc_decode`), lo une y devuelve el valor del mensaje (con sus `\n`). Si no hay entrada, se
   conserva el conciso (saltos originales).
 - El hook (`hh_p1800c`) parte el valor por `\n` y publica esas líneas (typewriter/página igual).
+- **Consumo de A/START durante el typewriter**: como el juego ya está esperando (compone el mensaje en
+  un frame) mientras nuestra capa escribe, una pulsación a mitad de typewriter **completaba Y
+  avanzaba** la frase. Ahora, mientras `g_dlg_typing` (escribiendo) o `g_dlg_skip_latch` (la tecla que
+  completó sigue mantenida), `hh::get_input` **enmascara A/START** para el juego
+  (`overlay::dialogue_block_advance_input()`): la **1ª** pulsación solo COMPLETA; hay que **soltar** y
+  pulsar de nuevo para avanzar (como el original). El hook funcional (`1800C`) y la supresión del
+  nativo (`18E9C`) se registran **siempre** (no dependen de `HH_DLG_PROBE`). **Excepción**: en modo
+  comparación (`HH_DLG_KEEP_ORIGINAL=1`) **no** se come el input, para que el original reaccione a la
+  **misma** pulsación (si no, se desincronizan).
+- **Flecha nativa suprimida**: `func_80019038` (sprite `a7==16`; único llamador el opcode `FA00`) se
+  **salta** con el overlay activo — antes aparecía **una flecha extra** de posición fija además de la
+  nuestra. Con `HH_DLG_KEEP_ORIGINAL=1` sí se dibuja la nativa (para comparar).
 - El **rebuild de arena** (`hh_text_rebuild_dialogues`, etapa 3b del experimento `limites-texto`) queda
   **fuera** de esta rama limpia: el overlay no lo necesita. Se conserva como histórico en
   `notes/2026-10-07-experimento-limites-texto.md` y la herramienta `tools/text/analyze_dialogue_nodes.py`.
@@ -308,9 +320,13 @@ de `es.txt`/`ca.txt`, que ya era correcto); la corrección alinea la fuente de r
 Todas se leen una vez (al primer uso); hay que fijarlas **antes** de lanzar. Las dos **clave para
 depurar comparando con el original** están marcadas con 🔑.
 
+**Sin variables**, una ejecución normal ya muestra el overlay completo (texto + caja + flecha) y
+**oculta el original** (texto y caja): los hooks funcionales (`0x8001800C` reconstrucción y
+`0x80018E9C` supresión del texto nativo) están **siempre** registrados; `HH_DLG_PROBE` solo añade trazas.
+
 | Variable | Defecto | Qué hace |
 |---|---|---|
-| `HH_DLG_PROBE=1` | off | Activa los hooks de sonda y las trazas `[dlgprobe] MSG/EXT`, `[dlgbox]`, `[dlgfade]`, `[dlgclose]`, `[dlgours]`, `[dlgar2]`, `[dlgskip]`. |
+| `HH_DLG_PROBE=1` | off | Activa **solo las trazas**: hooks de sonda (`B204/19038/1A01C/1A0A4/17BB8/179B0`) y líneas `[dlgprobe] MSG/EXT`, `[dlgbox]`, `[dlgfade]`, `[dlgclose]`, `[dlgours]`, `[dlgar2]`, `[dlgskip]`. No cambia el comportamiento. |
 | `HH_DLG_BOX="x0,y0,x1,y1"` | `28,169,292,223` | Rect fijo de **nuestra** caja (unidades virtuales 320×240). |
 | 🔑 `HH_DLG_DY` (y `HH_DLG_DX`) | 0 | Desplaza **nuestra** caja y su texto sin cambiar el tamaño. **`HH_DLG_DY=-64`** la sube y deja ver la nativa. |
 | 🔑 `HH_DLG_KEEP_ORIGINAL=1` | off | Conserva el **texto Y la caja nativos** (para comparar). Sin esto, la caja nativa se suprime. |
@@ -325,4 +341,38 @@ depurar comparando con el original** están marcadas con 🔑.
 Comando de comparación (nuestra caja arriba + caja nativa en su sitio):
 ```powershell
 $env:HH_DLG_DY=-64; $env:HH_DLG_KEEP_ORIGINAL=1
+```
+
+### 9.8. Integración en `main`: squash + tag (sin arrastrar el rastro de pruebas)
+
+Proceso (2026-10-07/08):
+
+- **Contexto**: la rama `experimento-overlay-dialogo` **no** traía solo el overlay: llevaba **19 commits**
+  del experimento `limites-texto` (arena/relocalización) como base + 14 del overlay (**33 en total**).
+  `main` no tenía esa base.
+- **Aislamiento**: se creó la rama `overlay-limpio` desde el árbol validado y se **podó la arena**:
+  `trans_cache.cpp` volvió a la versión de `main`; en `text.cpp`/`hh.h` se eliminó
+  `hh_text_rebuild_dialogues` y sus helpers (solo los usaba la arena). Se **conservan** como
+  histórico/herramienta `notes/2026-10-07-experimento-limites-texto.md` y
+  `tools/text/analyze_dialogue_nodes.py`.
+- **Squash a `main`**: `git merge --squash overlay-limpio` + **un commit único**
+  (`feat(overlay): diálogo propio con texto por MENSAJE en un solo fichero (es/ca)`), **sin** arena.
+- **Rastro**: el historial completo del experimento (los 33 commits) se conservó en el **tag
+  `exp/overlay-dialogo`** (tip `1a334fd`). Un tag es un **puntero** a un commit: una sola referencia
+  mantiene alcanzables todos sus ancestros.
+- **Limpieza de ramas**: se **borraron** `experimento-overlay-dialogo`, `overlay-limpio` y
+  `experimento-limites-texto` (el tag las cubre; `limites-texto` era ancestro del tip).
+- **Flujo futuro**: para cambios, **rama nueva desde `main`**. Motivo: tras un squash, git **no** ve la
+  rama vieja como "fusionada" (el commit del squash no es ancestro de ella); reutilizarla re-aplicaría
+  los commits sobre `main` → conflictos. Empezar de `main` evita eso.
+- **Push** (cuando se decida): `main` sería **fast-forward** (no se tocó `lib/`); subiría también los
+  commits pendientes de traducción. El tag es **local**: para conservarlo fuera del equipo,
+  `git push origin exp/overlay-dialogo`.
+
+Comandos usados:
+```bash
+git merge --squash overlay-limpio      # junta el diff en el índice, sin commitear
+git commit -F -                        # commit único del feature en main
+git tag -a exp/overlay-dialogo -m "..." 1a334fd   # foto del rastro del experimento
+git branch -D experimento-overlay-dialogo overlay-limpio experimento-limites-texto  # el tag conserva los commits
 ```

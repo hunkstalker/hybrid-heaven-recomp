@@ -145,6 +145,12 @@ std::atomic<uint64_t> g_dlg_start_vi{ 0 };
 std::atomic<size_t> g_dlg_animate_from{ 0 };
 // Salto pedido (A/START): completa el texto del mensaje actual de golpe.
 std::atomic<bool> g_dlg_skip{ false };
+// "Tragar" A/START: mientras el typewriter escribe (o hasta SOLTAR la tecla que lo completó), el
+// input A/START se enmascara para el juego -> esa pulsación solo COMPLETA el texto (el juego no
+// avanza); la SIGUIENTE pulsación (texto ya completo) sí avanza. Evita que una sola pulsación
+// complete Y avance a la vez. Ver `dialogue_block_advance_input`.
+std::atomic<bool> g_dlg_typing{ false };       // el typewriter aún escribe (texto sin revelar del todo)
+std::atomic<bool> g_dlg_skip_latch{ false };   // la pulsación que completó el texto sigue mantenida
 // Ciclo de vida del diálogo. La caja 'wa fa' solo se redibuja durante los fundidos: alfa creciente =
 // entrada, decreciente = salida. Latch "abierto" con el primer dibujo; se suelta al acabar la salida.
 std::atomic<bool> g_dlg_open{ false };
@@ -503,12 +509,21 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         constexpr uint16_t kSkip = 0x8000u /*A*/ | 0x1000u /*START*/;
         if ((edges & kSkip) != 0 && dialogue_active()) {
             g_dlg_skip.store(true, std::memory_order_relaxed);
+            // Si el texto aún se estaba escribiendo, esta pulsación solo COMPLETA: se "traga" (latch
+            // hasta soltar) para que el juego no avance con ella.
+            if (g_dlg_typing.load(std::memory_order_relaxed)) {
+                g_dlg_skip_latch.store(true, std::memory_order_relaxed);
+            }
             if (std::getenv("HH_DLG_PROBE") != nullptr) {
                 hh::log("[dlgskip] frame=%llu btn=0x%04X\n",
                         static_cast<unsigned long long>(
                             g_presented_frames.load(std::memory_order_relaxed)),
                         edges & kSkip);
             }
+        }
+        // Al soltar A/START se libera el "tragado" (la siguiente pulsación ya podrá avanzar).
+        if ((now_btn & kSkip) == 0) {
+            g_dlg_skip_latch.store(false, std::memory_order_relaxed);
         }
     }
 
@@ -1005,6 +1020,7 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     {
         std::vector<std::string> dlg_lines;
         bool dlg_on = false;
+        bool dlg_typing_now = false;
         uint64_t dlg_start_vi = 0;
         size_t dlg_animate_from = 0;
         {
@@ -1103,6 +1119,7 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 if (!fully) break;
             }
             dlg_text_count = static_cast<uint32_t>(indices.size()) - dlg_text_begin;
+            dlg_typing_now = !fully && !dlg_closing;   // el typewriter aún escribe
 
             // Flecha de "pulsa A": a 1 ESPACIO de la derecha de la última letra de la última línea.
             // Parpadea con el pulso medido del juego (HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS) y solo
@@ -1204,6 +1221,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
                 }
             }
         }
+        // Estado del typewriter para el "tragado" de A/START en el input (ver draw_hook arriba).
+        g_dlg_typing.store(dlg_typing_now, std::memory_order_relaxed);
     }
 
     // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
@@ -1464,6 +1483,7 @@ void set_dialogue(bool visible, const std::vector<std::string>& lines, size_t an
     g_dlg_start_vi.store(hh_get_vi_count(), std::memory_order_relaxed);   // reinicia el typewriter
     g_dlg_animate_from.store(animate_from, std::memory_order_relaxed);    // lo ya visible de la página
     g_dlg_skip.store(false, std::memory_order_relaxed);                   // rearma el salto
+    g_dlg_skip_latch.store(false, std::memory_order_relaxed);             // rearma el "tragado"
 }
 
 void clear_dialogue_text() {
@@ -1471,6 +1491,25 @@ void clear_dialogue_text() {
     g_dlg_visible = false;
     g_dlg_lines.clear();
     g_dlg_animate_from.store(0, std::memory_order_relaxed);
+    g_dlg_skip_latch.store(false, std::memory_order_relaxed);
+    g_dlg_typing.store(false, std::memory_order_relaxed);
+}
+
+// ¿Hay que COMER A/START del input del juego? Sí mientras nuestro typewriter escribe (para que esa
+// pulsación solo complete el texto, no avance) o hasta soltar la tecla que lo completó. Lo consulta
+// `hh::get_input` (src/subsystems/input.cpp).
+//
+// EXCEPCIÓN: en modo COMPARACIÓN (`HH_DLG_KEEP_ORIGINAL=1`) NO se come: el original también debe
+// reaccionar a la MISMA pulsación (si no, se desincronizan: la 1ª avanzaría solo el nuestro y haría
+// falta una 2ª para el original).
+bool dialogue_block_advance_input() {
+    static const bool keep_original = [] {
+        const char* e = std::getenv("HH_DLG_KEEP_ORIGINAL");
+        return e != nullptr && *e != '\0' && *e != '0';
+    }();
+    if (keep_original) return false;
+    return g_dlg_skip_latch.load(std::memory_order_relaxed) ||
+           g_dlg_typing.load(std::memory_order_relaxed);
 }
 
 void notify_dialogue_box(int alpha) {
@@ -1482,6 +1521,8 @@ void notify_dialogue_box(int alpha) {
         g_dlg_lines.clear();
         g_dlg_closing.store(false, std::memory_order_relaxed);
         g_dlg_last_alpha.store(-1, std::memory_order_relaxed);
+        g_dlg_skip_latch.store(false, std::memory_order_relaxed);
+        g_dlg_typing.store(false, std::memory_order_relaxed);
     }
     const int prev = g_dlg_last_alpha.load(std::memory_order_relaxed);
     if (prev >= 0 && alpha < prev) {
@@ -1570,6 +1611,8 @@ bool dialogue_active() {
         g_dlg_closing.store(false, std::memory_order_relaxed);
         g_dlg_last_alpha.store(-1, std::memory_order_relaxed);
         g_dlg_box_alpha.store(0, std::memory_order_relaxed);
+        g_dlg_skip_latch.store(false, std::memory_order_relaxed);
+        g_dlg_typing.store(false, std::memory_order_relaxed);
         if (std::getenv("HH_DLG_PROBE") != nullptr) {
             hh::log("[dlgclose] closed frame=%llu\n",
                     static_cast<unsigned long long>(

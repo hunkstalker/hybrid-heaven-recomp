@@ -23,7 +23,7 @@
 - Acentos/tildes: inyección por color en `src/hooks/text_glyphs.cpp` (**color4**, 8×12, diálogo;
   menú sigue **color0**). La fuente sale de `include/hh/game_font_color4.h` (`tools/text/build_font.py`).
 - Clave del `.txt` = **texto original inglés** (misma fuente que el menú; ADR `0014`).
-- **Overlay propio del diálogo** (rama `experimento-overlay-dialogo`): capa propia que sustituye el
+- **Overlay propio del diálogo** (en `main`): capa propia que sustituye el
   dibujo del texto para **quitar el límite de longitud**. Lee **entradas de MENSAJE** del mismo
   fichero de idioma: **clave = mensaje inglés completo** (líneas unidas con espacio), **valor = la
   traducción con los saltos "baked"** en `\n`. Así dos mensajes que comparten una línea no chocan
