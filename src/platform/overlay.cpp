@@ -440,6 +440,17 @@ void dialogue_box_rect(float& bx, float& by, float& bw, float& bh) {
 constexpr float kDlgPadX = 4.0f;
 constexpr float kDlgPadY = 4.0f;
 
+// Alfa del panel de la caja de diálogo (0-255). Tunable con HH_DLG_ALPHA. La caja de SUBTÍTULOS usa
+// la MISMA transparencia (misma caja).
+uint8_t dialogue_panel_alpha() {
+    static const uint8_t a = [] {
+        const char* e = std::getenv("HH_DLG_ALPHA");
+        const int v = (e != nullptr) ? std::atoi(e) : 95;
+        return static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+    }();
+    return a;
+}
+
 // Dibuja una tira de texto con una tipografía != Color0 (Color4/Color3/Color1): ASCII + acentos
 // (Color4 latin-1) + kana (Color1). Es el mismo camino que usa el frame del menú; factorizado para
 // reutilizarlo en la capa de subtítulos.
@@ -992,8 +1003,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
             const float panel_x = (kVirtualWidth - panel_w) * 0.5f;
             const float panel_y = kVirtualHeight - 12.0f - panel_h;   // 12 de margen inferior
             sub_panel_begin = static_cast<uint32_t>(indices.size());
-            append_quad(vertices, indices, panel_x, panel_y, panel_w, panel_h, rgba(0, 0, 0, 176),
-                        0.5f, 0.5f, 0.5f, 0.5f);
+            append_quad(vertices, indices, panel_x, panel_y, panel_w, panel_h,
+                        rgba(0, 0, 0, dialogue_panel_alpha()), 0.5f, 0.5f, 0.5f, 0.5f);
             sub_panel_count = static_cast<uint32_t>(indices.size()) - sub_panel_begin;
             sub_text_begin = static_cast<uint32_t>(indices.size());
             for (size_t li = 0; li < sub_lines.size(); ++li) {
@@ -1040,12 +1051,8 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
             float bx, by, bw, bh;
             dialogue_box_rect(bx, by, bw, bh);
             const float pad_x = kDlgPadX, pad_y = kDlgPadY;
-            // Alfa del panel tunable con HH_DLG_ALPHA (0-255) para cuadrar la transparencia.
-            static const uint8_t dlg_alpha = [] {
-                const char* e = std::getenv("HH_DLG_ALPHA");
-                const int v = (e != nullptr) ? std::atoi(e) : 95;
-                return static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
-            }();
+            // Alfa del panel (mismo helper que la caja de subtítulos; HH_DLG_ALPHA, def. 95).
+            const uint8_t dlg_alpha = dialogue_panel_alpha();
             // Alfa del panel: sigue el alfa REAL de la caja del juego (rampa 0..96 del 'wa fa') para
             // que el fade-in/out coincida, reescalado al alfa elegido (HH_DLG_ALPHA).
             const int box_a = g_dlg_box_alpha.load(std::memory_order_relaxed);
@@ -1538,6 +1545,12 @@ void notify_dialogue_box(int alpha) {
     g_dlg_last_alpha.store(alpha, std::memory_order_relaxed);
     g_dlg_box_alpha.store(alpha, std::memory_order_relaxed);
     g_dlg_last_draw_ms.store(now_ms(), std::memory_order_relaxed);
+}
+
+float dialogue_text_width() {
+    float bx, by, bw, bh;
+    dialogue_box_rect(bx, by, bw, bh);
+    return bw - 2.0f * kDlgPadX;
 }
 
 std::vector<std::string> wrap_dialogue(const std::string& text) {

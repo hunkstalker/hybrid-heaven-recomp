@@ -114,9 +114,10 @@ void flash_white(int ms);
 void set_screen_blackout(bool enabled);
 
 // Subtítulos (intro/final): capa independiente del frame del menú, con la tipografía del diálogo
-// in-game (`Face::Color4`, 8x12) y un panel negro semitransparente, centrada abajo. El hilo del
-// juego publica las líneas ya troceadas; el render hook las dibuja sobre el swapchain. `lines`
-// vacío = ocultar. Ver src/subsystems/subtitles.cpp.
+// in-game (`Face::Color4`, 8x12) y un panel negro semitransparente, centrada abajo. La caja usa el
+// MISMO límite de ancho (área interior de la caja del diálogo) y la MISMA transparencia que la caja
+// del overlay de diálogo; no depende del aspecto. El hilo del juego publica las líneas ya troceadas;
+// el render hook las dibuja sobre el swapchain. `lines` vacío = ocultar. Ver src/subsystems/subtitles.cpp.
 void set_subtitle(bool visible, const std::vector<std::string>& lines);
 
 // Diálogo del gameplay (overlay propio): CAJA FIJA (no adaptativa, a diferencia de los subtítulos)
@@ -134,6 +135,11 @@ void clear_dialogue_text();
 // Envuelve `text` (UTF-8) en líneas que caben en el área INTERIOR de la caja de diálogo, con los
 // avances reales de la tipografía del diálogo (Color4). Respeta los '\n' explícitos.
 std::vector<std::string> wrap_dialogue(const std::string& text);
+
+// Ancho máximo (unidades virtuales) del ÁREA INTERIOR de la caja del diálogo (ancho de caja − padding
+// lateral). Es el límite de troceo que comparten el diálogo y los subtítulos para que sus cajas
+// tengan el MISMO tamaño máximo (los subtítulos ya no dependen del aspecto). Sigue `HH_DLG_BOX`.
+float dialogue_text_width();
 
 // true si la caja del diálogo se ha visto hace poco (el juego sigue mostrándola). El hook de
 // `func_80018E9C` lo usa para NO dibujar el texto original mientras el overlay lo sustituye.

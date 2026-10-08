@@ -115,28 +115,12 @@ float text_width(const std::string& s) {
     return w;
 }
 
-// Ancho ÚTIL del área del JUEGO (no de la ventana) en unidades virtuales, según el aspecto:
-//   - `original` (4:3 nativo): 320 (la ventana puede ir pillarboxeada; el área útil es el 4:3).
-//   - manual (`4:3`/`16:9`/`16:10`/`21:9`/float): 240 × ratio.
-//   - `auto`/`expand` (widescreen): ancho VISIBLE de la ventana (SIN CAMBIOS: `visible_width() - 24`).
-// Es el ancho al que se trocean los subtítulos; cambia con el toggle de aspecto.
-// En 4:3 el margen lateral es mayor (40): la caja no debe tocar el borde del área (deja «aire»).
+// Ancho útil del texto de subtítulos: SIEMPRE el área interior de la caja del diálogo (el mismo
+// límite de tamaño que la caja del overlay de diálogo), independiente del aspecto. Antes había dos
+// modos (widescreen `visible_width()` vs 4:3 `320 − margen`); se retiró el de widescreen. Así la caja
+// de subtítulos nunca supera a la del diálogo, en cualquier relación de aspecto.
 float subtitle_max_width() {
-    const hh::VideoConfig& v = hh::video_config();
-    float game_w;
-    bool is_43 = false;
-    if (v.aspect == "original") {
-        game_w = hh::overlay::kVirtualWidth;   // 4:3 nativo (ventana pillarboxeada)
-        is_43 = true;
-    } else if (v.aspect_target > 0.0) {
-        game_w = hh::overlay::kVirtualHeight * static_cast<float>(v.aspect_target);
-        is_43 = game_w >= hh::overlay::kVirtualWidth - 0.5f &&
-                game_w <= hh::overlay::kVirtualWidth + 0.5f;   // 4:3 manual
-    } else {
-        game_w = hh::overlay::visible_width();  // auto/expand: ancho de la ventana
-    }
-    const float margin = is_43 ? 40.0f : 24.0f;   // 4:3: margen mayor (caja ≤ ~288; widescreen intacto)
-    return std::max(80.0f, game_w - margin);
+    return hh::overlay::dialogue_text_width();
 }
 
 // Trocea el texto a `max_w` unidades, respetando `\n` como corte duro.

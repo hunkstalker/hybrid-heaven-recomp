@@ -13,6 +13,13 @@
   **A/J ya no cancelan**). Fichero: `src/subsystems/subtitles.cpp`. Nota:
   `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
 
+- **Caja de subtítulos de la intro unificada con la caja del diálogo — HECHO y validado en Windows.**
+  Se retira la caja de widescreen (antes dependía del aspecto): un solo estilo, con el **límite de
+  ancho = área interior de la caja del diálogo** (256 u. → panel ≤ 264; sigue `HH_DLG_BOX`) y la
+  **misma transparencia** (`HH_DLG_ALPHA`, def. 95). Nueva `hh::overlay::dialogue_text_width()`.
+  Ficheros: `src/subsystems/subtitles.cpp`, `src/platform/overlay.cpp`, `include/hh/overlay.h`. Nota:
+  `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`.
+
 ## 2026-10-06
 
 - **Subtítulos de la intro/prólogo (rama `subtitulos-intro`, mergeada a `main`) — HECHO y validado
