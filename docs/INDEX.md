@@ -9,9 +9,9 @@
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [AGENTS.md — arranque de sesión](../AGENTS.md) | Port nativo de **Hybrid Heaven (N64)** a PC (N64Recomp + RT64 + N64ModernRuntime). Windows + Linux + | 118 | 2026-10-06 |
-| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 316 | 2026-10-06 |
+| [PROYECTO — Hybrid Heaven: Recompiled (contexto maestro)](../PROYECTO.md) | **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas). | 331 | 2026-10-07 |
 | [Hybrid Heaven Recomp (N64 → PC)](../README.md) | **⚠️ Proyecto EN DESARROLLO (fase temprana).** Puede haber fallos, incompatibilidades y | 131 | 2026-10-05 |
-| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 272 | 2026-10-06 |
+| [TODO — Hybrid Heaven: Recompiled](../TODO.md) | **Única fuente de verdad de tareas PENDIENTES.** `[ ]` pendiente · `[•]` en curso. | 288 | 2026-10-07 |
 
 ## Técnico y guías (vivos)
 
@@ -23,7 +23,7 @@
 | [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 335 | 2026-10-06 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
-| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 154 | 2026-10-06 |
+| [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 155 | 2026-10-07 |
 | [Ideas — Edición de partida y sistema de guardado](ideas-edicion-partida.md) | **Documento de ideas (no vinculante).** Recoge lo hablado con el mantenedor el 2026-09-27 sobre | 81 | 2026-10-01 |
 | [Interpolación: emparejamiento de transforms (método y oráculo)](interpolacion-pairing.md) | **Doc vivo.** Cómo RT64 interpola los frames que el juego no dibuja, cómo se le dice qué es cada | 136 | 2026-10-05 |
 | [Menú inicial del port (`hh_menu`)](menu.md) | Documento vivo. **Diseño acordado (2026-09-23)** e implementación del menú inicial propio del port. | 363 | 2026-10-06 |
@@ -46,7 +46,7 @@
 | [v0.7.3 - Interpolación: tick determinista (120 fps sin parones) y tagging de C768 en gameplay](releases/v0.7.3.md) | Parche sobre v0.7.2 que **estabiliza la tasa de refresco** y **arregla la regresión de emparejado** que | 24 | 2026-10-05 |
 | [Umbrales de EXP por nivel de atributo (Hybrid Heaven)](stats-partes-umbrales.md) | **MEDIDO** del ELF (`0x80388410+{0x630,0x7BC,0x0,0x18C,0x4A4,0x318}`). Ver `docs/stats-partes.md`. | 321 | 2026-09-28 |
 | [Subida de stats por nivel de parte (Hybrid Heaven) — referencia](stats-partes.md) | **MEDIDO** del C recompilado (`func_80376D48`, `file_057`/`funcs_74.c:42045-44396`) y cruzado con | 229 | 2026-09-28 |
-| [Traducción del texto in-game (diálogos) — guía de la tarea](traduccion.md) | **Documento vivo** para la tarea de localización del **diálogo del gameplay** (el que dibuja el | 73 | 2026-10-06 |
+| [Traducción del texto in-game (diálogos) — guía de la tarea](traduccion.md) | **Documento vivo** para la tarea de localización del **diálogo del gameplay** (el que dibuja el | 95 | 2026-10-07 |
 | [Workflows operativos](workflows.md) | Procedimientos recurrentes. Documento vivo. Las decisiones van a `docs/adr/`; el detalle | 326 | 2026-10-06 |
 
 ## Decisiones (ADR, inmutables)
@@ -69,12 +69,16 @@
 | [0014 — Fuente única de traducciones (`assets/lang/*.txt`, clave = inglés)](adr/0014-fuente-unica-de-traducciones.md) | - **Estado:** Aceptado (2026-10-01). Sustituye el punto 2 de la decisión del ADR 0012. | 32 | 2026-10-01 |
 | [0015 — Anclaje estructural del minimapa (panel por scissor/fondo, no por hash de contenido)](adr/0015-anclaje-estructural-minimapa.md) | - **Estado:** Aceptado (2026-10-02). Implementado y **validado en Windows en todos los niveles** (2-1, | 59 | 2026-10-02 |
 | [ADR 0016 — Traducción del diálogo in-game: reparto por mensaje (A+) y fuente color4](adr/0016-traduccion-dialogo-reparto-por-mensaje.md) | - **Estado**: aceptado (2026-10-06). | 28 | 2026-10-06 |
+| [ADR 0017 — Overlay propio del diálogo y traducción por MENSAJE en un solo fichero por idioma](adr/0017-overlay-dialogo-y-traduccion-por-mensaje.md) | - **Estado**: aceptado (2026-10-07). **Supersede parcialmente** el ADR `0016` (su alternativa | 44 | 2026-10-08 |
 
 ## Evidencia (notas, histórico)
 
 | Documento | Resumen | Líneas | Actualizado |
 |---|---|---|---|
 | [Puntos de guardado aportados por el mantenedor (seguimiento)](../notes/reference/saveedit/PUNTOS_DE_GUARDADO.md) | **Documento vivo de referencia.** El mantenedor aporta `.pak` con **slots guardados jugando** en | 79 | 2026-09-29 |
+| [2026-10-07 — Experimento: overlay propio del diálogo (quitar el límite de líneas/caracteres)](../notes/2026-10-07-experimento-overlay-dialogo.md) | Rama **`experimento-overlay-dialogo`**. Objetivo: **ocultar el texto del juego y dibujar el nuestro** | 327 | 2026-10-07 |
+| [2026-10-07 — Experimento: extender el límite de caracteres del diálogo](../notes/2026-10-07-experimento-limites-texto.md) | Rama **`experimento-limites-texto`**. Objetivo: poder aplicar los textos **extendidos** del | 163 | 2026-10-07 |
+| [2026-10-07 — Traducción del diálogo (es/ca): tandas 12-17 y fix de espacios extremos](../notes/2026-10-07-dialogos-traduccion-es-ca.md) | Evidencia de la sesión. Normativa: `docs/traduccion.md`; decisión: ADR `0016`. Handoff: `RETOMAR.md`. | 45 | 2026-10-07 |
 | [Subtítulos de la intro/prólogo — motor, datos, i18n, ancla, 4:3 y paginado](../notes/2026-10-06-subtitulos-intro.md) | Sesión 2026-10-06, rama **`subtitulos-intro`**. Objetivo: subtitular la **cinemática de prólogo** | 149 | 2026-10-06 |
 | [Sesión 2026-10-06 — motor de traducción del diálogo (A+ + color4) y arranque de contenido](../notes/2026-10-06-sesion-traduccion-dialogos.md) | Resumen de la sesión. Normativa de la tarea: **`docs/traduccion.md`**; decisión: **ADR 0016**. | 45 | 2026-10-06 |
 | [Diálogos ruta B: reubicación de bloques de guion a una arena (longitud libre)](../notes/2026-10-06-dialogos-ruta-b-arena.md) | Sesión 2026-10-06 (continúa `notes/2026-10-06-dialogos-guion-punteros-y-ruta-a.md`). Implementa la | 42 | 2026-10-06 |

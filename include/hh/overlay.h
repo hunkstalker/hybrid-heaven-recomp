@@ -119,6 +119,37 @@ void set_screen_blackout(bool enabled);
 // vacío = ocultar. Ver src/subsystems/subtitles.cpp.
 void set_subtitle(bool visible, const std::vector<std::string>& lines);
 
+// Diálogo del gameplay (overlay propio): CAJA FIJA (no adaptativa, a diferencia de los subtítulos)
+// + texto alineado a la izquierda con la tipografía del diálogo. Capa independiente. `lines` ya
+// troceadas (la PÁGINA completa: los mensajes del juego se ACUMULAN hasta el corte de página).
+// `animate_from` = nº de caracteres que YA estaban visibles (la parte de la página anterior): el
+// typewriter solo anima desde ahí (el resto de la página se ve entero). `lines` vacío = ocultar.
+// Ver notes/2026-10-07-experimento-overlay-dialogo.md.
+void set_dialogue(bool visible, const std::vector<std::string>& lines, size_t animate_from = 0);
+
+// Corte de página del diálogo (opcode F800): el juego limpia la caja y la frase siguiente empieza
+// de cero. Oculta el texto sin cerrar la caja (el panel sigue visible).
+void clear_dialogue_text();
+
+// Envuelve `text` (UTF-8) en líneas que caben en el área INTERIOR de la caja de diálogo, con los
+// avances reales de la tipografía del diálogo (Color4). Respeta los '\n' explícitos.
+std::vector<std::string> wrap_dialogue(const std::string& text);
+
+// true si la caja del diálogo se ha visto hace poco (el juego sigue mostrándola). El hook de
+// `func_80018E9C` lo usa para NO dibujar el texto original mientras el overlay lo sustituye.
+bool dialogue_active();
+
+// Pide que el texto del mensaje actual se complete YA (sin animación) y aparezca la flecha; lo usa
+// el salto con A/J o Start/Enter. Se rearma en cada mensaje nuevo.
+void dialogue_skip();
+
+// Avisa de que el juego acaba de dibujar la CAJA del diálogo (func_8001A804, formato 'wa fa').
+// `alpha` es el alfa (a2) de ese dibujo. La caja solo se dibuja durante los FUNDIDOS: alfa creciente
+// = entrada (abre el diálogo); alfa decreciente = salida (lo cierra). Mientras está mostrada NO se
+// redibuja. La capa latchea "abierto" con el primer dibujo y lo suelta al terminar el fundido de
+// salida. La llama el hilo del juego desde el hook de la caja.
+void notify_dialogue_box(int alpha);
+
 // Indicador de FPS (menú DEBUG -> MOSTRAR FPS): texto de SOLO NÚMEROS en la esquina superior
 // izquierda. Es una capa independiente del frame del menú (lo dibuja el render hook siempre que
 // esté activo, también en gameplay). Se llama por frame desde el hilo de render.

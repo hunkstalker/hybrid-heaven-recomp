@@ -65,6 +65,14 @@ struct State {
     size_t longest = 0;
     std::vector<Key> keys;  // ordenados por longitud descendente
     std::unordered_map<std::string, const Key*> index;  // clave -> Key (busqueda O(1))
+    // Indice con la clave NORMALIZADA (espacios extremos fuera, runs internos colapsados a uno).
+    // Sirve para casar los mensajes de dialogo (clave = mensaje ingles completo) aunque el texto
+    // reconstruido difiera en espacios de la clave exacta.
+    std::unordered_map<std::string, const Key*> norm;
+    // Indice INVERSO para el overlay de dialogo: linea EUC ya traducida (tal cual queda en RDRAM)
+    // -> linea inglesa original. Permite identificar el mensaje (y su entrada de mensaje en
+    // `assets/lang/<code>.txt`) a partir del texto que el juego compone, sin depender del decodificador.
+    std::unordered_map<std::string, std::string> rev;
     bool trace = false;
     bool loaded = false;
     std::string current = "en";  // codigo de idioma activo
@@ -274,12 +282,48 @@ bool load_language_table(State& s, const std::string& code) {
     return false;
 }
 
+// Codifica UTF-8 al EUC propio del dialogo (definido mas abajo). Declarado aqui para poder construir
+// el indice inverso en `apply_language`.
+bool utf8_to_euc(const std::string& in, std::string& out);
+
+// Normaliza espacios: quita los extremos y colapsa cada run interno a un solo espacio.
+std::string collapse_spaces(const std::string& s) {
+    std::string out;
+    bool pend = false, started = false;
+    for (char c : s) {
+        if (c == ' ' || c == '\t') { pend = true; continue; }
+        if (pend && started) out.push_back(' ');
+        pend = false;
+        started = true;
+        out.push_back(c);
+    }
+    return out;
+}
+
+// Busca el valor de un MENSAJE de dialogo por su clave inglesa completa (las lineas unidas con
+// espacio), tal cual la construye el overlay al reconstruir el mensaje. Las entradas de mensaje
+// viven en el MISMO `assets/lang/<code>.txt` (clave = mensaje completo) y no chocan con las de
+// linea/menu porque el texto completo solo coincide con la entrada de ese mensaje. Devuelve nullptr
+// si no hay entrada. Definido aqui para usarlo el rebuild de la arena y el overlay.
+const std::string* find_message_value(const State& s, const std::string& joined) {
+    if (joined.empty()) return nullptr;
+    auto it = s.index.find(joined);
+    if (it != s.index.end() && !it->second->repl.empty()) return &it->second->repl;
+    const std::string norm = collapse_spaces(joined);
+    auto nit = s.norm.find(norm);
+    if (nit != s.norm.end() && !nit->second->repl.empty()) return &nit->second->repl;
+    return nullptr;
+}
+
 // Fija el idioma activo (recarga la tabla). No re-aplica a modulos ya cargados: eso lo decide el
 // llamante (set_language llama a hh_trans_reapply_language).
 void apply_language(const std::string& code) {
     State& s = state();
     s.current = code;
     s.keys.clear();
+    s.index.clear();
+    s.norm.clear();
+    s.rev.clear();
     s.longest = 0;
     s.enabled = false;
 
@@ -300,6 +344,18 @@ void apply_language(const std::string& code) {
                      [](const Key& a, const Key& b) { return a.text.size() > b.text.size(); });
     s.index.clear();
     for (const Key& k : s.keys) s.index.emplace(k.text, &k);
+
+    // Indice inverso linea-traducida(EUC) -> linea-inglesa, para el overlay de dialogo.
+    for (const Key& k : s.keys) {
+        std::string enc;
+        if (utf8_to_euc(k.repl, enc)) s.rev.emplace(std::move(enc), k.text);
+    }
+    // Indice normalizado (mismo fichero): los mensajes de dialogo se buscan por su clave inglesa
+    // completa aunque el texto reconstruido difiera en espacios.
+    for (const Key& k : s.keys) {
+        const std::string nk = collapse_spaces(k.text);
+        if (!nk.empty()) s.norm.emplace(nk, &k);
+    }
 }
 
 // --- Deteccion del idioma del sistema ----------------------------------------------------------
@@ -794,6 +850,61 @@ std::string text::translate(const std::string& key) {
         if (k.text == key) return k.repl;
     }
     return key;
+}
+
+bool text::dialogue_message_choice(const std::string& concise, const uint8_t* euc, size_t len,
+                                   std::string& out) {
+    (void)concise;
+    init();
+    const State& s = state();
+    out.clear();
+    if (!s.enabled || euc == nullptr || len < 2) return false;
+
+    // Reconstruye las lineas INGLESAS del mensaje desde el EUC tal cual lo compuso el juego: indice
+    // inverso (linea ya traducida) o `euc_decode` (linea sin traducir). Se unen con un espacio para
+    // formar la CLAVE del mensaje (las entradas de mensaje de `assets/lang/<code>.txt` usan esa
+    // misma forma). Ver `tools/text/build_dialogue_messages.py`.
+    std::vector<std::string> eng;
+    size_t i = 0;
+    while (i + 1 < len) {
+        if (!is_euc_pair(euc[i], euc[i + 1])) { i++; continue; }
+        const size_t start = i;
+        while (i + 1 < len && is_euc_pair(euc[i], euc[i + 1])) i += 2;
+        const std::string enc(reinterpret_cast<const char*>(euc + start), i - start);
+        // A+ rellena la cola del ultimo tramo con espacio de ancho completo (A1A1).
+        std::string enc_trim = enc;
+        while (enc_trim.size() >= 2 &&
+               static_cast<uint8_t>(enc_trim[enc_trim.size() - 2]) == 0xA1 &&
+               static_cast<uint8_t>(enc_trim[enc_trim.size() - 1]) == 0xA1) {
+            enc_trim.resize(enc_trim.size() - 2);
+        }
+        auto it = s.rev.find(enc);
+        if (it == s.rev.end()) it = s.rev.find(enc_trim);
+        if (it != s.rev.end()) {
+            if (!it->second.empty()) eng.push_back(it->second);
+            continue;
+        }
+        std::string t;
+        if (!euc_decode(reinterpret_cast<const uint8_t*>(enc_trim.data()), enc_trim.size(), t) ||
+            t.empty()) {
+            if (!euc_decode(reinterpret_cast<const uint8_t*>(enc.data()), enc.size(), t)) continue;
+        }
+        if (!t.empty()) eng.push_back(t);
+    }
+    if (eng.empty()) return false;
+
+    std::string joined;
+    for (size_t k = 0; k < eng.size(); ++k) {
+        if (k) joined += ' ';
+        joined += eng[k];
+    }
+
+    // El valor del mensaje (con los saltos ya "baked") manda. Si no hay entrada, se conserva el
+    // conciso con sus saltos originales (comportamiento actual).
+    const std::string* mv = find_message_value(s, joined);
+    if (mv == nullptr || mv->empty()) return false;
+    out = *mv;
+    return true;
 }
 
 void text_debug_tick() {

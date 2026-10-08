@@ -31,6 +31,12 @@
 #include "hh/ttf.h"
 #include "hh/overlay.h"
 
+// Contador de VI del runtime (60 Hz). El typewriter se engancha a VI (no a frames de render) para
+// que salga exactamente 1 letra por periodo. Ver ultramodern/src/events.cpp.
+extern "C" uint64_t hh_get_vi_count(void);
+// Máscara N64 actual (teclado+mando). Para detectar el salto (A/START) por frame de render.
+extern "C" uint16_t hh_input_buttons_now(void);
+
 #include "shaders/OverlayVS.hlsl.spirv.h"
 #include "shaders/OverlayPS.hlsl.spirv.h"
 #if defined(_WIN32)
@@ -79,6 +85,26 @@ unsigned utf8_next_cp(const std::string& s, size_t& i) {
     return cp;
 }
 
+// Nº de codepoints UTF-8 de `s`.
+size_t utf8_count(const std::string& s) {
+    size_t n = 0, i = 0;
+    while (i < s.size()) {
+        utf8_next_cp(s, i);
+        ++n;
+    }
+    return n;
+}
+
+// Prefijo de `s` con los primeros `n` codepoints (corte en frontera UTF-8).
+std::string utf8_prefix(const std::string& s, size_t n) {
+    size_t i = 0, count = 0;
+    while (i < s.size() && count < n) {
+        utf8_next_cp(s, i);
+        ++count;
+    }
+    return s.substr(0, i);
+}
+
 constexpr RenderFormat kSwapChainFormat = RenderFormat::B8G8R8A8_UNORM;
 constexpr RenderFormat kTextureFormat = RenderFormat::R8G8B8A8_UNORM;
 constexpr uint32_t kMaxQuads = 1024;
@@ -107,6 +133,25 @@ Frame g_frame;
 std::mutex g_sub_mutex;
 bool g_sub_visible = false;
 std::vector<std::string> g_sub_lines;
+// Diálogo del gameplay (overlay propio): capa independiente, CAJA FIJA (no adaptativa) + texto
+// alineado a la izquierda con la tipografía del diálogo (Color4). La publica el hilo del juego.
+std::mutex g_dlg_mutex;
+bool g_dlg_visible = false;
+std::vector<std::string> g_dlg_lines;
+// VI en que se publicó el mensaje: base de la animación typewriter (letras 1 a 1).
+std::atomic<uint64_t> g_dlg_start_vi{ 0 };
+// Nº de caracteres de la página que YA estaban visibles antes del último mensaje acumulado: el
+// typewriter arranca ahí (no reescribe la parte anterior de la página).
+std::atomic<size_t> g_dlg_animate_from{ 0 };
+// Salto pedido (A/START): completa el texto del mensaje actual de golpe.
+std::atomic<bool> g_dlg_skip{ false };
+// Ciclo de vida del diálogo. La caja 'wa fa' solo se redibuja durante los fundidos: alfa creciente =
+// entrada, decreciente = salida. Latch "abierto" con el primer dibujo; se suelta al acabar la salida.
+std::atomic<bool> g_dlg_open{ false };
+std::atomic<bool> g_dlg_closing{ false };
+std::atomic<int> g_dlg_last_alpha{ -1 };
+std::atomic<int> g_dlg_box_alpha{ 0 };   // alfa real de la caja (a2 del 'wa fa') -> fade de la nuestra
+std::atomic<uint64_t> g_dlg_last_draw_ms{ 0 };
 // Indicador de FPS (capa independiente del frame del menú). Lo publica el hilo de render.
 std::atomic<bool> g_fps_on{ false };
 std::atomic<int> g_fps_value{ 0 };
@@ -372,6 +417,23 @@ float face_text_width(hh::font::game::Face f, const std::string& text) {
     return w;
 }
 
+// Geometría de la caja FIJA del diálogo (unidades virtuales 320x240). Tunable HH_DLG_BOX="x0,y0,x1,y1".
+// El offset HH_DLG_DX/HH_DLG_DY desplaza la caja (y su texto) sin tocar el tamaño: sirve para
+// comparar con el diálogo original moviendo el overlay (p. ej. HH_DLG_DY=-60 lo sube).
+void dialogue_box_rect(float& bx, float& by, float& bw, float& bh) {
+    bx = 28.0f; by = 169.0f; bw = 264.0f; bh = 54.0f;
+    if (const char* e = std::getenv("HH_DLG_BOX")) {
+        float a, b, c, d;
+        if (std::sscanf(e, "%f,%f,%f,%f", &a, &b, &c, &d) == 4) {
+            bx = a; by = b; bw = c - a; bh = d - b;
+        }
+    }
+    if (const char* e = std::getenv("HH_DLG_DX")) bx += static_cast<float>(std::atof(e));
+    if (const char* e = std::getenv("HH_DLG_DY")) by += static_cast<float>(std::atof(e));
+}
+constexpr float kDlgPadX = 4.0f;
+constexpr float kDlgPadY = 4.0f;
+
 // Dibuja una tira de texto con una tipografía != Color0 (Color4/Color3/Color1): ASCII + acentos
 // (Color4 latin-1) + kana (Color1). Es el mismo camino que usa el frame del menú; factorizado para
 // reutilizarlo en la capa de subtítulos.
@@ -430,6 +492,51 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     // Cada draw del hook equivale a un frame presentado (incluidos los interpolados). Es la tasa
     // real de presentación, la que muestra el indicador de FPS.
     g_presented_frames.fetch_add(1, std::memory_order_relaxed);
+
+    // Salto del diálogo (A/J o Start/Enter): detectado por FRAME DE RENDER, no por los hooks del
+    // juego (que solo corren cuando el juego espera input). Al pulsar, completa el texto de golpe.
+    {
+        static uint16_t prev_btn = 0;
+        const uint16_t now_btn = hh_input_buttons_now();
+        const uint16_t edges = static_cast<uint16_t>(now_btn & ~prev_btn);
+        prev_btn = now_btn;
+        constexpr uint16_t kSkip = 0x8000u /*A*/ | 0x1000u /*START*/;
+        if ((edges & kSkip) != 0 && dialogue_active()) {
+            g_dlg_skip.store(true, std::memory_order_relaxed);
+            if (std::getenv("HH_DLG_PROBE") != nullptr) {
+                hh::log("[dlgskip] frame=%llu btn=0x%04X\n",
+                        static_cast<unsigned long long>(
+                            g_presented_frames.load(std::memory_order_relaxed)),
+                        edges & kSkip);
+            }
+        }
+    }
+
+    // Traza por FRAME DE RENDER del alpha de la flecha (HH_DLG_PROBE): lee el sprite actual de RDRAM
+    // y loguea su alpha (a2) al cambiar. Identifica la flecha por el campo a7 == 16 (ver func_80019038).
+    if (std::getenv("HH_DLG_PROBE") != nullptr) {
+        if (uint8_t* rd = hh::get_game_rdram()) {
+            auto u8 = [rd](uint32_t a) -> int {
+                if (a < 0x80000000u || a >= 0x80800000u) return -1;
+                return rd[(a - 0x80000000u) ^ 3u];
+            };
+            const uint32_t spr = (static_cast<uint32_t>(u8(0x8008EE8Cu)) << 24) |
+                                 (static_cast<uint32_t>(u8(0x8008EE8Du)) << 16) |
+                                 (static_cast<uint32_t>(u8(0x8008EE8Eu)) << 8) |
+                                 static_cast<uint32_t>(u8(0x8008EE8Fu));
+            if (spr >= 0x80000000u && spr < 0x80800000u && u8(spr + 7u) == 16) {
+                static int last_a2 = -2;
+                const int a2 = u8(spr + 2u);
+                if (a2 != last_a2) {
+                    last_a2 = a2;
+                    hh::log("[dlgar2] frame=%llu a2=%d spr=%08X\n",
+                            static_cast<unsigned long long>(
+                                g_presented_frames.load(std::memory_order_relaxed)),
+                            a2, spr);
+                }
+            }
+        }
+    }
 
     // Peticion de carga de imagen pendiente (logos): se resuelve AQUI (render thread), donde la cola
     // de copia de la textura es segura. Carga el PNG/memoria a RGBA8, sube la textura y prepara el set.
@@ -550,7 +657,10 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         const std::lock_guard<std::mutex> lock(g_sub_mutex);
         sub_visible_now = g_sub_visible && !g_sub_lines.empty();
     }
-    if (!frame.visible && !fps_on && !image_on && !blackout_on && !sub_visible_now) {
+    // La caja se dibuja desde que se abre el diálogo (aunque el texto llegue un poco después).
+    const bool dlg_visible_now = dialogue_active();
+    if (!frame.visible && !fps_on && !image_on && !blackout_on && !sub_visible_now &&
+        !dlg_visible_now) {
         return;
     }
 
@@ -888,6 +998,214 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
         }
     }
 
+    // Capa de DIÁLOGO (overlay propio): CAJA FIJA (no adaptativa) + texto alineado a la izquierda,
+    // tipografía del diálogo (Color4). Independiente del frame del menú y de los subtítulos.
+    uint32_t dlg_panel_begin = 0, dlg_panel_count = 0, dlg_text_begin = 0, dlg_text_count = 0;
+    uint32_t dlg_arrow_begin = 0, dlg_arrow_count = 0;
+    {
+        std::vector<std::string> dlg_lines;
+        bool dlg_on = false;
+        uint64_t dlg_start_vi = 0;
+        size_t dlg_animate_from = 0;
+        {
+            const std::lock_guard<std::mutex> lock(g_dlg_mutex);
+            dlg_on = dialogue_active();   // la caja puede estar visible antes de tener texto
+            if (dlg_on) {
+                dlg_lines = g_dlg_lines;
+                dlg_start_vi = g_dlg_start_vi.load(std::memory_order_relaxed);
+                dlg_animate_from = g_dlg_animate_from.load(std::memory_order_relaxed);
+            }
+        }
+        if (dlg_on && g_atlas_set != nullptr && g_atlas_w > 0.0f) {
+            const hh::font::game::Face face = hh::font::game::Face::Color4;
+            const float cell_h = static_cast<float>(hh::font::game::face_cell_h(face));
+            const float line_h = cell_h;   // sin interlinea extra (igual que el juego)
+            // Caja FIJA (unidades virtuales 320x240). Tunable con HH_DLG_BOX="x0,y0,x1,y1".
+            float bx, by, bw, bh;
+            dialogue_box_rect(bx, by, bw, bh);
+            const float pad_x = kDlgPadX, pad_y = kDlgPadY;
+            // Alfa del panel tunable con HH_DLG_ALPHA (0-255) para cuadrar la transparencia.
+            static const uint8_t dlg_alpha = [] {
+                const char* e = std::getenv("HH_DLG_ALPHA");
+                const int v = (e != nullptr) ? std::atoi(e) : 95;
+                return static_cast<uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+            }();
+            // Alfa del panel: sigue el alfa REAL de la caja del juego (rampa 0..96 del 'wa fa') para
+            // que el fade-in/out coincida, reescalado al alfa elegido (HH_DLG_ALPHA).
+            const int box_a = g_dlg_box_alpha.load(std::memory_order_relaxed);
+            const uint8_t panel_a = static_cast<uint8_t>(
+                box_a > 0 ? (box_a * static_cast<int>(dlg_alpha)) / 96 : static_cast<int>(dlg_alpha));
+            // Factor de fade (0..1) de la caja: a plena caja = 1. El TEXTO y la FLECHA, en cambio, NO
+            // se funden: al empezar el cierre (A en el último mensaje) desaparecen de golpe (como el
+            // juego); solo la caja se apaga.
+            const float box_fade = (box_a > 0) ? std::min(1.0f, static_cast<float>(box_a) / 96.0f)
+                                               : 1.0f;
+            const bool dlg_closing = g_dlg_closing.load(std::memory_order_relaxed);
+            // Traza del fade de la caja/texto/flecha (HH_DLG_PROBE): al cambiar el alpha de la caja.
+            if (std::getenv("HH_DLG_PROBE") != nullptr) {
+                static int last_box_a = -2;
+                if (box_a != last_box_a) {
+                    last_box_a = box_a;
+                    hh::log("[dlgfade] frame=%llu box_a=%d panel=%u closing=%d\n",
+                            static_cast<unsigned long long>(
+                                g_presented_frames.load(std::memory_order_relaxed)),
+                            box_a, static_cast<unsigned>(panel_a), dlg_closing ? 1 : 0);
+                }
+            }
+            // Typewriter por VI: nº de caracteres visibles = (VI actual - VI de inicio) / HH_DLG_TYPE_VI.
+            // Así sale exactamente 1 letra por periodo (independiente de los fps de render). El VI es
+            // 60 Hz; el tick lógico del juego es 30 Hz = 2 VI. 0 = instantáneo (sin animación).
+            static const int dlg_type_vi = [] {
+                const char* e = std::getenv("HH_DLG_TYPE_VI");
+                return (e != nullptr) ? std::atoi(e) : 2;
+            }();
+            size_t budget = SIZE_MAX;   // caracteres a mostrar (SIZE_MAX = todos)
+            if (dlg_type_vi > 0 && !g_dlg_skip.load(std::memory_order_relaxed)) {
+                const uint64_t vi = hh_get_vi_count();
+                const uint64_t dvi = (vi > dlg_start_vi) ? (vi - dlg_start_vi) : 0;
+                // Arranca en los caracteres ya visibles de la página (mensajes anteriores): el
+                // typewriter solo anima el mensaje recién acumulado.
+                budget = dlg_animate_from + static_cast<size_t>(dvi / static_cast<uint64_t>(dlg_type_vi));
+            }
+            size_t chars_total = 0;
+            for (const std::string& l : dlg_lines) chars_total += utf8_count(l);
+            bool fully = true;
+            size_t remaining = budget;
+            dlg_panel_begin = static_cast<uint32_t>(indices.size());
+            append_quad(vertices, indices, bx, by, bw, bh, rgba(0, 0, 0, panel_a), 0.5f, 0.5f,
+                        0.5f, 0.5f);
+            dlg_panel_count = static_cast<uint32_t>(indices.size()) - dlg_panel_begin;
+            dlg_text_begin = static_cast<uint32_t>(indices.size());
+            for (size_t li = 0; li < dlg_lines.size() && !dlg_closing; ++li) {
+                const std::string& line = dlg_lines[li];
+                std::string visible = line;
+                if (remaining != SIZE_MAX) {
+                    const size_t n = utf8_count(line);
+                    if (remaining >= n) {
+                        remaining -= n;
+                    } else {
+                        visible = utf8_prefix(line, remaining);
+                        remaining = 0;
+                        fully = false;
+                    }
+                }
+                if (!visible.empty()) {
+                    Text t;
+                    t.x = bx + pad_x;
+                    t.y = by + pad_y + static_cast<float>(li) * line_h;
+                    t.scale_x = 1.0f;
+                    t.scale_y = 1.0f;
+                    t.color = rgba(255, 255, 255, 255);
+                    t.text = visible;
+                    t.face = face;
+                    append_face_text(vertices, indices, t, g_atlas_w, g_atlas_h);
+                }
+                if (!fully) break;
+            }
+            dlg_text_count = static_cast<uint32_t>(indices.size()) - dlg_text_begin;
+
+            // Flecha de "pulsa A": a 1 ESPACIO de la derecha de la última letra de la última línea.
+            // Parpadea con el pulso medido del juego (HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS) y solo
+            // cuando el texto ya se ha mostrado entero.
+            static const bool dlg_arrow_on = [] {
+                const char* e = std::getenv("HH_DLG_ARROW");
+                return !(e != nullptr && *e != '\0' && e[0] == '0');
+            }();
+            // La flecha entra como "un carácter más": un periodo después de la última letra.
+            const bool arrow_ready = fully && (budget == SIZE_MAX || budget > chars_total);
+            // Ancla el pulso al instante en que la flecha APARECE (arranca SIEMPRE en alpha 0 y hace
+            // fade-in; el juego también parte de alpha 0, ver func_80018C9C).
+            static uint64_t s_arrow_anchor_ms = 0;
+            static bool s_arrow_prev = false;
+            static uint64_t s_arrow_msg_vi = ~static_cast<uint64_t>(0);
+            if (dlg_start_vi != s_arrow_msg_vi) {   // mensaje nuevo: rearma el pulso
+                s_arrow_msg_vi = dlg_start_vi;
+                s_arrow_prev = false;
+            }
+            if (!arrow_ready) {
+                s_arrow_prev = false;
+            } else if (!s_arrow_prev) {
+                s_arrow_prev = true;
+                s_arrow_anchor_ms = now_ms();
+            }
+            if (dlg_arrow_on && arrow_ready && !dlg_lines.empty() && !dlg_closing) {
+                const size_t li = dlg_lines.size() - 1;
+                const float text_w = face_text_width(face, dlg_lines[li]);
+                const float space_w =
+                    static_cast<float>(hh::font::game::face_glyph_advance(face, ' '));
+                const float line_x = bx + pad_x;
+                const float line_w = bw - 2.0f * pad_x;
+                float ax = line_x + text_w + space_w;
+                if (ax + 5.0f > line_x + line_w) ax = line_x + line_w - 5.0f;   // no salir de la caja
+                const float ay = by + pad_y + static_cast<float>(li) * line_h;
+                // Opacidad: fade-in lineal + hold a 100% + fade-out + off (el juego usa un fade
+                // lineal con duración = variable 20 del motor; ver func_80018C9C). Tunables:
+                // HH_DLG_BLINK_FADE_MS / HH_DLG_BLINK_HOLD_MS / HH_DLG_BLINK_OFF_MS.
+                // Medido en el juego (traza [dlgar2], sprite a7==16): fade ~3 ticks (100 ms), hold
+                // ~465 ms a 255, off ~470 ms a 0. Ciclo ~1.08 s.
+                static const int fade_ms = [] {
+                    const char* e = std::getenv("HH_DLG_BLINK_FADE_MS");
+                    return (e != nullptr) ? std::atoi(e) : 66;
+                }();
+                static const int hold_ms = [] {
+                    const char* e = std::getenv("HH_DLG_BLINK_HOLD_MS");
+                    return (e != nullptr) ? std::atoi(e) : 465;
+                }();
+                static const int off_ms = [] {
+                    const char* e = std::getenv("HH_DLG_BLINK_OFF_MS");
+                    return (e != nullptr) ? std::atoi(e) : 470;
+                }();
+                int arrow_a = 255;
+                const int cycle = 2 * fade_ms + hold_ms + off_ms;
+                if (cycle > 0) {
+                    const uint64_t since = (now_ms() > s_arrow_anchor_ms) ? (now_ms() - s_arrow_anchor_ms) : 0;
+                    const int t = static_cast<int>(since % static_cast<uint64_t>(cycle));
+                    if (fade_ms > 0 && t < fade_ms) {
+                        arrow_a = 255 * t / fade_ms;
+                    } else if (t < fade_ms + hold_ms) {
+                        arrow_a = 255;
+                    } else if (fade_ms > 0 && t < 2 * fade_ms + hold_ms) {
+                        arrow_a = 255 * (2 * fade_ms + hold_ms - t) / fade_ms;
+                    } else {
+                        arrow_a = 0;
+                    }
+                }
+                if (std::getenv("HH_DLG_PROBE") != nullptr) {
+                    static int last = -1;
+                    if (arrow_a != last) {
+                        last = arrow_a;
+                        hh::log("[dlgours] frame=%llu a=%d\n",
+                                static_cast<unsigned long long>(
+                                    g_presented_frames.load(std::memory_order_relaxed)),
+                                arrow_a);
+                    }
+                }
+                if (arrow_a > 0) {
+                    const uint8_t a8 = static_cast<uint8_t>(static_cast<int>(arrow_a * box_fade));
+                    // Flecha ▼ del juego: 5x6 con filas de 2 px (##### / ##### / ### / ### / # / #),
+                    // + sombra negra +1,+1. Se centra en la celda (8x12).
+                    const float axx = ax + 1.5f;
+                    const float ayy = ay + 3.0f;
+                    const float rows[3][3] = {
+                        { 0.0f, 0.0f, 5.0f }, { 1.0f, 2.0f, 3.0f }, { 2.0f, 4.0f, 1.0f },
+                    };
+                    dlg_arrow_begin = static_cast<uint32_t>(indices.size());
+                    for (int pass = 0; pass < 2; ++pass) {   // 0 = sombra (+1,+1), 1 = tinta
+                        const float off = (pass == 0) ? 1.0f : 0.0f;
+                        const uint32_t col =
+                            (pass == 0) ? rgba(0, 0, 0, a8) : rgba(255, 255, 255, a8);
+                        for (int r = 0; r < 3; ++r) {
+                            append_quad(vertices, indices, axx + rows[r][0] + off,
+                                        ayy + rows[r][1] + off, rows[r][2], 2.0f, col, 0.5f, 0.5f,
+                                        0.5f, 0.5f);
+                        }
+                    }
+                    dlg_arrow_count = static_cast<uint32_t>(indices.size()) - dlg_arrow_begin;
+                }
+            }
+        }
+    }
+
     // TELON NEGRO: quad opaco a pantalla completa, dibujado EL ULTIMO (tapa todo, incluidos los
     // logos nativos del boot). Solo mientras la intro no retire la bandera.
     uint32_t blackout_begin = 0;
@@ -978,6 +1296,17 @@ void draw_hook(RenderCommandList* list, RenderFramebuffer* swap_chain_framebuffe
     }
     if (sub_text_count > 0) {
         draw_range(list, g_atlas_set.get(), sub_text_begin, sub_text_count);
+    }
+
+    // Diálogo del gameplay (capa propia, caja fija).
+    if (dlg_panel_count > 0) {
+        draw_range(list, g_white_set.get(), dlg_panel_begin, dlg_panel_count);
+    }
+    if (dlg_text_count > 0) {
+        draw_range(list, g_atlas_set.get(), dlg_text_begin, dlg_text_count);
+    }
+    if (dlg_arrow_count > 0) {
+        draw_range(list, g_white_set.get(), dlg_arrow_begin, dlg_arrow_count);
     }
 
     // Indicador de FPS con proyeccion en PIXELES (1 unidad = 1 px, origen arriba-izquierda).
@@ -1126,6 +1455,129 @@ void set_subtitle(bool visible, const std::vector<std::string>& lines) {
     const std::lock_guard<std::mutex> lock(g_sub_mutex);
     g_sub_visible = visible && !lines.empty();
     g_sub_lines = lines;
+}
+
+void set_dialogue(bool visible, const std::vector<std::string>& lines, size_t animate_from) {
+    const std::lock_guard<std::mutex> lock(g_dlg_mutex);
+    g_dlg_visible = visible && !lines.empty();
+    g_dlg_lines = lines;
+    g_dlg_start_vi.store(hh_get_vi_count(), std::memory_order_relaxed);   // reinicia el typewriter
+    g_dlg_animate_from.store(animate_from, std::memory_order_relaxed);    // lo ya visible de la página
+    g_dlg_skip.store(false, std::memory_order_relaxed);                   // rearma el salto
+}
+
+void clear_dialogue_text() {
+    const std::lock_guard<std::mutex> lock(g_dlg_mutex);
+    g_dlg_visible = false;
+    g_dlg_lines.clear();
+    g_dlg_animate_from.store(0, std::memory_order_relaxed);
+}
+
+void notify_dialogue_box(int alpha) {
+    const bool was_open = g_dlg_open.load(std::memory_order_relaxed);
+    if (!was_open) {
+        // Nuevo diálogo: descarta el texto del anterior para no destaparlo durante la entrada.
+        const std::lock_guard<std::mutex> lock(g_dlg_mutex);
+        g_dlg_visible = false;
+        g_dlg_lines.clear();
+        g_dlg_closing.store(false, std::memory_order_relaxed);
+        g_dlg_last_alpha.store(-1, std::memory_order_relaxed);
+    }
+    const int prev = g_dlg_last_alpha.load(std::memory_order_relaxed);
+    if (prev >= 0 && alpha < prev) {
+        const bool was_closing = g_dlg_closing.exchange(true, std::memory_order_relaxed);
+        if (!was_closing && std::getenv("HH_DLG_PROBE") != nullptr) {
+            hh::log("[dlgclose] fadeout frame=%llu alpha=%d\n",
+                    static_cast<unsigned long long>(
+                        g_presented_frames.load(std::memory_order_relaxed)),
+                    alpha);
+        }
+    }
+    g_dlg_open.store(true, std::memory_order_relaxed);
+    g_dlg_last_alpha.store(alpha, std::memory_order_relaxed);
+    g_dlg_box_alpha.store(alpha, std::memory_order_relaxed);
+    g_dlg_last_draw_ms.store(now_ms(), std::memory_order_relaxed);
+}
+
+std::vector<std::string> wrap_dialogue(const std::string& text) {
+    std::vector<std::string> out;
+    float bx, by, bw, bh;
+    dialogue_box_rect(bx, by, bw, bh);
+    (void)bx;
+    (void)by;
+    (void)bh;
+    const float max_w = bw - 2.0f * kDlgPadX;
+    const hh::font::game::Face face = hh::font::game::Face::Color4;
+    const float space_w = static_cast<float>(hh::font::game::face_glyph_advance(face, ' '));
+    auto wrap_para = [&](const std::string& para) {
+        // Trocea en palabras (espacios simples) preservando los codepoints UTF-8.
+        std::vector<std::string> words;
+        std::string w;
+        size_t i = 0;
+        while (i < para.size()) {
+            const size_t start = i;
+            const unsigned cp = utf8_next_cp(para, i);
+            if (cp == ' ') {
+                if (!w.empty()) { words.push_back(w); w.clear(); }
+            } else {
+                w.append(para, start, i - start);
+            }
+        }
+        if (!w.empty()) words.push_back(w);
+        std::string cur;
+        for (const std::string& wd : words) {
+            if (cur.empty()) {
+                cur = wd;
+            } else if (face_text_width(face, cur) + space_w + face_text_width(face, wd) <= max_w) {
+                cur += ' ';
+                cur += wd;
+            } else {
+                out.push_back(cur);
+                cur = wd;
+            }
+        }
+        if (!cur.empty()) out.push_back(cur);
+    };
+    // Respeta los saltos de linea explicitos del texto extendido.
+    std::string para;
+    for (char c : text) {
+        if (c == '\n') {
+            wrap_para(para);
+            para.clear();
+        } else {
+            para.push_back(c);
+        }
+    }
+    wrap_para(para);
+    if (out.empty()) out.push_back("");
+    return out;
+}
+
+void dialogue_skip() {
+    g_dlg_skip.store(true, std::memory_order_relaxed);
+}
+
+bool dialogue_active() {
+    if (!g_enabled) return false;
+    if (!g_dlg_open.load(std::memory_order_relaxed)) return false;
+    // Cierre: en cuanto el fade-out deja la caja claramente apagándose (últimos 'wa fa' = a2≤24) o
+    // pasan ~80 ms sin redibujarse, se suelta el overlay (sin "fantasma" ni retardo).
+    if (g_dlg_closing.load(std::memory_order_relaxed) &&
+        (g_dlg_box_alpha.load(std::memory_order_relaxed) <= 24 ||
+         now_ms() - g_dlg_last_draw_ms.load(std::memory_order_relaxed) > 80)) {
+        // El fundido de salida terminó (dejó de redibujarse la caja): cierra el diálogo.
+        g_dlg_open.store(false, std::memory_order_relaxed);
+        g_dlg_closing.store(false, std::memory_order_relaxed);
+        g_dlg_last_alpha.store(-1, std::memory_order_relaxed);
+        g_dlg_box_alpha.store(0, std::memory_order_relaxed);
+        if (std::getenv("HH_DLG_PROBE") != nullptr) {
+            hh::log("[dlgclose] closed frame=%llu\n",
+                    static_cast<unsigned long long>(
+                        g_presented_frames.load(std::memory_order_relaxed)));
+        }
+        return false;
+    }
+    return true;
 }
 
 void set_fps_indicator(bool enabled, int fps) {

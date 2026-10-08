@@ -1,0 +1,1165 @@
+HYBRID HEAVEN — DIÁLOGOS PROCESADOS (EN / ES / CA)
+======================================================================
+ES/CA = TUS TEXTOS (correcciones). Si 'aplicado' aparece, es la versión que
+quedó en assets/lang/es.txt|ca.txt por no caber tu versión en el presupuesto A+.
+Módulos incluidos: 12, 13, 14, 16, 17. (27 sigue parcial; no incluido.)
+
+
+######################################################################
+# MÓDULO 12 — Mr.Diaz (primer diálogo)
+######################################################################
+
+[m0]
+EN: Mr.Diaz, you might already / know, but there is one thing / I must report to you.
+ES: Sr.Diaz, puede que ya lo sepa, / pero hay una cosa de la que / debo informarle.
+CA: Sr.Diaz, potser ja ho sap, / però hi ha una cosa / que li he de comunicar.
+
+[m1]
+EN: The security system just / responded to something, and / to make sure we changed / the lock gate code.
+ES: El sistema de seguridad / reaccionó a algo, y para / asegurarnos cambiamos / el código nuevo.
+CA: El sistema de seguretat / ha reaccionat a una cosa, / i per assegurar-nos / vam canviar el codi.
+
+[m2]
+EN: When you want to go to / other blocks, please renew / your code key.
+ES: Cuando quiera ir a / otros bloques, renueve / su llave.
+CA: Quan vulgui anar a / altres blocs, renovi / la seva clau.
+
+[m3]
+EN: Anything wrong? / You don't have your code key? / You must have left it / somewhere.
+ES: ¿Algún problema? / ¿No tiene su llave? / Debe haberla dejado / por ahí.
+CA: Algun problema? / No té la seva clau? / Se l'haurà deixada / en algun lloc.
+
+[m4]
+EN: Please take this emergency key. / You can return it anytime.
+ES: Tome esta llave de emergencia. / Puede devolverla luego.
+CA: Agafeu la clau d'emergència. / Pot tornar-la quan vulgui.
+
+[m5]
+EN: Excuse me.
+ES: Disculpe.
+CA: Disculpi.
+
+[m6]
+EN: This is...your first time to / use a code key, isn't it?
+ES: Es... la primera vez que / usa una llave de código, ¿no?
+CA: És... la primera vegada / que usa una clau de codi, no?
+
+[m7]
+EN: It is used at lock gates with / security locks.
+ES: Se usa en puertas de / seguridad bloqueadas.
+CA: S'usa en portes de / seguretat bloquejades.
+
+[m8]
+EN: Code renewal is done at the / code rewriting machine / called the code changer.
+ES: La renovación del código / se hace en la máquina / de cambiar códigos.
+CA: La renovació del codi / es fa a la màquina / de canviar codis.
+
+[m9]
+EN: The locations of the code / changers are top secret,  / and I cannot reveal them.
+ES: La ubicación de los / cambiadores es secreta, / no puedo revelarla.
+CA: La ubicació dels / canviadors és secreta, / no puc revelar-la.
+
+[m10]
+EN: Sorry for the inconvenience.
+ES: Perdone las molestias.
+CA: Disculpi les molèsties.
+
+[m11]
+EN: But Mr.Diaz, is this really / your first time to deal with / code keys?
+ES: Pero, Sr.Diaz, ¿es de / verdad su primera vez / con estas llaves?
+CA: Però, Sr.Diaz, és de / debò la primera vegada / amb claus de codi?
+
+[m12]
+EN: The security system at / the pathway to the overground / reacted and surveillance / devices have been disposed.
+ES: El sistema de seguridad / del paso a la superficie / reaccionó y han puesto / dispositivos de vigilancia.
+CA: El sistema de seguretat / del pas a la superfície / va reaccionar i han / posat dispositius de vigilància.
+
+[m13]
+EN: If the sensors detect you, they / will attack you.
+ES: Si los sensores le detectan, / le atacarán.
+CA: Si els sensors el detecten, / l'atacaran.
+
+[m14]
+EN: I'm sure you know this, but / please be careful.
+ES: Sé que ya lo sabe, pero / tenga cuidado.
+CA: Sé que ja ho sap, però / vagi amb compte.
+
+[m15]
+EN: Mr.Diaz, I believe you have / a defuser.
+ES: Sr.Diaz, creo que tiene / un defuser.
+CA: Sr.Diaz, crec que té / un defuser.
+
+[m16]
+EN: Please use it at emergency / situations.
+ES: Úselo en situaciones / de emergencia.
+CA: Usi'l en situacions / d'emergència.
+
+[m17]
+EN: I really envy you for having / a defuser.  Only executives / are privileged to carry / around a defuser.
+ES: Le envidio por tener / un defuser. Solo los / directivos pueden / llevar uno.
+CA: Li envejo per tenir / un defuser. Només els / directius poden / portar un.
+
+[m18]
+EN: All we can do is stay away / from those surveillance devices / that attack indiscriminately.
+ES: Lo único que podemos hacer / es esquivar esos dispositivos / que atacan sin distinción.
+CA: L'únic que podem fer / és esquivar els dispositius / que ataquen sense distinció.
+
+[m19]
+EN: Mr.Diaz! / I never see you in this block. / You don't know the area well / here, do you?
+ES: ¡Sr.Diaz! / Nunca le veo en este bloque. / No conoce bien la zona, / ¿no?
+CA: Sr.Diaz! / Mai li veig en aquest / bloc. No coneix bé / la zona, oi?
+
+[m20]
+EN: If you don't know where to go, / please use the map viewer / that you have.
+ES: Si no sabe adónde ir, / use el visor de mapa / que tiene.
+CA: Si no sap on anar, / usi el visor de mapa / que té.
+
+[m21]
+EN: You can look at the area map / with the B button.
+ES: Puede ver el mapa de / la zona con el botón B.
+CA: Pot veure el mapa de / la zona amb el botó B.
+
+[m22]
+EN: Are you lost? / Have you ever used / the map viewer?
+ES: ¿Está perdido? / ¿Ha usado / el visor de mapa?
+CA: Està perdut? / Ha usat mai / el visor de mapa?
+
+[m23]
+EN: In OPTIONS, you can choose / whether or not to make / the map rotate.
+ES: En OPTIONS puede / elegir si el mapa / gira o no.
+CA: A OPTIONS pot triar / si el mapa gira / o no.
+
+[m24]
+EN: It's only a matter of taste. / I like it not rotating.
+ES: Es cuestión de gusto. / A mí no me gusta que gire.
+CA: És qüestió de gust. / A mi no m'agrada que giri.
+
+[m25]
+EN: Mr.Diaz!!
+ES: ¡Sr.Diaz!
+CA: Sr.Diaz!!
+
+[m26]
+EN: Is it true that you killed our / comrades overground and / released the monster from / the cell?!
+ES: ¿Es verdad que mató a / nuestros compañeros en / la superficie y soltó / al monstruo?!
+CA: És veritat que va / matar als nostres companys / en la superfície i va / deixar anar al monstre?!
+
+[m27]
+EN: How could someone like you / do that!  Unbelievable... / An arrest warrant has been / issued for you.
+ES: ¡Cómo pudo hacer eso! / Increíble... Han emitido / una orden de detención / contra usted.
+CA: Com va poder fer això! / Increïble... Han emès / una ordre de detenció / contra vostè.
+
+[m28]
+EN: Your being an executive / will not affect how I act / upon you.  I ask for no / resistance whatsoever.
+ES: Que sea directivo no / cambiará cómo actúo / con usted. Le pido / que no se resista.
+CA: Que sigui directiu no / canviarà com actuo / amb vostè. Li demano / que no es resisteixi.
+
+[m29]
+EN: This partition is not working.
+ES: Este tabique no funciona.
+CA: Aquest envà no funciona.
+
+[m30]
+EN: If you are in a hurry, please / go under it.
+ES: Si tiene prisa, pase / por debajo.
+CA: Si té pressa, passi / per sota.
+
+[m31]
+EN: You can destroy the / surveillance devices if you / have a defuser.
+ES: Puede destruir los / dispositivos de vigilancia / con un defuser.
+CA: Pot destruir els / dispositius de vigilància / amb un defuser.
+
+[m32]
+EN: We have a problem. / The cell housing the biological / weapon has been opened.
+ES: Tenemos un problema. / La celda del arma / biológica se ha abierto.
+CA: Tenim un problema. / La cel·la de l'arma / biològica s'ha obert.
+
+[m33]
+EN: Accidentally or intentionally, / we don't know.
+ES: No sabemos si fue / accidental o a propósito.
+CA: No sabem si va ser / accidental o a propòsit.
+
+[m34]
+EN: The pre-adjusted, genetically / synthesized monsters have / escaped.  We expect some / level of damage.
+ES: Los monstruos preajustados / y creados genéticamente / se han escapado. Habrá / daños.
+CA: Els monstres preajustats / i creats genèticament / s'han escapat. Hi haurà / danys.
+
+[m35]
+EN: Mr. Diaz, a tough man like you / should be all right, but still, / please stay cautious.
+ES: Sr. Diaz, un hombre duro / como usted estará bien, / pero tenga cuidado.
+CA: Sr. Diaz, un home fort / com vostè estarà bé, / però vagi amb compte.
+
+[m36]
+EN: To prepare for monsters / before mental adjustments / escaping, a gun that would / not affect the gravity
+ES: Para prepararnos ante / monstruos que escapen / antes de los ajustes / mentales, se creó y se
+CA: Per a preparar-nos / davant monstres que / escapin abans dels ajustos / mentals, es va crear i es va
+
+[m37]
+EN: stabilizing particles in the / underground shelter was
+ES: colocó una pistola que / no afecta a la
+CA: col·locar una pistola / que no afecta la gravetat
+
+[m38]
+EN: developed and disposed / to bring them under / control...
+ES: gravedad del refugio / subterráneo, para / controlarlos.
+CA: del refugi / subterrani, per a / controlar-los.
+
+[m39]
+EN: Unfortunately, there are no / such guns in this block...
+ES: Por desgracia, no hay / esas pistolas aquí...
+CA: Per desgràcia, no hi / ha pistoles així aquí...
+
+[m40]
+EN: A defuser to get rid of the / surveillance devices has / been found and disposed.
+ES: Se ha encontrado un / defuser para eliminar / la vigilancia.
+CA: S'ha trobat un defuser / per a eliminar la / vigilància.
+
+[m41]
+EN: M...Mr. Diaz!?
+ES: ¡M...Sr.Diaz!
+CA: M...Sr.Diaz!
+
+[m42]
+EN: Someone's just opened / the cells / storing the bio weapons...
+ES: Alguien acaba de abrir / las celdas / de armas biológicas...
+CA: Algú acaba d'obrir / les cel·les / d'armes biològiques...
+
+[m43]
+EN: Someone unlocked / the security system!!
+ES: ¡Alguien ha anulado / la seguridad!!
+CA: Algú ha anul·lat / la seguretat!!
+
+[m44]
+EN: We're in deep trouble...
+ES: Tenemos un buen lío...
+CA: Tenim un bon embolic...
+
+[m45]
+EN: Oh God...
+ES: Dios mío.
+CA: Déu meu.
+
+[m46]
+EN: you couldn't have!? / How could it be -
+ES: ¡¿No lo habrá hecho? / Cómo pudo ser -
+CA: No ho haurà fet...? / Com pot ser -
+
+[m47]
+EN: Arrrggghhh!!!
+ES: ¡Aaaargh!
+CA: Aaaargh!
+
+######################################################################
+# MÓDULO 13 — científico hybrido reta a Diaz
+######################################################################
+
+[m0]
+EN: Diaz!  Freeze!
+ES: ¡Diaz, quieto!
+CA: Diaz, atura't!
+
+[m1]
+EN: Heard you've been doing as you / please around here.
+ES: He oído que haces lo que / te da la gana por aquí.
+CA: He sentit que fas el que / et dóna la gana per aquí.
+
+[m2]
+EN: That's very you - you loose / cannon.
+ES: Muy tuyo: eres / un imprevisible.
+CA: Molt propi de tu: / un imprevisible.
+
+[m3]
+EN: But I don't want to be / troubled.
+ES: Pero no quiero / complicaciones.
+CA: Però no vull / complicacions.
+
+[m4]
+EN: The square Jerry says / I'm to catch you.
+ES: El carca de Jerry / me manda atraparte.
+CA: El carca d'en Jerry / em mana atrapar-te.
+
+[m5]
+EN: Not that what Jerry has to say / holds any interest for me,
+ES: No es que me interese / nada lo que diga Jerry,
+CA: No és que m'interessi / gens el que digui Jerry,
+
+[m6]
+EN: but it's a bit different when / I get to use you as / my guinea pig.
+ES: pero cambia cuando / te uso de conejillo / de Indias.
+CA: però canvia quan / et faig servir de / conillet d'Índies.
+
+[m7]
+EN: Using a comrade as a guinea pig / sounds crazy, but it's good / news for me.
+ES: Usar a un colega de / conejillo suena loco, / pero me va bien.
+CA: Fer servir un col·lega / de conillet sona boig, / però em va bé.
+
+[m8]
+EN: Experimenting with just normal / clones has been such a drag / lately...
+ES: Experimentar con clones / normales es un rollo / últimamente...
+CA: Experimentar amb clons / normals és un rotllo / últimament...
+
+[m9]
+EN: Sorry, but it's a blast to be / able to experiment with someone / like you, Diaz - a hybrid in top / athletic condition.
+ES: Lo siento, pero me / encanta experimentar / contigo, Diaz, un híbrido / en plena forma.
+CA: Ho sento, però / m'encanta experimentar / amb tu, Diaz, un híbrid / en plena forma.
+
+[m10]
+EN: So let's party, brother!
+ES: ¡A divertirse, hermano!
+CA: Anem a gaudir, germà!
+
+[m11]
+EN: Okay, showtime, Diaz. / The rules of this study are / simple. You run from that / creature, and that's all.
+ES: Bien, empieza el show, / Diaz. Las reglas son / simples: huye de esa / criatura, y ya está.
+CA: Bé, comença l'espectacle, / Diaz. Les regles són / simples: fuig d'aquesta / criatura, i prou.
+
+[m12]
+EN: Run if you don't want to die. / Hey! Isn't it huge! / It's so much more / powerful than you. Don't even / think of fighting it.
+ES: Corre si no quieres morir. / ¡Eh! ¡Es enorme! / Es mucho más fuerte / que tú. Ni se te ocurra / luchar contra él.
+CA: Corre si no vols morir. / Ei! És enorme! / És molt més fort / que tu. No se t'acudeixi / lluitar-hi.
+
+[m13]
+EN: It's really none of my concern / what happens to you / with this experiment.
+ES: La verdad es que no me / importa lo que te pase / con este experimento.
+CA: La veritat és que no / m'importa què et passi / amb aquest experiment.
+
+[m14]
+EN: Let's get started, shall we? / Run! Run, Diaz!
+ES: Empecemos, ¿vale? / ¡Corre! ¡Corre, Diaz!
+CA: Començem, d'acord? / Corre! Corre, Diaz!
+
+[m15]
+EN: Come through here...
+ES: Ven por aquí...
+CA: Vine per aquí...
+
+[m16]
+EN: Hurry!  This way.
+ES: ¡Rápido, aquí!
+CA: Corre! Per aquí.
+
+######################################################################
+# MÓDULO 14 — Kevin/Presidente (revelación)
+######################################################################
+
+[m0]
+EN: Patrick Weller / United States President / Johnny?!
+ES: Patrick Weller / Presidente de EE.UU. / ¿Johnny?!
+CA: Patrick Weller / President dels EUA / Johnny?!
+
+[m1]
+EN: Weren't you / killed in the station by Diaz?
+ES: ¿No te / mató Diaz en la estación?
+CA: No et va / matar Diaz a l'estació?
+
+[m2]
+EN: What's going on here? / What's happening?
+ES: ¿Qué pasa aquí? / ¿Qué ocurre?
+CA: Què passa aquí? / Què està passant?
+
+[m3]
+EN: The clone of Johnny Slater / no longer exists...
+ES: El clon de Johnny Slater / ya no existe...
+CA: El clon de Johnny Slater / ja no existeix...
+
+[m4]
+EN: A-ha!! / I see.  That explains it.
+ES: ¡Ajá! / Ya. Eso lo explica.
+CA: Ahà! / Ja veig. Això ho explica.
+
+[m5]
+EN: Well, don't just stand there.
+ES: No te quedes ahí parado.
+CA: No et quedis aquí parat.
+
+[m6]
+EN: Get in.
+ES: Entra.
+CA: Entra.
+
+[m7]
+EN: You're the original, / aren't you... / I'm really surprised / you managed to survive.
+ES: Eres el original, / ¿verdad? / Me sorprende mucho / que sobrevivieras.
+CA: Ets l'original, / oi? / Em sorprèn molt / que sobrevisquessis.
+
+[m8]
+EN: I can figure why you're here. / Those Gargatuans...
+ES: Imagino por qué estás aquí. / Esos Gargatuans...
+CA: M'imagino per què ets aquí. / Aquests Gargatuans...
+
+[m9]
+EN: never know what they'll do / if you don't keep an eye / on them.
+ES: nunca sabes qué harán / si no los vigilas / de cerca.
+CA: mai saps què faran / si no els vigiles / de prop.
+
+[m10]
+EN: Well, I guess I can't keep / on hiding that I am not the / real Kevin, your superior.
+ES: Bueno, ya no puedo / seguir ocultando que no soy / el verdadero Kevin, tu jefe.
+CA: Bé, ja no puc / seguir amagant que no soc / el veritable Kevin, el teu cap.
+
+[m11]
+EN: My pride doesn't allow myself
+ES: Mi orgullo no me permite
+CA: El meu orgull no em permet
+
+[m12]
+EN: When I was duplicated from the / original, I was genetically / engineered to become superior / to all men in all ways.
+ES: Cuando me duplicaron del / original, fui diseñado / genéticamente para ser / superior a todos.
+CA: Quan em van duplicar de / l'original, se'm va dissenyar / genèticament per ser / superior a tots.
+
+[m13]
+EN: A genetically synthesized / new human race... / We call ourselves Hybrids.
+ES: Una nueva raza humana / sintetizada... / Nos llamamos Híbridos.
+CA: Una nova raça humana / sintetitzada... / Ens diem Híbrids.
+
+[m14]
+EN: Oh my, still alive?
+ES: Vaya, ¿aún vivo?
+CA: Vaja, encara viu?
+
+[m15]
+EN: What loads of fun you are. / How about it, Johnny?
+ES: Qué divertido eres. / ¿Qué me dices, Johnny?
+CA: Que divertit que ets. / Què en dius, Johnny?
+
+[m16]
+EN: Is the beauty of our plan / evident even to you?
+ES: ¿Ves la belleza de / nuestro plan?
+CA: Veus la bellesa del / nostre pla?
+
+[m17]
+EN: I saw several stories and / movies created by your race / when I was above ground - / and I must say I was / surprised.
+ES: Vi varias historias y / películas de tu raza / cuando estuve arriba, / y debo decir que me / sorprendió.
+CA: Vaig veure diverses / històries i pel·lícules / de la teva raça quan / vaig estar a dalt, i em / va sorprendre.
+
+[m18]
+EN: Does this planet's race / really believe that those / flashy and utterly ludicrous / interplanetary wars could / ever occur?
+ES: ¿De verdad la raza / de este planeta cree / que esas vistosas y / ridículas guerras / existirán?
+CA: De debò la raça / d'aquest planeta creu / que aquelles vistoses i / absurdes guerres / passaran?
+
+[m19]
+EN: Very typical of a primitive / and foolish species that / you are...
+ES: Muy típico de una / especie primitiva y / necia como la vuestra...
+CA: Molt típic d'una / espècie primitiva i / necia com la vostra...
+
+[m20]
+EN: Brute power holds no meaning / in an invasion / of planetary scale.
+ES: La fuerza bruta no / importa en una / invasión planetaria.
+CA: La força bruta no / té sentit en una / invasió planetària.
+
+[m21]
+EN: Brains - do you understand? / You use your head! / A species with no new ideas / is doomed to defeat.
+ES: Inteligencia, ¿lo entiendes? / ¡Usa la cabeza! / Una especie sin ideas / nuevas está condenada.
+CA: Cervell, ho entens? / Fes servir el cap! / Una espècie sense idees / noves està condemnada.
+
+[m22]
+EN: So it follows that all of you, / living on this planet and caught / in primitive delusions, / have no future!
+ES: Así que todos vosotros, / los que vivís aquí, presos / de ilusiones primitivas, / ¡no tenéis futuro!
+CA: Així que tots vosaltres, / els que viviu aquí, presos / d'il·lusions primitives, / no teniu futur!
+
+[m23]
+EN: Johnny Slater! / You won't find the President / by chasing me around.
+ES: Johnny Slater! / No encontrarás al Presidente / persiguiéndome.
+CA: Johnny Slater! / No trobaràs el President / perseguint-me.
+
+[m24]
+EN: We don't need Two Presidents. / We are getting rid of the / original.
+ES: No necesitamos dos presidentes. / Vamos a deshacernos del / original.
+CA: No necessitem dos presidents. / Ens desfarem de / l'original.
+
+[m25]
+EN: We've already sent him off to / the organic disposal area! / It's too late to panic!
+ES: ¡Ya lo hemos enviado al / área de desechos orgánicos! / ¡Ya es tarde para asustarse!
+CA: Ja l'hem enviat a / l'àrea de residus orgànics! / Ja és tard per espantar-se!
+
+[m26]
+EN: Ha ha ha ha ha....!!!!
+ES: ¡Ja ja ja ja ja...!
+CA: Ja ja ja ja ja...!
+
+[m27]
+EN: This is where the fun begins.
+ES: Aquí empieza la diversión.
+CA: Aquí comença la diversió.
+
+[m28]
+EN: You see, the military power / held by the nation above ground / is now totally in our hands!
+ES: Verás, el poder militar / de la nación de arriba / ya está en nuestras manos!
+CA: Veuràs, el poder militar / de la nació de dalt / ja és a les nostres mans!
+
+[m29]
+EN: Ha ha ha ha ha....!!!!
+ES: ¡Ja ja ja ja ja...!
+CA: Ja ja ja ja ja...!
+
+[m30]
+EN: Hey! / I'm right here!
+ES: ¡Eh! / ¡Estoy aquí!
+CA: Ei! / Sóc aquí!
+
+[m31]
+EN: Johnny, why do you fight? / Out of love for all humans?
+ES: Johnny, ¿por qué luchas? / ¿Por amor a los humanos?
+CA: Johnny, per què lluites? / Per amor als humans?
+
+[m32]
+EN: You humans are governed / by love too much.
+ES: Los humanos os dejáis / dominar por amor.
+CA: Els humans us deixeu / dominar per amor.
+
+[m33]
+EN: But after all, your love' is / nothing more than an excuse / for violence, a conceit / to preserve peace that's / no more than an illusion. 
+ES: Pero, al final, vuestro / amor no es más que / una excusa para la / violencia, una ilusión / de paz.
+CA: Però, al final, el / vostre amor no és / més que una excusa / per a la violència, / una il·lusió de pau.
+   ⚠ REVISAR traducción ES/CA (confirmar el fragmento "no more than an illusion").
+
+[m34]
+EN: Isn't it meaningless that you're / fighting all by yourself / for such worthless humans?
+ES: ¿No es absurdo que / luchas tú solo por / humanos tan inútiles?
+CA: No és absurd que / lluites tot sol per / humans tan inútils?
+
+[m35]
+EN: Isn't it?
+ES: ¿Verdad?
+CA: Oi?
+
+[m36]
+EN: What do you think? / You're clever enough to figure / that one out.
+ES: ¿Qué te parece? / Eres listo, tú lo / entenderás.
+CA: Què et sembla? / Ets llest, tu ho / entendràs.
+
+[m37]
+EN: Give it up! / You'll feel better!
+ES: ¡Ríndete! / ¡Te sentirás mejor!
+CA: Rendeix-te! / Et sentiràs millor!
+
+[m38]
+EN: You are stubborn.
+ES: Eres terco.
+CA: Ets tossut.
+
+[m39]
+EN: How much farther / are you planning to follow me?
+ES: ¿Cuánto más / piensas seguirme?
+CA: Fins a on / penses seguir-me?
+
+[m40]
+EN: You want to keep on listening / to me?
+ES: ¿Quieres seguir / escuchándome?
+CA: Vols seguir / escoltant-me?
+
+[m41]
+EN: Then fine.  What shall I talk / about?
+ES: Vale. ¿De qué te / hablo?
+CA: D'acord. De què et / parlo?
+
+[m42]
+EN: How about talking about your / girl? / Yes, let's talk about Holly.
+ES: ¿Y si hablamos de tu / chica? / Sí, hablemos de Holly.
+CA: Què et sembla si parlem / de la teva noia? / Sí, parlem de Holly.
+
+[m43]
+EN: An intelligent,  / beautiful woman who works / at the U.N. headquarters / in New York -
+ES: An intelligent,  / y bella que trabaja / en la sede de la ONU / en Nueva York,
+CA: An intelligent,  / i bonica que treballa / a la seu de l'ONU / a Nova York,
+
+[m44]
+EN: Don't I know a lot! / Surprised?
+ES: ¡Cuánto sé! / ¿Sorprendido?
+CA: Que si en sé! / Sorprès?
+
+[m45]
+EN: I have data on her in the / memories I inherited / from my original.
+ES: Tengo sus datos en los / recuerdos que heredé / de mi original.
+CA: Tinc les dades en els / records que vaig heretar / del meu original.
+
+[m46]
+EN: I don't know if you remember, / but she was there when you / killed your own analogue, / you know...
+ES: No sé si lo recuerdas, / pero estaba allí cuando / mataste a tu propio doble, / sabes...
+CA: No sé si ho recordes, / però hi era quan vas / matar el teu propi doble, / saps...
+
+[m47]
+EN: Do I have to continue my / talking? / She's not waiting for you / anymore.
+ES: ¿Tengo que seguir / hablando? / Ella ya no te / espera más.
+CA: He de continuar / parlant? / Ella ja no t'espera / més.
+
+[m48]
+EN: You're the only one waiting / to see her. / She thinks you're dead.
+ES: Eres el único que / quiere verla. / Cree que estás muerto.
+CA: Ets l'únic que / vol veure-la. / Creu que ets mort.
+
+[m49]
+EN: And with humanity's fate / sealed, / Holly's life will end too, / in all likelihood.
+ES: Y con el destino de / la humanidad sellado, / Holly también morirá, / seguramente.
+CA: I amb el destí de / la humanitat segellat, / Holly també morirà, / segurament.
+
+[m50]
+EN: I'm sure you would love to / tell her that you're alive. / And then protect her...
+ES: Seguro que te encantaría / decirle que estás vivo. / Y luego protegerla...
+CA: Segur que t'encantaria / dir-li que ets viu. / I després protegir-la...
+
+[m51]
+EN: But that is not happening. / You know why?
+ES: Pero eso no pasará. / ¿Sabes por qué?
+CA: Però això no passarà. / Saps per què?
+
+[m52]
+EN: Because you'll die / here alone, down here / in the bowels of earth!
+ES: Porque morirás / aquí solo, bajo tierra, / en las entrañas!
+CA: Perquè moriràs / aquí sol, sota terra, / a les entranyes!
+
+[m53]
+EN: I'm here Johnny!
+ES: ¡Johnny, aquí!
+CA: Aquí, Johnny!
+
+[m54]
+EN: Cheer up, Johnny. / I just thought of a way to make / Holly happy.
+ES: Ánimo, Johnny. / Se me acaba de ocurrir / cómo alegrar a Holly.
+CA: Ànim, Johnny. / Se m'acaba d'acudir / com fer feliç la Holly.
+
+[m55]
+EN: Listen carefully! / I'm going to create another / analogue of yours and then / send him overground to Holly.
+ES: ¡Escucha bien! / Voy a crear otro doble / tuyo y luego lo / enviaré a Holly.
+CA: Escolta bé! / Crearé un altre doble / teu i després / l'enviaré a la Holly.
+
+[m56]
+EN: What do you think? / Brilliant, isn't it?
+ES: ¿Qué te parece? / Brillante, ¿no?
+CA: Què et sembla? / Brillant, oi?
+
+[m57]
+EN: Don't worry.
+ES: Tranquilo.
+CA: Tranquil.
+
+[m58]
+EN: Your analogue will play / the part of Johnny Slater / to perfection.  And Holly / will not have to cry.
+ES: Tu doble interpretará / el papel de Johnny Slater / a la perfección. Y Holly / no tendrá que llorar.
+CA: El teu doble farà / el paper de Johnny Slater / a la perfecció. I Holly / no haurà de plorar.
+
+[m59]
+EN: There's no time to think about / it.  We are in the process of / taking out the memories from / the President.
+ES: No hay tiempo para pensarlo. / Estamos extrayendo los / recuerdos del / Presidente.
+CA: No hi ha temps per pensar-hi. / Estem extraient els / records del / President.
+
+[m60]
+EN: The memories from the original / will be moved to our new / President,
+ES: Los recuerdos del original / pasarán a nuestro nuevo / Presidente,
+CA: Els records de l'original / passaran al nostre nou / President,
+
+[m61]
+EN: and the analogue will be / completely functional!
+ES: y el doble será / totalmente funcional!
+CA: i el doble serà / totalment funcional!
+
+[m62]
+EN: What are you going to do? / This is your last chance / to decide.
+ES: ¿Qué vas a hacer? / Es tu última oportunidad / de decidir.
+CA: Què faràs? / És la teva última / oportunitat de decidir.
+
+[m63]
+EN: Sorry to tell you, but the / chances of you and Holly seeing / each other once again is close / to zero.
+ES: Lo siento, pero las / probabilidades de que Holly / y tú os volváis a ver son / casi nulas.
+CA: Ho sento, però les / probabilitats que Holly / i tu us torneu a veure / són gairebé nul·les.
+
+[m64]
+EN: You need a copy before it gets / too late, right? / I'll accept your request now.
+ES: Necesitas una copia antes / de que sea tarde, ¿no? / Aceptaré tu petición ya.
+CA: Necessites una còpia abans / que sigui massa tard, oi? / Accepto la teva petició.
+
+[m65]
+EN: Ha ha ha ha...!!!!
+ES: ¡Ja ja ja ja...!
+CA: Ja ja ja ja...!
+
+[m66]
+EN: I am - grateful to my great / creator, the Master,
+ES: Estoy agradecido a mi / gran creador, el Maestro,
+CA: Estic agraït al meu / gran creador, el Mestre,
+
+[m67]
+EN: for having / given me life not as a / mere copy of foolish humans, / but as a Hybrid.
+ES: por darme la vida / no como simple copia / de humanos necios, / sino como Híbrido.
+CA: per donar-me la vida / no com a simple còpia / d'humans necis, / sinó com a Híbrid.
+
+[m68]
+EN: Now that there are us Hybrids / on this planet, / you humans are an antique.
+ES: Ahora en el planeta / estamos los Híbridos, / los humanos sois obsoletos.
+CA: Ara en aquest planeta / hi som els Híbrids, / els humans sou obsolets.
+
+[m69]
+EN: From now on, it is we,
+ES: Desde ahora, somos
+CA: Des d'ara, som
+
+[m70]
+EN: the Hybrids, that should rule / this planet.
+ES: los Híbridos quienes / gobernarán el mundo.
+CA: els Híbrids qui / governaran el món.
+
+[m71]
+EN: We can no longer have you / running around.
+ES: Ya no podemos dejaros / andar sueltos.
+CA: Ja no podem deixar-vos / anar solts.
+
+[m72]
+EN: This is where you die.
+ES: Aquí es donde mueres.
+CA: Aquí és on mors.
+
+[m73]
+EN: Wow, take it easy.
+ES: Vaya, tranquilo.
+CA: Vaja, tranquil.
+
+[m74]
+EN: It wouldn't be dignified / for you to be dispatched / by me in this old man's guise.
+ES: No sería digno que / yo te eliminara con / esta apariencia de viejo.
+CA: No seria digne que / jo t'eliminés amb / aquesta aparença de vell.
+
+[m75]
+EN: Since you've come all / the way to my office, / why don't you take a look at / my other form before you die?
+ES: Ya que has venido / hasta mi oficina, / ¿por qué no ves mi / otra forma antes de morir?
+CA: Ja que has vingut / fins a la meva oficina, / per què no veus la / meva altra forma abans de morir?
+
+[m76]
+EN: AND - !!
+ES: ¡Y...!!
+CA: I...!!
+
+[m77]
+EN: Know that you humans, / no matter how much / you struggle, will never / be a match for Hybrids -
+ES: Que sepas que los humanos, / por mucho que luchen, / nunca serán rivales / para los Híbridos,
+CA: Sàpigues que els humans, / per molt que lluitin, / mai seran rivals / per als Híbrids,
+
+[m78]
+EN: and having learned this, die.
+ES: y, sabiendo esto, muere.
+CA: i, sabent això, mor.
+
+[m79]
+EN: PRESIDENTIAL AIDE / JOSEPH ROSS / PRESS SECRETARY / GLORIA ANDERSON / SECRETARY OF DEFENSE / NICK MOORE / CIA DIRECTOR / DON MILLER / SPECIAL PRESIDENTIAL AIDE / LEONARD POWELL
+ES: PRESIDENTIAL AIDE / JOSEPH ROSS / PRESS SECRETARY / GLORIA ANDERSON / SECRETARY OF DEFENSE / NICK MOORE / CIA DIRECTOR / DON MILLER / SPECIAL PRESIDENTIAL AIDE / LEONARD POWELL
+CA: PRESIDENTIAL AIDE / JOSEPH ROSS / PRESS SECRETARY / GLORIA ANDERSON / SECRETARY OF DEFENSE / NICK MOORE / CIA DIRECTOR / DON MILLER / SPECIAL PRESIDENTIAL AIDE / LEONARD POWELL
+
+######################################################################
+# MÓDULO 16 — el Navigator
+######################################################################
+
+[m0]
+EN: Welcome, Johnny / Slater. / I am the Navigator...
+ES: Bienvenido, Johnny / Slater. / Soy el Navegante.
+CA: Benvingut, Johnny / Slater. / Soc el Navegant.
+
+[m1]
+EN: What happened on the / ship and in the / underground shelter, / I know all about it...
+ES: Lo que pasó en la / nave y en el / refugio subterráneo, / lo sé todo...
+CA: El que va passar en / la nau i en el / refugi subterrani, / ho sé tot...
+
+[m2]
+EN: There's really no need / to talk about it, / is there?
+ES: No hace falta / hablar de eso, / ¿verdad?
+CA: No fa falta / parlar d'això, / veritat?
+
+[m3]
+EN: All I can do for you is / move around with you...
+ES: Lo único que puedo / hacer es acompañarte...
+CA: L'únic que puc fer / és acompanyar-te...
+
+[m4]
+EN: But I ask you to take me / to the ship.
+ES: Pero te pido que / me lleves a la nave.
+CA: Però demano que em / portis a la nau.
+
+[m5]
+EN: If I can get there, I can / put an end to this situation.
+ES: Si consigo llegar, / puedo acabar con esto.
+CA: Si aconsegueixo arribar, / puc acabar amb això.
+
+[m6]
+EN: Now the two of us will fuse / to become one.
+ES: Ahora los dos nos / fusionaremos en uno.
+CA: Ara els dos ens / fusionarem en un.
+
+[m7]
+EN: Once that happens, the power / balance of the underground / shelter will be lost until I / return to the ship's pedestal.
+ES: Cuando ocurra, el / equilibrio de poder del / refugio se perderá hasta / que vuelva al pedestal de la nave.
+CA: Quan ocorri, l'equilibri / de poder del refugi / es perdrà fins que / torni al pedestal de la nau.
+
+[m8]
+EN: The enemies will then be / confused, and we could be / at an advantage.
+ES: Los enemigos estarán / confundidos y podríamos / llevar ventaja.
+CA: Els enemics estaran / confosos i podríem / portar avantatge.
+
+[m9]
+EN: However, things could work  / the other way and worsen / this whole situation.
+ES: Sin embargo, todo / podría salir al revés / y empeorar la situación.
+CA: No obstant això, tot podria / sortir al revés i / empitjorar la situació.
+   ⚠ REVISAR traducción ES/CA (confirmar el fragmento "However, things could work").
+
+[m10]
+EN: Anything can happen from / this point on... / You be careful, Johnny.
+ES: A partir de ahora / todo puede pasar... / Ten cuidado, Johnny.
+CA: A partir d'ara / pot passar qualsevol cosa. / Vés amb compte, Johnny.
+
+[m11]
+EN: First you shall tell my / comrades that you / recovered me.
+ES: Primero di a mis / compañeros que me / has recuperado.
+CA: Primer digues als / meus companys que / m'has recuperat.
+
+[m12]
+EN: Return to the hideout / of the Gargatuans... / Johnny, it's time. / Let us fuse.
+ES: Vuelve a la guarida / de los Gargatuans... / Johnny, es la hora. / Fusionémonos.
+CA: Torna al cau / dels Gargatuans... / Johnny, és l'hora. / Fusionem-nos.
+
+######################################################################
+# MÓDULO 17 — villano; Bross y Jerry
+######################################################################
+
+[m0]
+EN: Welcome, Johnny. / I'm glad you came chasing / after me as I expected.
+ES: Bienvenido, Johnny. / Me alegra que me / hayas seguido.
+CA: Benvingut, Johnny. / M'alegra que m'hagis / seguit.
+
+[m1]
+EN: Of course, there's no exit / out of here, and hence you have / no other choice but to / follow me.
+ES: Claro, no hay salida / de aquí, así que no / tienes otra opción / que seguirme.
+CA: És clar, no hi ha / sortida d'aquí, així / que no tens més / remei que seguir-me.
+
+[m2]
+EN: I had it all worked out, / you see.
+ES: Lo tenía todo planeado, / ¿ves?
+CA: Ho tenia tot planejat, / saps?
+
+[m3]
+EN: So what'll it be? / Want to hang out with me?
+ES: ¿Qué decides? / ¿Quieres acompañarme?
+CA: Què decideixes? / Vols acompanyar-me?
+
+[m4]
+EN: There's no way out for you / anyway.
+ES: No puedes salir / de todos modos.
+CA: No pots sortir / de totes maneres.
+
+[m5]
+EN: So I invite you to experience / the terror of meeting / the monster I've genetically / engineered.
+ES: Así que te invito / vivir el terror de / conocer al monstruo / que he creado genéticamente.
+CA: Així que t'invito a / viure el terror de / conèixer el monstre / que he creat genèticament.
+
+[m6]
+EN: You'll be groveling / at our feet in no time.
+ES: Pronto te arrastrarás / a nuestros pies.
+CA: Aviat t'arrossegaràs / als nostres peus.
+
+[m7]
+EN: And you'll know, with every / cell in your body, that you / humans are no longer fit to / govern this planet!
+ES: Y sabrás, con cada / célula de tu cuerpo, / que los humanos ya no / podéis gobernar el planeta!
+CA: I sabràs, amb cada / cèl·lula del cos, que / els humans ja no / podeu governar el planeta!
+
+[m8]
+EN: Now it's showtime! / Rock and roll, baby!
+ES: ¡Empieza el show! / ¡Rock and roll, baby!
+CA: Comença el show! / Rock and roll, baby!
+
+[m9]
+EN: Hey, Johnny! / You won't get away this time!
+ES: ¡Eh, Johnny! / ¡Esta vez no escaparás!
+CA: Ei, Johnny! / Aquesta vegada no escaparàs!
+
+[m10]
+EN: You really do possess / remarkable motor coordination.
+ES: De verdad tienes una / coordinación motora notable.
+CA: De debò tens una / coordinació motora notable.
+
+[m11]
+EN: You've managed to observe and / acquire combat skills I've / programmed into 
+ES: Has sabido observar y / adquirir las técnicas / que programé en
+CA: Has sabut observar i / adquirir les tècniques / que vaig programar en les
+
+[m12]
+EN: my genetically engineered / creatures one after / the other.
+ES: mis criaturas / creadas genéticamente / una tras otra.
+CA: meves criatures / creades genèticament / l'una rere l'altra.
+
+[m13]
+EN: Human samples with superior / athletic abilities like yours / are really, very valuable.
+ES: Las muestras humanas con / habilidades atléticas / como las tuyas valen mucho.
+CA: Les mostres humanes amb / habilitats atlètiques / com les teves valen molt.
+
+[m14]
+EN: I'd like to have a better / look at what humans are capable / of in a desperate situations.
+ES: Me gustaría ver mejor / de qué son capaces los / humanos en apuros.
+CA: M'agradaria veure millor / de què són capaços els / humans en perill.
+
+[m15]
+EN: Do put out all you can, / Johnny Slater!
+ES: ¡Da lo mejor de ti, / Johnny Slater!
+CA: Dona-ho tot, / Johnny Slater!
+
+[m16]
+EN: Now let's get it on!
+ES: ¡Vamos allá!
+CA: Som-hi!
+
+[m17]
+EN: What the hell is going on! / The energy reserve for the / subterranean shelter / is dropping off!
+ES: ¡¿Qué demonios pasa?! / ¡La reserva de energía / del refugio subterráneo / está bajando!
+CA: Què dimonis passa! / La reserva d'energia / del refugi subterrani / està baixant!
+
+[m18]
+EN: If this isn't corrected, / all shelter functions will be / paralyzed!
+ES: Si no lo corregimos, / el refugio dejará de / funcionar!
+CA: Si no ho corregim, / el refugi deixarà de / funcionar!
+
+[m19]
+EN: D...Dr. Bross!?
+ES: ¿D...Dr.Bross!?
+CA: D...Dr. Bross!?
+
+[m20]
+EN: What!
+ES: ¡Qué!
+CA: Què!
+
+[m21]
+EN: What a surprise - / it's no other than - / Johnny Slater, the man who was / masquerading as Diaz.
+ES: Vaya sorpresa... / nada menos que... / Johnny Slater, el que se / hacía pasar por Diaz.
+CA: Quina sorpresa... / res menys que... / Johnny Slater, l'home / que es feia passar per Diaz.
+
+[m22]
+EN: So humans are capable / of throwing a few curve balls.
+ES: Así que los humanos / también sabéis sorprender.
+CA: Així que els humans / també sabeu sorprendre.
+
+[m23]
+EN: I have to say it even took me / by surprise that time.
+ES: Debo decir que hasta / a mí me sorprendió.
+CA: He de dir que fins / a mi em va sorprendre.
+
+[m24]
+EN: Thanks to you, Diaz just hasn't / been the same since.
+ES: Gracias a ti, Diaz / ya no es el mismo.
+CA: Gràcies a tu, Diaz / ja no és el mateix.
+
+[m25]
+EN: Bross, get him!
+ES: ¡Bross, cógelo!
+CA: Bross, agafa'l!
+
+[m26]
+EN: He's stolen the Navigator!
+ES: ¡Ha robado el Navigator!
+CA: Ha robat el Navigator!
+
+[m27]
+EN: What!
+ES: ¡Qué!
+CA: Què!
+
+[m28]
+EN: The Navigator - I see,so / that's how it is. The Navigator / control system of this shelter, / the Gargatuan starship.
+ES: El Navigator... ya veo, / así es. El Navigator es el / sistema de control de este refugio, / la nave gargatuana.
+CA: El Navigator... ja ho veig, / així és. El Navigator és el / sistema de control d'aquest refugi, / la nau gargatuana.
+
+[m29]
+EN: And therefore the core / control system of this shelter, / which is essentially / a division of the ship...
+ES (tú): Y por lo tanto, el núcleo del sistema de control central de este refugio, que es, en esencia, una sección de la nave...
+CA (tú): I per tant, el nucli del sistema de control central d'aquest refugi, que és, en essència, una secció de la nau..
+   ⚠ NO CABE (ES +21, CA +14) [presupuesto EN=98]
+ES aplicado: Y por tanto, el núcleo del / sistema de control de este refugio, / en esencia / una sección de la nave...
+CA aplicado: I per tant, el nucli del / sistema de control d'aquest refugi, / en essència / una secció de la nau...
+
+[m30]
+EN: Hence, the disruption in the / balance of power, the decrease / in energy reserve.
+ES (tú): De ahí el desequilibrio en la balanza de poder y la disminución de las reservas energéticas.
+CA (tú): D'aquí el desequilibri en la balança de poder i la disminució de les reserves energètiques.
+   ⚠ NO CABE (ES +16, CA +15) [presupuesto EN=76]
+ES aplicado: De ahí el desequilibrio / de poder y la caída / de las reservas de energía.
+CA aplicado: D'aquí el desequilibri / de poder i la caiguda / de les reserves d'energia.
+
+[m31]
+EN: Damn you, where did you / hide the Navigator!
+ES: ¡Maldito! ¿Dónde / escondiste el Navigator!
+CA: Maleït! On has / amagat el Navigator!
+
+[m32]
+EN: Well, well - / this is a stunner. / So the Navigator is inside / your body...
+ES: Vaya, vaya... / qué sorpresa. / Así que el Navigator / está en tu cuerpo...
+CA: Vaja, vaja... / quina sorpresa. / Així que el Navigator / és dins teu...
+
+[m33]
+EN: Hah! / You are a cut above the rest! / You're a real fun guy, / Johnny Slater!
+ES (tú): ¡Ja! ¡Estás un paso por delante de los demás! ¡Eres un tipo muy divertido, Johnny Slater!
+CA (tú): Ja! Estàs un pas per davant dels altres! Ets un tipus molt divertit, Johnny Slater!
+   ⚠ NO CABE (ES +20, CA +14) [presupuesto EN=69]
+ES aplicado: ¡Ja! / ¡Estás por encima! / Eres un tipo divertido, / Johnny Slater!
+CA aplicado: Ha! / Ets d'una altra classe! / Ets un tipus divertit, / Johnny Slater!
+
+[m34]
+EN: Seems a shame to kill / you off. / I definitely want to keep / a copy of you.
+ES (tú): Es una pena tener que eliminarte. Sin duda quiero quedarme con una copia tuya.
+CA (tú): És una pena haver d'eliminar-te. Sens dubte vull quedar-me amb una còpia teva.
+   ⚠ NO CABE (ES +10, CA +10) [presupuesto EN=68]
+ES aplicado: Es una pena / tener que eliminarte. / Sin duda quiero / una copia de ti.
+CA aplicado: És una pena / haver d'eliminar-te. / Sens dubte vull / una còpia de tu.
+
+[m35]
+EN: Wait a minute / Ah, yes! I know what!
+ES (tú): Un momento / ¡Ah, sí! ¡Ya sé!
+CA (tú): Un moment Ah, sí! Ja sé!
+ES aplicado: Un momento / ¡Ah, sí! ¡Ya sé!
+CA aplicado: Un moment / Ah, sí! Ja sé!
+
+[m36]
+EN: Bross, just get him now!
+ES: ¡Bross, atrápalo ya!
+CA: Bross, agafa'l ara!
+
+[m37]
+EN: Jerry, there's no need to get / all excited. / This man's not going anywhere. / This is a great opportunity.
+ES (tú): Jerry, no hay por qué ponerse tan nervioso. Este hombre no se va a ir a ninguna parte. Es una oportunidad estupenda.
+CA (tú): Jerry, no hi ha per què posar-se tan nerviós. Aquest home no s'anirà a cap lloc. És una oportunitat estupenda.
+   ⚠ NO CABE (ES +17, CA +11) [presupuesto EN=99]
+ES aplicado: Jerry, no hay por qué / ponerse tan nervioso. / No se irá a ninguna parte. / Es una gran oportunidad.
+CA aplicado: Jerry, no hi ha per què / posar-se tan nerviós. / No anirà enlloc. / És una gran oportunitat.
+
+[m38]
+EN: I'd like this tough little / overgrounder to participate / in an experiment of / mine first.
+ES (tú): Me gustaría que esta fuerte rata de la superficie participe primero en uno de mis experimentos.
+CA (tú): M'agradaria que aquesta sargantana de terrat tan forçuda fos la primera a participar en un dels meus experiments!
+   ⚠ NO CABE (ES +12, CA +30) [presupuesto EN=83]
+ES aplicado: Me gustaría que esta / fuerte rata de la / superficie participe / en un experimento mío.
+CA aplicado: M'agradaria que aquesta / sargantana de terrat / fos la primera a / participar-hi.
+
+[m39]
+EN: There will be a lot of / interference if I put / in a request for him later.
+ES (tú): (dejar en inglés: falta contexto)
+CA (tú): (deixar en anglès: falta context)
+ES aplicado: There will be a lot of / interference if I put / in a request for him later.
+CA aplicado: There will be a lot of / interference if I put / in a request for him later.
+
+[m40]
+EN: Bross! / Your experiment can wait!
+ES (tú): ¡Bross! ¡Tu experimento puede esperar!
+CA (tú): Bross! El teu experiment pot esperar!
+   ⚠ NO CABE (ES +7, CA +6) [presupuesto EN=31]
+ES aplicado: Bross! / ¡Tu experimento espera!
+CA aplicado: Bross! / El teu experiment espera!
+
+[m41]
+EN: Do as I say and capture / Johnny Slater now!
+ES (tú): ¡Haz lo que te digo y captura a Johnny Slater, ya!
+CA (tú): Fes el que et dic i agafa a Johnny Slater, ja!
+   ⚠ NO CABE (ES +9, CA +5) [presupuesto EN=41]
+ES aplicado: ¡Haz lo que te digo y / captura a Johnny!
+CA aplicado: Fes el que et dic i / agafa Johnny Slater!
+
+[m42]
+EN: You high-ranked type Hybrids / fail to grasp certain / things.
+ES: Los Híbridos de alto / rango no entendéis / ciertas cosas.
+CA: Els Híbrids d'alt / rang no enteneu / certes coses.
+
+[m43]
+EN: One of them is that I was / specifically engineered for / superior scientific abilities, / and as such,
+ES: Una de ellas es que / fui creado para tener / habilidades científicas / superiores, y por eso,
+CA: Una és que em van / crear per tenir / habilitats científiques / superiors, i per això,
+
+[m44]
+EN: these valuable experimental / samples are incredibly / fascinating to me!
+ES (tú): ¡Estas valiosas muestras experimentales me parecen increíblemente fascinantes!
+CA (tú): Aquestes valuoses mostres experimentals em semblen increïblement fascinants!
+   ⚠ NO CABE (ES +11, CA +9) [presupuesto EN=67]
+ES aplicado: ¡Estas valiosas muestras / experimentales me / parecen fascinantes!
+CA aplicado: Aquestes valuoses mostres / experimentals em / semblen fascinants!
+
+[m45]
+EN: Bross!
+ES (tú): ¡Bross!
+CA (tú): Bross!
+   ⚠ NO CABE (ES +1) [presupuesto EN=6]
+ES aplicado: Bross!
+CA aplicado: Bross!
+
+[m46]
+EN: Just cut off communications / with Jerry! / Never mind! Hurry!
+ES: ¡Corta la comunicación / con Jerry! / ¡No importa! ¡Rápido!
+CA: Talla la comunicació / amb en Jerry! / Tant se val! Corre!
+
+[m47]
+EN: I just had a great idea -
+ES (tú): Acabo de tener una gran idea.
+CA (tú): Acabo de tenir una gran idea
+   ⚠ NO CABE (ES +4, CA +3) [presupuesto EN=25]
+ES aplicado: ¡Tengo una gran idea!
+CA aplicado: Tinc una gran idea!
+
+[m48]
+EN: Just stall and get me / a little time!
+ES (tú): ¡Distráelo y dame / algo de tiempo!
+CA (tú): Distreu-ho i dona'm una mica de temps!
+   ⚠ NO CABE (CA +3) [presupuesto EN=35]
+ES aplicado: ¡Distráelo y dame / algo de tiempo!
+CA aplicado: Distreu-ho i dona'm / temps!
+
+[m49]
+EN: I-Is this supposed to be / my experimental results!?
+ES (tú): ¡¿E-Es esto lo que se supone que son los resultados de mi experimento?!
+CA (tú): E-És això el que se suposa que són els resultats del meu experiment?!
+   ⚠ NO CABE (ES +22, CA +20) [presupuesto EN=49]
+ES aplicado: ¿E-Esos son los / resultados de mi
+CA aplicado: E-Això són els / resultats del meu
+
+[m50]
+EN: Is there a limit to what you can / overcome...
+ES (tú): ¿Hay un límite de hasta dónde puedes llegar?...
+CA (tú): Hi ha un límit de fins a on pots arribar?...
+   ⚠ NO CABE (ES +4, CA +1) [presupuesto EN=43]
+ES aplicado: ¿Hay límite de hasta / dónde puedes llegar?...
+CA aplicado: Hi ha un límit de fins / a on pots arribar?...
+
+[m51]
+EN: Damn!
+ES (tú): ¡Mierda!
+CA (tú): Merda!
+   ⚠ NO CABE (ES +3, CA +1) [presupuesto EN=5]
+ES aplicado: ¡Uf!
+CA aplicado: Vaja!
+
+[m52]
+EN: Don't go jumping to / conclusions - / I haven't lost to you yet.
+ES: No saques / conclusiones... / Aún no te he vencido.
+CA: No treguis / conclusions... / Encara no t'he vençut.
+
+[m53]
+EN: Don't be satisfied with beating / an incomplete monster.
+ES: No te conformes con vencer / a un monstruo incompleto.
+CA: No et conformis amb vèncer / un monstre incomplet.
+
+[m54]
+EN: So you want to take on / Big Bross, do you?
+ES (tú): ¿Quieres enfrentarte al Big Bross, ¿eh?
+CA (tú): Vols enfrontar-te amb el Big Bross, oi?
+ES aplicado: ¿Quieres enfrentarte al / Big Bross, ¿eh?
+CA aplicado: Vols enfrontar-te amb el / Big Bross, oi?
+
+[m55]
+EN: Aren't you getting a little / out of your depth? / Eh, human?
+ES: ¿No te queda un poco / grande, eh, / humano?
+CA: No se't fa una mica / gran, eh, / humà?
+
+[m56]
+EN: Don't call me a product of some / experiment - I'm a Hybrid, / an improvement on humans!
+ES (tú): No me llames producto de un experimento ¡soy un híbrido, una versión mejorada de los humanos!
+CA (tú): No em diguis producte d'un experiment, soc un híbrid, una versió millorada dels humans!
+   ⚠ NO CABE (ES +11, CA +5) [presupuesto EN=82]
+ES aplicado: No me llames producto / de un experimento: / soy un híbrido, ¡mejor que vosotros!
+CA aplicado: No em diguis producte / d'un experiment: / soc un híbrid, millor que vosaltres!
+
+[m57]
+EN: It is not going to be as easy / as when you fought the stupid / monster!  Now, let me test / your strength.  Come on!!
+ES (tú): ¡No va a ser tan fácil como cuando te enfrentaste a ese estúpido monstruo! Ahora, déjame poner a prueba tu fuerza. ¡Vamos!!
+CA (tú): No serà tan fàcil com quan et vas enfrontar a aquest estúpid monstre! Ara, deixa'm posar a prova la teva força. Som-hi!!
+   ⚠ NO CABE (ES +14, CA +11) [presupuesto EN=109]
+ES aplicado: ¡No será tan fácil / como cuando venciste / a ese estúpido monstruo! / Ahora probaré tu fuerza. ¡Vamos!
+CA aplicado: No serà tan fàcil com / quan et vas enfrontar / a aquest estúpid monstre! / Ara provaré la teva força. Som-hi!

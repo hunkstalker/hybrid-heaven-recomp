@@ -6,6 +6,18 @@
 
 ## Ahora (priorizado)
 
+- [•] **Overlay propio del diálogo (rama `experimento-overlay-dialogo`; ADR 0017)** — **hecho y
+  validado el primer diálogo (módulo 12, 2026-10-07)**: typewriter por VI (`HH_DLG_TYPE_VI`), flecha
+  (diseño ▼ 5×6 + pulso medido 66/465/470 ms), caja con el fade real del `'wa fa'` y **caja nativa
+  suprimida** (con `HH_DLG_KEEP_ORIGINAL=1` se conserva para comparar), cierre (texto/flecha
+  desaparecen de golpe) y salto A/J o Start/Enter. (a) **acumulación por página**: el corte real es el
+  opcode **`F800`**, no `FA/FE`; (b) **texto por MENSAJE en un solo archivo** (`assets/lang/es.txt` y
+  `ca.txt`): clave = mensaje inglés completo, valor = corrección con saltos "baked" (`\n`); `dialogos.txt`
+  alinea 1:1 con la ROM (216/216) → mapeo por posición; **214 entradas**, menús intactos, **`.dlg.txt`
+  eliminado**. Herramienta `tools/text/build_dialogue_messages.py`. **Pendiente**: repaso visual del
+  resto del juego (mod17 y demás). Detalle: `notes/2026-10-07-experimento-overlay-dialogo.md` §8-§9;
+  handoff: `RETOMAR.md`.
+
 - [•] **Traducción — JUEGO/GAMEPLAY (texto in-game) — SIGUIENTE TAREA**. Alcance: **cadenas del juego**
   vía el motor de texto (loader `trans`). **Hecho (2026-09-23)**: charset USA derivado (ASCII en campos
   de ancho fijo + NUL; el "encoding custom" era LZKN64) y **sustitución en runtime**

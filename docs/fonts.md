@@ -115,14 +115,15 @@ El motor **no** avanza un ancho fijo: `func_8001BD20(color, char)` devuelve el a
 
 | Face | base | correcciones (código EUC) |
 |---|---|---|
-| `Color4` | 8 | **espacio = 4**; `f i j l r t` (EUC `A3E6/A3E9/A3EA/A3EC/A3F2/A3F4`) = 6 |
+| `Color4` | 8 | `f i j l r t` (EUC `A3E6/A3E9/A3EA/A3EC/A3F2/A3F4`) = 6; **espacio** (`A1A1`) y `,` (`A1A4`) = 6; `.` (`A1A5`) y `'` (`A1AD`) = 4 (tablas `jtbl_8004CDF0`/`jtbl_8004CE2C` de `func_8001BD20`) |
 | `Color0` | 8 | (casos propios en `func_8001BD20`; el menú ya está validado) |
 | `Color3` | 12 | sin correcciones |
 
 **Estado:** **cableado** `hh::font::game::face_glyph_advance(Face, char)` (2026-09-30) y usado en
 `src/platform/overlay.cpp` (pasada de puntuación y rama `face != Color0`). El avance del espacio de
-`Color4` se **midió en la captura pareada** (el mensaje nativo calca con espacio=4; `func_8001BD20` da
-`-2` sobre base 8, pero la medida del motor real es 4). El título `Color3` (12) y las filas `Color0` (8)
+`Color4` se **decodificó de `func_8001BD20`** (tablas `jtbl_8004CDF0`/`jtbl_8004CE2C`, base 8 con
+correcciones) y se **confirmó con los X** del log del render del diálogo (`80018E9C`): espacio=6,
+`.`=4, `,`=6. (Corrige una medición previa errónea de espacio=4.) El título `Color3` (12) y las filas `Color0` (8)
 no cambian. Evidencia y medidas: `../notes/2026-09-30-data-load-maqueta-1a1.md`.
 
 ## 7. Acentos, kana y añadir una fuente

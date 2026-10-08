@@ -2671,6 +2671,96 @@ extern "C" void hh_box_draw_hook(uint8_t* rdram, recomp_context* ctx) {
     if (hh::menu_overlay::suppress_box_draw()) {
         return;
     }
+    // La caja del DIÁLOGO se dibuja con formato 'wa fa' (el HUD usa 'sx sy sf wa fa'): marca el
+    // overlay de diálogo como "viva". Cuando deja de dibujarse, el overlay se oculta.
+    {
+        const uint32_t a1 = static_cast<uint32_t>(ctx->r5);
+        if (a1 >= 0x80000000u && a1 < 0x80800000u) {
+            char f[8] = {0};
+            for (int i = 0; i < 7; i++) {
+                const uint8_t b = rdram[((a1 + i) - 0x80000000u) ^ 3u];
+                if (b == 0) break;
+                f[i] = static_cast<char>(b);
+            }
+            if (std::strcmp(f, "wa fa") == 0) {
+                hh::overlay::notify_dialogue_box(static_cast<int>(ctx->r6));
+                // Traza del ciclo de vida de la caja del diálogo: una línea por frame de RENDER con
+                // al menos un 'wa fa' (frame=presented_frames) + contador total de llamadas. Permite
+                // ver si la caja se redibuja cada frame o solo al abrir/cerrar cada frase.
+                if (std::getenv("HH_DLG_PROBE") != nullptr) {
+                    static uint64_t last_frame = ~static_cast<uint64_t>(0);
+                    static uint64_t calls = 0;
+                    static int logged = 0;
+                    const uint64_t fr = hh::overlay::presented_frames();
+                    calls++;
+                    if (fr != last_frame && logged < 300) {
+                        last_frame = fr;
+                        logged++;
+                        hh::log("[dlgbox] wa fa frame=%llu call=%llu a0=%u a2=%u a3=%u\n",
+                                static_cast<unsigned long long>(fr),
+                                static_cast<unsigned long long>(calls),
+                                static_cast<uint32_t>(ctx->r4), static_cast<uint32_t>(ctx->r6),
+                                static_cast<uint32_t>(ctx->r7));
+                    }
+                }
+                // La caja NATIVA del diálogo la sustituye nuestro overlay: no dibujarla (evita el
+                // residuo del ~3% al cerrar). Con HH_DLG_KEEP_ORIGINAL=1 se dibuja TAMBIÉN (texto y
+                // caja originales) para poder comparar el cierre con el original; con el overlay
+                // desactivado se delega siempre al juego.
+                static const bool keep_original = [] {
+                    const char* e = std::getenv("HH_DLG_KEEP_ORIGINAL");
+                    return e != nullptr && *e != '\0' && *e != '0';
+                }();
+                if (hh::overlay::enabled() && !keep_original) return;
+            }
+        }
+    }
+    if (std::getenv("HH_DLG_PROBE") != nullptr) {
+        static int n = 0;
+        if (n++ < 60) {
+            const uint32_t a0 = static_cast<uint32_t>(ctx->r4);
+            const uint32_t a1 = static_cast<uint32_t>(ctx->r5);
+            std::string s;
+            if (a1 >= 0x80000000u && a1 < 0x80800000u) {
+                for (int i = 0; i < 40; i++) {
+                    const uint8_t b = rdram[((a1 + i) - 0x80000000u) ^ 3u];
+                    if (b == 0) break;
+                    s.push_back(static_cast<char>(b));
+                }
+            }
+            const uint32_t a2 = static_cast<uint32_t>(ctx->r6);
+            const uint32_t a3 = static_cast<uint32_t>(ctx->r7);
+            const uint32_t sp = static_cast<uint32_t>(ctx->r29);
+            char st[160] = {0};
+            int kk = 0;
+            for (int i = 0; i < 10; i++) {
+                const uint32_t q = sp + 16u + static_cast<uint32_t>(i) * 4u;
+                if (q < 0x80000000u || q + 3u >= 0x80800000u) break;
+                uint32_t v = 0;
+                for (int j = 0; j < 4; j++) {
+                    const uint32_t a = q + static_cast<uint32_t>(j);
+                    v = (v << 8) | rdram[(a - 0x80000000u) ^ 3u];
+                }
+                kk += std::snprintf(st + kk, sizeof(st) - kk, "%08X ", v);
+            }
+            char st2[160] = {0};
+            int k2 = 0;
+            const uint32_t box = 0x8008EEA0u + (a0 & 0xFFu) * 0x14u;
+            for (int i = 0; i < 8; i++) {
+                const uint32_t q = box + static_cast<uint32_t>(i) * 4u;
+                if (q < 0x80000000u || q + 3u >= 0x80800000u) break;
+                uint32_t v = 0;
+                for (int j = 0; j < 4; j++) {
+                    const uint32_t a = q + static_cast<uint32_t>(j);
+                    v = (v << 8) | rdram[(a - 0x80000000u) ^ 3u];
+                }
+                k2 += std::snprintf(st2 + k2, sizeof(st2) - k2, "%08X ", v);
+            }
+            hh::log("[dlgprobe] A804 a0=%u '%s' a2=%08X a3=%08X sp+16: %s\n", a0 & 0xFFu, s.c_str(),
+                    a2, a3, st);
+            hh::log("[dlgprobe]   box[%u]@%08X: %s\n", a0 & 0xFFu, box, st2);
+        }
+    }
     func_8001A804_1B404(rdram, ctx);
 }
 

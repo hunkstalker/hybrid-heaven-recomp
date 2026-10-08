@@ -230,6 +230,14 @@ namespace hh {
     // identidad) devuelve la propia clave. Definido en src/subsystems/text.cpp.
     namespace text {
         std::string translate(const std::string& key);
+        // Overlay del diálogo: elige el texto a mostrar para un mensaje reconstruido del juego.
+        // Reconstruye el mensaje inglés (líneas unidas con espacio) a partir del EUC tal cual lo
+        // compuso el juego y busca su entrada de MENSAJE en `assets/lang/<code>.txt` (clave = mensaje
+        // completo; valor con los saltos "baked" en `\n`). Devuelve true y `out` = ese valor; false =
+        // no hay entrada, conservar el conciso con sus saltos originales. Definido en
+        // src/subsystems/text.cpp. Ver notes/2026-10-07-experimento-overlay-dialogo.md §9.
+        bool dialogue_message_choice(const std::string& concise, const uint8_t* euc, size_t len,
+                                     std::string& out);
     }
 
     // Overlay A2 (render hook de RT64): el handler del menú de título publica el frame del overlay

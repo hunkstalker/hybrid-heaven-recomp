@@ -1,65 +1,87 @@
-# RETOMAR — handoff (2026-10-07)
+# RETOMAR — handoff (2026-10-07, sesión overlay del diálogo)
 
-> **Última sesión**: **contenido de la traducción del diálogo (es + ca)**. Traducidos completos los
-> módulos **12, 13, 14, 16 y 17** y corregido un **bug de cobertura** (líneas con espacios
-> extremos). Cobertura **≈ 30 %** del diálogo (solo-diálogo). Detalle:
-> `notes/2026-10-07-dialogos-traduccion-es-ca.md`; normativa: **`docs/traduccion.md`**; decisión:
-> **ADR 0016**. Reglas: `AGENTS.md`, `docs/documentation.md`.
+> **Ramas**: `main` = traducción del diálogo (≈30 %, módulos 12-17) + **`experimento-overlay-dialogo`**
+> (**rama activa**). Descartada: `experimento-limites-texto` (reescribir nodos).
 >
-> **TAREA EN CURSO**: **traducir TODO el diálogo del gameplay a español (es) y catalán (ca)** —
-> siguiente módulo: **18** (luego 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53; y
-> **terminar el 27**).
+> **PREMISA (mantenedor)**: implementación **robusta** del overlay del diálogo, **1:1 con el original**
+> en todo lo que NO cambiamos (saltos de línea, animación, flecha, cierre, salto con A). **Prohibido
+> parchear diálogo por diálogo**: el sistema debe reconstruir el diálogo del juego con fidelidad y
+> solo usar el texto extendido cuando de verdad lo extiende. Hay **muchísimos** textos a lo largo del
+> juego; cualquier cosa que dependa de casos concretos fallará.
 
-## TAREA SIGUIENTE — Traducir todo el diálogo (es + ca)
+## Estado (implementado y compilando; validado a ojo, con detalles abiertos)
 
-**Lee primero `docs/traduccion.md`** (pipeline, reglas y herramientas). Resumen operativo:
+Detalle completo: **`notes/2026-10-07-experimento-overlay-dialogo.md` §7-§9**.
 
-1. **Extraer** las líneas/mensajes por módulo:
-   `python3 tools/text/extract_dialogues.py --rom work/roms/us_retail.z64 --module N`
-   (o `--all --tsv work/dialogues/us.tsv --unique work/dialogues/us_unique.txt`).
-2. **Traducir EN→ES** (español de España) usando como referencia
-   `work/dialogues/us_de_fr.tsv` (DE/FR oficiales de la EU) y, para párrafos completos, el **guion
-   inglés de GameFAQs** (*Hybrid Heaven - Game Script*, Pandora_aden). Luego **ES→CA**.
-3. **Escribir** en `assets/lang/es.txt` y `assets/lang/ca.txt` (clave = línea inglesa **exacta**).
-4. **Validar**: `python3 tools/text/check_dialogue_fit.py --lang es` (y `--lang ca`) — avisa de los
-   mensajes que **no caben** y da la cobertura.
+**Hecho**:
+- Reconstrucción del mensaje desde `func_8001800C` + capa propia `set_dialogue` (caja fija).
+- **Typewriter por VI** (`HH_DLG_TYPE_VI`, def. 2 = 1 letra/tick lógico 30 Hz): exactamente 1 letra
+  por periodo, sin adelantos. Al **acumular** varios mensajes en una página, solo anima el nuevo.
+- **Flecha**: diseño ▼ 5×6 del juego + pulso **medido** (fade 66 ms, hold 465 ms, off 470 ms).
+  Aparece como "un carácter más" (un periodo tras la última letra) y arranca en alpha 0.
+- **Caja**: sigue el alfa real del `'wa fa'` (fade-in/out) y la **caja nativa está suprimida**.
+- **Cierre**: al empezar el fade-out, **texto y flecha desaparecen de golpe** (solo se apaga la caja).
+- **Salto** A/J o Start/Enter, detectado por **frame de render**.
+- **Acumulación por página** (robusta): el **corte real es el opcode `F800`** (`f0 00 f8 00`), no
+  `FA/FE`. Los mensajes `FA/FE` se acumulan hasta `F800`/`F000FC00`. `[m5]` "Disculpe." + `[m6]`
+  salen juntos (la caja nativa ya lo hacía). Ver nota §8.1-§8.2.
+- **Texto por MENSAJE en un solo archivo** (§9): las correcciones se añaden a `assets/lang/es.txt` y
+  `assets/lang/ca.txt` con **clave = mensaje inglés completo** y **valor con los saltos "baked"** (`\n`).
+  Se verificó que `dialogos.txt` alinea 1:1 con los mensajes de la ROM (216/216), así que el mapeo es
+  por posición. **214 entradas por idioma** (2 duplicados idénticos comparten traducción; es: 3
+  entradas de una línea actualizadas, ca: 2). Menús intactos.
+- **Menús intactos**; **`.dlg.txt` eliminado** como fuente aparte.
+- Herramienta: **`tools/text/build_dialogue_messages.py`** (`--lang es|ca`, `--dry-run`, `--show N`).
+- Runtime: `text::dialogue_message_choice` + `find_message_value` buscan la clave del mensaje en el
+  índice único; el hook parte el valor por `\n`.
 
-**Reglas clave (ver `docs/traduccion.md` §5)**:
-- **Presupuesto A+ = caracteres del mensaje inglés** → redactar **conciso**; ancho de caja ~**30-32**
-  chars/línea.
-- **Nombres propios = línea oficial** (p. ej. **`Gargatuan`** se queda igual que en inglés).
-  **Ante dudas de traducción (nombres, neologismos, convenciones): PREGUNTAR al mantenedor.**
-- **No** asumir índice de módulo = área/orden del juego (son escenas).
-- Acentos son caracteres reales (el motor los dibuja por color4).
+## Estado de validación
 
-**Código/estado**: motor en `src/subsystems/text.cpp` (EUC + A+) y `src/hooks/text_glyphs.cpp`
-(inyección color0/color4); fuente `include/hh/game_font_color4.h` (`tools/text/build_font.py`). El
-texto del diálogo va **inline en “nodos”** EUC-JP; **no** se mueve memoria (ruta B descartada).
+- **VALIDADO en Windows (2026-10-07)**: primer diálogo (módulo 12) — texto correcto, respuesta al input
+  y cierre de la caja (comparado con la nativa). `HH_DLG_KEEP_ORIGINAL=1` ahora conserva texto **y caja**
+  nativos; con `HH_DLG_DY=-64` se ven ambas (ver §9.7 de la nota).
+- **Pendiente de repaso visual**: resto del juego — mod17 (m28 vs m29 con traducciones distintas; m33
+  "divertido, Johnny Slater!"; textos largos completos) y el resto de módulos.
+- `ca.txt` generado; pendiente su validación visual.
 
-**Cobertura actual (2026-10-07)**: alcance **solo-diálogo** = 27 escenas / **872 mensajes / 2173
-líneas únicas**. Hecho: módulos **12, 13, 14, 16, 17** (completos, es + ca) → **262/872 mensajes
-≈ 30 %**. Parcial: **27** (46/109). Pendiente: 18, 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48,
-50, 52, 53 y terminar el 27. (Los 936/2509 totales incluyen UI/menú, fuera de alcance.)
+Bug ya corregido (no reintroducir): el opcode de fin podía **compartir palabra** con el último carácter
+(`A1A9FA00` = `?` + fin) y se perdía el carácter. Arreglado en `hh_p1800c` (emitir la mitad no-fin
+antes de cerrar). Imprescindible para que casen las claves de mensaje (`isn't it?`).
 
-## Diferidos / aparte
-
-- **JA** (juego + intro + final): **POSPUESTO** (requiere procesar la ROM JP). Menú JA en kana
-  (`include/hh/jp_kana.h`), deshabilitado.
-- **fr/de** de los subtítulos de la intro: sin revisar (el mantenedor no domina esos idiomas).
-- **Subtítulos del final**: diferidos (no validables sin llegar al final).
-- **BUG aparte**: subtítulos de la **intro al skipear** (siguen saliendo al entrar al gameplay).
-
-## Run (mantenedor)
+## Cómo probar (Windows)
 
 ```powershell
 hybrid-heaven-recomp\build_windows.local.bat
-hybrid-heaven-recomp\run_windows_release.bat
+$env:HH_DLG_PROBE=1; $env:HH_DLG_BOX="28,169,292,223"; $env:HH_DLG_ALPHA=95; $env:HH_DLG_TYPE_VI=2; $env:HH_DLG_DY=-64; $env:HH_DLG_KEEP_ORIGINAL=1; hybrid-heaven-recomp\run_windows_release.bat
 ```
+
+Log: `build\windows\bin\Release\hh.log` — trazas de la sesión (todas bajo `HH_DLG_PROBE`):
+`[dlgprobe] MSG/EXT`, `[dlgbox]`, `[dlgfade]`, `[dlgclose]`, `[dlgours]` (flecha nuestra),
+`[dlgar2]` (flecha del juego), `[dlgskip]`.
+
+Variables (tabla completa: nota `2026-10-07-experimento-overlay-dialogo.md` §9.7):
+`HH_DLG_PROBE`, `HH_DLG_BOX`, `HH_DLG_DX/DY`, `HH_DLG_ALPHA`, `HH_DLG_KEEP_ORIGINAL`, `HH_DLG_TYPE_VI`,
+`HH_DLG_ARROW`, `HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS`, `HH_OVERLAY`.
+**Clave para depurar comparando con el original**: `HH_DLG_DY=-64` (sube la nuestra) + `HH_DLG_KEEP_ORIGINAL=1`
+(conserva texto **y caja** nativos). Útil al revisar todo el texto del juego.
+
+## La otra tarea (en `main`) — Traducir el diálogo (es + ca)
+
+**Pipeline: `docs/traduccion.md`**; detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+Cobertura: solo-diálogo = 27 escenas / **872 mensajes / 2173 líneas**. Hecho: módulos **12, 13, 14,
+16, 17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). Pendiente: 18, 19, 20, 21, 26,
+28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27. (`main` 2 commits por delante de
+`origin/main`; sin push.)
+
+## Diferidos / aparte
+
+- **JA** (juego + intro + final): **POSPUESTO** (requiere ROM JP). Menú JA en kana, deshabilitado.
+- **fr/de** de los subtítulos de la intro: sin revisar. **Subtítulos del final**: diferidos.
+- **BUG aparte**: subtítulos de la **intro al skipear** (siguen saliendo al entrar al gameplay).
 
 ## Pitfalls (NO repetir)
 
 - **No** concluir visual/sync solo desde headless; validar en Windows (el mantenedor).
-- El diálogo lo dibuja **el juego** (loader `trans`), no el overlay (eso son los subtítulos de la intro).
-- **No** editar el C generado (se regenera; ADR `0009`); no tocar ROMs/forks/push sin pedir.
-- En títulos: `Gargatuan` NO se traduce (línea oficial). **Dudas → preguntar al mantenedor.**
-- Un tema = un commit.
+- **No** editar el C generado (ADR `0009`); no tocar ROMs/forks/push sin pedir. Un tema = un commit.
+- **No** "medir" capturas cuando el mantenedor da una variable exacta. Dudas → preguntar.
+- **No** resolver textos diálogo a diálogo: implementación **robusta** o nada.

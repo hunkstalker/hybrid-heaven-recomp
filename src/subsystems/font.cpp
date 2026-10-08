@@ -410,8 +410,14 @@ unsigned face_glyph_advance(Face f, unsigned char c) {
     // nativo ocupa 4, no 8) y `f i j l r t` (EUC A3E6/A3E9/A3EA/A3EC/A3F2/A3F4) 6 px. El resto, 8.
     // color0 (8) y color3 (12) avanzan el ancho de celda. Ver docs/fonts.md §6.
     if (f == Face::Color4) {
+        // Avances EXACTOS de `func_8001BD20` (tablas jtbl_8004CDF0/jtbl_8004CE2C, base 8 con
+        // correcciones): espacio A1A1=-2, ',' A1A4=-2, '.' A1A5=-4, '\'' A1AD=-4, f i j l r t
+        // (A3E6/A3E9/A3EA/A3EC/A3F2/A3F4)=-2. El resto, 8.
         switch (c) {
-            case ' ': return 4;
+            case ' ': return 6;
+            case ',': return 6;
+            case '.': return 4;
+            case '\'': return 4;
             case 'f': case 'i': case 'j': case 'l': case 'r': case 't': return 6;
             default: return 8;
         }

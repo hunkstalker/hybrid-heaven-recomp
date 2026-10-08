@@ -23,13 +23,20 @@
 - Acentos/tildes: inyección por color en `src/hooks/text_glyphs.cpp` (**color4**, 8×12, diálogo;
   menú sigue **color0**). La fuente sale de `include/hh/game_font_color4.h` (`tools/text/build_font.py`).
 - Clave del `.txt` = **texto original inglés** (misma fuente que el menú; ADR `0014`).
+- **Overlay propio del diálogo** (rama `experimento-overlay-dialogo`): capa propia que sustituye el
+  dibujo del texto para **quitar el límite de longitud**. Lee **entradas de MENSAJE** del mismo
+  fichero de idioma: **clave = mensaje inglés completo** (líneas unidas con espacio), **valor = la
+  traducción con los saltos "baked"** en `\n`. Así dos mensajes que comparten una línea no chocan
+  (el texto del guion se repite). Ver ADR `0017` y `notes/2026-10-07-experimento-overlay-dialogo.md` §9.
 
 ## 3. Herramientas
 
 | Herramienta | Uso |
 |---|---|
 | `tools/text/extract_dialogues.py` | Extrae diálogos EUC: `--module N`/`--all`, `--tsv`, `--unique`; emparejado US↔EU con `--pair` (DE/FR). |
+| `tools/text/build_dialogue_messages.py` | Añade a `assets/lang/<lang>.txt` las **entradas de MENSAJE** (clave = mensaje inglés completo; valor con saltos `\n`). Usa la versión larga `(tú)` si existe; si no, la traducción por-línea correcta. `--lang es\|ca [--dry-run --show N]`. |
 | `tools/text/check_dialogue_fit.py` | **Valida** que cada mensaje traducido cabe en su presupuesto y da cobertura. `--lang es\|ca [--module N] [--verbose]`. |
+| `tools/text/check_translations.py` | Valida las tablas de idioma (claves duplicadas, formato). |
 | `tools/text/build_font.py` | Genera `include/hh/game_font_color4.h` (glifos acentuados color4). |
 
 ROM de trabajo (generada, no versionada): `work/roms/us_retail.z64` (US) y `/app/roms/baserom.eu.z64`
@@ -41,8 +48,12 @@ ROM de trabajo (generada, no versionada): `work/roms/us_retail.z64` (US) y `/app
 2. Traducir **EN→ES** (español de España). Referencias: `work/dialogues/us_de_fr.tsv` y, para párrafos
    completos, el **guion inglés de GameFAQs** (*Hybrid Heaven - Game Script*, Pandora_aden).
 3. Traducir **ES→CA** (catalán a partir del español).
-4. Escribir en `assets/lang/es.txt` y `assets/lang/ca.txt` (clave exacta = línea inglesa).
-5. Validar: `python3 tools/text/check_dialogue_fit.py --lang es` (y `--lang ca`).
+4. Volcar las correcciones en `assets/lang/es.txt` y `assets/lang/ca.txt` (clave = línea inglesa; las
+   que no cabían van como `(tú)` en `assets/dialogos.txt`).
+5. Generar las **entradas de MENSAJE** (para el overlay): `python3 tools/text/build_dialogue_messages.py
+   --lang es` (y `--lang ca`). Idempotente; no toca los menús.
+6. Validar: `python3 tools/text/check_dialogue_fit.py --lang es`, `check_translations.py [--lang ca]` y
+   `python3 tools/analysis/docs_index.py --check`.
 
 ## 5. Reglas de redacción (importantes)
 
@@ -75,9 +86,10 @@ ROM de trabajo (generada, no versionada): `work/roms/us_retail.z64` (US) y `/app
 - Compila en Linux para errores (`cmake --build build/linux -j`).
 - **Visual en Windows** (mantenedor): no se concluye solo desde headless. Reconstruir y llegar a la
   escena; comprobar tildes y que no haya inglés mezclado.
-- **Repaso in-game pendiente (espacios extremos)**: 26 líneas del alcance traen espacios al
-  inicio/final en la ROM (p.ej. la del módulo 12 `changers are top secret, `). Para poder casarlas se
-  recortan los espacios extremos de la clave en `translate_euc()` (`src/subsystems/text.cpp`) y en
-  `check_dialogue_fit.py`. **Verificar en el repaso visual** que ese caso sale traducido y sin
-  descolocar el texto (revisar representativas: `changers are top secret, ` m12, `    in the end.` m38,
-  `An intelligent, ` m14).
+- **Overlay del diálogo — validado (2026-10-07)**: primer diálogo (módulo 12) correcto (texto completo,
+  respuesta al input y cierre de la caja). Herramientas de depuración: `HH_DLG_DY=-64` +
+  `HH_DLG_KEEP_ORIGINAL=1` (ver `notes/2026-10-07-experimento-overlay-dialogo.md` §9.7).
+- **Espacios extremos — RESUELTO**: las claves con espacio inicial/final (p. ej. módulo 12
+  `changers are top secret, `) se casan recortando extremos en `translate_euc()` y
+  `check_dialogue_fit.py`; y `build_dialogue_messages.py` toma el valor correcto de la tabla por-línea
+  (no del `dialogos.txt` mezclado). Pendiente el repaso visual del resto de módulos.

@@ -53,6 +53,17 @@ RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **
 **≈ 30 %** (módulos **12, 13, 14, 16, 17** completos; **27** parcial). Normativa:
 `docs/traduccion.md` (ADR `0016`); detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
 
+**Overlay propio del diálogo (rama `experimento-overlay-dialogo`, 2026-10-07)**: capa propia
+(`set_dialogue`) que sustituye al texto del juego para quitar el límite de líneas/caracteres.
+**Hecho** (validado a ojo): typewriter por VI, flecha (diseño + pulso medidos del juego), caja con el
+fade real del `'wa fa'` y **caja nativa suprimida**, cierre (texto/flecha de golpe) y **salto**
+A/J o Start/Enter. **Hecho (2026-10-07, pendiente validar en Windows)**: **acumulación por página**
+(el corte real es el opcode **`F800`**, no `FA/FE`) y **texto por MENSAJE en un solo archivo**
+(`assets/lang/es.txt` y `ca.txt`: clave = mensaje inglés completo, valor = corrección con saltos "baked");
+verificado que las correcciones alinean 1:1 con la ROM (216/216). Menús intactos; `.dlg.txt`
+eliminado. Premisa: **robusto y 1:1, sin arreglar diálogo a diálogo**. Detalle:
+`notes/2026-10-07-experimento-overlay-dialogo.md` §8-§9; handoff: `RETOMAR.md`.
+
 ## 1. Objetivo
 
 Port nativo a PC de **Hybrid Heaven** (N64, Konami/KCEO, 1999, proyecto interno **RZ011**) por
