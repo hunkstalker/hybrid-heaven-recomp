@@ -230,6 +230,12 @@ los cancelan**. Detalle: `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
 del prólogo también se reproduce en el attract (título inactivo, que no pasa por el menú); ahora se
 arman al **entrar** en la escena 0x104 (`notify_scene`), cubriendo ambas vías. Detalle:
 `notes/2026-10-08-subtitulos-attract.md`.
+**Fix raíz interpolación: discontinuidad de posición (HECHO y validado en Windows, 2026-10-08)**: el
+objeto 3D del título barría porque un **efecto C768** se teletransporta 479 u en 1 frame y RT64 lo
+interpolaba. Fix **permanente en el fork RT64** (`lib/rt64`, commit `db300ca`): **límite de distancia de
+pareja** en `computeTransformMatch` (`HH_PAIR_MAX`, def. 150 u) → sin pareja, no interpola (snap). Hace
+**redundante** el gate `native_title_active` del título (follow-up: retirarlo). Detalle:
+`notes/2026-10-08-fix-interpolacion-discontinuidad-posicion-titulo.md`.
 **Traducción del diálogo in-game (motor HECHO y validado en Windows, 2026-10-06)**: el texto del diálogo
 va **inline en "nodos"** EUC-JP y lo dibuja **el juego**; se sustituye en runtime
 (`src/subsystems/text.cpp`) con **A+ (reparto por mensaje)** y los acentos se inyectan por **color4**

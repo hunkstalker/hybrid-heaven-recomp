@@ -26,6 +26,14 @@
   `notify_scene`), cubriendo ambas vías. Fichero: `src/subsystems/subtitles.cpp`. Nota:
   `notes/2026-10-08-subtitulos-attract.md`.
 
+- **Fix raíz: discontinuidad de posición en la interpolación (objeto 3D del título) — HECHO y validado
+  en Windows.** Un efecto **C768** (`slot 28`, `id 013F7B2B`) se **teletransporta** 479 u en 1 frame y
+  RT64 lo **interpolaba** (barrido); se veía en PRESS START (sin menú) porque el gate `native_title_active`
+  solo lo tapaba con el menú abierto. Fix **permanente en el fork RT64** (`lib/rt64`, commit `db300ca`):
+  **límite de distancia de pareja** en `computeTransformMatch` (`HH_PAIR_MAX`, def. 150) → el par se
+  rechaza y no se interpola (snap). Oráculo: max jump **0.6** (antes 479). Nota:
+  `notes/2026-10-08-fix-interpolacion-discontinuidad-posicion-titulo.md`.
+
 ## 2026-10-06
 
 - **Subtítulos de la intro/prólogo (rama `subtitulos-intro`, mergeada a `main`) — HECHO y validado
