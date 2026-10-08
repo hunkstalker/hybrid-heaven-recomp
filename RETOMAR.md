@@ -9,8 +9,10 @@
 > **TAREAS DE ESTA SESIÓN**: (1) ~~fix de los subtítulos de la intro al skipear~~ **HECHO y validado
 > en Windows (2026-10-08)** → `notes/2026-10-08-fix-subtitulos-intro-skip.md`; (2) ~~caja de
 > subtítulos = caja del diálogo (mismo límite de ancho + misma transparencia)~~ **HECHO y validado en
-> Windows (2026-10-08)** → `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`; (3) **continuar la
-> traducción** del diálogo (es+ca) — **siguiente**, en rama nueva desde `main`.
+> Windows (2026-10-08)** → `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`; (3) ~~subtítulos de la
+> intro en el **modo attract** (título inactivo)~~ **HECHO y validado en Windows (2026-10-08)** →
+> `notes/2026-10-08-subtitulos-attract.md`; (4) **continuar la traducción** del diálogo (es+ca) —
+> **siguiente**, en rama nueva desde `main`.
 >
 > **PREMISA (mantenedor)**: implementación **robusta** y **1:1 con el original**; **prohibido**
 > parchear caso a caso. Hay **muchísimos** textos; cualquier cosa que dependa de casos concretos fallará.
@@ -58,9 +60,10 @@ Detalle completo: **`notes/2026-10-07-experimento-overlay-dialogo.md` §7-§9**.
   "divertido, Johnny Slater!"; textos largos completos) y el resto de módulos.
 - `ca.txt` generado; pendiente su validación visual en el juego.
 - **VALIDADO en Windows (2026-10-08)**: **subtítulos de la intro** — skip con **START/ENTER** (A/J ya
-  no cancelan; el flanco se evalúa también armado) y **caja unificada con la del diálogo** (mismo
-  límite de ancho = área interior de la caja de diálogo, + misma transparencia). Notas
-  `notes/2026-10-08-fix-subtitulos-intro-skip.md` y `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`.
+  no cancelan; el flanco se evalúa también armado), **caja unificada con la del diálogo** (mismo
+  límite de ancho = área interior de la caja de diálogo, + misma transparencia) y **modo attract**
+  (se arman al entrar en la escena 0x104). Notas `notes/2026-10-08-fix-subtitulos-intro-skip.md`,
+  `notes/2026-10-08-subtitulos-caja-igual-dialogo.md` y `notes/2026-10-08-subtitulos-attract.md`.
 
 Bug ya corregido (no reintroducir): el opcode de fin podía **compartir palabra** con el último carácter
 (`A1A9FA00` = `?` + fin) y se perdía el carácter. Arreglado en `hh_p1800c` (emitir la mitad no-fin

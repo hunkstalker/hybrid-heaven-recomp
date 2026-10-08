@@ -226,6 +226,10 @@ los cancelan**. Detalle: `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
 (sin depender del aspecto) con el **mismo límite de ancho** (área interior de la caja de diálogo,
 256 u. → panel ≤ 264) y la **misma transparencia** (`HH_DLG_ALPHA`, def. 95). Detalle:
 `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`.
+**Subtítulos de la intro en el modo attract (HECHO y validado en Windows, 2026-10-08)**: la cinemática
+del prólogo también se reproduce en el attract (título inactivo, que no pasa por el menú); ahora se
+arman al **entrar** en la escena 0x104 (`notify_scene`), cubriendo ambas vías. Detalle:
+`notes/2026-10-08-subtitulos-attract.md`.
 **Traducción del diálogo in-game (motor HECHO y validado en Windows, 2026-10-06)**: el texto del diálogo
 va **inline en "nodos"** EUC-JP y lo dibuja **el juego**; se sustituye en runtime
 (`src/subsystems/text.cpp`) con **A+ (reparto por mensaje)** y los acentos se inyectan por **color4**

@@ -20,6 +20,12 @@
   Ficheros: `src/subsystems/subtitles.cpp`, `src/platform/overlay.cpp`, `include/hh/overlay.h`. Nota:
   `notes/2026-10-08-subtitulos-caja-igual-dialogo.md`.
 
+- **Subtítulos de la intro en el modo attract — HECHO y validado en Windows.** La cinemática del
+  prólogo también se reproduce en el **attract** (título inactivo), que no pasa por `EMPEZAR PARTIDA`;
+  ahora los subtítulos se arman al **entrar** en la escena **0x104** (`g_prev_scene` + auto-arm en
+  `notify_scene`), cubriendo ambas vías. Fichero: `src/subsystems/subtitles.cpp`. Nota:
+  `notes/2026-10-08-subtitulos-attract.md`.
+
 ## 2026-10-06
 
 - **Subtítulos de la intro/prólogo (rama `subtitulos-intro`, mergeada a `main`) — HECHO y validado

@@ -404,6 +404,7 @@ bool g_pending = false;                 // armado: esperando la escena objetivo 
 bool g_scene_seen = false;              // la escena objetivo ya está activa
 bool g_content_wave = false;            // ha empezado la 2.ª oleada de cargas (escena de contenido)
 uint16_t g_target_scene = 0x0104u;      // escena del prólogo (medida: 260 = 0x104)
+uint16_t g_prev_scene = 0xFFFFu;        // escena del frame anterior (detecta ENTRAR en la objetivo)
 uint64_t g_press_vi = 0;                // VI en EMPEZAR PARTIDA (solo para traza/offset)
 uint64_t g_anchor_vi = 0;
 uint64_t g_load_vi = 0;                 // VI de la última carga de módulo
@@ -490,6 +491,20 @@ void begin(const std::string& name) {
 }
 
 void notify_scene(uint16_t scene) {
+    // Entrada en la escena objetivo (flanco, no permanencia). La cinemática del prólogo se reproduce
+    // por DOS vías: NUEVA PARTIDA → EMPEZAR PARTIDA (que ya arma en `begin`) y el **modo attract**
+    // (cuando no se pulsa nada en el título durante unos segundos), que NO pasa por el menú. Armamos
+    // también al ENTRAR en la escena si no lo estamos ya, para cubrir ambas vías de forma robusta. El
+    // flanco evita re-armar tras terminar/skipear mientras la escena sigue siendo la objetivo.
+    const bool entering = scene == g_target_scene && g_prev_scene != g_target_scene;
+    g_prev_scene = scene;
+    if (entering && !g_pending && !g_active) {
+        begin("intro_prologue");   // no hace nada si los subtítulos están desactivados
+        if (state().trace && (g_pending || g_active)) {
+            hh::log("[subs] auto-arm al entrar en la escena 0x%04X (attract/nueva partida)\n",
+                    static_cast<unsigned>(scene));
+        }
+    }
     if (!g_pending || g_scene_seen || scene != g_target_scene) return;
     g_scene_seen = true;
     if (state().trace) {
