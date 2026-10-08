@@ -45,16 +45,20 @@ Evidencia (oráculo):
 Commit del fork: **`db300ca`** (`fix(interp): gate de discontinuidad de posicion (limite de pareja) en
 computeTransformMatch`). Gitlink + `runtime.lock` bumpeados en `main`.
 
-## 4. Consecuencia pendiente
+## 4. Gate del título retirado (redundante)
 
 Con este gate, el **caso especial** del título (`native_title_active` apagando C768) queda
-**redundante**: el efecto se maneja en cualquier escena. **Follow-up**: retirar el gate
-(`src/hooks/model_tagging.cpp` + `include/hh/menu.h` + `src/subsystems/menu.cpp`) y validar menú.
-De momento se **conserva** (lo validado es: PRESS START con el fix; menú con el gate).
+**redundante**: el efecto se maneja en cualquier escena. **Retirado** (validado en Windows): se elimina
+el flag `native_title_active`/`set_native_title_active` (`include/hh/menu.h`, `src/subsystems/menu.cpp`),
+las dos llamadas en `src/hooks/sections.cpp` y la condición `in_title` (+ `HH_C768_ALL`) en
+`src/hooks/model_tagging.cpp`. **C768 emite su tag en todas las escenas**; el barrido lo evita el
+límite de discontinuidad de RT64. Validado: PRESS START, menú y gameplay.
 
 ## 5. Ficheros
 
 - `lib/rt64/src/hle/rt64_game_frame.cpp` (fix; commit `db300ca` del fork).
 - `runtime.lock` (pin RT64), gitlink `lib/rt64`.
+- Retirada del gate: `src/hooks/model_tagging.cpp`, `src/hooks/sections.cpp`, `include/hh/menu.h`,
+  `src/subsystems/menu.cpp`.
 - Instrumentación temporal (no versionada): traza `HH_C768_TRACE` (retirada), patch de pairing
   (solo diagnóstico).

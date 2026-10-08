@@ -291,7 +291,6 @@ extern "C" void hh_heaven_char_hook(uint8_t* rdram, recomp_context* ctx) {
 extern "C" void hh_heaven_load_hook(uint8_t* rdram, recomp_context* ctx) {
     func_80152240_104AA10(rdram, ctx);
     hh::menu::set_game_loaded(true);
-    hh::menu::set_native_title_active(false);   // ya estamos en partida: reactiva el tagging de C768
     if (hh::menu::heaven_enabled()) hh::save::apply_heaven_runtime(rdram);
     // IR A NIVEL sin partida cargada: la plantilla se cargo y ahora toca el warp pedido.
     uint16_t idx = 0;
@@ -1925,7 +1924,6 @@ extern "C" void hh_entry_register_hook(uint8_t* rdram, recomp_context* ctx) {
 // ORIGINAL (la lógica del juego sigue funcionando, pero su menú nativo queda oculto por defecto) y
 // publica el frame del overlay del port. Con HH_MENU_TRACE=1 registra además la selección (0x801CC8C4).
 extern "C" void hh_title_menu_hook(uint8_t* rdram, recomp_context* ctx) {
-    hh::menu::set_native_title_active(true);   // pantalla de título: gatea el tagging de C768
     ++g_hook_frame;
     // ANTI-REBOTE: primer frame tras (re)entrar al menú (hueco real desde el frame anterior) -> ceba
     // el input para que el START que abrió el menú no dispare una acción (ver `g_menu_seed_input`).

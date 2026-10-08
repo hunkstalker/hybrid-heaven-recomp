@@ -42,7 +42,6 @@
 #include "librecomp/overlays.hpp"
 #include "recomp.h"
 #include "hh.h"
-#include "hh/menu.h"
 
 // HH usa F3DEX2: el opcode del hook extendido (gEXEnable) es G_SPNOOP 0xE0, no 0x00. Sin esto,
 // `RT64_HOOK_OPCODE` vale 0x00 y el GBI extendido NUNCA se habilita -> RT64 descarta los
@@ -187,12 +186,6 @@ const uint32_t g_emit_mv_skip = [] {
     return m;
 }();
 inline bool emit_mv_skip(int id) { return id >= 0 && id < 32 && (g_emit_mv_skip & (1u << id)) != 0; }
-
-// `HH_C768_ALL=1`: A/B del gate de escena de C768 (emite tambien en el titulo). Por defecto OFF.
-const bool g_c768_all = [] {
-    const char* v = std::getenv("HH_C768_ALL");
-    return v != nullptr && *v != '\0' && *v != '0';
-}();
 
 // ---- identidad logica (FNV-1a + generacion de camara) ---------------------------------------
 
@@ -794,13 +787,13 @@ void emitter_wrap(uint8_t* rdram, const char* name, int id, uint32_t node, bool 
 // diagnostico A2.2d usa el id reconocible por emisor (codigo 15 -> `EEF0xxxx`).
 extern "C" void hh_emit_c768_hook(uint8_t* rdram, recomp_context* ctx) {
     const uint32_t node = ctx->r4;
-    // Gate por ESCENA, no por `a1`: C768 solo lo llama el dispatch `func_800069A8`, asi que `ctx->r5`
-    // es un registro basura; el gate anterior (`ctx->r5 == kGfxCursor`) apagaba el tagging de C768 en
-    // gameplay (medido 2026-10-05: explicit_ids=0 -> artefactos). En titulo no se emite (el objeto del
-    // titulo se movia); en partida si. `HH_C768_ALL=1` emite siempre (A/B).
-    const bool in_title = hh::menu::native_title_active();
+    // C768 emite su tag en CUALQUIER escena (tambien el titulo). El antiguo gate por escena
+    // (`native_title_active`: no emitir en el titulo) era un parche para el objeto 3D del titulo, que
+    // barria porque un efecto C768 se teletransporta y RT64 lo interpolaba; ahora lo resuelve el gate
+    // general de discontinuidad de posicion en RT64 (`HH_PAIR_MAX`; ver notes 2026-10-08). El gate por
+    // `ctx->r5` se descarto antes: `ctx->r5` es basura (C768 solo lo llama el dispatch func_800069A8).
     const bool emit = g_emit_tag && g_emit_mv && g_enabled && valid_ram(node) && node != 0 &&
-                      !emit_mv_skip(15) && (!in_title || g_c768_all);
+                      !emit_mv_skip(15);
     if (emit) {
         if (GfxCommand* cmd = gfx_emit(rdram, 1)) {
             gEXEnable(cmd);

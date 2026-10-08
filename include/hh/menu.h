@@ -322,11 +322,6 @@ std::string save_select_message();
 // IR A NIVEL (transición de escena) solo está disponible con partida cargada.
 bool game_loaded();
 void set_game_loaded(bool on);
-// `native_title_active` = estamos en la pantalla de título/menú nativa (no en partida). Lo marca el
-// hook del título y lo limpia la carga de partida; sirve para gatear el tagging de emisores 3D que en
-// el título movían el objeto (C768) sin desactivarlos en gameplay.
-bool native_title_active();
-void set_native_title_active(bool on);
 uint16_t warp_value_at(int index);   // índice del selector IR A NIVEL -> valor de escena (idx)
 // IR A NIVEL sin partida cargada: pide cargar la plantilla y, tras cargar, hacer el warp a `idx`.
 void request_warp(uint16_t idx);

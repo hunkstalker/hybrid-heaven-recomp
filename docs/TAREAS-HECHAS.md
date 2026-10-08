@@ -31,7 +31,8 @@
   RT64 lo **interpolaba** (barrido); se veía en PRESS START (sin menú) porque el gate `native_title_active`
   solo lo tapaba con el menú abierto. Fix **permanente en el fork RT64** (`lib/rt64`, commit `db300ca`):
   **límite de distancia de pareja** en `computeTransformMatch` (`HH_PAIR_MAX`, def. 150) → el par se
-  rechaza y no se interpola (snap). Oráculo: max jump **0.6** (antes 479). Nota:
+  rechaza y no   se interpola (snap). Oráculo: max jump **0.6** (antes 479). El gate `native_title_active` del título
+  se **retiró** (redundante; C768 emite en todas las escenas). Nota:
   `notes/2026-10-08-fix-interpolacion-discontinuidad-posicion-titulo.md`.
 
 ## 2026-10-06

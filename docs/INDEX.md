@@ -20,7 +20,7 @@
 | [Hybrid Heaven Recomp — Linux](BUILDING_linux.md) | Binario Linux (x86_64, glibc) del port. **La ROM no se incluye**: al arrancar, el binario busca tu | 88 | 2026-10-01 |
 | [Hybrid Heaven Recomp — Build para Windows](BUILDING_windows.md) | Guía para compilar el port en Windows (MSVC / Visual Studio). La recompilación de funciones se hace | 406 | 2026-10-01 |
 | [Visión y roadmap — Hybrid Heaven: Recompiled](README.md) | **Documento de visión (no vinculante).** Describe *hacia dónde* va el proyecto a largo plazo. | 77 | 2026-09-21 |
-| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 365 | 2026-10-08 |
+| [TAREAS HECHAS — Hybrid Heaven: Recompiled](TAREAS-HECHAS.md) | **Archivo de tareas completadas** (extraído de `TODO.md` para mantenerlo corto). Es un resumen | 366 | 2026-10-08 |
 | [Arquitectura — Hybrid Heaven: Recompiled](architecture.md) | Documento vivo. Modelo técnico canónico del port. Las decisiones se registran en `docs/adr/`. | 321 | 2026-10-01 |
 | [Cómo documentar este proyecto (guía de documentación)](documentation.md) | **Documento vivo y normativo.** Define *dónde* y *cómo* se documenta todo a partir de ahora. | 98 | 2026-10-02 |
 | [Tipografías del juego — extracción y uso en los menús](fonts.md) | **Documento vivo.** Fuente de verdad de las **tipografías** (`color0..5`): dónde están en la ROM, cómo | 155 | 2026-10-08 |
@@ -79,7 +79,7 @@
 | [Caja de subtítulos = caja del diálogo (mismo límite de ancho + misma transparencia)](../notes/2026-10-08-subtitulos-caja-igual-dialogo.md) | Sesión **2026-10-08**, directo en **`main`** (pulido de la intro antes de la traducción). | 45 | 2026-10-08 |
 | [Subtítulos de la intro en el modo attract (título inactivo)](../notes/2026-10-08-subtitulos-attract.md) | Sesión **2026-10-08**, directo en **`main`** (pulido de la intro antes de la traducción). | 54 | 2026-10-08 |
 | [Fix: subtítulos de la intro al skipear (salían en el gameplay)](../notes/2026-10-08-fix-subtitulos-intro-skip.md) | Sesión **2026-10-08**, directo en **`main`**. Estado: **HECHO y validado en Windows** (mantenedor). | 59 | 2026-10-08 |
-| [Fix raíz: discontinuidad de posición en la interpolación (objeto del título)](../notes/2026-10-08-fix-interpolacion-discontinuidad-posicion-titulo.md) | Sesión **2026-10-08**. En `main` + fix permanente en el fork **`lib/rt64`** (commit `db300ca`). | 60 | 2026-10-08 |
+| [Fix raíz: discontinuidad de posición en la interpolación (objeto del título)](../notes/2026-10-08-fix-interpolacion-discontinuidad-posicion-titulo.md) | Sesión **2026-10-08**. En `main` + fix permanente en el fork **`lib/rt64`** (commit `db300ca`). | 64 | 2026-10-08 |
 | [2026-10-07 — Experimento: overlay propio del diálogo (quitar el límite de líneas/caracteres)](../notes/2026-10-07-experimento-overlay-dialogo.md) | Rama **`experimento-overlay-dialogo`**. Objetivo: **ocultar el texto del juego y dibujar el nuestro** | 378 | 2026-10-07 |
 | [2026-10-07 — Experimento: extender el límite de caracteres del diálogo](../notes/2026-10-07-experimento-limites-texto.md) | Rama **`experimento-limites-texto`**. Objetivo: poder aplicar los textos **extendidos** del | 163 | 2026-10-07 |
 | [2026-10-07 — Traducción del diálogo (es/ca): tandas 12-17 y fix de espacios extremos](../notes/2026-10-07-dialogos-traduccion-es-ca.md) | Evidencia de la sesión. Normativa: `docs/traduccion.md`; decisión: ADR `0016`. Handoff: `RETOMAR.md`. | 45 | 2026-10-07 |
