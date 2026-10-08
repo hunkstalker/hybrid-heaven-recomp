@@ -1,16 +1,17 @@
-# RETOMAR — handoff (2026-10-07, sesión overlay del diálogo)
+# RETOMAR — handoff (2026-10-08)
 
-> **Ramas**: **`main` ya contiene el overlay** (commit `feat(overlay): diálogo propio con texto por
-> MENSAJE…`), además de la traducción del diálogo (≈30 %, módulos 12-17). El **rastro completo del
-> experimento** (incluido el de `limites-texto`) se conserva en el **tag `exp/overlay-dialogo`**
-> (tip `1a334fd`); las ramas `experimento-overlay-dialogo`, `overlay-limpio` y `experimento-limites-texto`
-> **se eliminaron** (el tag las cubre). **Para cambios futuros: rama nueva desde `main`.**
+> **Estado**: **`main`** contiene (1) la traducción del diálogo (≈30 %, módulos 12-17), (2) el **overlay
+> propio del diálogo** (texto por MENSAJE en un solo fichero) y (3) los fixes de PROBE/flecha/input.
+> El rastro del experimento está en el tag **`exp/overlay-dialogo`**; las ramas del experimento se
+> borraron. **El fix (Tarea 1) se hizo directo en `main`; la traducción (Tarea 2) va en una rama nueva
+> desde `main`.**
 >
-> **PREMISA (mantenedor)**: implementación **robusta** del overlay del diálogo, **1:1 con el original**
-> en todo lo que NO cambiamos (saltos de línea, animación, flecha, cierre, salto con A). **Prohibido
-> parchear diálogo por diálogo**: el sistema debe reconstruir el diálogo del juego con fidelidad y
-> solo usar el texto extendido cuando de verdad lo extiende. Hay **muchísimos** textos a lo largo del
-> juego; cualquier cosa que dependa de casos concretos fallará.
+> **TAREAS DE ESTA SESIÓN**: (1) ~~fix de los subtítulos de la intro al skipear~~ **HECHO y validado
+> en Windows (2026-10-08)** → ver §TAREA 1 y `notes/2026-10-08-fix-subtitulos-intro-skip.md`;
+> (2) **continuar la traducción** del diálogo (es+ca) — **siguiente**, en rama nueva desde `main`.
+>
+> **PREMISA (mantenedor)**: implementación **robusta** y **1:1 con el original**; **prohibido**
+> parchear caso a caso. Hay **muchísimos** textos; cualquier cosa que dependa de casos concretos fallará.
 
 ## Estado (implementado y compilando; validado a ojo, con detalles abiertos)
 
@@ -47,12 +48,13 @@ Detalle completo: **`notes/2026-10-07-experimento-overlay-dialogo.md` §7-§9**.
 
 ## Estado de validación
 
-- **VALIDADO en Windows (2026-10-07)**: primer diálogo (módulo 12) — texto correcto, respuesta al input
-  y cierre de la caja (comparado con la nativa). `HH_DLG_KEEP_ORIGINAL=1` ahora conserva texto **y caja**
-  nativos; con `HH_DLG_DY=-64` se ven ambas (ver §9.7 de la nota).
+- **VALIDADO en Windows (2026-10-08)**: primer diálogo (módulo 12) en **normal** y en **comparación**
+  (`HH_DLG_DY=-64 HH_DLG_KEEP_ORIGINAL=1`), con **mando y teclado**: texto correcto, **input** (1ª
+  pulsación completa / soltar / 2ª avanza; avanzan juntos en comparación), cierre de la caja y **una
+  sola flecha** (la nativa suprimida). Overlay **integrado en `main`**.
 - **Pendiente de repaso visual**: resto del juego — mod17 (m28 vs m29 con traducciones distintas; m33
   "divertido, Johnny Slater!"; textos largos completos) y el resto de módulos.
-- `ca.txt` generado; pendiente su validación visual.
+- `ca.txt` generado; pendiente su validación visual en el juego.
 
 Bug ya corregido (no reintroducir): el opcode de fin podía **compartir palabra** con el último carácter
 (`A1A9FA00` = `?` + fin) y se perdía el carácter. Arreglado en `hh_p1800c` (emitir la mitad no-fin
@@ -80,13 +82,41 @@ Variables (tabla completa: nota `2026-10-07-experimento-overlay-dialogo.md` §9.
 `HH_DLG_TYPE_VI`, `HH_DLG_ARROW`, `HH_DLG_BLINK_FADE_MS/HOLD_MS/OFF_MS`, `HH_OVERLAY`.
 Los hooks **funcionales** del overlay están **siempre** activos; `HH_DLG_PROBE` solo añade sondas y logs.
 
-## La otra tarea (en `main`) — Traducir el diálogo (es + ca)
+## TAREA 2 — Continuar la traducción del diálogo (es + ca) *(después de la Tarea 1, en rama nueva)*
 
-**Pipeline: `docs/traduccion.md`**; detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
-Cobertura: solo-diálogo = 27 escenas / **872 mensajes / 2173 líneas**. Hecho: módulos **12, 13, 14,
-16, 17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). Pendiente: 18, 19, 20, 21, 26,
-28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27. (`main` **4 commits** por delante de
-`origin/main`: 3 de traducción + el merge del overlay; sin push.)
+**Guía: `docs/traduccion.md`** (pipeline y reglas); detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+
+Cobertura (solo-diálogo): **27 escenas / 872 mensajes / 2173 líneas**. Hecho: módulos **12, 13, 14,
+16, 17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). **Pendiente**: 18, 19, 20, 21, 26,
+28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27.
+
+Fuentes y ficheros:
+- **`assets/dialogos.txt`** = referencia editable EN/ES/CA por módulo y `[mNN]` (alinea 1:1 con los
+  mensajes de la ROM). `ES (tú)`/`CA (tú)` = versión **larga** (la que no cabía); `ES aplicado:` = la
+  corta que sí cabía. **OJO**: puede tener valores **mezclados EN/ES** (p. ej. `[m9]`); la tabla
+  **por-línea** (`es.txt`/`ca.txt`) es la autoritativa.
+- **`assets/lang/es.txt` / `ca.txt`** = tablas de runtime (**clave = línea inglesa**) + una **sección
+  final de MENSAJES** (clave = mensaje inglés completo; valor con los saltos "baked" `\n`) que usa el
+  **overlay**.
+- Herramientas (`tools/text/`): `extract_dialogues.py` (mensajes/líneas EN con offsets),
+  `build_dialogue_messages.py` (genera la sección de MENSAJES; **`COVERED` está hardcodeado** a
+  `(12,13,14,16,17)` → **añadir cada módulo nuevo**), `check_dialogue_fit.py` (presupuesto/cobertura),
+  `check_translations.py` (claves/formato).
+
+Flujo por módulo nuevo:
+1. `python3 tools/text/extract_dialogues.py --module <N>` (mensajes/líneas EN).
+2. Traducir **EN→ES→CA**; escribir cada línea en `assets/lang/es.txt`/`ca.txt` (**clave = línea inglesa
+   exacta**, con espacios extremos/dobles tal cual) y, si alguna **no cabe** en el presupuesto A+, la
+   versión **larga** en `assets/dialogos.txt` como `ES (tú)`/`CA (tú)`.
+3. Añadir `<N>` a `COVERED` en `build_dialogue_messages.py`; ejecutar
+   `python3 tools/text/build_dialogue_messages.py --lang es` y `--lang ca` (idempotente; **no toca menús**).
+4. Validar: `check_dialogue_fit.py --lang es|ca`, `check_translations.py [--lang ca]`, `docs_index.py --check`.
+5. **Validación visual en Windows** (mantenedor): overlay normal; y comparar con
+   `HH_DLG_DY=-64 HH_DLG_KEEP_ORIGINAL=1`.
+
+Reglas (`docs/traduccion.md`): clave exacta; presupuesto = suma de chars del **mensaje inglés**; ancho
+de caja ~**30-32 chars/línea**, ~4 líneas; **nombres propios** según la línea oficial (p. ej.
+`Gargatuan` se queda); ante dudas (nombres/términos/tuteo): **preguntar al mantenedor**.
 
 ## Integración en `main` (squash + tag)
 
@@ -97,11 +127,28 @@ en el **tag `exp/overlay-dialogo`**; las ramas `experimento-overlay-dialogo`, `o
 squash, git no ve la rama vieja como fusionada). Detalle del proceso: nota
 `2026-10-07-experimento-overlay-dialogo.md` **§9.8**.
 
+## TAREA 1 ✅ — Fix: subtítulos de la intro al SKIPEAR (salían en el gameplay) — **HECHO, en `main`**
+
+**HECHO y validado en Windows (2026-10-08).** Causa: el skip de subtítulos solo se evaluaba con la
+secuencia **activa** (`g_active`); al skipear antes del ancla estaba **armada** (`g_pending`) → la
+pulsación no cancelaba y el ancla (2.ª oleada de cargas, ya en gameplay) activaba la secuencia allí.
+
+Fix en `src/subsystems/subtitles.cpp`: (1) el flanco de skip se evalúa **también armada** (`g_pending
+|| g_active`; armada solo cuenta tras ver la escena 0x104, `g_scene_seen`); (2) `begin()` **siembra**
+el flanco (`g_seed_skip`) para no confundir la pulsación de EMPEZAR PARTIDA (y se quitó el seed del
+ancla); (3) **`kSkipMask` = solo START** (`0x1000`): **A/J ya NO cancelan** los subtítulos, **START/
+ENTER** sí (saltan la cinemática y cancelan a la vez). No consume input. Traza: `[subs] skip
+(armada=… activa=… btn=…)` con `HH_SUB_TRACE=1`.
+
+Descartado: `stop()` al salir de la escena 0x104 (depende de que 0x104 no cambie en ~5,6 min de
+cinemática; arriesgaba cortar el prólogo normal). Detalle: `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
+
 ## Diferidos / aparte
 
 - **JA** (juego + intro + final): **POSPUESTO** (requiere ROM JP). Menú JA en kana, deshabilitado.
 - **fr/de** de los subtítulos de la intro: sin revisar. **Subtítulos del final**: diferidos.
-- **BUG aparte**: subtítulos de la **intro al skipear** (siguen saliendo al entrar al gameplay).
+- **Repaso visual del resto del juego** (overlay del diálogo): mod17 (m28/m29 con traducciones
+  distintas, m33, textos largos) y demás módulos.
 
 ## Pitfalls (NO repetir)
 

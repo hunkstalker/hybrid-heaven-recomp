@@ -437,7 +437,9 @@ float g_last_max_w = -1.0f;   // último ancho usado (para detectar el cambio de
 std::vector<std::vector<std::string>> g_pages;
 
 constexpr int kMaxSubtitleLines = 3;   // líneas por pantalla antes de paginar
-constexpr uint16_t kSkipMask = 0x8000u /*A*/ | 0x1000u /*START*/;
+// El skip de la cinemática es SOLO START (mando) / ENTER (teclado). A (mando) / J (teclado) NO debe
+// cancelar los subtítulos (lo pidió el mantenedor: A/J no salta la intro).
+constexpr uint16_t kSkipMask = 0x1000u /*START*/;
 
 void hide() {
     if (!g_published.empty()) {
@@ -494,6 +496,9 @@ void begin(const std::string& name) {
     g_load_vi = 0;
     g_active = false;
     g_published.clear();
+    // Siembra el flanco de skip: la pulsación que abrió la partida (EMPEZAR) no debe cancelar los
+    // subtítulos, pero una pulsación POSTERIOR sí (también mientras está ARMADA; ver `tick`).
+    g_seed_skip = true;
     if (s.trace) {
         hh::log("[subs] begin '%s' ARMADO (press vi=%llu, escena objetivo=0x%04X)\n", name.c_str(),
                 static_cast<unsigned long long>(g_press_vi), static_cast<unsigned>(g_target_scene));
@@ -544,6 +549,33 @@ void tick() {
     State& s = state();
     if (!s.enabled) return;
 
+    // Skip: flanco de START/ENTER -> cancelar la secuencia (la cinemática se salta). Se evalúa
+    // TAMBIÉN mientras está ARMADA (pendiente del ancla), no solo activa: la misma pulsación que
+    // salta la intro debe cancelar los subtítulos. Si solo se evaluara con la secuencia activa, la
+    // pulsación de skip se perdería durante el armado y el ancla (2.ª oleada de cargas, ya en
+    // gameplay) activaría la secuencia en el gameplay. Mientras está armada solo cuenta tras ver la
+    // escena del prólogo (`g_scene_seen`), para no confundir la navegación de menús; la pulsación que
+    // abrió la partida se descarta porque `begin()` siembra el flanco. No consume el input (usa la
+    // máscara cruda `hh_input_buttons_now()`): el juego necesita START para saltar la cinemática.
+    if (g_pending || g_active) {
+        const uint16_t now = hh_input_buttons_now();
+        if (g_seed_skip) {
+            g_prev_btn = now;
+            g_seed_skip = false;
+        } else {
+            const uint16_t edges = static_cast<uint16_t>(now & ~g_prev_btn);
+            g_prev_btn = now;
+            if ((edges & kSkipMask) != 0 && (g_active || g_scene_seen)) {
+                if (s.trace) {
+                    hh::log("[subs] skip (armada=%d activa=%d btn=0x%04X)\n", g_pending ? 1 : 0,
+                            g_active ? 1 : 0, static_cast<unsigned>(edges));
+                }
+                stop();
+                return;
+            }
+        }
+    }
+
     // Ancla diferida: al terminar la 2.ª oleada de cargas (escena de contenido ~ campanada).
     if (g_pending && g_scene_seen && g_content_wave) {
         const uint64_t vi = hh_get_vi_count();
@@ -551,7 +583,6 @@ void tick() {
             g_anchor_vi = vi;
             g_active = true;
             g_pending = false;
-            g_seed_skip = true;
             g_published.clear();
             if (s.trace) {
                 const long off_ms = (g_press_vi != 0 && g_anchor_vi > g_press_vi)
@@ -563,21 +594,6 @@ void tick() {
         }
     }
     if (!g_active) return;
-
-    // Skip: flanco de A/START durante la secuencia -> cancelar (la cinemática se salta).
-    const uint16_t now = hh_input_buttons_now();
-    if (g_seed_skip) {
-        g_prev_btn = now;
-        g_seed_skip = false;
-    } else {
-        const uint16_t edges = static_cast<uint16_t>(now & ~g_prev_btn);
-        g_prev_btn = now;
-        if (edges & kSkipMask) {
-            if (s.trace) hh::log("[subs] skip (btn=0x%04X)\n", static_cast<unsigned>(edges));
-            stop();
-            return;
-        }
-    }
 
     const uint64_t vi = hh_get_vi_count();
     long elapsed_ms =

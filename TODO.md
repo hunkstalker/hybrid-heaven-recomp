@@ -64,9 +64,6 @@
   **final** (misma arquitectura; **diferido**: el mantenedor no puede validar sin llegar al final del
   juego) y los **diálogos del gameplay** (trabajo mayor; validarán visualmente `œ/Œ/Ÿ`). Arquitectura y
   herramientas: `notes/2026-10-06-subtitulos-intro.md`.
-  - [ ] **BUG (2026-10-06, reportado por el mantenedor)**: al **skippear la intro** no se desactivan los
-    subtítulos; entras al gameplay y **siguen saliendo**. Revisar el detector de skip / fin de
-    cinemática en `hh::subtitles` (no desarma la capa al saltar).
 
 - [•] **[ÉPICA] Desbloquear FPS / interpolación fiel (abierta 2026-10-02; **MERGEADA en `main`
   2026-10-04**)**: presentar a alta tasa **sin artefactos**. **Resueltos**: **#6** (aura del jefe, gate

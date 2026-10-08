@@ -4,6 +4,15 @@
 > navegable; el detalle/evidencia está en `notes/` y `docs/`. No se edita para "actualizar": si algo se
 > reabre, vuelve a `TODO.md`.
 
+## 2026-10-08
+
+- **Fix: subtítulos de la intro al skipear (saltaban al gameplay) — HECHO y validado en Windows.** El
+  skip (solo **START/ENTER**, no A/J) ahora se evalúa **también con la secuencia armada** (`g_pending`,
+  no solo activa), con el flanco **sembrado en `begin()`**; así la misma pulsación que salta la
+  cinemática cancela los subtítulos y no reaparecen en el gameplay. `kSkipMask` = solo START (`0x1000`;
+  **A/J ya no cancelan**). Fichero: `src/subsystems/subtitles.cpp`. Nota:
+  `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
+
 ## 2026-10-06
 
 - **Subtítulos de la intro/prólogo (rama `subtitulos-intro`, mergeada a `main`) — HECHO y validado

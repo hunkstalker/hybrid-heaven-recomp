@@ -2,7 +2,7 @@
 
 > **Fuente de verdad del contexto y el estado.** Mantenerlo corto (≈1-2 pantallas).
 > Tareas → `TODO.md`. Arquitectura y decisiones → `docs/architecture.md` + `docs/adr/`.
-> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-07**.
+> Histórico y evidencia → `notes/` (no editar). Última actualización: **2026-10-08**.
 
 **Estado (2026-10-04)**: `main` = **v0.6.2** (release publicada) + **fix de input** (2026-10-04,
 **validado en Windows**). Dos síntomas: (1) al confirmar `CONTINUAR` con A/START aún pulsada se cargaba
@@ -218,6 +218,10 @@ commits `2795669`/`b9e09a3`/`d1a1b3b`/`ed49215`/`61c2027`/`8edcd8d`; traduccione
 en Windows**; **extras >U+00FF (`œ/Œ/Ÿ`, `ł/Ł/ś/Ś`)** en banda aparte del atlas + lookup por codepoint
 (headless OK). **Diferidos**: subtítulos del **final** (no validable sin llegar al final del juego) y
 diálogos del **gameplay**.
+**Fix subtítulos intro al skipear (HECHO y validado en Windows, 2026-10-08)**: el skip (**solo
+START/ENTER**) se evalúa también con la secuencia **armada** (`g_pending`), no solo activa → la
+pulsación que salta la cinemática cancela los subtítulos y no reaparecen en el gameplay; **A/J ya no
+los cancelan**. Detalle: `notes/2026-10-08-fix-subtitulos-intro-skip.md`.
 **Traducción del diálogo in-game (motor HECHO y validado en Windows, 2026-10-06)**: el texto del diálogo
 va **inline en "nodos"** EUC-JP y lo dibuja **el juego**; se sustituye en runtime
 (`src/subsystems/text.cpp`) con **A+ (reparto por mensaje)** y los acentos se inyectan por **color4**
