@@ -6,6 +6,10 @@ caracteres traducidos no puede superar la del mensaje ingles (si no, cae a la ru
 las lineas que no caben se dejan en ingles). Este util replica el criterio, avisa de los mensajes
 que NO caben y da la cobertura.
 
+NOTA (2026-10-09): este presupuesto solo afecta a la ruta A+ **nativa** (fallback y
+`HH_DLG_KEEP_ORIGINAL=1`). El **overlay propio del dialogo** (lo que se ve) NO tiene limite de
+longitud, asi que "no cabe" aqui es INFORMATIVO: no obliga a acortar la traduccion mostrada.
+
 Uso:
     python3 tools/text/check_dialogue_fit.py --lang es
     python3 tools/text/check_dialogue_fit.py --lang ca --rom build/windows/bin/Release/hh.us.z64

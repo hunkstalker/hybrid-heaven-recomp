@@ -49,9 +49,12 @@ RT64 en gameplay** (el gate de C768 comparaba `ctx->r5`, basura) → gate por **
 **parón restante es A1 (tick lógico)** (slips a 3 VI ~1-2/s), visible solo interpolado. Doc reusable
 `docs/interpolacion-pairing.md`; detalle `notes/2026-10-05-fase-b-cobertura-sesiones.md`.
 
-**Traducción del diálogo (es/ca) — EN CURSO (2026-10-07)**: motor A+ + color4 validado; contenido
-**≈ 30 %** (módulos **12, 13, 14, 16, 17** completos; **27** parcial). Normativa:
-`docs/traduccion.md` (ADR `0016`); detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+**Traducción del diálogo (es/ca) — EN CURSO (2026-10-09)**: motor A+ + color4 validado; contenido
+**≈ 30 %** (módulos **12, 13, 14, 16, 17** completos; **27** parcial; **18** volcado, pendiente validar
+en Windows). Método (tabla EN/ES/CA, registro frase a frase, cotejo DE/FR): normativa
+`docs/traduccion.md` §5.1; decisión `Navigator`→Navegante/Navegant. Detalle:
+`notes/2026-10-09-traduccion-dialogos-reglas-y-mod18.md` y
+`notes/2026-10-07-dialogos-traduccion-es-ca.md` (ADR `0016`).
 
 **Overlay propio del diálogo (en `main`, 2026-10-07)**: capa propia
 (`set_dialogue`) que sustituye al texto del juego para quitar el límite de líneas/caracteres.

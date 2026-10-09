@@ -1163,3 +1163,265 @@ CA (tú): No serà tan fàcil com quan et vas enfrontar a aquest estúpid monstr
    ⚠ NO CABE (ES +14, CA +11) [presupuesto EN=109]
 ES aplicado: ¡No será tan fácil / como cuando venciste / a ese estúpido monstruo! / Ahora probaré tu fuerza. ¡Vamos!
 CA aplicado: No serà tan fàcil com / quan et vas enfrontar / a aquest estúpid monstre! / Ara provaré la teva força. Som-hi!
+
+
+
+######################################################################
+# MÓDULO 18 — Gargatuans (escondite / el Navegante)
+######################################################################
+
+
+[m0]
+EN: The President is becoming / more aware.
+ES (tú): El Presidente va recobrando la consciencia.
+CA (tú): El President va recobrant la consciència.
+
+[m1]
+EN: It won't be long until he / recovers completely.
+ES (tú): No tardará en recuperarse del todo.
+CA (tú): No trigarà a recuperar-se del tot.
+
+[m2]
+EN: Our comrades are hiding here. / You're our only hope.
+ES (tú): Nuestros compañeros se esconden aquí. Eres nuestra única esperanza.
+CA (tú): Els nostres companys s'amaguen aquí. Ets la nostra única esperança.
+
+[m3]
+EN: Johnny, most of us are / in hiding here.
+ES (tú): Johnny, la mayoría nos escondemos aquí.
+CA (tú): Johnny, la majoria ens amaguem aquí.
+
+[m4]
+EN: You can think of this as our / main hideout.
+ES (tú): Puedes considerar esto nuestra guarida principal.
+CA (tú): Pots considerar això el nostre cau principal.
+
+[m5]
+EN: All of us know about you. / You're our only hope.
+ES (tú): Todos sabemos de ti. Eres nuestra única esperanza.
+CA (tú): Tots sabem de tu. Ets la nostra única esperança.
+
+[m6]
+EN: You probably won't be able to / tell us apart individually, / but if you meet a Gargatuan, / you can consider him an ally.
+ES (tú): Seguramente no puedas distinguirnos individualmente, pero si te encuentras con un Gargatuan, considéralo un aliado.
+CA (tú): Segurament no ens puguis distingir individualment, però si et trobes amb un Gargatuan, considera'l un aliat.
+
+[m7]
+EN: The only exception is the / Traitor, / who is called the Master by the / enemy...
+ES (tú): La única excepción es el Traidor, a quien el enemigo llama el Maestro...
+CA (tú): L'única excepció és el Traïdor, a qui l'enemic anomena el Mestre...
+
+[m8]
+EN: We feel bad for not fighting / with you.  Only if I had / more strength... Then I / could share your suffering.
+ES (tú): Nos sabe mal no luchar contigo. Si al menos tuviera más fuerza... Entonces podría compartir tu sufrimiento.
+CA (tú): Ens sap greu no lluitar amb tu. Si almenys tingués més força... Aleshores podria compartir el teu patiment.
+
+[m9]
+EN: Johnny,
+ES (tú): Johnny,
+CA (tú): Johnny,
+
+[m10]
+EN: Any time wasted now is / critical for you humans.
+ES (tú): Cualquier tiempo perdido ahora es crítico para vosotros, los humanos.
+CA (tú): Qualsevol temps perdut ara és crític per a vosaltres, els humans.
+
+[m11]
+EN: The enemies' fake President / is about to take total / control...
+ES (tú): El falso Presidente de los enemigos está a punto de hacerse con el control total...
+CA (tú): El fals President dels enemics està a punt de fer-se amb el control total...
+
+[m12]
+EN: The enemy has the power to / dictate at will the / executive officer of a / superpower nation that has
+ES (tú): El enemigo tiene el poder de imponer a su antojo al máximo dirigente de una superpotencia que tiene
+CA (tú): L'enemic té el poder d'imposar al seu antull el màxim dirigent d'una superpotència que té
+
+[m13]
+EN: huge influence over the / political and military / state of the human race.
+ES (tú): una enorme influencia sobre la situación política y militar de la raza humana.
+CA (tú): una enorme influència sobre la situació política i militar de la raça humana.
+
+[m14]
+EN: There is not much time left. / It may be that the planet's / fate is in your hands alone. / Johnny, we're counting on you.
+ES (tú): No queda mucho tiempo. Puede que el destino del planeta esté solo en tus manos. Johnny, contamos contigo.
+CA (tú): No queda gaire temps. Potser el destí del planeta estigui només a les teves mans. Johnny, comptem amb tu.
+
+[m15]
+EN: Just staying alive here is not / going to improve the situation.
+ES (tú): Solo con seguir vivo aquí no vas a mejorar la situación.
+CA (tú): Només amb seguir viu aquí no milloraràs la situació.
+
+[m16]
+EN: We are running out of time... / It's all up to you.
+ES (tú): Se nos acaba el tiempo... Todo depende de ti.
+CA (tú): Se'ns acaba el temps... Tot depèn de tu.
+
+[m17]
+EN: This subterranean shelter, / now a thing of evil, was once a / planetary stay facility / that equipped our starship.
+ES (tú): Este refugio subterráneo, ahora algo maléfico, fue en su día una instalación planetaria de estancia que equipaba nuestra nave.
+CA (tú): Aquest refugi subterrani, ara una cosa malèfica, va ser en el seu moment una instal·lació planetària d'estada que equipava la nostra nau.
+
+[m18]
+EN: Our ship has the capability / and the durability to wait / hundreds of years for rescue / should it ever meet with / misadventure.
+ES (tú): Nuestra nave tiene la capacidad y la resistencia para esperar cientos de años a que la rescaten si alguna vez sufre un percance.
+CA (tú): La nostra nau té la capacitat i la resistència per esperar centenars d'anys que la rescatin si mai pateix un contratemps.
+
+[m19]
+EN: But ironically, this superb / facility happened to be used / in the worst way...
+ES (tú): Pero, irónicamente, esta magnífica instalación acabó usándose de la peor manera...
+CA (tú): Però, irònicament, aquesta magnífica instal·lació va acabar fent-se servir de la pitjor manera...
+
+[m20]
+EN: Our technology has / become a tool for invasion. / We can't tell you how sorry / we are.
+ES (tú): Nuestra tecnología se ha convertido en un instrumento de invasión. No sabes cuánto lo sentimos.
+CA (tú): La nostra tecnologia s'ha convertit en un instrument d'invasió. No saps quant ho sentim.
+
+[m21]
+EN: This is... how can I put it... / really very painful...
+ES (tú): Esto es... cómo decirlo... realmente muy doloroso...
+CA (tú): Això és... com dir-ho... realment molt dolorós...
+
+[m22]
+EN: There is one way to destroy / this subterranean shelter- / All you have to do is / reactivate this currently
+ES (tú): Hay una forma de destruir este refugio subterráneo: lo único que hay que hacer es reactivar
+CA (tú): Hi ha una manera de destruir aquest refugi subterrani: l'única cosa que cal fer és reactivar
+
+[m23]
+EN: nonfunctioning starship of / ours.
+ES (tú): nuestra nave espacial, que ahora mismo no funciona.
+CA (tú): la nostra nau espacial, que ara mateix no funciona.
+
+[m24]
+EN: We need the navigator to / start up the ship. / But the Navigator was taken / away by the enemy.
+ES (tú): Necesitamos al Navegante para poner en marcha la nave. Pero el enemigo se llevó al Navegante.
+CA (tú): Necessitem el Navegant per posar en marxa la nau. Però l'enemic es va endur el Navegant.
+
+[m25]
+EN: The Navigator is our starship's / controlling brain.
+ES (tú): El Navegante es el cerebro de control de nuestra nave.
+CA (tú): El Navegant és el cervell de control de la nostra nau.
+
+[m26]
+EN: Unless we free the Navigator / and bring him back to the
+ES (tú): A menos que liberemos al Navegante y lo traigamos de vuelta a la
+CA (tú): Llevat que alliberem el Navegant i el tornem a la
+
+[m27]
+EN: starship, the ship cannot be / activated.
+ES (tú): nave, esta no podrá activarse.
+CA (tú): nau, aquesta no es podrà activar.
+
+[m28]
+EN: If only we could get the / Navigator back, even we have a / chance of reversing this / situation, but we lack the
+ES (tú): Si pudiéramos recuperar al Navegante, hasta nosotros tendríamos la oportunidad de revertir esta situación, pero nos falta la
+CA (tú): Si poguéssim recuperar el Navegant, fins i tot nosaltres tindríem l'oportunitat de revertir aquesta situació, però ens falta la
+
+[m29]
+EN: physical capability to do / this...
+ES (tú): capacidad física para hacerlo...
+CA (tú): capacitat física per fer-ho...
+
+[m30]
+EN: Navigator was taken away / from the ship by the traitor.
+ES (tú): El Traidor se llevó al Navegante de la nave.
+CA (tú): El Traïdor es va endur el Navegant de la nau.
+
+[m31]
+EN: He is now imprisoned in the / deepest location in the / subterranean shelter.
+ES (tú): Ahora está prisionero en el lugar más profundo del refugio subterráneo.
+CA (tú): Ara està empresonat al lloc més profund del refugi subterrani.
+
+[m32]
+EN: Johnny, I'm sorry I can't / help you with this. / I'm counting on you. / Come back safely.
+ES (tú): Johnny, siento no poder ayudarte con esto. Cuento contigo. Vuelve sano y salvo.
+CA (tú): Johnny, sento no poder ajudar-te amb això. Compto amb tu. Torna sa i estalvi.
+
+[m33]
+EN: Johnny, we're counting on you.
+ES (tú): Johnny, contamos contigo.
+CA (tú): Johnny, comptem amb tu.
+
+[m34]
+EN: Johnny, we will make sure / to protect the President.
+ES (tú): Johnny, nos aseguraremos de proteger al Presidente.
+CA (tú): Johnny, ens assegurarem de protegir el President.
+
+[m35]
+EN: We trust you and will wait / for you.
+ES (tú): Confiamos en ti y te esperaremos.
+CA (tú): Confiem en tu i t'esperarem.
+
+[m36]
+EN: We trust your powers, / your strength, / and will keep on waiting.
+ES (tú): Confiamos en tus poderes, en tu fuerza, y seguiremos esperando.
+CA (tú): Confiem en els teus poders, en la teva força, i seguirem esperant.
+
+[m37]
+EN: Are you going Johnny? / The President will be safe, / we promise.
+ES (tú): ¿Te vas, Johnny? El Presidente estará a salvo, te lo prometemos.
+CA (tú): Te'n vas, Johnny? El President estarà fora de perill, t'ho prometem.
+
+[m38]
+EN: We may be powerless, but we'll / do it any way we can.
+ES (tú): Puede que no tengamos fuerza, pero lo haremos como podamos.
+CA (tú): Potser no tinguem força, però ho farem com puguem.
+
+[m39]
+EN: Johnny, I'll do my best too.
+ES (tú): Johnny, yo también daré lo mejor de mí.
+CA (tú): Johnny, jo també donaré el millor de mi.
+
+[m40]
+EN: One of our people is missing. / But even if you see him / somewhere, I suppose / you won't be able to tell
+ES (tú): Falta uno de los nuestros. Pero aunque lo veas por ahí, supongo que no podrás distinguir
+CA (tú): Falta un dels nostres. Però encara que el vegis per aquí, suposo que no podràs distingir
+
+[m41]
+EN: who's who among all of us...
+ES (tú): quién es quién entre nosotros...
+CA (tú): qui és qui entre nosaltres...
+
+[m42]
+EN: There are those among us who / are fighting. The few brave / ones have left here.
+ES (tú): Hay algunos entre nosotros que están luchando. Los pocos valientes se han marchado de aquí.
+CA (tú): N'hi ha alguns entre nosaltres que estan lluitant. Els pocs valents han marxat d'aquí.
+
+[m43]
+EN: If you are heading to the / deeper levels of the shelter, / use this exit and go outside.
+ES (tú): Si te diriges a los niveles más profundos del refugio, usa esta salida y sal al exterior.
+CA (tú): Si et dirigeixes als nivells més profunds del refugi, fes servir aquesta sortida i surt a l'exterior.
+
+[m44]
+EN: I know it is quite narrow, / but bear with it until you get / out into a wider space.
+ES (tú): Sé que es bastante estrecho, pero aguanta hasta llegar a un espacio más amplio.
+CA (tú): Sé que és força estret, però aguanta fins a arribar a un espai més ampli.
+
+[m45]
+EN: Don't worry.  It's narrow, / but you'll get out right away.
+ES (tú): No te preocupes. Es estrecho, pero saldrás enseguida.
+CA (tú): No et preocupis. És estret, però sortiràs de seguida.
+
+[m46]
+EN: According to the information / from our comrades, the / enemies are strengthening / their disposition of security / devices to capture you.
+ES (tú): Según la información de nuestros compañeros, los enemigos están reforzando sus dispositivos de seguridad para capturarte.
+CA (tú): Segons la informació dels nostres companys, els enemics estan reforçant els seus dispositius de seguretat per capturar-te.
+
+[m47]
+EN: You make sure you be careful.
+ES (tú): Asegúrate de tener cuidado.
+CA (tú): Assegura't d'anar amb compte.
+
+[m48]
+EN: The enemies are getting / even more serious now.
+ES (tú): Los enemigos se están tomando esto aún más en serio.
+CA (tú): Els enemics s'ho estan prenent encara més seriosament.
+
+[m49]
+EN: You should expect even / tougher battles from / here on.
+ES (tú): A partir de ahora, prepárate para batallas aún más duras.
+CA (tú): A partir d'ara, prepara't per a batalles encara més dures.
+
+[m50]
+EN: I wish you the best.
+ES (tú): Te deseo lo mejor.
+CA (tú): Et desitjo el millor.

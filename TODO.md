@@ -46,14 +46,22 @@
   `por ahí.` Detalle: `notes/2026-10-06-color4-acentos-dialogo.md`.
   **Pendiente (CONTENIDO — la tarea grande)**: **traducir TODO el diálogo a es + ca**. Pipeline y
   reglas: **`docs/traduccion.md`** (ADR `0016`). Herramientas: `tools/text/extract_dialogues.py`
-  (extraer) + `tools/text/check_dialogue_fit.py` (validar presupuesto/cobertura). Referencia DE/FR de
+  (extraer) + `tools/text/check_dialogue_fit.py` (cobertura; presupuesto A+ = informativo). Referencia DE/FR de
   la EU: `work/dialogues/us_de_fr.tsv`. **Hechos (2026-10-07)**: módulos **12, 13, 14, 16, 17**
-  completos (es + ca); **parcial 27** (46/109). **Cobertura: 262/872 mensajes ≈ 30 %** (solo-diálogo;
+  completos (es + ca); **parcial 27** (46/109). **18 volcado (2026-10-09)**: 51 mensajes a
+  `es.txt`/`ca.txt` + `dialogos.txt` + build; pendiente validación visual en Windows.
+  **Cobertura: 262/872 mensajes ≈ 30 %** (solo-diálogo;
   2173 líneas únicas). **Fix (2026-10-07)**: recorte de espacios extremos de la clave en
   `translate_euc()` (`src/subsystems/text.cpp`) y en el validador (26 líneas del alcance no casaban).
   Textos del mantenedor volcados en `/app/dialogos.txt` (fuera del repo). **Ante dudas (nombres
   propios, neologismos, convenciones): PREGUNTAR al mantenedor** — p. ej. **`Gargatuan`** se mantiene
   (línea oficial). Detalle: `notes/2026-10-07-dialogos-traduccion-es-ca.md`.
+  **Reglas de la localización (mantenedor, 2026-10-09)**: (1) **método**: presentar antes la tabla
+  **EN | ES | CA a nivel de MENSAJE** y esperar revisión; (2) **registro**: `tú`/`usted` se decide
+  **frase a frase según el original**, no por módulo, con el **inglés como fuente principal** y
+  **de/fr de la ROM EU como referencias de contexto** (`Du/Sie`, `tu/vous`); (3) **cotejo**: contrastar
+  **cada mensaje con DE/FR** de la ROM EU (`work/dialogues/us_de_fr.tsv`) **antes de traducir** para
+  desambiguar matices; el inglés manda y DE/FR no alinean 1:1.
   **Aparte (otra tarea)**: bug de subtítulos de la intro al skipear.
   Detalle: `notes/2026-09-23-spike-traduccion-charset-y-sustitucion.md`,
   `notes/2026-09-23-a1-sistema-idiomas-y-cambio-en-vivo.md`,

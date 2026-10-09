@@ -34,7 +34,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 
 # módulos con correcciones del mantenedor en assets/dialogos.txt (verificados 1:1 con la ROM)
-COVERED = (12, 13, 14, 16, 17)
+COVERED = (12, 13, 14, 16, 17, 18)
 
 
 def load_extractor():

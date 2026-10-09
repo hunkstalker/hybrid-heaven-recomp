@@ -17,36 +17,51 @@
 **Guía: `docs/traduccion.md`** (pipeline y reglas).
 
 Cobertura (solo-diálogo): **27 escenas / 872 mensajes / 2173 líneas**. Hecho: módulos **12, 13, 14, 16,
-17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). **Pendiente**: 18, 19, 20, 21, 26, 28-33,
-37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27.
+17** (es+ca) → **262/872 ≈ 30 %**. Parcial: **27** (46/109). **18 volcado (2026-10-09)**: 51 mensajes a
+`es.txt`/`ca.txt` (per-line) + `dialogos.txt` (`(tú)` completos) + build; **pendiente validación visual
+en Windows**. **Pendiente**: 19, 20, 21, 26, 28-33, 37, 38, 40, 42-45, 47, 48, 50, 52, 53 y terminar 27.
 
 Fuentes y ficheros:
 - **`assets/dialogos.txt`** = referencia editable EN/ES/CA por módulo y `[mNN]` (alinea 1:1 con los
-  mensajes de la ROM). `ES (tú)`/`CA (tú)` = versión **larga** (la que no cabía); `ES aplicado:` = la
-  corta que sí cabía. **OJO**: puede tener valores **mezclados EN/ES** (p. ej. `[m9]`); la tabla
-  **por-línea** (`es.txt`/`ca.txt`) es la autoritativa.
+  mensajes de la ROM). `ES (tú)`/`CA (tú)` = versión **completa** (la que **se muestra** en el overlay,
+  sin límite); `ES aplicado:` = versión corta **legada** (render nativo A+). **OJO**: puede tener valores
+  **mezclados EN/ES** (p. ej. `[m9]`); la tabla **por-línea** (`es.txt`/`ca.txt`) es la autoritativa.
 - **`assets/lang/es.txt` / `ca.txt`** = tablas de runtime (**clave = línea inglesa**) + una **sección
   final de MENSAJES** (clave = mensaje inglés completo; valor con saltos "baked" `\n`) que usa el
   **overlay**.
 - Herramientas (`tools/text/`): `extract_dialogues.py` (mensajes/líneas EN con offsets),
   `build_dialogue_messages.py` (genera la sección de MENSAJES; **`COVERED` está hardcodeado** a
-  `(12,13,14,16,17)` → **añadir cada módulo nuevo**), `check_dialogue_fit.py` (presupuesto/cobertura),
-  `check_translations.py` (claves/formato).
+  `(12,13,14,16,17,18)` → **añadir cada módulo nuevo**), `check_dialogue_fit.py` (cobertura; presupuesto
+  A+ = informativo), `check_translations.py` (claves/formato).
 
 Flujo por módulo nuevo:
 1. `python3 tools/text/extract_dialogues.py --module <N>` (mensajes/líneas EN).
 2. Traducir **EN→ES→CA**; escribir cada línea en `assets/lang/es.txt`/`ca.txt` (**clave = línea inglesa
-   exacta**, con espacios extremos/dobles tal cual) y, si alguna **no cabe** en el presupuesto A+, la
-   versión **larga** en `assets/dialogos.txt` como `ES (tú)`/`CA (tú)`.
+   exacta**, con espacios extremos/dobles tal cual) y la versión **completa** del mensaje en
+   `assets/dialogos.txt` como `ES (tú)`/`CA (tú)` (**sin límite de caracteres**; `aplicado` no obligatorio).
 3. Añadir `<N>` a `COVERED` en `build_dialogue_messages.py`; ejecutar
    `python3 tools/text/build_dialogue_messages.py --lang es` y `--lang ca` (idempotente; **no toca menús**).
 4. Validar: `check_dialogue_fit.py --lang es|ca`, `check_translations.py [--lang ca]`, `docs_index.py --check`.
 5. **Validación visual en Windows** (mantenedor): overlay normal; y comparar con
    `HH_DLG_DY=-64 HH_DLG_KEEP_ORIGINAL=1`.
 
-Reglas (`docs/traduccion.md`): clave exacta; presupuesto = suma de chars del **mensaje inglés**; ancho
-de caja ~**30-32 chars/línea**, ~4 líneas; **nombres propios** según la línea oficial (p. ej. `Gargatuan`
-se queda); ante dudas (nombres/términos/tuteo): **preguntar al mantenedor**.
+Reglas (`docs/traduccion.md`): clave exacta; **sin límite de caracteres** (overlay) → traducir
+**completo, sin acortar**; ancho ~**30-32 chars/línea** (saltos `\n` inferidos); **nombres propios**
+según la línea oficial (p. ej. `Gargatuan` se queda); ante dudas (nombres/términos/tuteo): **preguntar
+al mantenedor**. (El **presupuesto A+** = suma de chars del mensaje inglés es **legado** del render
+nativo; `check_dialogue_fit.py` es informativo.)
+
+**Reglas de esta localización (mantenedor, 2026-10-09)**:
+- **Método**: antes de tocar ficheros, presentar la tabla **EN | ES | CA a nivel de MENSAJE** (EN =
+  mensaje inglés completo; ES/CA = traducción) para que el mantenedor la revise.
+- **Registro formal/informal** (`tú`/`usted`): se decide **frase a frase según el original**, no por
+  módulo. Fuente **principal = inglés**; **de/fr de la ROM EU = referencias de contexto** (codifican
+  `Du/Sie` y `tu/vous`). Trato directo, contracciones o `Johnny` a secas → **tú**; `please`/distancia/
+  respeto → **usted**.
+- **Cotejo con otros idiomas**: **antes de traducir**, contrastar cada mensaje con las versiones
+  **DE/FR de la ROM EU** (`work/dialogues/us_de_fr.tsv`) para desambiguar matices (p. ej. "becoming
+  more aware" = *reprend conscience* / *das Bewußtsein kommt zurück*). El **inglés manda**; DE/FR dan
+  contexto, no alinean 1:1 (el `--pair` fusiona/desplaza filas).
 
 ## Contexto del overlay del diálogo (ya en `main`)
 
